@@ -67,9 +67,9 @@ public class OpenViduLoadTest {
 	static String APP_URL = "http://localhost:8080/";
 	static int SESSIONS = 20;
 	static int USERS_SESSION = 7;
-	static int SECONDS_OF_WAIT = 30;
+	static int SECONDS_OF_WAIT = 40;
 	static int BROWSER_LAUNCH_INTERVAL = 2000;
-	static int BROWSER_POLL_INTERVAL = 250;
+	static int BROWSER_POLL_INTERVAL = 500;
 	static boolean REMOTE = false;
 
 	static BrowserProvider browserProvider;

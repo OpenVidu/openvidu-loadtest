@@ -24,3 +24,15 @@ The testing process for every client node will be:
 5. Wait for each one of the 6 remote videos to be playing (`videoPlaying` event). RECORD TIME
 6. Gather statistics. Each call to getStats over each RTCPeerConnection object (7 calls to getStats in total) will take place every second, n times (n=8 by default)
 7. Close browser
+
+System properties when running `mvn test` in `selenium-test/.`:
+
+- `OPENVIDU_SECRET`: secret of OpenVidu Server. Default value = `"MY_SECRET"`
+- `OPENVIDU_URL`: url of OpenVidu Server. Default value = `"https://localhost:4443/"`
+- `APP_URL`: url of the web application where to connect the browsers to perform the test. Default value = `"http://localhost:8080/"`
+- `SESSIONS`: upper limit of sessions. Default value = `20`
+- `USERS_SESSION`: number of users per session. Default value = `7`
+- `SECONDS_OF_WAIT`: timeout in seconds the test will wait for each group of OpenVidu events in each browser. Default value = `40`
+- `BROWSER_LAUNCH_INTERVAL`: time of wait in milliseconds between browser launches. Default value = `2000`
+- `BROWSER_POLL_INTERVAL`: . interval for polling events and webrtc stats from each browser. Default value = `500`
+- `REMOTE`: whether to use local web drivers or remote web drivers. Default value = `false`
