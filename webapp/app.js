@@ -53,24 +53,17 @@ function joinSession() {
 		document.getElementById('video-' + userId).outerHTML = "";
 	});
 
+	session.on("sessionDisconnected", event => {
+		document.querySelectorAll('.video-container').forEach(a => {
+			a.remove()
+		})
+	});
+
 	getToken().then(token => {
 		session.connect(token, USER_ID)
 			.then(() => {
 				var publisher = OV.initPublisher(insertPublisherContainer(), { resolution: "540x360", frameRate: 30, mirror: false });
-				document.getElementById('mute').onclick = (e) => {
-					event.target.innerText = event.target.innerText === 'Mute' ? 'Unmute' : 'Mute';
-					publisher.publishAudio(!publisher.stream.audioActive);
-					publisher.publishVideo(!publisher.stream.videoActive);
-				}
-				document.getElementById('unpublish').onclick = () => {
-					event.target.innerText = publisher.stream ? 'Unmute' : 'Mute';
-					publisher.publishAudio(!publisher.stream.audioActive);
-					publisher.publishVideo(!publisher.stream.videoActive);
-				}
-				document.getElementById('mute').onclick = () => {
-					publisher.publishAudio(!publisher.stream.audioActive);
-					publisher.publishVideo(!publisher.stream.videoActive);
-				}
+				setPublisherButtonsActions(publisher);
 				session.publish(publisher);
 			})
 			.catch(error => {
@@ -89,38 +82,71 @@ window.onbeforeunload = () => {
 };
 
 function insertPublisherContainer() {
-	var commonTagStyle = "background-color: #0088aa; color: white; font-size: 13px; font-weight: bold; padding: 1px 3px; border-radius: 3px; font-family: 'Arial'";
+	var commonTagStyle = "display: inline-block; cursor: pointer; background-color: #daae00; color: white; font-size: 13px; font-weight: bold; padding: 1px 3px; border-radius: 3px; font-family: 'Arial';";
 	var videoContainer = document.createElement('div');
 	videoContainer.id = 'video-publisher';
+	videoContainer.className = 'video-container';
 	videoContainer.setAttribute("style", "display: inline-block; margin: 5px 5px 0 0");
 	var infoContainer = document.createElement('div');
 	infoContainer.setAttribute("style", "display: flex; justify-content: space-between; margin-bottom: 3px");
 	var userId = document.createElement('div');
-	userId.setAttribute("style", commonTagStyle);
-	userId.innerText = 'publisher';
+	userId.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
+	userId.innerText = session.connection.data;
 	var mute = document.createElement('div');
 	mute.id = 'mute';
-	mute.setAttribute("style", "display: inline-block; " + commonTagStyle);
+	mute.setAttribute("style", commonTagStyle);
 	mute.innerText = 'Mute';
 	var unpublish = document.createElement('div');
 	unpublish.id = 'unpublish';
-	unpublish.setAttribute("style", "display: inline-block; " + commonTagStyle);
+	unpublish.setAttribute("style", commonTagStyle);
 	unpublish.innerText = 'Unpublish';
 	var leave = document.createElement('div');
 	leave.id = 'leave';
-	leave.setAttribute("style", "display: inline-block; " + commonTagStyle);
+	leave.setAttribute("style", commonTagStyle);
 	leave.innerText = 'Leave';
 	infoContainer.appendChild(userId);
 	infoContainer.appendChild(mute);
 	infoContainer.appendChild(unpublish);
 	infoContainer.appendChild(leave);
+	videoContainer.appendChild(infoContainer);
+	document.getElementById('local').appendChild(videoContainer);
 	return videoContainer;
+}
+
+function setPublisherButtonsActions(publisher) {
+	document.getElementById('mute').onclick = (e) => {
+		event.target.innerText = event.target.innerText === 'Mute' ? 'Unmute' : 'Mute';
+		publisher.publishAudio(!publisher.stream.audioActive);
+		publisher.publishVideo(!publisher.stream.videoActive);
+	}
+	document.getElementById('unpublish').onclick = () => {
+		if (event.target.innerText === 'Unpublish') {
+			session.unpublish(publisher);
+			event.target.innerText = 'Publish';
+		} else {
+			var elem = document.getElementById('video-publisher');
+			elem.parentNode.removeChild(elem);
+			var publisher2 = OV.initPublisher(insertPublisherContainer(), { resolution: "540x360", frameRate: 30, mirror: false });
+			setPublisherButtonsActions(publisher2);
+			session.publish(publisher2);
+			event.target.innerText = 'Unpublish';
+		}
+	}
+	document.getElementById('leave').onclick = () => {
+		session.disconnect();
+	}
+	publisher.on("streamDestroyed", e => {
+		if (e.reason !== 'unpublish') {
+			document.getElementById('video-publisher').outerHTML = "";
+		}
+	});
 }
 
 function insertSubscriberContainer(event) {
 	var commonTagStyle = "background-color: #0088aa; color: white; font-size: 13px; font-weight: bold; padding: 1px 3px; border-radius: 3px; font-family: 'Arial'";
 	var videoContainer = document.createElement('div');
 	videoContainer.id = 'video-' + event.stream.connection.data;
+	videoContainer.className = 'video-container';
 	videoContainer.setAttribute("style", "display: inline-block; margin: 5px 5px 0 0");
 	var infoContainer = document.createElement('div');
 	infoContainer.setAttribute("style", "display: flex; justify-content: space-between; margin-bottom: 3px");
