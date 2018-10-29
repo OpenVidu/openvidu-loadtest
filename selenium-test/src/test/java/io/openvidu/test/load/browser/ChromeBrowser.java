@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.test.e2e.browser;
+package io.openvidu.test.load.browser;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;

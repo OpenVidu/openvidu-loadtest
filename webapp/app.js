@@ -29,11 +29,15 @@ function joinSession() {
 	OV = new OpenVidu();
 	session = OV.initSession();
 
+	session.on("connectionCreated", event => {
+		appendEvent({ event: "connectionCreated", content: event.connection.connectionId });
+	});
+
 	session.on("streamCreated", event => {
-		appendEvent("streamCreated");
+		appendEvent({ event: "streamCreated", content: event.stream.streamId });
 		var subscriber = session.subscribe(event.stream, insertSubscriberContainer(event));
-		subscriber.on('videoPlaying', e => {
-			appendEvent("videoPlaying");
+		subscriber.on("streamPlaying", e => {
+			appendEvent({ event: "streamPlaying", content: event.stream.streamId });
 			var userId = event.stream.connection.data;
 			gatherStats(event.stream.getRTCPeerConnection(), userId);
 			rtcPeerConnectionStats[userId] = {
@@ -46,7 +50,7 @@ function joinSession() {
 	});
 
 	session.on("streamDestroyed", event => {
-		appendEvent("streamDestroyed");
+		appendEvent({ event: "streamDestroyed", content: event.stream.streamId });
 		var userId = event.stream.connection.data;
 		window.clearInterval(rtcPeerConnectionStats[userId].interval);
 		delete rtcPeerConnectionStats[userId];
@@ -54,6 +58,7 @@ function joinSession() {
 	});
 
 	session.on("sessionDisconnected", event => {
+		appendEvent({ event: "sessionDisconnected", content: session.connection.connectionId });
 		document.querySelectorAll('.video-container').forEach(a => {
 			a.remove()
 		})
@@ -135,7 +140,17 @@ function setPublisherButtonsActions(publisher) {
 	document.getElementById('leave').onclick = () => {
 		session.disconnect();
 	}
-	publisher.on("streamDestroyed", e => {
+	publisher.once("accessAllowed", e => {
+		appendEvent({ event: "accessAllowed", content: '' });
+	});
+	publisher.once("streamCreated", e => {
+		appendEvent({ event: "streamCreated", content: e.stream.streamId });
+	});
+	publisher.once("streamPlaying", e => {
+		appendEvent({ event: "streamPlaying", content: 'Publisher' });
+	});
+	publisher.once("streamDestroyed", e => {
+		appendEvent({ event: "streamDestroyed", content: e.stream.streamId });
 		if (e.reason !== 'unpublish') {
 			document.getElementById('video-publisher').outerHTML = "";
 		}
