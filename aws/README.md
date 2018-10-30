@@ -4,13 +4,13 @@ In this folder we provide the files for deploying and provisioning infraestructu
 
 ## Files
 
-`EC2Instance-ElastestBrowsers.yaml`: Cloudformation template will launch and configure and AWS EC2 instance ready to launch an Internet Browser (Google Chrome).
+`EC2Instance-ElastestBrowsers.yaml`: Cloudformation template will launch and configure an AWS EC2 instance ready to launch an Internet Browser (Google Chrome).
 
 `createAMI.sh`: Script to deploy the CloudFormation and building an Amazon Machine Image (AMI). You can use the AMI to launch several browsers.
 
 `browserProvider.sh`: Once you have an AMI with the browser you can use this script to provide instances with a browser inside ready to test the app.
 
-`./terminateInstances.sh`: Terminate all the instances used by the test.
+`terminateInstances.sh`: Terminate all the instances used by the test.
 
 ## Configuration
 
@@ -108,7 +108,7 @@ We provided a couple methods to investigate the instances behaviour.
 
 ### Using SSH
 
-You can connect to the instances using SSH using a rsa key. From a terminal,
+You can connect to the instances using SSH with a rsa key. From a terminal,
 
 `$ ssh -i YOUR_KEY ubuntu@INSTANCE_IP`
 
@@ -125,7 +125,7 @@ $ sudo -s
 
 Using VNC is really useful while the test is running as you will see the test being executed.
 
-The password is `selenoid`.
+The password for both is `selenoid`.
 
 For **RealVNC**, download the binary from [here](https://www.realvnc.com/en/connect/download/viewer/) then, connect to the instance using the instance IP.
 
@@ -160,7 +160,7 @@ Try to execute the scripts in _debug_ mode:
 
 and copy/paste the exit.
 
-The cloudformation is configured to **not** rollback if it fails, so you could try to login into the instance and check the file:
+The Cloudformation is configured to **not** rollback if it fails, so you could try to login into the instance and check the file:
 
 `/var/log/cloud-init-output.log`
 
