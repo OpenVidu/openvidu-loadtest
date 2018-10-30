@@ -36,6 +36,8 @@ In about five minutes more or less, you can check EC2 Dashboard -> Images -> AMI
 
 If you can't find it, try using filters like _owned by me_.
 
+![Filter](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/AMI_filter.png)
+
 ## How to use this AMI
 
 Congratulations! If you're reading this means you made it to deploy. Now, every EC2 Instance you launch from this AMI will be provisioned with a Google Chrome Browser. Just one last step before began.
@@ -50,6 +52,8 @@ Login into EC2 Dashboard -> Network & Security -> Security Groups. You need to a
 | 4444 | For selenoid endpoint. **This port is mandatory** |
 | 6080 | If you want to see what happening through noVNC |
 | 5900 | If you want to see what happening through VNC |
+
+![Security Group](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/security_group.png)
 
 ### Launching Instances
 
