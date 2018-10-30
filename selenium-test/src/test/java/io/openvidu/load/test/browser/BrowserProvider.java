@@ -1,4 +1,4 @@
-package io.openvidu.test.load.browser;
+package io.openvidu.load.test.browser;
 
 public interface BrowserProvider {
 	

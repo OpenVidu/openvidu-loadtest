@@ -1,4 +1,4 @@
-package io.openvidu.test.load.browser;
+package io.openvidu.load.test.browser;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;

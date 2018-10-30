@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.test.load;
+package io.openvidu.load.test;
 
 import java.util.Arrays;
 import java.util.Collection;

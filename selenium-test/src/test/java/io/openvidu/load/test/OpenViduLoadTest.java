@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.test.load;
+package io.openvidu.load.test;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.openqa.selenium.OutputType.BASE64;
@@ -44,10 +44,10 @@ import org.slf4j.Logger;
 
 import io.github.bonigarcia.SeleniumExtension;
 import io.github.bonigarcia.wdm.WebDriverManager;
-import io.openvidu.test.load.browser.Browser;
-import io.openvidu.test.load.browser.BrowserProvider;
-import io.openvidu.test.load.browser.LocalBrowserProvider;
-import io.openvidu.test.load.browser.RemoteBrowserProvider;
+import io.openvidu.load.test.browser.Browser;
+import io.openvidu.load.test.browser.BrowserProvider;
+import io.openvidu.load.test.browser.LocalBrowserProvider;
+import io.openvidu.load.test.browser.RemoteBrowserProvider;
 
 /**
  * E2E test for OpenVidu load testing

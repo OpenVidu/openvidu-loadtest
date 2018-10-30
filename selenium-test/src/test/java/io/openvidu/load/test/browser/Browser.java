@@ -1,4 +1,4 @@
-package io.openvidu.test.load.browser;
+package io.openvidu.load.test.browser;
 
 import java.util.concurrent.TimeUnit;
 
@@ -6,7 +6,7 @@ import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import io.openvidu.test.load.OpenViduEventManager;
+import io.openvidu.load.test.OpenViduEventManager;
 
 public class Browser {
 
