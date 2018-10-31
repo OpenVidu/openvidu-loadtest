@@ -14,10 +14,10 @@ aws ec2 run-instances \
   --key-name ${KEY_NAME} \
   --security-groups ${SECURITY_GROUP} \
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Type,Value=OpenViduLoadTest}]' \
-  --count 1:$NUM_INSTANCES 
+  --count 1:$NUM_INSTANCES >/dev/null
 
 # Wait for the instances to be running
 INSTANCES=$(aws ec2 describe-instances --filters Name=tag:Type,Values=OpenViduLoadTest,Name=instance-state-name,Values=pending | jq -r ' .Reservations[] | .Instances[] | .InstanceId')
 aws ec2 wait instance-running --instance-ids $INSTANCES
 
-aws ec2 describe-instances --filters Name=tag:Type,Values=OpenViduLoadTest,Name=instance-state-name,Values=running | jq -r ' .Reservations[] | .Instances[] | "\(.InstanceId) \(.PublicIpAddress)" '
+aws ec2 describe-instances --filters Name=tag:Type,Values=OpenViduLoadTest,Name=instance-state-name,Values=running
