@@ -17,10 +17,12 @@
 
 package io.openvidu.load.test;
 
-import java.util.Arrays;
+import static java.lang.invoke.MethodHandles.lookup;
+import static org.slf4j.LoggerFactory.getLogger;
+
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +39,10 @@ import java.util.function.Consumer;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.slf4j.Logger;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -49,6 +54,8 @@ import com.google.gson.JsonParser;
  * @since 1.1.1
  */
 public class OpenViduEventManager {
+
+	final static Logger log = getLogger(lookup().lookupClass());
 
 	private static class RunnableCallback implements Runnable {
 
@@ -79,6 +86,8 @@ public class OpenViduEventManager {
 	private AtomicBoolean isInterrupted = new AtomicBoolean(false);
 	private int timeOfWaitInSeconds;
 
+	private JsonParser jsonParser = new JsonParser();
+
 	public OpenViduEventManager(WebDriver driver, int timeOfWaitInSeconds) {
 		this.driver = driver;
 		this.eventQueue = new ConcurrentLinkedQueue<JsonObject>();
@@ -88,7 +97,13 @@ public class OpenViduEventManager {
 		this.timeOfWaitInSeconds = timeOfWaitInSeconds;
 	}
 
-	public void startPolling() {
+	public void gatherEventsAndStats() {
+		log.info("Gathering events and stats");
+		this.getEventsAndStatsFromBrowser(false);
+		this.emitEvents();
+	}
+
+	public void startEventPolling() {
 		Thread.UncaughtExceptionHandler h = new Thread.UncaughtExceptionHandler() {
 			public void uncaughtException(Thread th, Throwable ex) {
 				if (ex.getClass().getSimpleName().equals("NoSuchSessionException")) {
@@ -99,7 +114,7 @@ public class OpenViduEventManager {
 
 		this.pollingThread = new Thread(() -> {
 			while (!this.isInterrupted.get()) {
-				this.getEventsFromBrowser();
+				this.getEventsAndStatsFromBrowser(true);
 				this.emitEvents();
 				try {
 					Thread.sleep(OpenViduLoadTest.BROWSER_POLL_INTERVAL);
@@ -112,7 +127,7 @@ public class OpenViduEventManager {
 		this.pollingThread.start();
 	}
 
-	public void stopPolling() {
+	public void stopEventPolling() {
 		this.eventCallbacks.clear();
 		this.eventCountdowns.clear();
 		this.eventNumbers.clear();
@@ -186,19 +201,18 @@ public class OpenViduEventManager {
 		}
 	}
 
-	private void getEventsFromBrowser() {
-		String rawEvents = this.getAndClearEventsInBrowser();
+	private void getEventsAndStatsFromBrowser(boolean ignoreStats) {
+		JsonObject eventsAndStats = this.getEventsAndStatsInBrowser();
 
-		if (rawEvents == null || rawEvents.length() == 0) {
+		if (eventsAndStats.isJsonNull()) {
 			return;
 		}
 
-		List<String> events = Arrays.asList(rawEvents.replaceFirst("<br>", "").split("<br>"));
-		JsonParser parser = new JsonParser();
-		for (String e : events) {
-			JsonObject event = (JsonObject) parser.parse(e);
+		JsonArray events = eventsAndStats.get("events").getAsJsonArray();
+		for (JsonElement ev : events) {
+			JsonObject event = ev.getAsJsonObject();
 			String eventName = event.get("event").getAsString();
-			
+
 			this.eventQueue.add(event);
 			getNumEvents(eventName).incrementAndGet();
 
@@ -206,12 +220,57 @@ public class OpenViduEventManager {
 				this.eventCountdowns.get(eventName).countDown();
 			}
 		}
+
+		if (!ignoreStats) {
+			JsonObject stats = eventsAndStats.get("stats").getAsJsonObject();
+			JsonObject wrapper = new JsonObject();
+			String sessionId = eventsAndStats.get("sessionId").getAsString();
+			wrapper.addProperty("secondsSinceTestStarted",
+					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+			wrapper.addProperty("secondsSinceSessionStarted",
+					(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(sessionId)) / 1000);
+			wrapper.add(eventsAndStats.get("sessionId").getAsString(), stats);
+			synchronized (OpenViduLoadTest.fileWriter) {
+				try {
+					OpenViduLoadTest.fileWriter.write(wrapper.toString() + System.getProperty("line.separator"));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
-	private String getAndClearEventsInBrowser() {
-		String events = (String) ((JavascriptExecutor) driver)
-				.executeScript("var e = window.myEvents; window.myEvents = ''; return e;");
-		return events;
+	private JsonObject getEventsAndStatsInBrowser() {
+		// {
+		// sessionId: 'session-1',
+		// events: [
+		// {
+		// event: "connectionCreated",
+		// content: 't0lt3h9nnmafi2hl'
+		// }, ...
+		// ],
+		// stats: {
+		// 'user-1-1': [
+		// {
+		// availableReceiveBandwidth: 1587,
+		// availableSendBandwidth: 292,
+		// bitRate: 482,
+		// bytesReceived: "5338277",
+		// candidateType: "local",
+		// delay: "41",
+		// jitter: "23",
+		// localAddress: "192.168.0.102:53533",
+		// remoteAddress: "172.17.0.2:23496",
+		// rtt: "1",
+		// transport: "udp"
+		// }, ...
+		// ],
+		// 'user-1-2': ...
+		// }
+		// }
+		String eventsAndStats = (String) ((JavascriptExecutor) driver)
+				.executeScript("window.collectEventsAndStats(); return JSON.stringify(window.openviduLoadTest);");
+		return this.jsonParser.parse(eventsAndStats).getAsJsonObject();
 	}
 
 	public boolean hasMediaStream(WebElement videoElement) {

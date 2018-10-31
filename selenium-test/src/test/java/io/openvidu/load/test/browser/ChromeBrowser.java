@@ -17,12 +17,8 @@
 
 package io.openvidu.load.test.browser;
 
-import static java.lang.invoke.MethodHandles.lookup;
-import static org.slf4j.LoggerFactory.getLogger;
-
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.slf4j.Logger;
 
 /**
  * Chrome user for OpenVidu load testing
@@ -31,10 +27,8 @@ import org.slf4j.Logger;
  */
 public class ChromeBrowser extends Browser {
 
-	final static Logger log = getLogger(lookup().lookupClass());
-
-	ChromeBrowser(String clientData, int timeOfWaitInSeconds, WebDriver driver) {
-		super(clientData, timeOfWaitInSeconds, driver);
+	ChromeBrowser(String sessionId, String userId, int timeOfWaitInSeconds, WebDriver driver) {
+		super(sessionId, userId, timeOfWaitInSeconds, driver);
 	}
 
 	static ChromeOptions generateFakeVideoChromeOptions(String videoFileLocation, String audioFileLocation) {
