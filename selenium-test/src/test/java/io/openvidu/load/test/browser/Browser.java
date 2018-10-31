@@ -1,23 +1,31 @@
 package io.openvidu.load.test.browser;
 
+import static java.lang.invoke.MethodHandles.lookup;
+import static org.slf4j.LoggerFactory.getLogger;
+
 import java.util.concurrent.TimeUnit;
 
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
 
 import io.openvidu.load.test.OpenViduEventManager;
 
 public class Browser {
 
+	final static Logger log = getLogger(lookup().lookupClass());
+
 	protected WebDriver driver;
 	protected WebDriverWait waiter;
-	protected String clientData;
+	protected String sessionId;
+	protected String userId;
 	protected int timeOfWaitInSeconds;
 	protected OpenViduEventManager eventManager;
 
-	Browser(String clientData, int timeOfWaitInSeconds, WebDriver driver) {
-		this.clientData = clientData;
+	Browser(String sessionId, String userId, int timeOfWaitInSeconds, WebDriver driver) {
+		this.sessionId = sessionId;
+		this.userId = userId;
 		this.timeOfWaitInSeconds = timeOfWaitInSeconds;
 		this.driver = driver;
 		this.driver.manage().timeouts().setScriptTimeout(this.timeOfWaitInSeconds, TimeUnit.SECONDS);
@@ -38,8 +46,12 @@ public class Browser {
 		return this.eventManager;
 	}
 
-	public String getClientData() {
-		return this.clientData;
+	public String getSessionId() {
+		return this.sessionId;
+	}
+
+	public String getUserId() {
+		return this.userId;
 	}
 
 	public int getTimeOfWait() {
@@ -51,7 +63,7 @@ public class Browser {
 	}
 
 	public void dispose() {
-		this.eventManager.stopPolling();
+		log.info("Closing browser for participant {}", this.getUserId());
 		this.driver.quit();
 	}
 

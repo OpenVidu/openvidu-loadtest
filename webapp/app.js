@@ -5,7 +5,9 @@ var USER_ID;
 
 var OV;
 var session;
-var rtcPeerConnectionStats = {};
+
+var lastStatGatheringTime = {};
+var lastBytesReceived = {};
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -17,12 +19,18 @@ window.onload = () => {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
 	} else {
+		window.openviduLoadTest.sessionId = SESSION_ID;
+		window.collectEventsAndStats = this.collectEventsAndStats;
 		joinSession();
 	}
 };
 
 function appendEvent(newEvent) {
-	window.myEvents += ('<br>' + JSON.stringify(newEvent));
+	window.openviduLoadTest.events.push(newEvent);
+}
+
+function appendStats(userId, stat) {
+	window.openviduLoadTest.stats[userId].push(stat);
 }
 
 function joinSession() {
@@ -39,21 +47,14 @@ function joinSession() {
 		subscriber.on("streamPlaying", e => {
 			appendEvent({ event: "streamPlaying", content: event.stream.streamId });
 			var userId = event.stream.connection.data;
-			gatherStats(event.stream.getRTCPeerConnection(), userId);
-			rtcPeerConnectionStats[userId] = {
-				interval: window.setInterval(
-					() => {
-						gatherStats(event.stream.getRTCPeerConnection(), userId);
-					}, 1000)
-			}
+			window.openviduLoadTest.stats[userId] = [];
+			lastStatGatheringTime[userId] = Date.now();
 		});
 	});
 
 	session.on("streamDestroyed", event => {
 		appendEvent({ event: "streamDestroyed", content: event.stream.streamId });
 		var userId = event.stream.connection.data;
-		window.clearInterval(rtcPeerConnectionStats[userId].interval);
-		delete rtcPeerConnectionStats[userId];
 		document.getElementById('video-' + userId).outerHTML = "";
 	});
 
@@ -97,6 +98,15 @@ function insertPublisherContainer() {
 	var userId = document.createElement('div');
 	userId.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
 	userId.innerText = session.connection.data;
+	var rtt = document.createElement('div');
+	rtt.id = 'rtt';
+	rtt.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
+	var sendBandwidth = document.createElement('div');
+	sendBandwidth.id = 'send-bandwidth';
+	sendBandwidth.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
+	var bitrate = document.createElement('div');
+	bitrate.id = 'bitrate';
+	bitrate.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
 	var mute = document.createElement('div');
 	mute.id = 'mute';
 	mute.setAttribute("style", commonTagStyle);
@@ -110,6 +120,9 @@ function insertPublisherContainer() {
 	leave.setAttribute("style", commonTagStyle);
 	leave.innerText = 'Leave';
 	infoContainer.appendChild(userId);
+	infoContainer.appendChild(rtt);
+	infoContainer.appendChild(sendBandwidth);
+	infoContainer.appendChild(bitrate);
 	infoContainer.appendChild(mute);
 	infoContainer.appendChild(unpublish);
 	infoContainer.appendChild(leave);
@@ -148,6 +161,7 @@ function setPublisherButtonsActions(publisher) {
 	});
 	publisher.once("streamPlaying", e => {
 		appendEvent({ event: "streamPlaying", content: 'Publisher' });
+		window.openviduLoadTest.stats[USER_ID] = [];
 	});
 	publisher.once("streamDestroyed", e => {
 		appendEvent({ event: "streamDestroyed", content: e.stream.streamId });
@@ -263,7 +277,13 @@ function createToken() { // See https://openvidu.io/docs/reference-docs/REST-API
 	});
 }
 
-function gatherStats(rtcPeerConnection, userId, errorCallback) {
+function collectEventsAndStats() {
+	this.session.streamManagers.forEach(streamManager => {
+		this.gatherStatsForPeer(streamManager.stream.getRTCPeerConnection(), streamManager.stream.connection.data, streamManager.remote);
+	});
+}
+
+function gatherStatsForPeer(rtcPeerConnection, userId, isSubscriber, errorCallback) {
 	return rtcPeerConnection.getStats(response => {
 		const fullReport = [];
 		response.result().forEach(report => {
@@ -278,34 +298,62 @@ function gatherStats(rtcPeerConnection, userId, errorCallback) {
 			fullReport.push(stat);
 		});
 
+		var userStatsJson = {};
+
 		var activeCandidateStats = fullReport.find(report => report.type === 'googCandidatePair' && report.googActiveConnection === 'true');
 		if (!!activeCandidateStats) {
-			rtcPeerConnectionStats[userId].rtt = activeCandidateStats.googRtt;
-			rtcPeerConnectionStats[userId].transport = activeCandidateStats.googTransportType;
-			rtcPeerConnectionStats[userId].candidateType = activeCandidateStats.googRemoteCandidateType;
-			rtcPeerConnectionStats[userId].localAddress = activeCandidateStats.googLocalAddress;
-			rtcPeerConnectionStats[userId].remoteAddress = activeCandidateStats.googRemoteAddress;
-			document.querySelector('#rtt-' + userId).innerText = 'RTT: ' + rtcPeerConnectionStats[userId].rtt + ' ms';
+			userStatsJson.timestamp = activeCandidateStats.timestamp.getTime();
+			userStatsJson.rtt = Number(activeCandidateStats.googRtt);
+			userStatsJson.transport = activeCandidateStats.googTransportType;
+			userStatsJson.candidateType = activeCandidateStats.googRemoteCandidateType;
+			userStatsJson.localAddress = activeCandidateStats.googLocalAddress;
+			userStatsJson.remoteAddress = activeCandidateStats.googRemoteAddress;
+			if (isSubscriber) {
+				document.querySelector('#rtt-' + userId).innerText = 'RTT: ' + userStatsJson.rtt + ' ms';
+			} else {
+				document.querySelector('#rtt').innerText = 'RTT: ' + userStatsJson.rtt + ' ms';
+			}
 		}
 
 		var videoBwe = fullReport.find(report => report.type === 'VideoBwe');
 		if (!!videoBwe) {
-			rtcPeerConnectionStats[userId].availableSendBandwidth = Math.floor(videoBwe.googAvailableSendBandwidth / 1024);
-			rtcPeerConnectionStats[userId].availableReceiveBandwidth = Math.floor(videoBwe.googAvailableReceiveBandwidth / 1024);
+			if (isSubscriber) {
+				userStatsJson.availableReceiveBandwidth = Math.floor(videoBwe.googAvailableReceiveBandwidth / 1024);
+				document.querySelector('#receive-bandwidth-' + userId).innerText = 'Bandwidth: ' + userStatsJson.availableReceiveBandwidth + ' kbps';
+			} else {
+				userStatsJson.availableSendBandwidth = Math.floor(videoBwe.googAvailableSendBandwidth / 1024);
+				userStatsJson.bitrate = Math.floor(videoBwe.googTransmitBitrate / 1024);
+				document.querySelector('#send-bandwidth').innerText = 'Bandwidth: ' + userStatsJson.availableSendBandwidth + ' kbps';
+				document.querySelector('#bitrate').innerText = userStatsJson.bitrate + ' kbps';
+			}
 		}
 
 		var videoStats = fullReport.find(report => report.type === 'ssrc' && report.mediaType === 'video');
 		if (!!videoStats) {
-			rtcPeerConnectionStats[userId].bitRate = (videoStats.bytesReceived - rtcPeerConnectionStats[userId].bytesReceived) * 8 / 1024;
-			rtcPeerConnectionStats[userId].jitter = videoStats.googJitterBufferMs;
-			rtcPeerConnectionStats[userId].bytesReceived = videoStats.bytesReceived;
-			rtcPeerConnectionStats[userId].delay = videoStats.googCurrentDelayMs;
-			rtcPeerConnectionStats[userId].packetsLost = videoStats.packetsLost;
-			document.querySelector('#delay-' + userId).innerText = 'Delay: ' + rtcPeerConnectionStats[userId].delay + ' ms';
-			document.querySelector('#jitter-' + userId).innerText = 'jitter: ' + rtcPeerConnectionStats[userId].jitter;
-			document.querySelector('#receive-bandwidth-' + userId).innerText = 'Bandwidth: ' + rtcPeerConnectionStats[userId].availableReceiveBandwidth + ' kbps';
-			document.querySelector('#bitrate-' + userId).innerText = Math.floor(rtcPeerConnectionStats[userId].bitRate) + ' kbps';
+			userStatsJson.packetsLost = Number(videoStats.packetsLost);
+			if (isSubscriber) {
+				if (!lastBytesReceived[userId]) {
+					// First time gatherStats is called for this user
+					userStatsJson.bitrate = Math.floor((Number(videoStats.bytesReceived) * 8) / ((videoStats.timestamp.getTime() - lastStatGatheringTime[userId])));
+				} else {
+					userStatsJson.bitrate = Math.floor(((Number(videoStats.bytesReceived) - lastBytesReceived[userId]) * 8) / ((videoStats.timestamp.getTime() - lastStatGatheringTime[userId])));
+				}
+				userStatsJson.bytesReceived = Number(videoStats.bytesReceived);
+				userStatsJson.jitter = Number(videoStats.googJitterBufferMs);
+				userStatsJson.delay = Number(videoStats.googCurrentDelayMs);
+				userStatsJson.packetsLost = Number(videoStats.packetsLost);
+
+				// Store variables for next stats gathering
+				lastStatGatheringTime[userId] = videoStats.timestamp.getTime();
+				lastBytesReceived[userId] = userStatsJson.bytesReceived;
+
+				document.querySelector('#delay-' + userId).innerText = 'Delay: ' + userStatsJson.delay + ' ms';
+				document.querySelector('#jitter-' + userId).innerText = 'jitter: ' + userStatsJson.jitter;
+				document.querySelector('#bitrate-' + userId).innerText = userStatsJson.bitrate + ' kbps';
+			} else {
+				userStatsJson.bytesSent = Number(videoStats.bytesSent);
+			}
+			appendStats(userId, userStatsJson);
 		}
-		console.log(rtcPeerConnectionStats);
 	}, null, errorCallback);
 }

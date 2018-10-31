@@ -30,9 +30,12 @@ System properties when running `mvn test` in `selenium-test/.`
 - `OPENVIDU_SECRET`: secret of OpenVidu Server. Default value = `"MY_SECRET"`
 - `OPENVIDU_URL`: url of OpenVidu Server. Default value = `"https://localhost:4443/"`
 - `APP_URL`: url of the web application where to connect the browsers to perform the test. Default value = `"http://localhost:8080/"`
-- `SESSIONS`: upper limit of sessions. Default value = `20`
+- `SESSIONS`: upper limit of sessions. Default value = `10`
 - `USERS_SESSION`: number of users per session. Default value = `7`
 - `SECONDS_OF_WAIT`: timeout in seconds the test will wait for each group of OpenVidu events in each browser. Default value = `40`
 - `BROWSER_LAUNCH_INTERVAL`: time of wait in milliseconds between browser launches. Default value = `2000`
-- `BROWSER_POLL_INTERVAL`: interval for polling events and webrtc stats from each browser. Default value = `500`
+- `NUMBER_OF_POLLS`: number of polls to perform to each browser. There will be an interval of _BROWSER_POLL_INTERVAL_ between them. Default value = `8`
+- `BROWSER_POLL_INTERVAL`: interval for polling webrtc stats from each browser. Default value = `1000`
 - `REMOTE`: whether to use local web drivers or remote web drivers. Default value = `false`
+- `BROWSER_INIT_AT_ONCE`: whether to initialize all browsers of each session before running asynchronous test in each one of them or not. Default value = `false`
+- `RESULTS_PATH`: path where to store test results. Default value = `/opt/openvidu/testload/loadTestStats.txt`

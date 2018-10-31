@@ -1,15 +1,16 @@
 <html>
 
 <head>
-	<title>openvidu-hello-world</title>
+	<title>OpenVidu Load Test</title>
 	<link rel="shortcut icon" href="resources/images/favicon.ico" type="image/x-icon">
-	<script src="openvidu-browser-2.6.0.min.js"></script>
+	<script src="openvidu-browser-2.6.0.js"></script>
 	<script src="app.js"></script>
 	<link rel="stylesheet" type="text/css" href="styles.css">
 </head>
 
 <script type="text/javascript">
-	window.myEvents = '';
+	window.openviduLoadTest = { sessionId: '', events: [], stats: {} };
+	window.collectEventsAndStats;
 </script>
 
 <body>
