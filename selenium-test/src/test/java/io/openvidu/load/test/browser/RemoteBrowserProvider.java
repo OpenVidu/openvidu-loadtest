@@ -15,6 +15,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.slf4j.Logger;
 
 import io.openvidu.load.test.AmazonInstance;
@@ -28,7 +29,8 @@ public class RemoteBrowserProvider implements BrowserProvider {
 	Map<String, AmazonInstance> amazonInstances = new ConcurrentHashMap<>();
 	Map<String, Browser> amazonBrowsers = new ConcurrentHashMap<>();
 
-	final String URL_END = ":4444/wd/hub/session";
+	final String URL_END = ":4444/wd/hub";
+	final int SECONDS_OF_BROWSER_WAIT = 30;
 
 	@Override
 	public Browser getBrowser(String browserType, String sessionId, String userId, int timeOfWaitInSeconds) {
@@ -69,7 +71,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 	@Override
 	public List<Browser> getBrowsers(int numberOfBrowsers, String browserType, String sessionId, List<String> userIds,
-			int timeOfWaitInSeconds) {
+			int timeOfWaitInSeconds) throws BrowserNotReadyException {
 
 		List<Browser> browsers = new ArrayList<>();
 		Map<String, AmazonInstance> map = this.executor.launchBrowsers(numberOfBrowsers);
@@ -87,14 +89,38 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				Iterator<String> it = map.keySet().iterator();
 				String instanceId;
 				int userIndex = 0;
-				while (it.hasNext()) {
+				while (it.hasNext() && (userIndex < numberOfBrowsers)) {
 					instanceId = it.next();
 					if (this.amazonInstances.putIfAbsent(instanceId, map.get(instanceId)) == null) {
 						// New instance id
-						WebDriver driver = new RemoteWebDriver(
-								new URL("http://" + map.get(instanceId).getIp() + URL_END), capabilities);
-						browsers.add(new ChromeBrowser(sessionId, userIds.get(userIndex), timeOfWaitInSeconds, driver));
-						userIndex++;
+						String browserUrl = "http://" + map.get(instanceId).getIp() + URL_END;
+						log.info("Connecting to browser {}", browserUrl);
+						WebDriver driver = null;
+						boolean browserReady = false;
+						int tries = 0;
+						while (!browserReady && tries < (SECONDS_OF_BROWSER_WAIT * 1000 / 200)) {
+							try {
+								driver = new RemoteWebDriver(new URL(browserUrl), capabilities);
+								browserReady = true;
+							} catch (UnreachableBrowserException e) {
+								log.info("Waiting for browser. Exception caught: {} ({})", e.getClass(),
+										e.getMessage());
+								try {
+									tries++;
+									Thread.sleep(200);
+								} catch (InterruptedException e1) {
+									e1.printStackTrace();
+								}
+							}
+						}
+						if (driver != null) {
+							browsers.add(
+									new ChromeBrowser(sessionId, userIds.get(userIndex), timeOfWaitInSeconds, driver));
+							userIndex++;
+						} else {
+							throw new BrowserNotReadyException(
+									"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+						}
 					}
 				}
 			} catch (MalformedURLException e) {

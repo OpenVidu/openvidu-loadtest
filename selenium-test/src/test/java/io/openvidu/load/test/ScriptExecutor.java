@@ -21,6 +21,7 @@ import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
@@ -28,36 +29,43 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 public class ScriptExecutor {
 
 	final static Logger log = getLogger(lookup().lookupClass());
+	JsonParser parser = new JsonParser();
 
 	public Map<String, AmazonInstance> launchBrowsers(int numberOfBrowsers) {
-		return parseInstanceStringToMap(this.executeCommand(
-				"export NUM_INSTANCES=" + numberOfBrowsers + " && src/test/resources/browserProvider.sh"));
+		ClassLoader classLoader = getClass().getClassLoader();
+		File file = new File(classLoader.getResource("browserProvider.sh").getFile());
+		this.executeCommand("chmod 777 " + file.getAbsolutePath());
+		String cmd = file.getAbsolutePath() + " " + numberOfBrowsers;
+		return parseInstanceJsonToMap(this.executeCommand(cmd));
 	}
 
-	public Map<String, AmazonInstance> getActiveBrowsers() {
-		return parseInstanceStringToMap(this.executeCommand("src/test/resources/getActiveInstances.sh"));
+	/*public Map<String, AmazonInstance> getActiveBrowsers() {
+		return parseInstanceJsonToMap(
+				this.executeCommand(new String[] { "/bin/bash", "-c", "src/test/resources/getActiveInstances.sh" }));
 	}
 
 	public void bringDownBrowser(String instanceId) {
-		this.executeCommand("export INSTANCE=" + instanceId + " && src/test/resources/terminateOneInstance.sh");
+		this.executeCommand(new String[] { "/bin/bash", "-c",
+				"export INSTANCE=" + instanceId + " && src/test/resources/terminateOneInstance.sh" });
 	}
 
 	public void bringDownAllBrowsers() {
-		this.executeCommand("src/test/resources/terminateInstances.sh");
-	}
+		this.executeCommand(new String[] { "/bin/bash", "-c", "src/test/resources/terminateInstances.sh" });
+	}*/
 
 	private String executeCommand(String bashCommand) {
-		String result = null;
+		String result = "";
 		try {
-			Runtime r = Runtime.getRuntime();
-			Process p = r.exec(bashCommand);
+			Process p = Runtime.getRuntime().exec(bashCommand);
 			BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			String inputLine;
 			while ((inputLine = in.readLine()) != null) {
-				System.out.println(inputLine);
 				result += inputLine;
 			}
 			in.close();
@@ -67,13 +75,22 @@ public class ScriptExecutor {
 		return result;
 	}
 
-	private Map<String, AmazonInstance> parseInstanceStringToMap(String str) {
+	private Map<String, AmazonInstance> parseInstanceJsonToMap(String str) {
 		Map<String, AmazonInstance> instanceMap = new HashMap<>();
-		String[] instanceArray = str.split("\\r?\\n|\\r");
-		for (int i = 0; i < instanceArray.length; i++) {
-			String[] idAndIp = instanceArray[i].split(" ");
-			instanceMap.put(idAndIp[0], new AmazonInstance(idAndIp[0], idAndIp[1]));
-		}
+
+		JsonObject json = parser.parse(str).getAsJsonObject();
+		json.get("Reservations").getAsJsonArray().forEach(instanceArray -> {
+			instanceArray.getAsJsonObject().get("Instances").getAsJsonArray().forEach(instance -> {
+				JsonObject instanceJson = instance.getAsJsonObject();
+				if ("OpenViduLoadTest".equals(instanceJson.get("Tags").getAsJsonArray().get(0).getAsJsonObject()
+						.get("Value").getAsString())) {
+					String instanceId = instanceJson.get("InstanceId").getAsString();
+					String instanceIp = instanceJson.get("PublicIpAddress").getAsString();
+					instanceMap.put(instanceId, new AmazonInstance(instanceId, instanceIp));
+				}
+			});
+		});
+		log.info("Instances: {}", instanceMap.toString());
 		return instanceMap;
 	}
 

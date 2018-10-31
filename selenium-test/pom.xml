@@ -60,7 +60,7 @@
 	</properties>
 
 	<build>
-		<plugins>
+	<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
@@ -192,12 +192,6 @@
 			<groupId>io.openvidu</groupId>
 			<artifactId>openvidu-java-client</artifactId>
 			<version>2.5.0</version>
-		</dependency>
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>21.0</version>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

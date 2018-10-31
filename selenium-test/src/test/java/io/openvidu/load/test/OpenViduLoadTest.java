@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import io.github.bonigarcia.SeleniumExtension;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.openvidu.load.test.browser.Browser;
+import io.openvidu.load.test.browser.BrowserNotReadyException;
 import io.openvidu.load.test.browser.BrowserProvider;
 import io.openvidu.load.test.browser.LocalBrowserProvider;
 import io.openvidu.load.test.browser.RemoteBrowserProvider;
@@ -83,7 +84,7 @@ public class OpenViduLoadTest {
 
 	static FileWriter fileWriter;
 
-	static CountDownLatch startNewSession = new CountDownLatch(USERS_SESSION);
+	static CountDownLatch startNewSession;
 	static AtomicBoolean keepPolling = new AtomicBoolean(true);
 	static String lastSession;
 
@@ -147,6 +148,8 @@ public class OpenViduLoadTest {
 		log.info("App URL: {}", APP_URL);
 		log.info("Sessions: {}", SESSIONS);
 		log.info("Is remote: {}", REMOTE);
+
+		startNewSession = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
 
 		try {
 			String filePath = RESULTS_PATH;
@@ -253,26 +256,40 @@ public class OpenViduLoadTest {
 	 * each one of them
 	 **/
 
-	private void startSessionAllBrowsersAtOnce(int index) throws Exception {
+	private void startSessionAllBrowsersAtOnce(int index) {
 		String sessionId = "session-" + index;
 		lastSession = sessionId;
 		log.info("Starting session: {}", sessionId);
 		timeSessionStarted.put(sessionId, System.currentTimeMillis());
-		List<Thread> browserThreads = startMultipleBrowsers(index);
+		List<Thread> browserThreads;
+		try {
+			browserThreads = startMultipleBrowsers(index);
+		} catch (BrowserNotReadyException e) {
+			Assert.fail("Some browser was not ready");
+			return;
+		}
 		if (index < SESSIONS) {
-			startNewSession.await();
-			startNewSession = new CountDownLatch(USERS_SESSION);
+			try {
+				startNewSession.await();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			startNewSession = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			this.startSessionAllBrowsersAtOnce(index + 1);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
 			keepPolling.set(false);
 		}
 		for (int i = 0; i < browserThreads.size(); i++) {
-			browserThreads.get(i).join();
+			try {
+				browserThreads.get(i).join();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
-	private List<Thread> startMultipleBrowsers(int sessionIndex) throws Exception {
+	private List<Thread> startMultipleBrowsers(int sessionIndex) throws BrowserNotReadyException {
 		List<String> userIds = new ArrayList<>();
 		for (int i = 1; i <= USERS_SESSION; i++) {
 			userIds.add("user-" + sessionIndex + "-" + i);
@@ -299,7 +316,7 @@ public class OpenViduLoadTest {
 	}
 
 	private List<Browser> setupBrowsers(int numberOfBrowsers, String browserType, String sessionId,
-			List<String> userIds) {
+			List<String> userIds) throws BrowserNotReadyException {
 		List<Browser> listOfBrowsers = browserProvider.getBrowsers(numberOfBrowsers, browserType, sessionId, userIds,
 				SECONDS_OF_WAIT);
 		int i = 0;
@@ -331,15 +348,26 @@ public class OpenViduLoadTest {
 		Thread.sleep(2000);
 
 		// Session stable. Start stats gathering
-		while (keepPolling.get()) {
+		int i = 0;
+		int gatheringRoundCount = 1;
+		boolean lastGatheringRound = false;
+		while (keepPolling.get() || (i < NUMBER_OF_POLLS)) {
 			long currentTime = System.currentTimeMillis();
-			browser.getEventManager().gatherEventsAndStats();
+			browser.getEventManager().gatherEventsAndStats(browser.getUserId(), gatheringRoundCount);
 			long timeElapsed = System.currentTimeMillis() - currentTime;
 			if (timeElapsed < BROWSER_POLL_INTERVAL) {
 				Thread.sleep(BROWSER_POLL_INTERVAL - timeElapsed);
 			}
 			if (browser.getSessionId().equals(lastSession)) {
 				startNewSession.countDown();
+			}
+			i++;
+			gatheringRoundCount++;
+			if (!keepPolling.get() && !lastGatheringRound) {
+				log.info("Last stats gathering rounf for user {}. Remaining rounds: {}", browser.getUserId(),
+						NUMBER_OF_POLLS - 1);
+				lastGatheringRound = true;
+				i = 1;
 			}
 		}
 		log.info("Browser thread gracefully finished for user {} in session {}", browser.getUserId(),

@@ -97,8 +97,8 @@ public class OpenViduEventManager {
 		this.timeOfWaitInSeconds = timeOfWaitInSeconds;
 	}
 
-	public void gatherEventsAndStats() {
-		log.info("Gathering events and stats");
+	public void gatherEventsAndStats(String userId, int roundCount) {
+		log.info("Gathering events and stats for user {} (round {})", userId, roundCount);
 		this.getEventsAndStatsFromBrowser(false);
 		this.emitEvents();
 	}
