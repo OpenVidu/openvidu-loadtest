@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Assert;
@@ -64,6 +66,8 @@ public class OpenViduLoadTest {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
+	ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(Runtime.getRuntime().availableProcessors());
+
 	static String OPENVIDU_SECRET = "MY_SECRET";
 	static String OPENVIDU_URL = "https://localhost:4443/";
 	static String APP_URL = "http://localhost:8080/";
@@ -85,8 +89,11 @@ public class OpenViduLoadTest {
 	static FileWriter fileWriter;
 
 	static CountDownLatch startNewSession;
+	static CountDownLatch lastRoundCount;
 	static AtomicBoolean keepPolling = new AtomicBoolean(true);
+	static AtomicBoolean lastBrowserRound = new AtomicBoolean(false);
 	static String lastSession;
+	static int gatherindRoundsBeforeNewSession;
 
 	@BeforeAll()
 	static void setup() {
@@ -141,18 +148,14 @@ public class OpenViduLoadTest {
 		if (resultsPath != null) {
 			RESULTS_PATH = resultsPath;
 		}
+
+		gatherindRoundsBeforeNewSession = USERS_SESSION * NUMBER_OF_POLLS - USERS_SESSION;
 		browserProvider = REMOTE ? new RemoteBrowserProvider() : new LocalBrowserProvider();
+		startNewSession = new CountDownLatch(gatherindRoundsBeforeNewSession);
+		lastRoundCount = new CountDownLatch(gatherindRoundsBeforeNewSession);
 
-		log.info("OpenVidu URL: {}", OPENVIDU_URL);
-		log.info("OpenVidu secret: {}", OPENVIDU_SECRET);
-		log.info("App URL: {}", APP_URL);
-		log.info("Sessions: {}", SESSIONS);
-		log.info("Is remote: {}", REMOTE);
-
-		startNewSession = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
-
+		String filePath = RESULTS_PATH;
 		try {
-			String filePath = RESULTS_PATH;
 			boolean alreadyExists = new File(filePath).exists();
 			int fileIndex = 1;
 			while (alreadyExists) {
@@ -164,6 +167,15 @@ public class OpenViduLoadTest {
 		} catch (IOException e) {
 			log.error("Stats output file couldn't be opened: {}", e.toString());
 		}
+
+		log.info("> OpenVidu URL: {}", OPENVIDU_URL);
+		log.info("> OpenVidu secret: {}", OPENVIDU_SECRET);
+		log.info("> App URL: {}", APP_URL);
+		log.info("> Session limit: {}", SESSIONS);
+		log.info("> Users per session: {}", USERS_SESSION);
+		log.info("> Browsers init at once: {}", BROWSER_INIT_AT_ONCE);
+		log.info("> Is remote: {}", REMOTE);
+		log.info("> Results stored under: {}", filePath);
 	}
 
 	@AfterAll
@@ -179,17 +191,23 @@ public class OpenViduLoadTest {
 				browser.dispose();
 			});
 		});
+		log.info("All browsers are now closed");
 		try {
+			log.info("Closing results file");
 			fileWriter.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			log.error("Error closing results file: {}", e.getMessage());
 		}
+		log.info("Load test finished");
 	}
 
 	@Test
 	@DisplayName("Load testing")
 	void loadTest() throws Exception {
-		log.info("Starting load test. Running sessions until limit: {}", SESSIONS);
+		log.info("Starting load test. Running sessions until limit ({})", SESSIONS);
+		log.info("In case of success a total number of {} browsers are expected", SESSIONS * USERS_SESSION);
+		log.info("In case of success a total number of {} Publishers and {} Subscribers are expected",
+				SESSIONS * USERS_SESSION, SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)));
 		timeTestStarted = System.currentTimeMillis();
 		if (BROWSER_INIT_AT_ONCE) {
 			this.startSessionAllBrowsersAtOnce(1);
@@ -199,36 +217,48 @@ public class OpenViduLoadTest {
 	}
 
 	/**
-	 * Each browser initialization is done asynchronously (and the same setup thread
-	 * is in charge of running the test)
+	 * Each browser initialization is done asynchronously (and the same browser
+	 * initialization thread is in charge of running the test)
 	 **/
 
 	private void startSessionBrowserAfterBrowser(int index) throws Exception {
 		String sessionId = "session-" + index;
 		lastSession = sessionId;
 		log.info("Starting session: {}", sessionId);
-		final int[] userIndexArray = { 1 };
-		final List<Thread> threads = new ArrayList<>();
+		final Collection<Runnable> threads = new ArrayList<>();
 		timeSessionStarted.put(sessionId, System.currentTimeMillis());
+
 		for (int user = 1; user <= USERS_SESSION; user++) {
-			userIndexArray[0] = user;
-			Thread t = new Thread(() -> {
+			final int userIndex = user;
+			Runnable runnable = () -> {
 				try {
-					startBrowser(index, userIndexArray[0]);
+					startBrowser(index, userIndex);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-			});
-			t.start();
-			threads.add(t);
+			};
+			threads.add(runnable);
+		}
+		for (Runnable r : threads) {
+			executor.execute(r);
 			Thread.sleep(BROWSER_LAUNCH_INTERVAL);
 		}
-		for (int i = 0; i < threads.size(); i++) {
-			threads.get(i).join();
-		}
 		if (index < SESSIONS) {
+			startNewSession.await();
+			startNewSession = new CountDownLatch(gatherindRoundsBeforeNewSession);
+			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
+					sessionId, NUMBER_OF_POLLS);
 			this.startSessionBrowserAfterBrowser(index + 1);
+		} else {
+			log.info("Session limit succesfully reached ({})", SESSIONS);
+			lastBrowserRound.set(true);
+			lastRoundCount.await();
+			log.info("Stats gathering rounds threshold for last session {} reached ({} rounds). Ending test", sessionId,
+					NUMBER_OF_POLLS);
+			keepPolling.set(false);
 		}
+		executor.shutdown();
+		executor.awaitTermination(5, TimeUnit.MINUTES);
 	}
 
 	private void startBrowser(int sessionIndex, int userIndex) throws Exception {
@@ -241,7 +271,7 @@ public class OpenViduLoadTest {
 		Browser browser = browserProvider.getBrowser(browserType, sessionId, userId, SECONDS_OF_WAIT);
 		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 				+ sessionId + "&userId=" + userId);
-		browser.getEventManager().startEventPolling();
+		browser.getEventManager().startEventPolling(userId, sessionId);
 		Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
 		if (browsers != null) {
 			browsers.add(browser);
@@ -274,7 +304,7 @@ public class OpenViduLoadTest {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			startNewSession = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
+			startNewSession = new CountDownLatch(gatherindRoundsBeforeNewSession);
 			this.startSessionAllBrowsersAtOnce(index + 1);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
@@ -323,7 +353,6 @@ public class OpenViduLoadTest {
 		for (Browser b : listOfBrowsers) {
 			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 					+ sessionId + "&userId=" + userIds.get(i));
-			b.getEventManager().startEventPolling();
 			Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
 			if (browsers != null) {
 				browsers.add(b);
@@ -345,13 +374,14 @@ public class OpenViduLoadTest {
 		Assert.assertTrue(browser.getEventManager()
 				.assertMediaTracks(browser.getDriver().findElements(By.tagName("video")), true, true));
 		browser.getEventManager().stopEventPolling();
-		Thread.sleep(2000);
 
-		// Session stable. Start stats gathering
-		int i = 0;
+		log.info(
+				"User {} is now seeing a stable session ({}). OpenVidu events polling thread interrupted and starting stats gathering",
+				browser.getUserId(), browser.getSessionId());
+
+		// Session stable. Start webrtc stats gathering
 		int gatheringRoundCount = 1;
-		boolean lastGatheringRound = false;
-		while (keepPolling.get() || (i < NUMBER_OF_POLLS)) {
+		while (keepPolling.get()) {
 			long currentTime = System.currentTimeMillis();
 			browser.getEventManager().gatherEventsAndStats(browser.getUserId(), gatheringRoundCount);
 			long timeElapsed = System.currentTimeMillis() - currentTime;
@@ -360,15 +390,11 @@ public class OpenViduLoadTest {
 			}
 			if (browser.getSessionId().equals(lastSession)) {
 				startNewSession.countDown();
+				if (lastBrowserRound.get()) {
+					lastRoundCount.countDown();
+				}
 			}
-			i++;
 			gatheringRoundCount++;
-			if (!keepPolling.get() && !lastGatheringRound) {
-				log.info("Last stats gathering rounf for user {}. Remaining rounds: {}", browser.getUserId(),
-						NUMBER_OF_POLLS - 1);
-				lastGatheringRound = true;
-				i = 1;
-			}
 		}
 		log.info("Browser thread gracefully finished for user {} in session {}", browser.getUserId(),
 				browser.getSessionId());

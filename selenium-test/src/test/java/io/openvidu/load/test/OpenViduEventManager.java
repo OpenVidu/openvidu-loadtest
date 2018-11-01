@@ -103,7 +103,7 @@ public class OpenViduEventManager {
 		this.emitEvents();
 	}
 
-	public void startEventPolling() {
+	public void startEventPolling(String userId, String sessionId) {
 		Thread.UncaughtExceptionHandler h = new Thread.UncaughtExceptionHandler() {
 			public void uncaughtException(Thread th, Throwable ex) {
 				if (ex.getClass().getSimpleName().equals("NoSuchSessionException")) {
@@ -119,12 +119,14 @@ public class OpenViduEventManager {
 				try {
 					Thread.sleep(OpenViduLoadTest.BROWSER_POLL_INTERVAL);
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					log.debug("OpenVidu events polling thread interrupted");
 				}
 			}
 		});
 		this.pollingThread.setUncaughtExceptionHandler(h);
 		this.pollingThread.start();
+		log.info("User {} is now retrieving OpenVidu events until session {} is stable (in an interval of {} ms)",
+				userId, sessionId, OpenViduLoadTest.BROWSER_POLL_INTERVAL);
 	}
 
 	public void stopEventPolling() {
