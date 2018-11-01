@@ -18,4 +18,9 @@ public class AmazonInstance {
 		return this.ip;
 	}
 
+	@Override
+	public String toString() {
+		return "{id: \"" + this.instanceId + "\", ip: \"" + this.ip + "\"}";
+	}
+
 }

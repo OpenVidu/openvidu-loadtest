@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -66,7 +68,9 @@ public class OpenViduLoadTest {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(Runtime.getRuntime().availableProcessors());
+	ExecutorService browserTaskExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
+			Runtime.getRuntime().availableProcessors());
 
 	static String OPENVIDU_SECRET = "MY_SECRET";
 	static String OPENVIDU_URL = "https://localhost:4443/";
@@ -76,7 +80,6 @@ public class OpenViduLoadTest {
 	static int SECONDS_OF_WAIT = 40;
 	static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
-	static int BROWSER_LAUNCH_INTERVAL = 2000;
 	static boolean REMOTE = false;
 	static boolean BROWSER_INIT_AT_ONCE = false;
 	static String RESULTS_PATH = "/opt/openvidu/testload/loadTestStats.txt";
@@ -90,10 +93,8 @@ public class OpenViduLoadTest {
 
 	static CountDownLatch startNewSession;
 	static CountDownLatch lastRoundCount;
-	static AtomicBoolean keepPolling = new AtomicBoolean(true);
 	static AtomicBoolean lastBrowserRound = new AtomicBoolean(false);
 	static String lastSession;
-	static int gatherindRoundsBeforeNewSession;
 
 	@BeforeAll()
 	static void setup() {
@@ -106,7 +107,6 @@ public class OpenViduLoadTest {
 		String usersSession = System.getProperty("USERS_SESSION");
 		String secondsOfWait = System.getProperty("SECONDS_OF_WAIT");
 		String numberOfPolls = System.getProperty("NUMBER_OF_POLLS");
-		String browserLaunchInterval = System.getProperty("BROWSER_LAUNCH_INTERVAL");
 		String browserPollInterval = System.getProperty("BROWSER_POLL_INTERVAL");
 		String remote = System.getProperty("REMOTE");
 		String browserInitAtOnce = System.getProperty("BROWSER_INIT_AT_ONCE");
@@ -133,9 +133,6 @@ public class OpenViduLoadTest {
 		if (numberOfPolls != null) {
 			NUMBER_OF_POLLS = Integer.parseInt(numberOfPolls);
 		}
-		if (browserLaunchInterval != null) {
-			BROWSER_LAUNCH_INTERVAL = Integer.parseInt(browserLaunchInterval);
-		}
 		if (browserPollInterval != null) {
 			BROWSER_POLL_INTERVAL = Integer.parseInt(browserPollInterval);
 		}
@@ -149,10 +146,9 @@ public class OpenViduLoadTest {
 			RESULTS_PATH = resultsPath;
 		}
 
-		gatherindRoundsBeforeNewSession = USERS_SESSION * NUMBER_OF_POLLS - USERS_SESSION;
 		browserProvider = REMOTE ? new RemoteBrowserProvider() : new LocalBrowserProvider();
-		startNewSession = new CountDownLatch(gatherindRoundsBeforeNewSession);
-		lastRoundCount = new CountDownLatch(gatherindRoundsBeforeNewSession);
+		startNewSession = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
+		lastRoundCount = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
 
 		String filePath = RESULTS_PATH;
 		try {
@@ -230,22 +226,20 @@ public class OpenViduLoadTest {
 
 		for (int user = 1; user <= USERS_SESSION; user++) {
 			final int userIndex = user;
-			Runnable runnable = () -> {
+			threads.add(() -> {
 				try {
 					startBrowser(index, userIndex);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-			};
-			threads.add(runnable);
+			});
 		}
 		for (Runnable r : threads) {
-			executor.execute(r);
-			Thread.sleep(BROWSER_LAUNCH_INTERVAL);
+			browserTaskExecutor.execute(r);
 		}
 		if (index < SESSIONS) {
 			startNewSession.await();
-			startNewSession = new CountDownLatch(gatherindRoundsBeforeNewSession);
+			startNewSession = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
 			this.startSessionBrowserAfterBrowser(index + 1);
@@ -255,10 +249,11 @@ public class OpenViduLoadTest {
 			lastRoundCount.await();
 			log.info("Stats gathering rounds threshold for last session {} reached ({} rounds). Ending test", sessionId,
 					NUMBER_OF_POLLS);
-			keepPolling.set(false);
+			log.info("Terminating browser threads");
+			this.statGatheringTaskExecutor.shutdown();
 		}
-		executor.shutdown();
-		executor.awaitTermination(5, TimeUnit.MINUTES);
+		browserTaskExecutor.shutdown();
+		browserTaskExecutor.awaitTermination(5, TimeUnit.MINUTES);
 	}
 
 	private void startBrowser(int sessionIndex, int userIndex) throws Exception {
@@ -304,11 +299,10 @@ public class OpenViduLoadTest {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			startNewSession = new CountDownLatch(gatherindRoundsBeforeNewSession);
+			startNewSession = new CountDownLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			this.startSessionAllBrowsersAtOnce(index + 1);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
-			keepPolling.set(false);
 		}
 		for (int i = 0; i < browserThreads.size(); i++) {
 			try {
@@ -380,24 +374,22 @@ public class OpenViduLoadTest {
 				browser.getUserId(), browser.getSessionId());
 
 		// Session stable. Start webrtc stats gathering
-		int gatheringRoundCount = 1;
-		while (keepPolling.get()) {
-			long currentTime = System.currentTimeMillis();
-			browser.getEventManager().gatherEventsAndStats(browser.getUserId(), gatheringRoundCount);
-			long timeElapsed = System.currentTimeMillis() - currentTime;
-			if (timeElapsed < BROWSER_POLL_INTERVAL) {
-				Thread.sleep(BROWSER_POLL_INTERVAL - timeElapsed);
-			}
-			if (browser.getSessionId().equals(lastSession)) {
-				startNewSession.countDown();
-				if (lastBrowserRound.get()) {
-					lastRoundCount.countDown();
+		Runnable runnable = new Runnable() {
+			int gatheringRoundCount = 1;
+
+			@Override
+			public void run() {
+				browser.getEventManager().gatherEventsAndStats(browser.getUserId(), gatheringRoundCount);
+				if (browser.getSessionId().equals(lastSession)) {
+					startNewSession.countDown();
+					if (lastBrowserRound.get()) {
+						lastRoundCount.countDown();
+					}
 				}
+				gatheringRoundCount++;
 			}
-			gatheringRoundCount++;
-		}
-		log.info("Browser thread gracefully finished for user {} in session {}", browser.getUserId(),
-				browser.getSessionId());
+		};
+		this.statGatheringTaskExecutor.scheduleAtFixedRate(runnable, 0L, BROWSER_POLL_INTERVAL, TimeUnit.MILLISECONDS);
 	}
 
 	private static void gracefullyLeaveParticipant(Browser browser) throws Exception {
