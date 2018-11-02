@@ -47,13 +47,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 /**
- * Manager event class for BrowserUser. Collects, cleans and stores events from
- * openvidu-testapp
+ * Manager class for each Browser. Collects, cleans and stores OpenVidu events
+ * and WebRTC stats from web application
+ * (https://github.com/OpenVidu/openvidu-loadtest/tree/master/webapp)
  *
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
- * @since 1.1.1
  */
-public class OpenViduEventManager {
+public class OpenViduEventAndStatsManager {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
@@ -88,7 +88,7 @@ public class OpenViduEventManager {
 
 	private JsonParser jsonParser = new JsonParser();
 
-	public OpenViduEventManager(WebDriver driver, int timeOfWaitInSeconds) {
+	public OpenViduEventAndStatsManager(WebDriver driver, int timeOfWaitInSeconds) {
 		this.driver = driver;
 		this.eventQueue = new ConcurrentLinkedQueue<JsonObject>();
 		this.eventCallbacks = new ConcurrentHashMap<>();
@@ -97,13 +97,13 @@ public class OpenViduEventManager {
 		this.timeOfWaitInSeconds = timeOfWaitInSeconds;
 	}
 
-	public void gatherEventsAndStats() {
-		log.info("Gathering events and stats");
+	public void gatherEventsAndStats(String userId, int roundCount) {
+		log.info("Gathering events and stats for user {} (round {})", userId, roundCount);
 		this.getEventsAndStatsFromBrowser(false);
 		this.emitEvents();
 	}
 
-	public void startEventPolling() {
+	public void startEventPolling(String userId, String sessionId) {
 		Thread.UncaughtExceptionHandler h = new Thread.UncaughtExceptionHandler() {
 			public void uncaughtException(Thread th, Throwable ex) {
 				if (ex.getClass().getSimpleName().equals("NoSuchSessionException")) {
@@ -119,12 +119,14 @@ public class OpenViduEventManager {
 				try {
 					Thread.sleep(OpenViduLoadTest.BROWSER_POLL_INTERVAL);
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					log.debug("OpenVidu events polling thread interrupted");
 				}
 			}
 		});
 		this.pollingThread.setUncaughtExceptionHandler(h);
 		this.pollingThread.start();
+		log.info("User {} is now retrieving OpenVidu events until session {} is stable (in an interval of {} ms)",
+				userId, sessionId, OpenViduLoadTest.BROWSER_POLL_INTERVAL);
 	}
 
 	public void stopEventPolling() {
@@ -225,11 +227,11 @@ public class OpenViduEventManager {
 			JsonObject stats = eventsAndStats.get("stats").getAsJsonObject();
 			JsonObject wrapper = new JsonObject();
 			String sessionId = eventsAndStats.get("sessionId").getAsString();
+			wrapper.add(eventsAndStats.get("sessionId").getAsString(), stats);
 			wrapper.addProperty("secondsSinceTestStarted",
 					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 			wrapper.addProperty("secondsSinceSessionStarted",
 					(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(sessionId)) / 1000);
-			wrapper.add(eventsAndStats.get("sessionId").getAsString(), stats);
 			synchronized (OpenViduLoadTest.fileWriter) {
 				try {
 					OpenViduLoadTest.fileWriter.write(wrapper.toString() + System.getProperty("line.separator"));
@@ -268,8 +270,9 @@ public class OpenViduEventManager {
 		// 'user-1-2': ...
 		// }
 		// }
-		String eventsAndStats = (String) ((JavascriptExecutor) driver)
-				.executeScript("window.collectEventsAndStats(); return JSON.stringify(window.openviduLoadTest);");
+		String eventsAndStats = (String) ((JavascriptExecutor) driver).executeScript(
+				"window.collectEventsAndStats();" + "var result = JSON.stringify(window.openviduLoadTest);"
+						+ "window.resetEventsAndStats();" + "return result;");
 		return this.jsonParser.parse(eventsAndStats).getAsJsonObject();
 	}
 

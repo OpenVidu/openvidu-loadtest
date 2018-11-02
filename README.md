@@ -33,7 +33,6 @@ System properties when running `mvn test` in `selenium-test/.`
 - `SESSIONS`: upper limit of sessions. Default value = `10`
 - `USERS_SESSION`: number of users per session. Default value = `7`
 - `SECONDS_OF_WAIT`: timeout in seconds the test will wait for each group of OpenVidu events in each browser. Default value = `40`
-- `BROWSER_LAUNCH_INTERVAL`: time of wait in milliseconds between browser launches. Default value = `2000`
 - `NUMBER_OF_POLLS`: number of polls to perform to each browser. There will be an interval of _BROWSER_POLL_INTERVAL_ between them. Default value = `8`
 - `BROWSER_POLL_INTERVAL`: interval for polling webrtc stats from each browser. Default value = `1000`
 - `REMOTE`: whether to use local web drivers or remote web drivers. Default value = `false`

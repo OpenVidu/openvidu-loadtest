@@ -15,34 +15,20 @@
  *
  */
 
-package io.openvidu.load.test;
+package io.openvidu.load.test.browser;
 
 /**
- * Amazon EC2 instance representation (instance id and ip)
+ * Exception thrown by RemoteBrowserProvider when browser inside EC2 machine
+ * wasn't reachable in the specified timeout
  *
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
  */
-public class AmazonInstance {
+public class BrowserNotReadyException extends Exception {
 
-	private String instanceId;
-	private String ip;
+	private static final long serialVersionUID = 1L;
 
-	public AmazonInstance(String instanceId, String ip) {
-		this.instanceId = instanceId;
-		this.ip = ip;
-	}
-
-	public String getInstanceId() {
-		return this.instanceId;
-	}
-
-	public String getIp() {
-		return this.ip;
-	}
-
-	@Override
-	public String toString() {
-		return "{id: \"" + this.instanceId + "\", ip: \"" + this.ip + "\"}";
+	public BrowserNotReadyException(String message) {
+		super(message);
 	}
 
 }

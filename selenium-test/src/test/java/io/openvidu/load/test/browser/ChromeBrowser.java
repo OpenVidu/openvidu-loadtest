@@ -21,7 +21,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
 /**
- * Chrome user for OpenVidu load testing
+ * Chrome browser encapsulation for OpenVidu load testing
  *
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
  */
@@ -37,6 +37,8 @@ public class ChromeBrowser extends Browser {
 		options.addArguments("--use-fake-ui-for-media-stream");
 		// This flag fakes user media with synthetic video
 		options.addArguments("--use-fake-device-for-media-stream");
+		// This flag allows to load fake media files from host
+		options.addArguments("--allow-file-access-from-files");
 		// This flag sets the video input
 		options.addArguments("--use-file-for-fake-video-capture=" + videoFileLocation);
 		// This flag sets the audio input
