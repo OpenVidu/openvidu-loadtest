@@ -438,7 +438,7 @@ public class OpenViduLoadTest {
 		browser.getManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
 		browser.getManager().waitUntilEventReaches("accessAllowed", 1);
 		browser.getManager().waitUntilEventReaches("streamCreated", USERS_SESSION);
-		browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION + 1);
+		browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
 		Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
 				true, true));
