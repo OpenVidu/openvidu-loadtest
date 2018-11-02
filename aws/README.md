@@ -6,6 +6,8 @@ In this folder we provide the files for deploying and provisioning infraestructu
 
 `EC2Instance-ElastestBrowsers.yaml`: Cloudformation template will launch and configure an AWS EC2 instance ready to launch an Internet Browser (Google Chrome).
 
+`Cloudformation-sut.yaml`: Cloudformation template to deploy the _Subject under test_.
+
 `createAMI.sh`: Script to deploy the CloudFormation and building an Amazon Machine Image (AMI). You can use the AMI to launch several browsers.
 
 `browserProvider.sh`: Once you have an AMI with the browser you can use this script to provide instances with a browser inside ready to test the app.
@@ -14,7 +16,7 @@ In this folder we provide the files for deploying and provisioning infraestructu
 
 ## Configuration
 
-You must perform some changes on the files provided in order to fit your needs. For example, depends on your region you need to use a different base AMI, we use Ubuntu 16.04 to install Docker and the browser, this AMI is provided by Amazon and it's different in each region.
+You must perform some changes in the files provided in order to fit your needs. For example, depends on your region you need to use a different base AMI, we use Ubuntu 16.04 to install Docker and the browser, this AMI is provided by Amazon and it's different in each region.
 
 You need to fill up two values in `createAMI.sh` script:
 
@@ -165,3 +167,44 @@ The Cloudformation is configured to **not** rollback if it fails, so you could t
 `/var/log/cloud-init-output.log`
 
 which contains the provisioning process and can light the problem.
+
+## The SUT (Subject under Test) Cloudformation Template
+
+This template can deploy a full OpenVidu stack with Kurento Media Server, Coturn, Redis and OpenVidu running behind a Nginx reverse proxy with a test app ready to be tested.
+
+You'll need to provide some parameters like:
+
+`OpenViduVersion`: Which OpenVidu version you want to try. Default 2.6.0
+
+`KMSVersion`: Which KMS version you want to try: Default 6.8.1
+
+`KeyName`: Your RSA key to access the instance through SSH.
+
+`InstanceType`: Which instance type you want to try. Default c5.2xlarge.
+
+To deploy the template login in the Cloudformation dashboard 
+
+![Create New Stack](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/CreateNewStack.png)
+
+and then upload the template. 
+
+![Upload the template](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Upload.png)
+
+Fill up the parameters
+
+![Fill up the parameters](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Parameters.png)
+
+On the next screen there is no need to made changes
+
+And finally review the stack and click **Create**
+
+After a couple minutes you can see the URLs on the output tab. One for OpenVidu and another one for the TestApp.
+
+![Output](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Output.png)
+
+You can access OpenVidu with this credentials:
+
+| Data         | Value       |
+| -----------: | :---------- |
+| **User**     | OPENVIDUAPP |
+| **Password** | MY_SECRET   |
