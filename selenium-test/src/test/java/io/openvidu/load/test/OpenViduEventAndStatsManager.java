@@ -147,23 +147,25 @@ public class OpenViduEventAndStatsManager {
 
 	// 'eventNumber' is accumulative for event 'eventName' for one page while it is
 	// not refreshed
-	public void waitUntilEventReaches(String eventName, int eventNumber) throws Exception {
+	public void waitUntilEventReaches(String eventName, int eventNumber) throws TimeoutException {
 		this.waitUntilEventReaches(eventName, eventNumber, this.timeOfWaitInSeconds, true);
 	}
 
 	public void waitUntilEventReaches(String eventName, int eventNumber, int secondsOfWait, boolean printTimeoutError)
-			throws Exception {
+			throws TimeoutException {
 		CountDownLatch eventSignal = new CountDownLatch(eventNumber);
 		this.setCountDown(eventName, eventSignal);
 		try {
 			if (!eventSignal.await(secondsOfWait * 1000, TimeUnit.MILLISECONDS)) {
-				throw (new TimeoutException());
+				throw (new TimeoutException(eventName));
 			}
-		} catch (InterruptedException | TimeoutException e) {
+		} catch (TimeoutException e) {
 			if (printTimeoutError) {
 				e.printStackTrace();
 			}
 			throw e;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 	}
 
