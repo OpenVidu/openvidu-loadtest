@@ -249,7 +249,7 @@ public class OpenViduLoadTest {
 		final Collection<Runnable> threads = new ArrayList<>();
 
 		for (int user = 1; user <= USERS_SESSION; user++) {
-			final String userId = "user-" + user;
+			final String userId = "user-" + index + "-" + user;
 			threads.add(() -> {
 				try {
 					startBrowser(index, userId);
