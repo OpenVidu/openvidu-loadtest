@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.load.test;
+package io.openvidu.load.test.utils;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import io.openvidu.load.test.AmazonInstance;
 
 /**
  * Executes bash scripts under src/test/resources folder. These scripts manage

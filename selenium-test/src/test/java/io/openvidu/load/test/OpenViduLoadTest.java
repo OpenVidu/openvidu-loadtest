@@ -52,12 +52,13 @@ import com.google.gson.JsonObject;
 
 import io.github.bonigarcia.SeleniumExtension;
 import io.github.bonigarcia.wdm.WebDriverManager;
-import io.openvidu.load.test.CustomLatch.AbortedException;
 import io.openvidu.load.test.browser.Browser;
 import io.openvidu.load.test.browser.BrowserNotReadyException;
 import io.openvidu.load.test.browser.BrowserProvider;
 import io.openvidu.load.test.browser.LocalBrowserProvider;
 import io.openvidu.load.test.browser.RemoteBrowserProvider;
+import io.openvidu.load.test.utils.CustomLatch;
+import io.openvidu.load.test.utils.CustomLatch.AbortedException;
 
 /**
  * E2E test for OpenVidu load testing
@@ -174,6 +175,9 @@ public class OpenViduLoadTest {
 		log.info("> App URL:               {}", APP_URL);
 		log.info("> Session limit:         {}", SESSIONS);
 		log.info("> Users per session:     {}", USERS_SESSION);
+		log.info("> Expected browsers:     {}", SESSIONS * USERS_SESSION);
+		log.info("> Expected Publishers:   {}", SESSIONS * USERS_SESSION);
+		log.info("> Expected Subscribers:  {}", SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)));
 		log.info("> Browsers init at once: {}", BROWSER_INIT_AT_ONCE);
 		log.info("> Is remote:             {}", REMOTE);
 		log.info("> Results stored under:  {}", filePath);
@@ -215,10 +219,7 @@ public class OpenViduLoadTest {
 	@Test
 	@DisplayName("Load testing")
 	void loadTest() throws Exception {
-		log.info("Starting load test. Running sessions until limit ({})", SESSIONS);
-		log.info("In case of success a total number of {} browsers are expected", SESSIONS * USERS_SESSION);
-		log.info("In case of success a total number of {} Publishers and {} Subscribers are expected",
-				SESSIONS * USERS_SESSION, SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)));
+		log.info("Starting load test");
 		timeTestStarted = System.currentTimeMillis();
 
 		// Log test started event

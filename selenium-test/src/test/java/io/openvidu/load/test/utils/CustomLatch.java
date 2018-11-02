@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.load.test;
+package io.openvidu.load.test.utils;
 
 import java.util.concurrent.CountDownLatch;
 

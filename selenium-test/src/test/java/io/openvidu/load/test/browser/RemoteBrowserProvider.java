@@ -43,7 +43,7 @@ import com.google.gson.JsonObject;
 
 import io.openvidu.load.test.AmazonInstance;
 import io.openvidu.load.test.OpenViduLoadTest;
-import io.openvidu.load.test.ScriptExecutor;
+import io.openvidu.load.test.utils.ScriptExecutor;
 
 /**
  * Manages remote browsers in EC2 Amazon Web Services machines
