@@ -32,32 +32,50 @@ import org.slf4j.Logger;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+/**
+ * Executes bash scripts under src/test/resources folder. These scripts manage
+ * AWS instances
+ *
+ * @author Pablo Fuente (pablofuenteperez@gmail.com)
+ */
 public class ScriptExecutor {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 	JsonParser parser = new JsonParser();
 
-	public Map<String, AmazonInstance> launchBrowsers(int numberOfBrowsers) {
+	File fileBrowserProvider;
+	File fileGetActiveInstances;
+	File fileTerminateInstances;
+	File fileTerminateOneInstance;
+
+	public ScriptExecutor() {
 		ClassLoader classLoader = getClass().getClassLoader();
-		File file = new File(classLoader.getResource("browserProvider.sh").getFile());
-		this.executeCommand("chmod 777 " + file.getAbsolutePath());
-		String cmd = file.getAbsolutePath() + " " + numberOfBrowsers;
+		fileBrowserProvider = new File(classLoader.getResource("browserProvider.sh").getFile());
+		fileGetActiveInstances = new File(classLoader.getResource("getActiveInstances.sh").getFile());
+		fileTerminateInstances = new File(classLoader.getResource("terminateInstances.sh").getFile());
+		fileTerminateOneInstance = new File(classLoader.getResource("terminateOneInstance.sh").getFile());
+		this.executeCommand("chmod 777 " + fileBrowserProvider.getAbsolutePath());
+		this.executeCommand("chmod 777 " + fileGetActiveInstances.getAbsolutePath());
+		this.executeCommand("chmod 777 " + fileTerminateInstances.getAbsolutePath());
+		this.executeCommand("chmod 777 " + fileTerminateOneInstance.getAbsolutePath());
+	}
+
+	public Map<String, AmazonInstance> launchBrowsers(int numberOfBrowsers) {
+		String cmd = fileBrowserProvider.getAbsolutePath() + " " + numberOfBrowsers;
 		return parseInstanceJsonToMap(this.executeCommand(cmd));
 	}
 
-	/*public Map<String, AmazonInstance> getActiveBrowsers() {
-		return parseInstanceJsonToMap(
-				this.executeCommand(new String[] { "/bin/bash", "-c", "src/test/resources/getActiveInstances.sh" }));
+	public Map<String, AmazonInstance> getActiveBrowsers() {
+		return parseInstanceJsonToMap(this.executeCommand(this.fileGetActiveInstances.getAbsolutePath()));
 	}
 
 	public void bringDownBrowser(String instanceId) {
-		this.executeCommand(new String[] { "/bin/bash", "-c",
-				"export INSTANCE=" + instanceId + " && src/test/resources/terminateOneInstance.sh" });
+		this.executeCommand(this.fileTerminateOneInstance.getAbsolutePath() + " " + instanceId);
 	}
 
-	public void bringDownAllBrowsers() {
-		this.executeCommand(new String[] { "/bin/bash", "-c", "src/test/resources/terminateInstances.sh" });
-	}*/
+	public String bringDownAllBrowsers() {
+		return this.executeCommand(this.fileTerminateInstances.getAbsolutePath());
+	}
 
 	private String executeCommand(String bashCommand) {
 		String result = "";

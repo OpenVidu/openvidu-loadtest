@@ -21,6 +21,7 @@ window.onload = () => {
 	} else {
 		window.openviduLoadTest.sessionId = SESSION_ID;
 		window.collectEventsAndStats = this.collectEventsAndStats;
+		window.resetEventsAndStats = this.resetEventsAndStats;
 		joinSession();
 	}
 };
@@ -280,6 +281,13 @@ function createToken() { // See https://openvidu.io/docs/reference-docs/REST-API
 function collectEventsAndStats() {
 	this.session.streamManagers.forEach(streamManager => {
 		this.gatherStatsForPeer(streamManager.stream.getRTCPeerConnection(), streamManager.stream.connection.data, streamManager.remote);
+	});
+}
+
+function resetEventsAndStats() {
+	window.openviduLoadTest.events = [];
+	Object.keys(window.openviduLoadTest.stats).forEach(userId => {
+		window.openviduLoadTest.stats[userId] = [];
 	});
 }
 

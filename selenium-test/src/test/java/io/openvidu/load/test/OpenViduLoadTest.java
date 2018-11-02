@@ -68,7 +68,8 @@ public class OpenViduLoadTest {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	public static ExecutorService browserTaskExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+	public static ExecutorService browserTaskExecutor = Executors
+			.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
 			Runtime.getRuntime().availableProcessors());
 
@@ -195,6 +196,7 @@ public class OpenViduLoadTest {
 			log.error("Error closing results file: {}", e.getMessage());
 		}
 		log.info("Load test finished");
+		browserProvider.terminateInstances();
 	}
 
 	@Test
@@ -231,6 +233,8 @@ public class OpenViduLoadTest {
 					startBrowser(index, userIndex);
 				} catch (Exception e) {
 					e.printStackTrace();
+					Assert.fail();
+					return;
 				}
 			});
 		}
@@ -262,11 +266,11 @@ public class OpenViduLoadTest {
 		browserThread(setupBrowser("chrome", "session-" + sessionIndex, userId));
 	}
 
-	private Browser setupBrowser(String browserType, String sessionId, String userId) {
+	private Browser setupBrowser(String browserType, String sessionId, String userId) throws BrowserNotReadyException {
 		Browser browser = browserProvider.getBrowser(browserType, sessionId, userId, SECONDS_OF_WAIT);
 		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 				+ sessionId + "&userId=" + userId);
-		browser.getEventManager().startEventPolling(userId, sessionId);
+		browser.getManager().startEventPolling(userId, sessionId);
 		Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
 		if (browsers != null) {
 			browsers.add(browser);
@@ -344,7 +348,7 @@ public class OpenViduLoadTest {
 		for (Browser b : listOfBrowsers) {
 			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 					+ sessionId + "&userId=" + userIds.get(i));
-			b.getEventManager().startEventPolling(userIds.get(i), sessionId);
+			b.getManager().startEventPolling(userIds.get(i), sessionId);
 			Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
 			if (browsers != null) {
 				browsers.add(b);
@@ -358,14 +362,14 @@ public class OpenViduLoadTest {
 
 	private void browserThread(Browser browser) throws Exception {
 		// Wait until session is stable
-		browser.getEventManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
-		browser.getEventManager().waitUntilEventReaches("accessAllowed", 1);
-		browser.getEventManager().waitUntilEventReaches("streamCreated", USERS_SESSION);
-		browser.getEventManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
+		browser.getManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
+		browser.getManager().waitUntilEventReaches("accessAllowed", 1);
+		browser.getManager().waitUntilEventReaches("streamCreated", USERS_SESSION);
+		browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
-		Assert.assertTrue(browser.getEventManager()
-				.assertMediaTracks(browser.getDriver().findElements(By.tagName("video")), true, true));
-		browser.getEventManager().stopEventPolling();
+		Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
+				true, true));
+		browser.getManager().stopEventPolling();
 
 		log.info(
 				"User {} is now seeing a stable session ({}). OpenVidu events polling thread interrupted and starting stats gathering",
@@ -377,7 +381,7 @@ public class OpenViduLoadTest {
 
 			@Override
 			public void run() {
-				browser.getEventManager().gatherEventsAndStats(browser.getUserId(), gatheringRoundCount);
+				browser.getManager().gatherEventsAndStats(browser.getUserId(), gatheringRoundCount);
 				if (browser.getSessionId().equals(lastSession)) {
 					startNewSession.countDown();
 					if (lastBrowserRound.get()) {

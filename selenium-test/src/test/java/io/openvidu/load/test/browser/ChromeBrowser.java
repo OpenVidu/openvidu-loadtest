@@ -21,7 +21,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
 /**
- * Chrome user for OpenVidu load testing
+ * Chrome browser encapsulation for OpenVidu load testing
  *
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
  */

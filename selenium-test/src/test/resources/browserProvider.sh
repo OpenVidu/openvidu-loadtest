@@ -6,7 +6,7 @@ INSTANCE_TYPE=
 KEY_NAME=
 SECURITY_GROUP=
 
-NUM_INSTANCES=${NUM_INSTANCES:-1}
+NUM_INSTANCES=$1
 
 aws ec2 run-instances \
   --image-id ${IMAGE_ID} \
