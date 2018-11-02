@@ -147,29 +147,33 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			capabilities = DesiredCapabilities.chrome();
 			capabilities.setAcceptInsecureCerts(true);
 			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
-			String instanceId = map.values().iterator().next().getInstanceId();
-			if (this.amazonInstances.putIfAbsent(instanceId, map.get(instanceId)) == null) {
-				// New instance id
-				try {
-					Future<Browser> future = OpenViduLoadTest.browserTaskExecutor
-							.submit(new RemoteWebDriverCallable(instanceId, map.get(instanceId).getIp(), sessionId,
-									userId, capabilities, timeOfWaitInSeconds));
-					browser = future.get();
-				} catch (InterruptedException | ExecutionException e1) {
-					throw new BrowserNotReadyException(
-							"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+
+			for (Entry<String, AmazonInstance> entry : map.entrySet()) {
+				final String instanceID = entry.getKey();
+				if (this.amazonInstances.putIfAbsent(instanceID, map.get(instanceID)) == null) {
+					// New instance id
+					try {
+						Future<Browser> future = OpenViduLoadTest.browserTaskExecutor
+								.submit(new RemoteWebDriverCallable(instanceID, map.get(instanceID).getIp(), sessionId,
+										userId, capabilities, timeOfWaitInSeconds));
+						browser = future.get();
+						break;
+					} catch (InterruptedException | ExecutionException e1) {
+						throw new BrowserNotReadyException(
+								"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+					}
 				}
-			} else {
-				// Existing instance id
-				log.error("Amazon instance {} already configured", instanceId);
-				return null;
 			}
 			log.info("Using remote Chrome web driver");
 			break;
 		default:
 			return this.getBrowser("chrome", sessionId, userId, timeOfWaitInSeconds);
 		}
-		return browser;
+		if (browser != null) {
+			return browser;
+		} else {
+			throw new BrowserNotReadyException("There wasn't any browser avaiable according to aws-cli");
+		}
 	}
 
 	@Override
