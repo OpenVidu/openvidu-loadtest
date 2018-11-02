@@ -48,6 +48,8 @@ import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.slf4j.Logger;
 
+import com.google.gson.JsonObject;
+
 import io.github.bonigarcia.SeleniumExtension;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.openvidu.load.test.browser.Browser;
@@ -87,7 +89,7 @@ public class OpenViduLoadTest {
 
 	static BrowserProvider browserProvider;
 	static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
-	static Long timeTestStarted;
+	public static Long timeTestStarted;
 	static Map<String, Long> timeSessionStarted = new ConcurrentHashMap<>();
 
 	static FileWriter fileWriter;
@@ -165,18 +167,28 @@ public class OpenViduLoadTest {
 			log.error("Stats output file couldn't be opened: {}", e.toString());
 		}
 
-		log.info("> OpenVidu URL: {}", OPENVIDU_URL);
-		log.info("> OpenVidu secret: {}", OPENVIDU_SECRET);
-		log.info("> App URL: {}", APP_URL);
-		log.info("> Session limit: {}", SESSIONS);
-		log.info("> Users per session: {}", USERS_SESSION);
+		log.info("------------ TEST CONFIGURATION ----------");
+		log.info("> OpenVidu URL:          {}", OPENVIDU_URL);
+		log.info("> OpenVidu secret:       {}", OPENVIDU_SECRET);
+		log.info("> App URL:               {}", APP_URL);
+		log.info("> Session limit:         {}", SESSIONS);
+		log.info("> Users per session:     {}", USERS_SESSION);
 		log.info("> Browsers init at once: {}", BROWSER_INIT_AT_ONCE);
-		log.info("> Is remote: {}", REMOTE);
-		log.info("> Results stored under: {}", filePath);
+		log.info("> Is remote:             {}", REMOTE);
+		log.info("> Results stored under:  {}", filePath);
+		log.info("---------------------------------------- ");
 	}
 
 	@AfterAll
 	static void bringDown() {
+
+		// Log test finished event
+		JsonObject testFinishedEvent = new JsonObject();
+		testFinishedEvent.addProperty("name", "testFinished");
+		testFinishedEvent.addProperty("secondsSinceTestStarted",
+				(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+		logTestEvent(testFinishedEvent);
+
 		sessionIdsBrowsers.entrySet().forEach(entry -> {
 			entry.getValue().forEach(browser -> {
 				try {
@@ -207,6 +219,16 @@ public class OpenViduLoadTest {
 		log.info("In case of success a total number of {} Publishers and {} Subscribers are expected",
 				SESSIONS * USERS_SESSION, SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)));
 		timeTestStarted = System.currentTimeMillis();
+
+		// Log test started event
+		JsonObject testStartedEvent = new JsonObject();
+		testStartedEvent.addProperty("name", "testStarted");
+		JsonObject jsonProperties = new JsonObject();
+		jsonProperties.addProperty("sessions", SESSIONS);
+		jsonProperties.addProperty("usersSession", USERS_SESSION);
+		testStartedEvent.add("properties", jsonProperties);
+		logTestEvent(testStartedEvent);
+
 		if (BROWSER_INIT_AT_ONCE) {
 			this.startSessionAllBrowsersAtOnce(1);
 		} else {
@@ -224,7 +246,6 @@ public class OpenViduLoadTest {
 		lastSession = sessionId;
 		log.info("Starting session: {}", sessionId);
 		final Collection<Runnable> threads = new ArrayList<>();
-		timeSessionStarted.put(sessionId, System.currentTimeMillis());
 
 		for (int user = 1; user <= USERS_SESSION; user++) {
 			final int userIndex = user;
@@ -289,7 +310,6 @@ public class OpenViduLoadTest {
 		String sessionId = "session-" + index;
 		lastSession = sessionId;
 		log.info("Starting session: {}", sessionId);
-		timeSessionStarted.put(sessionId, System.currentTimeMillis());
 		Collection<Runnable> threads = new ArrayList<>();
 		try {
 			threads = startMultipleBrowsers(index);
@@ -361,6 +381,18 @@ public class OpenViduLoadTest {
 	}
 
 	private void browserThread(Browser browser) throws Exception {
+
+		Long timestamp = System.currentTimeMillis();
+		if (timeSessionStarted.putIfAbsent(browser.getSessionId(), timestamp) == null) {
+			// Log session started event for the first user connecting to each session
+			JsonObject sessionStartedEvent = new JsonObject();
+			sessionStartedEvent.addProperty("name", "sessionStarted");
+			sessionStartedEvent.addProperty("sessionId", browser.getSessionId());
+			sessionStartedEvent.addProperty("secondsSinceTestStarted",
+					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+			logTestEvent(sessionStartedEvent, timestamp);
+		}
+
 		// Wait until session is stable
 		browser.getManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
 		browser.getManager().waitUntilEventReaches("accessAllowed", 1);
@@ -369,6 +401,18 @@ public class OpenViduLoadTest {
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
 		Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
 				true, true));
+
+		// Log session stable for thread's user
+		JsonObject sessionStableEvent = new JsonObject();
+		sessionStableEvent.addProperty("name", "sessionStable");
+		sessionStableEvent.addProperty("sessionId", browser.getSessionId());
+		sessionStableEvent.addProperty("userId", browser.getUserId());
+		sessionStableEvent.addProperty("secondsSinceTestStarted",
+				(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+		sessionStableEvent.addProperty("secondsSinceSessionStarted",
+				(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(browser.getSessionId())) / 1000);
+		logTestEvent(sessionStableEvent);
+
 		browser.getManager().stopEventPolling();
 
 		log.info(
@@ -400,6 +444,28 @@ public class OpenViduLoadTest {
 		actions.click();
 		actions.build().perform();
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), 0));
+	}
+
+	public static void logTestEvent(JsonObject event) {
+		JsonObject testEvent = new JsonObject();
+		testEvent.add("event", event);
+		testEvent.addProperty("timestamp", System.currentTimeMillis());
+		OpenViduLoadTest.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
+	}
+
+	public static void logTestEvent(JsonObject event, Long timestamp) {
+		JsonObject testEvent = new JsonObject();
+		testEvent.add("event", event);
+		testEvent.addProperty("timestamp", timestamp);
+		OpenViduLoadTest.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
+	}
+
+	public static synchronized void writeToOutput(String s) {
+		try {
+			OpenViduLoadTest.fileWriter.write(s);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 }

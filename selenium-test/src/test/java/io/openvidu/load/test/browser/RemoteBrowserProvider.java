@@ -39,6 +39,8 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.slf4j.Logger;
 
+import com.google.gson.JsonObject;
+
 import io.openvidu.load.test.AmazonInstance;
 import io.openvidu.load.test.OpenViduLoadTest;
 import io.openvidu.load.test.ScriptExecutor;
@@ -77,9 +79,29 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			WebDriver driver = null;
 			int tries = 0;
 			boolean browserReady = false;
+
+			// Log connecting to remote web driver event
+			JsonObject connectingToBrowserEvent = new JsonObject();
+			connectingToBrowserEvent.addProperty("name", "connectingToBrowser");
+			connectingToBrowserEvent.addProperty("sessionId", sessionId);
+			connectingToBrowserEvent.addProperty("userId", userId);
+			connectingToBrowserEvent.addProperty("secondsSinceTestStarted",
+					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+			OpenViduLoadTest.logTestEvent(connectingToBrowserEvent);
+
 			while (!browserReady && tries < (SECONDS_OF_BROWSER_WAIT * 1000 / 200)) {
 				try {
 					driver = new RemoteWebDriver(new URL(browserUrl), capabilities);
+
+					// Log connected to remote web driver event
+					JsonObject connectedToBrowserEvent = new JsonObject();
+					connectedToBrowserEvent.addProperty("name", "connectedToBrowser");
+					connectedToBrowserEvent.addProperty("sessionId", sessionId);
+					connectedToBrowserEvent.addProperty("userId", userId);
+					connectedToBrowserEvent.addProperty("secondsSinceTestStarted",
+							(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+					OpenViduLoadTest.logTestEvent(connectedToBrowserEvent);
+
 					browserReady = true;
 				} catch (UnreachableBrowserException | MalformedURLException e) {
 					log.info("Waiting for browser. Exception caught: {} ({})", e.getClass(), e.getMessage());
@@ -214,14 +236,14 @@ public class RemoteBrowserProvider implements BrowserProvider {
 		log.info("Terminating AWS instances");
 		boolean emptyResponse = false;
 		do {
-			String result = this.scriptExecutor.bringDownAllBrowsers();
-			emptyResponse = (result == null || result.isEmpty());
+			Map<String, AmazonInstance> aliveInstances = this.scriptExecutor.bringDownAllBrowsers();
+			emptyResponse = aliveInstances.isEmpty();
 			if (emptyResponse) {
 				log.info("All instances are now shutted down");
 				break;
 			} else {
 				try {
-					log.info("Instances still alive...");
+					log.info("Instances still alive: {}", aliveInstances.toString());
 					Thread.sleep(500);
 				} catch (InterruptedException e) {
 					e.printStackTrace();

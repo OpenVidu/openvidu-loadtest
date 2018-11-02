@@ -20,7 +20,6 @@ package io.openvidu.load.test;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -232,13 +231,7 @@ public class OpenViduEventAndStatsManager {
 					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 			wrapper.addProperty("secondsSinceSessionStarted",
 					(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(sessionId)) / 1000);
-			synchronized (OpenViduLoadTest.fileWriter) {
-				try {
-					OpenViduLoadTest.fileWriter.write(wrapper.toString() + System.getProperty("line.separator"));
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
+			OpenViduLoadTest.writeToOutput(wrapper.toString() + System.getProperty("line.separator"));
 		}
 	}
 
