@@ -182,7 +182,7 @@ You'll need to provide some parameters like:
 
 `InstanceType`: Which instance type you want to try. Default c5.2xlarge.
 
-To deploy the template login in the Cloudformation dashboard 
+To deploy the template login in the Cloudformation dashboard and click **Create Stack**
 
 ![Create New Stack](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/CreateNewStack.png)
 
@@ -190,7 +190,7 @@ and then upload the template.
 
 ![Upload the template](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Upload.png)
 
-Fill up the parameters
+Choose a name and fill up the parameters
 
 ![Fill up the parameters](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Parameters.png)
 
@@ -198,7 +198,7 @@ On the next screen there is no need to made changes
 
 And finally review the stack and click **Create**
 
-After a couple minutes you can see the URLs on the output tab. One for OpenVidu and another one for the TestApp.
+After a couple minutes you can see the URLs in the output tab. One for OpenVidu and another one for the TestApp.
 
 ![Output](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Output.png)
 
