@@ -18,7 +18,7 @@ Parameters:
   InstanceType:
     Description: "Instance Type"
     Type: "String"
-    Default: "c5.xlarge"
+    Default: "c5.2xlarge"
 
 Resources:
   OpenviduServer:
