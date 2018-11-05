@@ -189,6 +189,12 @@ public class OpenViduLoadTest {
 			return;
 		}
 
+		javax.net.ssl.HttpsURLConnection.setDefaultHostnameVerifier(new javax.net.ssl.HostnameVerifier() {
+			public boolean verify(String hostname, javax.net.ssl.SSLSession sslSession) {
+				return true;
+			}
+		});
+
 		log.info("------------ TEST CONFIGURATION ----------");
 		log.info("> OpenVidu URL:          {}", OPENVIDU_URL);
 		log.info("> OpenVidu secret:       {}", OPENVIDU_SECRET);
