@@ -183,6 +183,7 @@ public class OpenViduLoadTest {
 				fileIndex++;
 			}
 			fileWriter = new FileWriter(filePath, true);
+			RESULTS_PATH = filePath;
 		} catch (IOException e) {
 			log.error("Stats output file couldn't be opened: {}", e.toString());
 		}
@@ -240,6 +241,9 @@ public class OpenViduLoadTest {
 
 		// Terminate all instances
 		browserProvider.terminateInstances();
+
+		// Process test results
+		new ResultsParser().processResultFile();
 	}
 
 	@Test
