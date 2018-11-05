@@ -20,10 +20,14 @@ package io.openvidu.load.test;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.io.File;
-import java.io.FileWriter;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +63,7 @@ import io.openvidu.load.test.browser.LocalBrowserProvider;
 import io.openvidu.load.test.browser.RemoteBrowserProvider;
 import io.openvidu.load.test.utils.CustomLatch;
 import io.openvidu.load.test.utils.CustomLatch.AbortedException;
-import io.openvidu.load.test.utils.MonitoringStats;
+import io.openvidu.load.test.utils.LogHelper;
 
 /**
  * E2E test for OpenVidu load testing
@@ -79,6 +83,7 @@ public class OpenViduLoadTest {
 			Runtime.getRuntime().availableProcessors());
 
 	static OpenViduServerManager openViduServerManager;
+	static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
 	public static String OPENVIDU_URL = "https://localhost:4443/";
@@ -99,8 +104,6 @@ public class OpenViduLoadTest {
 	static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
 	public static Long timeTestStarted;
 	static Map<String, Long> timeSessionStarted = new ConcurrentHashMap<>();
-
-	static FileWriter fileWriter;
 
 	static CustomLatch startNewSession;
 	static CustomLatch lastRoundCount;
@@ -175,17 +178,11 @@ public class OpenViduLoadTest {
 
 		String filePath = RESULTS_PATH;
 		try {
-			boolean alreadyExists = new File(filePath).exists();
-			int fileIndex = 1;
-			while (alreadyExists) {
-				filePath = RESULTS_PATH.substring(0, RESULTS_PATH.length() - 4) + "-" + fileIndex + ".txt";
-				alreadyExists = new File(filePath).exists();
-				fileIndex++;
-			}
-			fileWriter = new FileWriter(filePath, true);
-			RESULTS_PATH = filePath;
+			logHelper = new LogHelper(filePath);
 		} catch (IOException e) {
-			log.error("Stats output file couldn't be opened: {}", e.toString());
+			log.error("Result output file couldn't be opened: {}", e.toString());
+			Assert.fail("Result output file couldn't be opened: " + e.toString());
+			return;
 		}
 
 		log.info("------------ TEST CONFIGURATION ----------");
@@ -211,7 +208,7 @@ public class OpenViduLoadTest {
 		testFinishedEvent.addProperty("name", "testFinished");
 		testFinishedEvent.addProperty("secondsSinceTestStarted",
 				(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
-		logTestEvent(testFinishedEvent);
+		logHelper.logTestEvent(testFinishedEvent);
 
 		// Leave participants and close browsers
 		sessionIdsBrowsers.entrySet().forEach(entry -> {
@@ -232,8 +229,7 @@ public class OpenViduLoadTest {
 
 		// Close results file
 		try {
-			log.info("Closing results file");
-			fileWriter.close();
+			logHelper.close();
 		} catch (IOException e) {
 			log.error("Error closing results file: {}", e.getMessage());
 		}
@@ -259,7 +255,7 @@ public class OpenViduLoadTest {
 		jsonProperties.addProperty("sessions", SESSIONS);
 		jsonProperties.addProperty("usersSession", USERS_SESSION);
 		testStartedEvent.add("properties", jsonProperties);
-		logTestEvent(testStartedEvent);
+		logHelper.logTestEvent(testStartedEvent);
 
 		// Init OpenVidu Serve monitoring thread
 		openViduServerManager = new OpenViduServerManager();
@@ -466,14 +462,27 @@ public class OpenViduLoadTest {
 			sessionStartedEvent.addProperty("sessionId", browser.getSessionId());
 			sessionStartedEvent.addProperty("secondsSinceTestStarted",
 					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
-			logTestEvent(sessionStartedEvent, timestamp);
+			logHelper.logTestEvent(sessionStartedEvent, timestamp);
 		}
 
 		// Wait until session is stable
 		browser.getManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
 		browser.getManager().waitUntilEventReaches("accessAllowed", 1);
 		browser.getManager().waitUntilEventReaches("streamCreated", USERS_SESSION);
-		browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
+
+		try {
+			browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
+		} catch (TimeoutException e) {
+			log.warn("Some Subscriber has not triggered 'streamPlaying' event for user {}", browser.getUserId());
+			try {
+				String sessionInfo = performGetApiSessions();
+				logHelper.logOpenViduSessionInfo(sessionInfo);
+			} catch (IOException e2) {
+				log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
+			}
+			return;
+		}
+
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
 		Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
 				true, true));
@@ -487,7 +496,14 @@ public class OpenViduLoadTest {
 				(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 		sessionStableEvent.addProperty("secondsSinceSessionStarted",
 				(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(browser.getSessionId())) / 1000);
-		logTestEvent(sessionStableEvent);
+		logHelper.logTestEvent(sessionStableEvent);
+
+		try {
+			String sessionInfo = performGetApiSessions();
+			logHelper.logOpenViduSessionInfo(sessionInfo);
+		} catch (IOException e2) {
+			log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
+		}
 
 		browser.getManager().stopEventPolling();
 
@@ -522,30 +538,26 @@ public class OpenViduLoadTest {
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), 0));
 	}
 
-	public static void logTestEvent(JsonObject event) {
-		JsonObject testEvent = new JsonObject();
-		testEvent.add("event", event);
-		testEvent.addProperty("timestamp", System.currentTimeMillis());
-		OpenViduLoadTest.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
-	}
+	private String performGetApiSessions() throws IOException {
+		URL url = new URL(OpenViduLoadTest.OPENVIDU_URL + "api/sessions?webRtcStats=true");
+		HttpURLConnection con = (HttpURLConnection) url.openConnection();
+		con.setRequestMethod("GET");
+		con.setRequestProperty("Content-Type", "application/json");
+		String encoded = Base64.getEncoder()
+				.encodeToString(("OPENVIDUAPP:" + OpenViduLoadTest.OPENVIDU_SECRET).getBytes(StandardCharsets.UTF_8));
+		con.setRequestProperty("Authorization", "Basic " + encoded);
+		con.setConnectTimeout(4000);
+		con.setReadTimeout(4000);
 
-	public static void logTestEvent(JsonObject event, Long timestamp) {
-		JsonObject testEvent = new JsonObject();
-		testEvent.add("event", event);
-		testEvent.addProperty("timestamp", timestamp);
-		OpenViduLoadTest.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
-	}
-
-	public static void logServerMonitoringStats(MonitoringStats stats) {
-		OpenViduLoadTest.writeToOutput(stats.toJson().toString() + System.getProperty("line.separator"));
-	}
-
-	public static synchronized void writeToOutput(String s) {
-		try {
-			OpenViduLoadTest.fileWriter.write(s);
-		} catch (IOException e) {
-			e.printStackTrace();
+		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+		String inputLine;
+		StringBuffer content = new StringBuffer();
+		while ((inputLine = in.readLine()) != null) {
+			content.append(inputLine);
 		}
+		in.close();
+		con.disconnect();
+		return content.toString();
 	}
 
 }
