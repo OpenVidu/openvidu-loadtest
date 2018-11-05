@@ -561,12 +561,6 @@ public class OpenViduLoadTest {
 		HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
 		con.setRequestMethod("GET");
 		con.setRequestProperty("Content-Type", "application/json");
-		con.setHostnameVerifier(new HostnameVerifier() {
-			@Override
-			public boolean verify(String hostname, SSLSession session) {
-				return true;
-			}
-		});
 
 		String encoded = Base64.getEncoder()
 				.encodeToString(("OPENVIDUAPP:" + OpenViduLoadTest.OPENVIDU_SECRET).getBytes(StandardCharsets.UTF_8));
