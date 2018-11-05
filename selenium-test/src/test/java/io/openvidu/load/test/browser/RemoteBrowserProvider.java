@@ -87,7 +87,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			connectingToBrowserEvent.addProperty("userId", userId);
 			connectingToBrowserEvent.addProperty("secondsSinceTestStarted",
 					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
-			OpenViduLoadTest.logTestEvent(connectingToBrowserEvent);
+			OpenViduLoadTest.logHelper.logTestEvent(connectingToBrowserEvent);
 
 			while (!browserReady && tries < (SECONDS_OF_BROWSER_WAIT * 1000 / 200)) {
 				try {
@@ -100,7 +100,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 					connectedToBrowserEvent.addProperty("userId", userId);
 					connectedToBrowserEvent.addProperty("secondsSinceTestStarted",
 							(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
-					OpenViduLoadTest.logTestEvent(connectedToBrowserEvent);
+					OpenViduLoadTest.logHelper.logTestEvent(connectedToBrowserEvent);
 
 					browserReady = true;
 				} catch (UnreachableBrowserException | MalformedURLException e) {

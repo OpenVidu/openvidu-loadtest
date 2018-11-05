@@ -56,14 +56,6 @@ public class LogHelper {
 		fileWriter.close();
 	}
 
-	private static synchronized void writeToOutput(String s) {
-		try {
-			LogHelper.fileWriter.write(s);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
 	public void logTestEvent(JsonObject event) {
 		JsonObject testEvent = new JsonObject();
 		testEvent.add("event", event);
@@ -78,6 +70,10 @@ public class LogHelper {
 		LogHelper.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
 	}
 
+	public void logBrowserStats(JsonObject stats) {
+		LogHelper.writeToOutput(stats.toString() + System.getProperty("line.separator"));
+	}
+
 	public void logServerMonitoringStats(MonitoringStats stats) {
 		LogHelper.writeToOutput(stats.toJson().toString() + System.getProperty("line.separator"));
 	}
@@ -86,6 +82,14 @@ public class LogHelper {
 		JsonObject jsonInfo = parser.parse(info).getAsJsonObject();
 		jsonInfo.addProperty("timestamp", System.currentTimeMillis());
 		LogHelper.writeToOutput(info.toString() + System.getProperty("line.separator"));
+	}
+
+	private static synchronized void writeToOutput(String s) {
+		try {
+			LogHelper.fileWriter.write(s);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 }

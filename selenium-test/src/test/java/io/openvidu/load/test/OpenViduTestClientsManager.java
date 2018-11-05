@@ -233,7 +233,7 @@ public class OpenViduTestClientsManager {
 					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 			wrapper.addProperty("secondsSinceSessionStarted",
 					(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(sessionId)) / 1000);
-			OpenViduLoadTest.writeToOutput(wrapper.toString() + System.getProperty("line.separator"));
+			OpenViduLoadTest.logHelper.logBrowserStats(wrapper);
 		}
 	}
 

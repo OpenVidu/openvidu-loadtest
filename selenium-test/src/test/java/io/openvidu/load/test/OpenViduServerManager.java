@@ -59,7 +59,7 @@ public class OpenViduServerManager {
 				MonitoringStats stats = this.monitor.getMonitoringStats();
 				if (stats != null) {
 					log.info(stats.toString());
-					OpenViduLoadTest.logServerMonitoringStats(stats);
+					OpenViduLoadTest.logHelper.logServerMonitoringStats(stats);
 				}
 				try {
 					Thread.sleep(OpenViduLoadTest.SERVER_POLL_INTERVAL);

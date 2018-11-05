@@ -83,7 +83,7 @@ public class OpenViduLoadTest {
 			Runtime.getRuntime().availableProcessors());
 
 	static OpenViduServerManager openViduServerManager;
-	static LogHelper logHelper;
+	public static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
 	public static String OPENVIDU_URL = "https://localhost:4443/";
