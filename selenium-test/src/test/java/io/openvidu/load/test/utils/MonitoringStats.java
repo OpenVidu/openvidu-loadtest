@@ -21,6 +21,7 @@ import java.util.Map.Entry;
 
 import com.google.gson.JsonObject;
 
+import io.openvidu.load.test.OpenViduLoadTest;
 import io.openvidu.load.test.utils.NetInfo.NetInfoEntry;
 
 public class MonitoringStats {
@@ -83,6 +84,8 @@ public class MonitoringStats {
 		stats.add("mem", mem);
 
 		json.add("stats", stats);
+		json.addProperty("secondsSinceTestStarted",
+				(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 		json.addProperty("timestamp", this.timestamp);
 
 		return json;
