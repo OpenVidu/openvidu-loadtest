@@ -39,6 +39,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSession;
+
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -474,8 +478,21 @@ public class OpenViduLoadTest {
 			browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
 		} catch (TimeoutException e) {
 			log.warn("Some Subscriber has not triggered 'streamPlaying' event for user {}", browser.getUserId());
+
+			// Log session unstable for thread's user
+			JsonObject sessionUnstableEvent = new JsonObject();
+			sessionUnstableEvent.addProperty("name", "sessionUnstable");
+			sessionUnstableEvent.addProperty("sessionId", browser.getSessionId());
+			sessionUnstableEvent.addProperty("userId", browser.getUserId());
+			sessionUnstableEvent.addProperty("secondsSinceTestStarted",
+					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+			sessionUnstableEvent.addProperty("secondsSinceSessionStarted",
+					(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(browser.getSessionId()))
+							/ 1000);
+			logHelper.logTestEvent(sessionUnstableEvent);
+
 			try {
-				String sessionInfo = performGetApiSessions();
+				String sessionInfo = performGetApiSession(browser.getSessionId());
 				logHelper.logOpenViduSessionInfo(sessionInfo);
 			} catch (IOException e2) {
 				log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
@@ -499,7 +516,7 @@ public class OpenViduLoadTest {
 		logHelper.logTestEvent(sessionStableEvent);
 
 		try {
-			String sessionInfo = performGetApiSessions();
+			String sessionInfo = performGetApiSession(browser.getSessionId());
 			logHelper.logOpenViduSessionInfo(sessionInfo);
 		} catch (IOException e2) {
 			log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
@@ -538,11 +555,19 @@ public class OpenViduLoadTest {
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), 0));
 	}
 
-	private String performGetApiSessions() throws IOException {
-		URL url = new URL(OpenViduLoadTest.OPENVIDU_URL + "api/sessions?webRtcStats=true");
-		HttpURLConnection con = (HttpURLConnection) url.openConnection();
+	private String performGetApiSession(String sessionId) throws IOException {
+		URL url = new URL(OpenViduLoadTest.OPENVIDU_URL + "api/sessions/" + sessionId + "?webRtcStats=true");
+
+		HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
 		con.setRequestMethod("GET");
 		con.setRequestProperty("Content-Type", "application/json");
+		con.setHostnameVerifier(new HostnameVerifier() {
+			@Override
+			public boolean verify(String hostname, SSLSession session) {
+				return true;
+			}
+		});
+
 		String encoded = Base64.getEncoder()
 				.encodeToString(("OPENVIDUAPP:" + OpenViduLoadTest.OPENVIDU_SECRET).getBytes(StandardCharsets.UTF_8));
 		con.setRequestProperty("Authorization", "Basic " + encoded);

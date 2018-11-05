@@ -60,6 +60,8 @@ public class ResultsParser {
 	private double maxCpuUsage;
 	private double maxMemUsage;
 
+	private int totalUnstableBrowsers;
+
 	private int testDuration;
 
 	public void processResultFile() {
@@ -75,6 +77,9 @@ public class ResultsParser {
 					if ("testFinished".equals(json.get("event").getAsJsonObject().get("name").getAsString())) {
 						this.testDuration = json.get("event").getAsJsonObject().get("secondsSinceTestStarted")
 								.getAsInt();
+					} else if ("sessionUnstable"
+							.equals(json.get("event").getAsJsonObject().get("name").getAsString())) {
+						totalUnstableBrowsers++;
 					}
 				} else if (json.has("stats")) {
 					// OpenVidu Server monitoring log
@@ -82,6 +87,10 @@ public class ResultsParser {
 					this.maxCpuUsage = Math.max(this.maxCpuUsage, json.get("cpu").getAsDouble());
 					this.maxMemUsage = Math.max(this.maxMemUsage,
 							json.get("mem").getAsJsonObject().get("percentage").getAsDouble());
+				} else if (json.has("connections")) {
+					// OpenVidu session info (JSON response to
+					// /api/sessions/SESSION_ID?webRtcStats=true
+
 				} else {
 					// Browser WebRtc statistics log
 					json.entrySet().forEach(entry1 -> {
@@ -165,6 +174,7 @@ public class ResultsParser {
 		log.info("Average WebRTC available send bandwidth: {}", averageAvailablePublishersBandwitdh);
 		log.info("Max CPU usage in OpenVidu Server: {}", maxCpuUsage);
 		log.info("Max memory usage in OpenVidu Server: {}", maxMemUsage);
+		log.info("Total unstable browsers: {}", totalUnstableBrowsers);
 		log.info("----------------------------------------------");
 	}
 
