@@ -110,8 +110,6 @@ public class ResultsParser {
 									totalSubscribersDelay += stats.get("delay").getAsDouble();
 								}
 							});
-						} else {
-							log.error("Not a JSON object: {}", entry1.getValue().toString());
 						}
 					});
 				}
