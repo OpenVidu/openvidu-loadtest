@@ -78,7 +78,7 @@ public class MonitoringStats {
 
 		// mem
 		JsonObject mem = new JsonObject();
-		mem.addProperty("total", this.memInfo[0]);
+		mem.addProperty("used", this.memInfo[0]);
 		mem.addProperty("percentage", this.memInfo[1]);
 		stats.add("mem", mem);
 
