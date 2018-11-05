@@ -130,7 +130,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 	Map<String, Browser> amazonBrowsers = new ConcurrentHashMap<>();
 
 	final String URL_END = ":4444/wd/hub";
-	final int SECONDS_OF_BROWSER_WAIT = 30;
+	final int SECONDS_OF_BROWSER_WAIT = 60;
 
 	@Override
 	public Browser getBrowser(String browserType, String sessionId, String userId, int timeOfWaitInSeconds)

@@ -23,7 +23,6 @@ import static org.slf4j.LoggerFactory.getLogger;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -405,8 +404,8 @@ public class OpenViduLoadTest {
 		try {
 			threads = startMultipleBrowsers(index);
 		} catch (BrowserNotReadyException e) {
-			log.error("Some browser was not ready");
-			Assert.fail("Some browser was not ready");
+			log.error("Some browser was not ready. {}", e.getMessage());
+			Assert.fail("Some browser was not ready. " + e.getMessage());
 			return;
 		}
 		for (Runnable r : threads) {
