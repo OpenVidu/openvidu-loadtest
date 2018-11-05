@@ -52,7 +52,7 @@ import com.google.gson.JsonParser;
  *
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
  */
-public class OpenViduEventAndStatsManager {
+public class OpenViduTestClientsManager {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
@@ -87,7 +87,7 @@ public class OpenViduEventAndStatsManager {
 
 	private JsonParser jsonParser = new JsonParser();
 
-	public OpenViduEventAndStatsManager(WebDriver driver, int timeOfWaitInSeconds) {
+	public OpenViduTestClientsManager(WebDriver driver, int timeOfWaitInSeconds) {
 		this.driver = driver;
 		this.eventQueue = new ConcurrentLinkedQueue<JsonObject>();
 		this.eventCallbacks = new ConcurrentHashMap<>();

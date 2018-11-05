@@ -59,6 +59,7 @@ import io.openvidu.load.test.browser.LocalBrowserProvider;
 import io.openvidu.load.test.browser.RemoteBrowserProvider;
 import io.openvidu.load.test.utils.CustomLatch;
 import io.openvidu.load.test.utils.CustomLatch.AbortedException;
+import io.openvidu.load.test.utils.MonitoringStats;
 
 /**
  * E2E test for OpenVidu load testing
@@ -77,17 +78,22 @@ public class OpenViduLoadTest {
 	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
 			Runtime.getRuntime().availableProcessors());
 
-	static String OPENVIDU_SECRET = "MY_SECRET";
-	static String OPENVIDU_URL = "https://localhost:4443/";
-	static String APP_URL = "http://localhost:8080/";
-	static int SESSIONS = 10;
-	static int USERS_SESSION = 7;
-	static int SECONDS_OF_WAIT = 40;
-	static int NUMBER_OF_POLLS = 8;
+	static OpenViduServerManager openViduServerManager;
+
+	public static String OPENVIDU_SECRET = "MY_SECRET";
+	public static String OPENVIDU_URL = "https://localhost:4443/";
+	public static String APP_URL = "http://localhost:8080/";
+	public static int SESSIONS = 10;
+	public static int USERS_SESSION = 7;
+	public static int SECONDS_OF_WAIT = 40;
+	public static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
-	static boolean REMOTE = false;
-	static boolean BROWSER_INIT_AT_ONCE = false;
-	static String RESULTS_PATH = "/opt/openvidu/testload/loadTestStats.txt";
+	public static int SERVER_POLL_INTERVAL = 5000;
+	public static String SERVER_SSH_USER = "ubuntu";
+	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
+	public static boolean REMOTE = false;
+	public static boolean BROWSER_INIT_AT_ONCE = false;
+	public static String RESULTS_PATH = "/opt/openvidu/testload/loadTestStats.txt";
 
 	static BrowserProvider browserProvider;
 	static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
@@ -113,6 +119,9 @@ public class OpenViduLoadTest {
 		String secondsOfWait = System.getProperty("SECONDS_OF_WAIT");
 		String numberOfPolls = System.getProperty("NUMBER_OF_POLLS");
 		String browserPollInterval = System.getProperty("BROWSER_POLL_INTERVAL");
+		String serverPollInterval = System.getProperty("SERVER_POLL_INTERVAL");
+		String serverSshUser = System.getProperty("SERVER_SSH_USER");
+		String privateKeyPath = System.getProperty("PRIVATE_KEY_PATH");
 		String remote = System.getProperty("REMOTE");
 		String browserInitAtOnce = System.getProperty("BROWSER_INIT_AT_ONCE");
 		String resultsPath = System.getProperty("RESULTS_PATH");
@@ -140,6 +149,15 @@ public class OpenViduLoadTest {
 		}
 		if (browserPollInterval != null) {
 			BROWSER_POLL_INTERVAL = Integer.parseInt(browserPollInterval);
+		}
+		if (serverPollInterval != null) {
+			SERVER_POLL_INTERVAL = Integer.parseInt(serverPollInterval);
+		}
+		if (serverSshUser != null) {
+			SERVER_SSH_USER = serverSshUser;
+		}
+		if (privateKeyPath != null) {
+			PRIVATE_KEY_PATH = privateKeyPath;
 		}
 		if (remote != null) {
 			REMOTE = Boolean.parseBoolean(remote);
@@ -194,6 +212,7 @@ public class OpenViduLoadTest {
 				(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 		logTestEvent(testFinishedEvent);
 
+		// Leave participants and close browsers
 		sessionIdsBrowsers.entrySet().forEach(entry -> {
 			entry.getValue().forEach(browser -> {
 				try {
@@ -206,6 +225,11 @@ public class OpenViduLoadTest {
 			});
 		});
 		log.info("All browsers are now closed");
+
+		// Stop OpenVidu Server monitoring thread
+		openViduServerManager.stopMonitoringPolling();
+
+		// Close results file
 		try {
 			log.info("Closing results file");
 			fileWriter.close();
@@ -213,6 +237,8 @@ public class OpenViduLoadTest {
 			log.error("Error closing results file: {}", e.getMessage());
 		}
 		log.info("Load test finished");
+
+		// Terminate all instances
 		browserProvider.terminateInstances();
 	}
 
@@ -230,6 +256,10 @@ public class OpenViduLoadTest {
 		jsonProperties.addProperty("usersSession", USERS_SESSION);
 		testStartedEvent.add("properties", jsonProperties);
 		logTestEvent(testStartedEvent);
+
+		// Init OpenVidu Serve monitoring thread
+		openViduServerManager = new OpenViduServerManager();
+		openViduServerManager.startMonitoringPolling();
 
 		if (BROWSER_INIT_AT_ONCE) {
 			this.startSessionAllBrowsersAtOnce(1);
@@ -500,6 +530,10 @@ public class OpenViduLoadTest {
 		testEvent.add("event", event);
 		testEvent.addProperty("timestamp", timestamp);
 		OpenViduLoadTest.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
+	}
+
+	public static void logServerMonitoringStats(MonitoringStats stats) {
+		OpenViduLoadTest.writeToOutput(stats.toJson().toString() + System.getProperty("line.separator"));
 	}
 
 	public static synchronized void writeToOutput(String s) {

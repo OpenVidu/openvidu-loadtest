@@ -27,7 +27,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 
-import io.openvidu.load.test.OpenViduEventAndStatsManager;
+import io.openvidu.load.test.OpenViduTestClientsManager;
 
 /**
  * Browser encapsulation for OpenVidu load testing
@@ -43,7 +43,7 @@ public class Browser {
 	protected String sessionId;
 	protected String userId;
 	protected int timeOfWaitInSeconds;
-	protected OpenViduEventAndStatsManager eventManager;
+	protected OpenViduTestClientsManager eventManager;
 
 	Browser(String sessionId, String userId, int timeOfWaitInSeconds, WebDriver driver) {
 		this.sessionId = sessionId;
@@ -52,7 +52,7 @@ public class Browser {
 		this.driver = driver;
 		this.driver.manage().timeouts().setScriptTimeout(this.timeOfWaitInSeconds, TimeUnit.SECONDS);
 		this.waiter = new WebDriverWait(this.driver, this.timeOfWaitInSeconds);
-		this.eventManager = new OpenViduEventAndStatsManager(this.driver, this.timeOfWaitInSeconds);
+		this.eventManager = new OpenViduTestClientsManager(this.driver, this.timeOfWaitInSeconds);
 		this.driver.manage().window().setSize(new Dimension(1920, 1080));
 	}
 
@@ -64,7 +64,7 @@ public class Browser {
 		return this.waiter;
 	}
 
-	public OpenViduEventAndStatsManager getManager() {
+	public OpenViduTestClientsManager getManager() {
 		return this.eventManager;
 	}
 

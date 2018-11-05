@@ -22,6 +22,7 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 
@@ -31,31 +32,99 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
+import io.openvidu.load.test.OpenViduLoadTest;
+
 public class OpenViduServerMonitor {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
 	private Session session;
 
-	public OpenViduServerMonitor(String username, String hostname, int port) {
+	final String NET_COMMAND = "cat /proc/net/dev | awk 'NR > 2'";
+	final String CPU_COMMAND = "cat /proc/stat | grep '^cpu ' | awk '{print substr($0, index($0, $2))}'";
+	final String MEM_COMMAND = "free";
+	final String TIMESTAMP_COMMAND = "echo $(($(date +%s%N)/1000000))";
+	final String JOIN_COMMAND = " && echo '%%' && ";
+	final String FULL_COMMAND = NET_COMMAND + JOIN_COMMAND + CPU_COMMAND + JOIN_COMMAND + MEM_COMMAND + JOIN_COMMAND
+			+ TIMESTAMP_COMMAND;
+
+	private double prevTotal = 0;
+	private double prevIdle = 0;
+	private NetInfo initNetInfo;
+
+	JSch jsch;
+	String username;
+	String hostname;
+
+	public OpenViduServerMonitor(String username, String hostname) {
+		this.username = username;
+		this.hostname = hostname;
 		try {
-			JSch jsch = new JSch();
-			this.session = jsch.getSession(username, hostname, port);
+			this.jsch = new JSch();
+			Properties config = new Properties();
+			config.put("StrictHostKeyChecking", "no");
+			config.put("PreferredAuthentications", "publickey");
+			jsch.addIdentity(OpenViduLoadTest.PRIVATE_KEY_PATH);
+
+			this.session = jsch.getSession(username, hostname, 22);
+			session.setConfig(config);
+			session.connect();
 		} catch (JSchException e) {
 			log.error("Error connecting ssh session to OpenVidu Server for monitoring purposes: {}", e.getMessage());
 		}
 	}
-	
+
 	public MonitoringStats getMonitoringStats() {
-		// TODO
-		return null;
+		String result = sendCommand(FULL_COMMAND);
+		if (result != null) {
+			String[] rawStats = result.split("%%");
+			NetInfo netInfo = parseNetInfo(rawStats[0].trim());
+			double cpuUsage = parseCpuUsage(rawStats[1].trim());
+			double[] memUsage = parseMemUsage(rawStats[2].trim());
+			long timestamp = Long.parseLong(rawStats[3].trim());
+			return new MonitoringStats(netInfo, cpuUsage, memUsage, timestamp);
+		} else {
+			log.error("Monitoring stats couldn't be retrieved");
+			return null;
+		}
 	}
 
-	public NetInfo getNetInfo() {
-		NetInfo netInfo = new NetInfo();
-		String out = runAndWait("/bin/sh", "-c", "cat /proc/net/dev | awk 'NR > 2'");
+	private String sendCommand(String command) {
+		if (this.session.isConnected()) {
+			StringBuilder outputBuffer = new StringBuilder();
+			try {
+				Channel channel = session.openChannel("exec");
+				((ChannelExec) channel).setCommand(command);
+				InputStream commandOutput = channel.getInputStream();
+				channel.connect(4000);
+				int readByte = commandOutput.read();
+				while (readByte != 0xffffffff) {
+					outputBuffer.append((char) readByte);
+					readByte = commandOutput.read();
+				}
+				channel.disconnect();
+			} catch (IOException e) {
+				log.warn(e.getMessage());
+				return null;
+			} catch (JSchException e) {
+				log.warn(e.getMessage());
+				return null;
+			}
+			return outputBuffer.toString();
+		} else {
+			try {
+				this.session = this.jsch.getSession(username, hostname, 22);
+			} catch (JSchException e) {
+				log.error("Error connecting ssh session to OpenVidu Server for monitoring purposes: {}",
+						e.getMessage());
+			}
+			return null;
+		}
+	}
 
-		String[] lines = out.split("\n");
+	private NetInfo parseNetInfo(String rawNetInfo) {
+		String[] lines = rawNetInfo.split("\n");
+		NetInfo netInfo = new NetInfo();
 		for (String line : lines) {
 			String[] split = line.trim().replaceAll(" +", " ").split(" ");
 			String iface = split[0].replace(":", "");
@@ -70,11 +139,8 @@ public class OpenViduServerMonitor {
 		return netInfo;
 	}
 
-	protected double getCpuUsage() {
-		String[] cpu = runAndWait("/bin/sh", "-c",
-				"cat /proc/stat | grep '^cpu ' | awk '{print substr($0, index($0, $2))}'").replaceAll("\n", "")
-						.split(" ");
-
+	private double parseCpuUsage(String rawCpuUsage) {
+		String[] cpu = rawCpuUsage.replaceAll("\n", "").split(" ");
 		double idle = Double.parseDouble(cpu[3]);
 		double total = 0;
 		for (String s : cpu) {
@@ -90,85 +156,17 @@ public class OpenViduServerMonitor {
 		return diffUsage;
 	}
 
-	protected double[] getMem() {
-		String[] mem = runAndWait("free").replaceAll("\n", ",").replaceAll(" +", " ").split(" ");
-
-		long usedMem = Long.parseLong(mem[15]);
-		long totalMem = Long.parseLong(mem[7]);
-
+	private double[] parseMemUsage(String rawMemUsage) {
+		String[] mem = rawMemUsage.replaceAll("\n", ",").replaceAll(" +", " ").split(" ");
+		long totalMem = Long.parseLong(mem[6]);
+		long usedMem = Long.parseLong(mem[7]);
 		double percetageMem = (double) usedMem / (double) totalMem * 100;
 
 		if (Double.isNaN(percetageMem)) {
 			percetageMem = 0;
 		}
-
 		double[] out = { usedMem, percetageMem };
 		return out;
-	}
-
-	/*protected int getKmsPid() {
-		System.out.println("Looking for KMS process...");
-	
-		boolean reachable = false;
-		long endTimeMillis = System.currentTimeMillis() + KMS_WAIT_TIMEOUT * 1000;
-	
-		String kmsPid;
-		while (true) {
-			kmsPid = runAndWait("/bin/sh", "-c",
-					"ps axf | grep /usr/bin/kurento-media-server | grep -v grep | awk '{print $1}'").replaceAll("\n",
-							"");
-			reachable = !kmsPid.equals("");
-			if (kmsPid.contains(" ")) {
-				throw new RuntimeException("More than one KMS process are started (PIDs:" + kmsPid + ")");
-			}
-			if (reachable) {
-				break;
-			}
-	
-			// Poll time to wait host (1 second)
-			try {
-				Thread.sleep(TimeUnit.SECONDS.toMillis(1));
-			} catch (InterruptedException ie) {
-				ie.printStackTrace();
-			}
-			if (System.currentTimeMillis() > endTimeMillis) {
-				break;
-			}
-		}
-		if (!reachable) {
-			throw new RuntimeException("KMS is not started in the local machine");
-		}
-	
-		System.out.println("KMS process located in local machine with PID " + kmsPid);
-		return Integer.parseInt(kmsPid);
-	}*/
-	
-	/*protected int getNumThreads() {
-		return Integer.parseInt(
-				runAndWait("/bin/sh", "-c", "cat /proc/" + kmsPid + "/stat | awk '{print $20}'").replaceAll("\n", ""));
-	}*/
-
-	private String sendCommand(String command) {
-		StringBuilder outputBuffer = new StringBuilder();
-		try {
-			Channel channel = this.session.openChannel("exec");
-			((ChannelExec) channel).setCommand(command);
-			InputStream commandOutput = channel.getInputStream();
-			channel.connect();
-			int readByte = commandOutput.read();
-			while (readByte != 0xffffffff) {
-				outputBuffer.append((char) readByte);
-				readByte = commandOutput.read();
-			}
-			channel.disconnect();
-		} catch (IOException e) {
-			log.warn(e.getMessage());
-			return null;
-		} catch (JSchException e) {
-			log.warn(e.getMessage());
-			return null;
-		}
-		return outputBuffer.toString();
 	}
 
 }
