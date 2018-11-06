@@ -527,6 +527,8 @@ public class OpenViduLoadTest {
 			logHelper.logTestEvent(sessionUnstableEvent);
 
 			try {
+				log.info("User {} requesting OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(),
+						browser.getSessionId());
 				String sessionInfo = performGetApiSession(browser.getSessionId());
 				logHelper.logOpenViduSessionInfo(sessionInfo);
 			} catch (IOException e2) {
@@ -551,6 +553,8 @@ public class OpenViduLoadTest {
 		logHelper.logTestEvent(sessionStableEvent);
 
 		try {
+			log.info("User {} requesting OpenVidu session information for {} (is STABLE)", browser.getUserId(),
+					browser.getSessionId());
 			String sessionInfo = performGetApiSession(browser.getSessionId());
 			logHelper.logOpenViduSessionInfo(sessionInfo);
 		} catch (IOException e2) {

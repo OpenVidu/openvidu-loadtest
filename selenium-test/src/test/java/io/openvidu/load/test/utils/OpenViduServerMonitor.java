@@ -128,12 +128,15 @@ public class OpenViduServerMonitor {
 		for (String line : lines) {
 			String[] split = line.trim().replaceAll(" +", " ").split(" ");
 			String iface = split[0].replace(":", "");
-			long rxBytes = Long.parseLong(split[1]);
-			long txBytes = Long.parseLong(split[9]);
-			netInfo.putNetInfo(iface, rxBytes, txBytes);
+			if (!"lo".equals(iface) && !"docker0".equals(iface) && !iface.startsWith("br-")) {
+				// Ignore local and docker interfaces
+				long rxBytes = Long.parseLong(split[1]);
+				long txBytes = Long.parseLong(split[9]);
+				netInfo.putNetInfo(iface, rxBytes, txBytes);
+			}
 		}
 		if (initNetInfo == null) {
-			initNetInfo = netInfo;
+			initNetInfo = new NetInfo(netInfo);
 		}
 		netInfo.decrementInitInfo(initNetInfo);
 		return netInfo;

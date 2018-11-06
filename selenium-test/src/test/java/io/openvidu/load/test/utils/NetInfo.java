@@ -37,14 +37,23 @@ public class NetInfo implements Serializable {
 		this.netInfoMap = new TreeMap<>();
 	}
 
+	public NetInfo(NetInfo otherNetInfo) {
+		this.netInfoMap = new TreeMap<>();
+		for (String key : otherNetInfo.netInfoMap.keySet()) {
+			this.putNetInfo(key, otherNetInfo.netInfoMap.get(key).rxBytes, otherNetInfo.netInfoMap.get(key).txBytes);
+		}
+	}
+
 	public void putNetInfo(String key, long rxBytes, long txBytes) {
 		netInfoMap.put(key, new NetInfoEntry(rxBytes, txBytes));
 	}
 
 	public void decrementInitInfo(NetInfo initNetInfo) {
 		for (String key : netInfoMap.keySet()) {
-			netInfoMap.get(key).decrementRxBytes(initNetInfo.getNetInfoMap().get(key).getRxBytes());
-			netInfoMap.get(key).decrementTxBytes(initNetInfo.getNetInfoMap().get(key).getTxBytes());
+			this.netInfoMap.get(key).rxBytes = this.netInfoMap.get(key).rxBytes
+					- initNetInfo.getNetInfoMap().get(key).getRxBytes();
+			this.netInfoMap.get(key).txBytes = this.netInfoMap.get(key).txBytes
+					- initNetInfo.getNetInfoMap().get(key).getTxBytes();
 		}
 	}
 
@@ -88,16 +97,8 @@ public class NetInfo implements Serializable {
 			return rxBytes;
 		}
 
-		public void decrementRxBytes(long rxBytes) {
-			this.rxBytes = this.rxBytes - rxBytes;
-		}
-
 		public long getTxBytes() {
 			return txBytes;
-		}
-
-		public void decrementTxBytes(long txBytes) {
-			this.txBytes = this.txBytes - txBytes;
 		}
 
 		@Override

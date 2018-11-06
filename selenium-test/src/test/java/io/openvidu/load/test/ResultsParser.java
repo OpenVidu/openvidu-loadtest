@@ -59,6 +59,10 @@ public class ResultsParser {
 
 	private double maxCpuUsage;
 	private double maxMemUsage;
+	private double totalReceivedMbs;
+	private double totalSentMbs;
+	private double averageReceivedBitrate;
+	private double averageSentBitrate;
 
 	private int totalUnstableBrowsers;
 
@@ -87,6 +91,12 @@ public class ResultsParser {
 					this.maxCpuUsage = Math.max(this.maxCpuUsage, json.get("cpu").getAsDouble());
 					this.maxMemUsage = Math.max(this.maxMemUsage,
 							json.get("mem").getAsJsonObject().get("percentage").getAsDouble());
+					final JsonObject jsonAux = json.get("net").getAsJsonObject();
+					jsonAux.entrySet().forEach(entry -> {
+						JsonObject netInfo = jsonAux.get(entry.getKey()).getAsJsonObject();
+						this.totalReceivedMbs = netInfo.get("rxBytes").getAsDouble();
+						this.totalSentMbs = netInfo.get("txBytes").getAsDouble();
+					});
 				} else if (json.has("connections")) {
 					// OpenVidu session info (JSON response to
 					// /api/sessions/SESSION_ID?webRtcStats=true
@@ -159,22 +169,39 @@ public class ResultsParser {
 		this.averagePublishersBitrate = (int) (this.totalPublishersBitrate / this.numberOfPublisherEntries);
 		this.averageAvailablePublishersBandwitdh = (int) (this.totalAvailablePublishersBandwitdh
 				/ this.numberOfPublisherEntries);
+
+		this.maxCpuUsage = roundTwoDecimals(this.maxCpuUsage);
+		this.maxMemUsage = roundTwoDecimals(this.maxMemUsage);
+		this.totalReceivedMbs = roundTwoDecimals(this.totalReceivedMbs / (1024 * 1024));
+		this.totalSentMbs = roundTwoDecimals(this.totalSentMbs / (1024 * 1024));
+		this.averageReceivedBitrate = (totalReceivedMbs * 1024) / testDuration;
+		this.averageSentBitrate = (totalSentMbs * 1024) / testDuration;
+	}
+
+	private double roundTwoDecimals(double val) {
+		return ((double) ((int) (val * 100))) / 100;
 	}
 
 	private void presentResults() {
 		log.info("----------------- TEST RESULTS ---------------");
-		log.info("Test duration: {} seconds", testDuration);
-		log.info("Average WebRTC RTT: {}", averageRtt);
+		log.info("Test duration: {} s", testDuration);
+		log.info("Total unstable browsers: {}", totalUnstableBrowsers);
+		log.info("------- WebRTC streams stats -------");
+		log.info("Average WebRTC RTT: {} ms", averageRtt);
 		log.info("Average WebRTC packets lost: {}", averagePacketsLost);
 		log.info("Average WebRTC subscribers Jitter: {}", averageSubscribersJitter);
-		log.info("Average WebRTC subscribers delay: {}", averageSubscribersDelay);
-		log.info("Average WebRTC subscribers bitrate: {}", averageSubscribersBitrate);
-		log.info("Average WebRTC publishers bitrate: {}", averagePublishersBitrate);
+		log.info("Average WebRTC subscribers delay: {} ms", averageSubscribersDelay);
+		log.info("Average WebRTC subscribers bitrate: {} KB/s", averageSubscribersBitrate);
+		log.info("Average WebRTC publishers bitrate: {} KB/s", averagePublishersBitrate);
 		log.info("Average WebRTC available receive bandwidth: {}", averageAvailableSubscribersBandwitdh);
 		log.info("Average WebRTC available send bandwidth: {}", averageAvailablePublishersBandwitdh);
+		log.info("------- OpenVidu Server monitoring -------");
 		log.info("Max CPU usage in OpenVidu Server: {}", maxCpuUsage);
 		log.info("Max memory usage in OpenVidu Server: {}", maxMemUsage);
-		log.info("Total unstable browsers: {}", totalUnstableBrowsers);
+		log.info("Total recevied MBs by OpenVidu Server: {} MB", totalReceivedMbs);
+		log.info("Total sent MBs by OpenVidu Server: {} MB", totalSentMbs);
+		log.info("Average received bitrate by OpenVidu Server: {} KB/s", averageReceivedBitrate);
+		log.info("Average sent bitrate by OpenVidu Server: {}  KB/s", averageSentBitrate);
 		log.info("----------------------------------------------");
 	}
 
