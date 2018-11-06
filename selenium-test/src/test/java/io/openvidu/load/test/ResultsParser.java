@@ -35,6 +35,7 @@ public class ResultsParser {
 	final static Logger log = getLogger(lookup().lookupClass());
 
 	private final JsonParser parser = new JsonParser();
+	private int numberOfLines;
 
 	private double numberOfPublisherEntries;
 	private double numberOfSubscriberEntries;
@@ -75,6 +76,7 @@ public class ResultsParser {
 			inputStream = new FileInputStream(OpenViduLoadTest.RESULTS_PATH);
 			sc = new Scanner(inputStream, "UTF-8");
 			while (sc.hasNextLine()) {
+				numberOfLines++;
 				JsonObject json = parser.parse(sc.nextLine()).getAsJsonObject();
 				if (json.has("event")) {
 					// Test event log
@@ -109,24 +111,29 @@ public class ResultsParser {
 
 								JsonObject stats = entry2.getValue().getAsJsonArray().get(0).getAsJsonObject();
 
-								// Common stats for Publishers and Subscribers
-								totalRtt += stats.get("rtt").getAsDouble();
-								totalPacketsLost += stats.get("packetsLost").getAsDouble();
+								try {
+									// Common stats for Publishers and Subscribers
+									totalRtt += stats.get("rtt").getAsDouble();
+									totalPacketsLost += stats.get("packetsLost").getAsDouble();
 
-								if (stats.has("availableSendBandwidth")) {
-									// Publisher stats
-									numberOfPublisherEntries++;
-									totalAvailablePublishersBandwitdh += stats.get("availableSendBandwidth")
-											.getAsDouble();
-									totalPublishersBitrate += stats.get("bitrate").getAsDouble();
-								} else {
-									// Subscriber stats
-									numberOfSubscriberEntries++;
-									totalAvailableSubscribersBandwitdh += stats.get("availableReceiveBandwidth")
-											.getAsDouble();
-									totalSubscribersBitrate += stats.get("bitrate").getAsDouble();
-									totalSubscribersJitter += stats.get("jitter").getAsDouble();
-									totalSubscribersDelay += stats.get("delay").getAsDouble();
+									if (stats.has("availableSendBandwidth")) {
+										// Publisher stats
+										numberOfPublisherEntries++;
+										totalAvailablePublishersBandwitdh += stats.get("availableSendBandwidth")
+												.getAsDouble();
+										totalPublishersBitrate += stats.get("bitrate").getAsDouble();
+									} else if (stats.has("availableReceiveBandwidth")) {
+										// Subscriber stats
+										numberOfSubscriberEntries++;
+										totalAvailableSubscribersBandwitdh += stats.get("availableReceiveBandwidth")
+												.getAsDouble();
+										totalSubscribersBitrate += stats.get("bitrate").getAsDouble();
+										totalSubscribersJitter += stats.get("jitter").getAsDouble();
+										totalSubscribersDelay += stats.get("delay").getAsDouble();
+									}
+								} catch (UnsupportedOperationException exc) {
+									log.error("Error reading value from log entry: {}. {}", exc.getMessage(),
+											exc.getStackTrace());
 								}
 							});
 						}
@@ -186,6 +193,7 @@ public class ResultsParser {
 		log.info("----------------- TEST RESULTS ---------------");
 		log.info("Test duration: {} s", testDuration);
 		log.info("Total unstable browsers: {}", totalUnstableBrowsers);
+		log.info("Number of lines parsed from log: {}", numberOfLines);
 		log.info("------- WebRTC streams stats -------");
 		log.info("Average WebRTC RTT: {} ms", averageRtt);
 		log.info("Average WebRTC packets lost: {}", averagePacketsLost);
@@ -201,7 +209,7 @@ public class ResultsParser {
 		log.info("Total recevied MBs by OpenVidu Server: {} MB", totalReceivedMbs);
 		log.info("Total sent MBs by OpenVidu Server: {} MB", totalSentMbs);
 		log.info("Average received bitrate by OpenVidu Server: {} KB/s", averageReceivedBitrate);
-		log.info("Average sent bitrate by OpenVidu Server: {}  KB/s", averageSentBitrate);
+		log.info("Average sent bitrate by OpenVidu Server: {} KB/s", averageSentBitrate);
 		log.info("----------------------------------------------");
 	}
 
