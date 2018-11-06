@@ -89,7 +89,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 			OpenViduLoadTest.logHelper.logTestEvent(connectingToBrowserEvent);
 
-			while (!browserReady && tries < (SECONDS_OF_BROWSER_WAIT * 1000 / 200)) {
+			while (!browserReady && tries < (SECONDS_OF_BROWSER_WAIT * 1000 / SLEEP_INTERVAL_OF_WAIT)) {
 				try {
 					driver = new RemoteWebDriver(new URL(browserUrl), capabilities);
 
@@ -104,10 +104,10 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 					browserReady = true;
 				} catch (UnreachableBrowserException | MalformedURLException e) {
-					log.info("Waiting for browser. Exception caught: {} ({})", e.getClass(), e.getMessage());
+					log.info("Waiting for browser. Exception caught: {} ({})", e.getClass());
 					tries++;
 					try {
-						Thread.sleep(200);
+						Thread.sleep(SLEEP_INTERVAL_OF_WAIT);
 					} catch (InterruptedException e1) {
 						e1.printStackTrace();
 					}
@@ -131,6 +131,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 	final String URL_END = ":4444/wd/hub";
 	final int SECONDS_OF_BROWSER_WAIT = 60;
+	final int SLEEP_INTERVAL_OF_WAIT = 400;
 
 	@Override
 	public Browser getBrowser(String browserType, String sessionId, String userId, int timeOfWaitInSeconds)
