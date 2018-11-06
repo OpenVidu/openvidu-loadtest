@@ -27,6 +27,7 @@ import java.util.Scanner;
 
 import org.slf4j.Logger;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -109,31 +110,34 @@ public class ResultsParser {
 						if (entry1.getValue().isJsonObject()) {
 							entry1.getValue().getAsJsonObject().entrySet().forEach(entry2 -> {
 
-								JsonObject stats = entry2.getValue().getAsJsonArray().get(0).getAsJsonObject();
+								JsonArray array = entry2.getValue().getAsJsonArray();
 
-								try {
-									// Common stats for Publishers and Subscribers
-									totalRtt += stats.get("rtt").getAsDouble();
-									totalPacketsLost += stats.get("packetsLost").getAsDouble();
+								if (array.size() > 0) {
+									JsonObject stats = array.get(0).getAsJsonObject();
+									try {
+										// Common stats for Publishers and Subscribers
+										totalRtt += stats.get("rtt").getAsDouble();
+										totalPacketsLost += stats.get("packetsLost").getAsDouble();
 
-									if (stats.has("availableSendBandwidth")) {
-										// Publisher stats
-										numberOfPublisherEntries++;
-										totalAvailablePublishersBandwitdh += stats.get("availableSendBandwidth")
-												.getAsDouble();
-										totalPublishersBitrate += stats.get("bitrate").getAsDouble();
-									} else if (stats.has("availableReceiveBandwidth")) {
-										// Subscriber stats
-										numberOfSubscriberEntries++;
-										totalAvailableSubscribersBandwitdh += stats.get("availableReceiveBandwidth")
-												.getAsDouble();
-										totalSubscribersBitrate += stats.get("bitrate").getAsDouble();
-										totalSubscribersJitter += stats.get("jitter").getAsDouble();
-										totalSubscribersDelay += stats.get("delay").getAsDouble();
+										if (stats.has("availableSendBandwidth")) {
+											// Publisher stats
+											numberOfPublisherEntries++;
+											totalAvailablePublishersBandwitdh += stats.get("availableSendBandwidth")
+													.getAsDouble();
+											totalPublishersBitrate += stats.get("bitrate").getAsDouble();
+										} else if (stats.has("availableReceiveBandwidth")) {
+											// Subscriber stats
+											numberOfSubscriberEntries++;
+											totalAvailableSubscribersBandwitdh += stats.get("availableReceiveBandwidth")
+													.getAsDouble();
+											totalSubscribersBitrate += stats.get("bitrate").getAsDouble();
+											totalSubscribersJitter += stats.get("jitter").getAsDouble();
+											totalSubscribersDelay += stats.get("delay").getAsDouble();
+										}
+									} catch (UnsupportedOperationException exc) {
+										log.error("Error reading value from log entry: {}. {}", exc.getMessage(),
+												exc.getStackTrace());
 									}
-								} catch (UnsupportedOperationException exc) {
-									log.error("Error reading value from log entry: {}. {}", exc.getMessage(),
-											exc.getStackTrace());
 								}
 							});
 						}
