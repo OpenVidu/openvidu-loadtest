@@ -50,6 +50,11 @@ public class ResultsParser {
 	private double totalAvailablePublishersBandwitdh;
 	private double totalAvailableSubscribersBandwitdh;
 
+	private int maxRtt;
+	private int maxPacketsLost;
+	private int maxSubscribersJitter;
+	private int maxSubscribersDelay;
+
 	private int averageRtt;
 	private int averagePacketsLost;
 	private int averageSubscribersJitter;
@@ -116,7 +121,9 @@ public class ResultsParser {
 									JsonObject stats = array.get(0).getAsJsonObject();
 									try {
 										// Common stats for Publishers and Subscribers
+										maxRtt = Math.max(maxRtt, stats.get("rtt").getAsInt());
 										totalRtt += stats.get("rtt").getAsDouble();
+										maxPacketsLost = Math.max(maxPacketsLost, stats.get("packetsLost").getAsInt());
 										totalPacketsLost += stats.get("packetsLost").getAsDouble();
 
 										if (stats.has("availableSendBandwidth")) {
@@ -131,12 +138,18 @@ public class ResultsParser {
 											totalAvailableSubscribersBandwitdh += stats.get("availableReceiveBandwidth")
 													.getAsDouble();
 											totalSubscribersBitrate += stats.get("bitrate").getAsDouble();
+
+											maxSubscribersJitter = Math.max(maxSubscribersJitter,
+													stats.get("jitter").getAsInt());
+											maxSubscribersDelay = Math.max(maxSubscribersDelay,
+													stats.get("delay").getAsInt());
+
 											totalSubscribersJitter += stats.get("jitter").getAsDouble();
 											totalSubscribersDelay += stats.get("delay").getAsDouble();
 										}
 									} catch (UnsupportedOperationException exc) {
-										log.error("Error reading value from log entry: {}. {}", exc.getMessage(),
-												exc.getStackTrace());
+										log.error("Error reading value from log entry in line {}: {}. {}",
+												numberOfLines, exc.getMessage(), exc.getStackTrace());
 									}
 								}
 							});
@@ -185,8 +198,8 @@ public class ResultsParser {
 		this.maxMemUsage = roundTwoDecimals(this.maxMemUsage);
 		this.totalReceivedMbs = roundTwoDecimals(this.totalReceivedMbs / (1024 * 1024));
 		this.totalSentMbs = roundTwoDecimals(this.totalSentMbs / (1024 * 1024));
-		this.averageReceivedBitrate = (totalReceivedMbs * 1024) / testDuration;
-		this.averageSentBitrate = (totalSentMbs * 1024) / testDuration;
+		this.averageReceivedBitrate = roundTwoDecimals((totalReceivedMbs * 1024) / testDuration);
+		this.averageSentBitrate = roundTwoDecimals((totalSentMbs * 1024) / testDuration);
 	}
 
 	private double roundTwoDecimals(double val) {
@@ -207,6 +220,10 @@ public class ResultsParser {
 		log.info("Average WebRTC publishers bitrate: {} KB/s", averagePublishersBitrate);
 		log.info("Average WebRTC available receive bandwidth: {}", averageAvailableSubscribersBandwitdh);
 		log.info("Average WebRTC available send bandwidth: {}", averageAvailablePublishersBandwitdh);
+		log.info("Max WebRTC RTT: {}", maxRtt);
+		log.info("Max WebRTC packets lost: {}", maxPacketsLost);
+		log.info("Max WebRTC subscribers Jitter: {}", maxSubscribersJitter);
+		log.info("Max WebRTC subscribers delay: {}", maxSubscribersDelay);
 		log.info("------- OpenVidu Server monitoring -------");
 		log.info("Max CPU usage in OpenVidu Server: {}", maxCpuUsage);
 		log.info("Max memory usage in OpenVidu Server: {}", maxMemUsage);
