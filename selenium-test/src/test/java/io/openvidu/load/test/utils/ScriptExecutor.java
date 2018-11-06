@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.load.test;
+package io.openvidu.load.test.utils;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -29,8 +29,11 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import io.openvidu.load.test.AmazonInstance;
 
 /**
  * Executes bash scripts under src/test/resources folder. These scripts manage
@@ -73,8 +76,8 @@ public class ScriptExecutor {
 		this.executeCommand(this.fileTerminateOneInstance.getAbsolutePath() + " " + instanceId);
 	}
 
-	public String bringDownAllBrowsers() {
-		return this.executeCommand(this.fileTerminateInstances.getAbsolutePath());
+	public Map<String, AmazonInstance> bringDownAllBrowsers() {
+		return parseInstanceJsonToMap(this.executeCommand(this.fileTerminateInstances.getAbsolutePath()));
 	}
 
 	private String executeCommand(String bashCommand) {
@@ -97,18 +100,30 @@ public class ScriptExecutor {
 		Map<String, AmazonInstance> instanceMap = new HashMap<>();
 
 		JsonObject json = parser.parse(str).getAsJsonObject();
-		json.get("Reservations").getAsJsonArray().forEach(instanceArray -> {
-			instanceArray.getAsJsonObject().get("Instances").getAsJsonArray().forEach(instance -> {
-				JsonObject instanceJson = instance.getAsJsonObject();
-				if ("OpenViduLoadTest".equals(instanceJson.get("Tags").getAsJsonArray().get(0).getAsJsonObject()
-						.get("Value").getAsString())) {
-					String instanceId = instanceJson.get("InstanceId").getAsString();
-					String instanceIp = instanceJson.get("PublicIpAddress").getAsString();
-					instanceMap.put(instanceId, new AmazonInstance(instanceId, instanceIp));
-				}
+		JsonArray reservations = null;
+
+		try {
+			reservations = json.get("Reservations").getAsJsonArray();
+		} catch (NullPointerException e) {
+			log.warn("No instances found inside \"Reservations\" array");
+		}
+
+		if (reservations != null) {
+			// There are instances being launched
+			reservations.getAsJsonArray().forEach(instanceArray -> {
+				instanceArray.getAsJsonObject().get("Instances").getAsJsonArray().forEach(instance -> {
+					JsonObject instanceJson = instance.getAsJsonObject();
+					if ("OpenViduLoadTest".equals(instanceJson.get("Tags").getAsJsonArray().get(0).getAsJsonObject()
+							.get("Value").getAsString())) {
+						String instanceId = instanceJson.get("InstanceId").getAsString();
+						String instanceIp = instanceJson.get("PublicIpAddress").getAsString();
+						instanceMap.put(instanceId, new AmazonInstance(instanceId, instanceIp));
+					}
+				});
 			});
-		});
-		log.info("Instances: {}", instanceMap.toString());
+			log.info("Instances: {}", instanceMap.toString());
+		}
+
 		return instanceMap;
 	}
 

@@ -39,9 +39,11 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.slf4j.Logger;
 
+import com.google.gson.JsonObject;
+
 import io.openvidu.load.test.AmazonInstance;
 import io.openvidu.load.test.OpenViduLoadTest;
-import io.openvidu.load.test.ScriptExecutor;
+import io.openvidu.load.test.utils.ScriptExecutor;
 
 /**
  * Manages remote browsers in EC2 Amazon Web Services machines
@@ -77,9 +79,29 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			WebDriver driver = null;
 			int tries = 0;
 			boolean browserReady = false;
+
+			// Log connecting to remote web driver event
+			JsonObject connectingToBrowserEvent = new JsonObject();
+			connectingToBrowserEvent.addProperty("name", "connectingToBrowser");
+			connectingToBrowserEvent.addProperty("sessionId", sessionId);
+			connectingToBrowserEvent.addProperty("userId", userId);
+			connectingToBrowserEvent.addProperty("secondsSinceTestStarted",
+					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+			OpenViduLoadTest.logHelper.logTestEvent(connectingToBrowserEvent);
+
 			while (!browserReady && tries < (SECONDS_OF_BROWSER_WAIT * 1000 / 200)) {
 				try {
 					driver = new RemoteWebDriver(new URL(browserUrl), capabilities);
+
+					// Log connected to remote web driver event
+					JsonObject connectedToBrowserEvent = new JsonObject();
+					connectedToBrowserEvent.addProperty("name", "connectedToBrowser");
+					connectedToBrowserEvent.addProperty("sessionId", sessionId);
+					connectedToBrowserEvent.addProperty("userId", userId);
+					connectedToBrowserEvent.addProperty("secondsSinceTestStarted",
+							(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
+					OpenViduLoadTest.logHelper.logTestEvent(connectedToBrowserEvent);
+
 					browserReady = true;
 				} catch (UnreachableBrowserException | MalformedURLException e) {
 					log.info("Waiting for browser. Exception caught: {} ({})", e.getClass(), e.getMessage());
@@ -108,7 +130,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 	Map<String, Browser> amazonBrowsers = new ConcurrentHashMap<>();
 
 	final String URL_END = ":4444/wd/hub";
-	final int SECONDS_OF_BROWSER_WAIT = 30;
+	final int SECONDS_OF_BROWSER_WAIT = 60;
 
 	@Override
 	public Browser getBrowser(String browserType, String sessionId, String userId, int timeOfWaitInSeconds)
@@ -125,29 +147,33 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			capabilities = DesiredCapabilities.chrome();
 			capabilities.setAcceptInsecureCerts(true);
 			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
-			String instanceId = map.values().iterator().next().getInstanceId();
-			if (this.amazonInstances.putIfAbsent(instanceId, map.get(instanceId)) == null) {
-				// New instance id
-				try {
-					Future<Browser> future = OpenViduLoadTest.browserTaskExecutor
-							.submit(new RemoteWebDriverCallable(instanceId, map.get(instanceId).getIp(), sessionId,
-									userId, capabilities, timeOfWaitInSeconds));
-					browser = future.get();
-				} catch (InterruptedException | ExecutionException e1) {
-					throw new BrowserNotReadyException(
-							"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+
+			for (Entry<String, AmazonInstance> entry : map.entrySet()) {
+				final String instanceID = entry.getKey();
+				if (this.amazonInstances.putIfAbsent(instanceID, map.get(instanceID)) == null) {
+					// New instance id
+					try {
+						Future<Browser> future = OpenViduLoadTest.browserTaskExecutor
+								.submit(new RemoteWebDriverCallable(instanceID, map.get(instanceID).getIp(), sessionId,
+										userId, capabilities, timeOfWaitInSeconds));
+						browser = future.get();
+						break;
+					} catch (InterruptedException | ExecutionException e1) {
+						throw new BrowserNotReadyException(
+								"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+					}
 				}
-			} else {
-				// Existing instance id
-				log.error("Amazon instance {} already configured", instanceId);
-				return null;
 			}
 			log.info("Using remote Chrome web driver");
 			break;
 		default:
 			return this.getBrowser("chrome", sessionId, userId, timeOfWaitInSeconds);
 		}
-		return browser;
+		if (browser != null) {
+			return browser;
+		} else {
+			throw new BrowserNotReadyException("There wasn't any browser avaiable according to aws-cli");
+		}
 	}
 
 	@Override
@@ -214,14 +240,14 @@ public class RemoteBrowserProvider implements BrowserProvider {
 		log.info("Terminating AWS instances");
 		boolean emptyResponse = false;
 		do {
-			String result = this.scriptExecutor.bringDownAllBrowsers();
-			emptyResponse = (result == null || result.isEmpty());
+			Map<String, AmazonInstance> aliveInstances = this.scriptExecutor.bringDownAllBrowsers();
+			emptyResponse = aliveInstances.isEmpty();
 			if (emptyResponse) {
 				log.info("All instances are now shutted down");
 				break;
 			} else {
 				try {
-					log.info("Instances still alive...");
+					log.info("Instances still alive: {}", aliveInstances.toString());
 					Thread.sleep(500);
 				} catch (InterruptedException e) {
 					e.printStackTrace();

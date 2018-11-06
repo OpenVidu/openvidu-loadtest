@@ -187,6 +187,12 @@
 			<version>${junit.jupiter.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.jcraft</groupId>
+			<artifactId>jsch</artifactId>
+			<version>0.1.54</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>io.openvidu</groupId>

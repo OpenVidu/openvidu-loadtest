@@ -20,7 +20,6 @@ package io.openvidu.load.test;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -53,7 +52,7 @@ import com.google.gson.JsonParser;
  *
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
  */
-public class OpenViduEventAndStatsManager {
+public class OpenViduTestClientsManager {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
@@ -88,7 +87,7 @@ public class OpenViduEventAndStatsManager {
 
 	private JsonParser jsonParser = new JsonParser();
 
-	public OpenViduEventAndStatsManager(WebDriver driver, int timeOfWaitInSeconds) {
+	public OpenViduTestClientsManager(WebDriver driver, int timeOfWaitInSeconds) {
 		this.driver = driver;
 		this.eventQueue = new ConcurrentLinkedQueue<JsonObject>();
 		this.eventCallbacks = new ConcurrentHashMap<>();
@@ -148,23 +147,25 @@ public class OpenViduEventAndStatsManager {
 
 	// 'eventNumber' is accumulative for event 'eventName' for one page while it is
 	// not refreshed
-	public void waitUntilEventReaches(String eventName, int eventNumber) throws Exception {
+	public void waitUntilEventReaches(String eventName, int eventNumber) throws TimeoutException {
 		this.waitUntilEventReaches(eventName, eventNumber, this.timeOfWaitInSeconds, true);
 	}
 
 	public void waitUntilEventReaches(String eventName, int eventNumber, int secondsOfWait, boolean printTimeoutError)
-			throws Exception {
+			throws TimeoutException {
 		CountDownLatch eventSignal = new CountDownLatch(eventNumber);
 		this.setCountDown(eventName, eventSignal);
 		try {
 			if (!eventSignal.await(secondsOfWait * 1000, TimeUnit.MILLISECONDS)) {
-				throw (new TimeoutException());
+				throw (new TimeoutException(eventName));
 			}
-		} catch (InterruptedException | TimeoutException e) {
+		} catch (TimeoutException e) {
 			if (printTimeoutError) {
 				e.printStackTrace();
 			}
 			throw e;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -232,13 +233,7 @@ public class OpenViduEventAndStatsManager {
 					(System.currentTimeMillis() - OpenViduLoadTest.timeTestStarted) / 1000);
 			wrapper.addProperty("secondsSinceSessionStarted",
 					(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(sessionId)) / 1000);
-			synchronized (OpenViduLoadTest.fileWriter) {
-				try {
-					OpenViduLoadTest.fileWriter.write(wrapper.toString() + System.getProperty("line.separator"));
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
+			OpenViduLoadTest.logHelper.logBrowserStats(wrapper);
 		}
 	}
 
