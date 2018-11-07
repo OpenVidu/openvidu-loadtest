@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.channels.Channels;
@@ -47,6 +46,7 @@ public class ResultsParser {
 
 	private final JsonParser parser = new JsonParser();
 	private int numberOfLines;
+	public int numberOfBrowsersReached;
 
 	private double numberOfPublisherEntries;
 	private double numberOfSubscriberEntries;
@@ -116,12 +116,18 @@ public class ResultsParser {
 				JsonObject json = parser.parse(sc.nextLine()).getAsJsonObject();
 				if (json.has("event")) {
 					// Test event log
-					if ("testFinished".equals(json.get("event").getAsJsonObject().get("name").getAsString())) {
+					String eventName = json.get("event").getAsJsonObject().get("name").getAsString();
+					switch (eventName) {
+					case "testFinished":
 						this.testDuration = json.get("event").getAsJsonObject().get("secondsSinceTestStarted")
 								.getAsInt();
-					} else if ("sessionUnstable"
-							.equals(json.get("event").getAsJsonObject().get("name").getAsString())) {
+						break;
+					case "connectedToBrowser":
+						numberOfBrowsersReached++;
+						break;
+					case "sessionUnstable":
 						totalUnstableBrowsers++;
+						break;
 					}
 				} else if (json.has("stats")) {
 					// OpenVidu Server monitoring log
@@ -267,6 +273,8 @@ public class ResultsParser {
 	private void presentResults() {
 		log.info("----------------- TEST RESULTS ---------------");
 		log.info("Test duration: {} s", testDuration);
+		log.info("Number of browsers reached: {} of {}", numberOfBrowsersReached,
+				OpenViduLoadTest.SESSIONS * OpenViduLoadTest.USERS_SESSION);
 		log.info("Total unstable browsers: {}", totalUnstableBrowsers);
 		log.info("Number of lines parsed from log: {}", numberOfLines);
 		log.info("------- WebRTC streams stats -------");
