@@ -20,9 +20,16 @@ package io.openvidu.load.test;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.channels.Channels;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Scanner;
 
 import org.slf4j.Logger;
@@ -34,6 +41,9 @@ import com.google.gson.JsonParser;
 public class ResultsParser {
 
 	final static Logger log = getLogger(lookup().lookupClass());
+	private File file;
+	private FileOutputStream outputStream;
+	private Writer writer;
 
 	private final JsonParser parser = new JsonParser();
 	private int numberOfLines;
@@ -78,6 +88,26 @@ public class ResultsParser {
 	public void processResultFile() {
 		FileInputStream inputStream = null;
 		Scanner sc = null;
+
+		Path resultPath = Paths.get(OpenViduLoadTest.RESULTS_PATH);
+		String directory = resultPath.getParent().toString();
+
+		this.file = new File(directory, "loadTestResults.csv");
+		boolean alreadyExists = this.file.exists();
+		int fileIndex = 1;
+		while (alreadyExists) {
+			this.file = new File(directory, "loadTestResults-" + fileIndex + ".csv");
+			alreadyExists = this.file.exists();
+			fileIndex++;
+		}
+		try {
+			this.outputStream = new FileOutputStream(file.getAbsoluteFile(), true);
+			this.writer = Channels.newWriter(outputStream.getChannel(), "UTF-8");
+		} catch (FileNotFoundException e) {
+			log.error("CSV results file couldn't be created at {}. Error: {}", directory + "/loadTestResults.csv",
+					e.getMessage());
+		}
+
 		try {
 			inputStream = new FileInputStream(OpenViduLoadTest.RESULTS_PATH);
 			sc = new Scanner(inputStream, "UTF-8");
@@ -147,6 +177,15 @@ public class ResultsParser {
 											totalSubscribersJitter += stats.get("jitter").getAsDouble();
 											totalSubscribersDelay += stats.get("delay").getAsDouble();
 										}
+										StringBuilder sb = new StringBuilder(500);
+
+										// TODO sb.append();
+
+										try {
+											writeCsvLine(sb);
+										} catch (IOException e) {
+											log.error("Couldn't write WebRTC stat in CSV file: {}", e.getMessage());
+										}
 									} catch (UnsupportedOperationException exc) {
 										log.error("Error reading value from log entry in line {}: {}. {}",
 												numberOfLines, exc.getMessage(), exc.getStackTrace());
@@ -163,6 +202,7 @@ public class ResultsParser {
 		} catch (FileNotFoundException e) {
 			log.error("Results file not found at {}", OpenViduLoadTest.RESULTS_PATH);
 		} finally {
+			// Close IputStream
 			if (inputStream != null) {
 				try {
 					inputStream.close();
@@ -170,8 +210,26 @@ public class ResultsParser {
 					log.error("Error closing input stream");
 				}
 			}
+			// Close Scanner
 			if (sc != null) {
 				sc.close();
+			}
+			// Close OutputStream
+			if (outputStream != null) {
+				try {
+					outputStream.close();
+				} catch (IOException e) {
+					log.error("Error closing output stream");
+				}
+			}
+
+			// Close Writer
+			if (writer != null) {
+				try {
+					this.writer.close();
+				} catch (IOException e) {
+					log.error("Error closing CSV writer");
+				}
 			}
 
 			this.calcAverageValues();
@@ -227,11 +285,15 @@ public class ResultsParser {
 		log.info("------- OpenVidu Server monitoring -------");
 		log.info("Max CPU usage in OpenVidu Server: {}", maxCpuUsage);
 		log.info("Max memory usage in OpenVidu Server: {}", maxMemUsage);
-		log.info("Total recevied MBs by OpenVidu Server: {} MB", totalReceivedMbs);
+		log.info("Total received MBs by OpenVidu Server: {} MB", totalReceivedMbs);
 		log.info("Total sent MBs by OpenVidu Server: {} MB", totalSentMbs);
 		log.info("Average received bitrate by OpenVidu Server: {} KB/s", averageReceivedBitrate);
 		log.info("Average sent bitrate by OpenVidu Server: {} KB/s", averageSentBitrate);
 		log.info("----------------------------------------------");
+	}
+
+	private void writeCsvLine(StringBuilder sb) throws IOException {
+		this.writer.append(sb);
 	}
 
 }
