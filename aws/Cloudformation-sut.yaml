@@ -211,7 +211,7 @@ Resources:
                 systemctl restart coturn 
                 systemctl restart kurento-media-server
                 systemctl restart nginx
-                exec java -jar -Dopenvidu.secret=MY_SECRET -Dserver.ssl.enabled=false -Dserver.port=5443 -Dopenvidu.publicurl=https://${PUBLIC_HOSTNAME}:4443/ /opt/openvidu/openvidu-server.jar >/var/log/openvidu.log 2>&1 &
+                exec java -jar -Dopenvidu.secret=MY_SECRET -Dserver.ssl.enabled=false -Dserver.port=5443 -Dopenvidu.publicurl=https://${PUBLIC_HOSTNAME}:4443/ -Dopenvidu.streams.video.max-recv-bandwidth=0 -Dopenvidu.streams.video.min-recv-bandwidth=0 -Dopenvidu.streams.video.max-send-bandwidth=0 -Dopenvidu.streams.video.min-send-bandwidth=0 /opt/openvidu/openvidu-server.jar >/var/log/openvidu.log 2>&1 &
               mode: "000755"
               owner: "root"
               group: "root"
