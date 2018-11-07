@@ -20,12 +20,14 @@ package io.openvidu.load.test;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
+import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 
 import io.openvidu.load.test.utils.MonitoringStats;
 import io.openvidu.load.test.utils.OpenViduServerMonitor;
+import io.openvidu.load.test.utils.ScpFileDownloader;
 
 /**
  * Manager class for OpenVidu Server node. Collects monitoring information from
@@ -37,15 +39,20 @@ public class OpenViduServerManager {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
+	final String OPENVIDU_LOG_PATH = "/var/log";
+	final String OPENVIDU_LOG_FILENAME = "openvidu.log";
+	final String KMS_LOG_PATH = "/var/log/kurento-media-server";
+	final String KMS_LOG_FILENAME = "20*.log";
+	final String KMS_ERROR_PATH = "/var/log/kurento-media-server";
+	final String KMS_ERROR_FILENAME = "errors.log";
+
 	private Thread pollingThread;
 	private AtomicBoolean isInterrupted = new AtomicBoolean(false);
 	private OpenViduServerMonitor monitor;
 
 	public OpenViduServerManager() {
-		String openViduUrl = OpenViduLoadTest.OPENVIDU_URL.replace("https://", "");
-		openViduUrl = openViduUrl.replaceAll(":[0-9]+/$", "");
-		openViduUrl = openViduUrl.replaceAll("/$", "");
-		this.monitor = new OpenViduServerMonitor(OpenViduLoadTest.SERVER_SSH_USER, openViduUrl);
+		this.monitor = new OpenViduServerMonitor(OpenViduLoadTest.SERVER_SSH_USER,
+				OpenViduLoadTest.SERVER_SSH_HOSTNAME);
 	}
 
 	public void startMonitoringPolling() {
@@ -78,6 +85,37 @@ public class OpenViduServerManager {
 		this.isInterrupted.set(true);
 		this.pollingThread.interrupt();
 		log.info("OpenVidu Server monitoring poll stopped");
+	}
+
+	public void downloadOpenViduKmsLogFiles() throws InterruptedException {
+		final String downloadPath = Paths.get(OpenViduLoadTest.RESULTS_PATH).getParent().toString();
+
+		Thread openviduLogThread = new Thread(() -> {
+			ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
+					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
+			fileDownloader.downloadFile(OPENVIDU_LOG_PATH, OPENVIDU_LOG_FILENAME, downloadPath);
+		});
+		Thread kmsLogThread = new Thread(() -> {
+			ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
+					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
+			fileDownloader.downloadFile(KMS_LOG_PATH, KMS_LOG_FILENAME, downloadPath);
+		});
+		Thread kmsErrorThread = new Thread(() -> {
+			ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
+					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
+			fileDownloader.downloadFile(KMS_ERROR_PATH, KMS_ERROR_FILENAME, downloadPath);
+		});
+
+		// Run download threads
+		openviduLogThread.start();
+		kmsLogThread.start();
+		kmsErrorThread.start();
+
+		// Wait for download threads to finish, with a timeout of 10 minutes
+		// (10*60*1000=300000 milliseconds)
+		kmsErrorThread.join(600000);
+		openviduLogThread.join(600000);
+		kmsLogThread.join(600000);
 	}
 
 }

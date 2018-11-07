@@ -104,10 +104,12 @@ public class OpenViduLoadTest {
 	static int BROWSER_POLL_INTERVAL = 1000;
 	public static int SERVER_POLL_INTERVAL = 5000;
 	public static String SERVER_SSH_USER = "ubuntu";
+	public static String SERVER_SSH_HOSTNAME;
 	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
 	public static boolean REMOTE = false;
 	public static boolean BROWSER_INIT_AT_ONCE = false;
 	public static String RESULTS_PATH = "/opt/openvidu/testload/loadTestStats.txt";
+	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
 
 	static BrowserProvider browserProvider;
 	static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
@@ -137,6 +139,7 @@ public class OpenViduLoadTest {
 		String remote = System.getProperty("REMOTE");
 		String browserInitAtOnce = System.getProperty("BROWSER_INIT_AT_ONCE");
 		String resultsPath = System.getProperty("RESULTS_PATH");
+		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -180,6 +183,12 @@ public class OpenViduLoadTest {
 		if (resultsPath != null) {
 			RESULTS_PATH = resultsPath;
 		}
+		if (downloadOpenviduLogs != null) {
+			DOWNLOAD_OPENVIDU_LOGS = Boolean.parseBoolean(downloadOpenviduLogs);
+		}
+
+		SERVER_SSH_HOSTNAME = OpenViduLoadTest.OPENVIDU_URL.replace("https://", "").replaceAll(":[0-9]+/$", "")
+				.replaceAll("/$", "");
 
 		browserProvider = REMOTE ? new RemoteBrowserProvider() : new LocalBrowserProvider();
 		startNewSession = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
@@ -279,6 +288,19 @@ public class OpenViduLoadTest {
 
 		// Process test results
 		new ResultsParser().processResultFile();
+
+		// Download remote result files from OpenVidu Server instance if configured
+		if (DOWNLOAD_OPENVIDU_LOGS) {
+			log.info("Test configured to download remote result files");
+			try {
+				openViduServerManager.downloadOpenViduKmsLogFiles();
+			} catch (InterruptedException e) {
+				log.error("Some log download thread couldn't finish in 5 minutes: {}", e.getMessage());
+			}
+			log.info("All remote files have been successfully downloaded!");
+		} else {
+			log.info("Test configured to NOT download remote result files (DOWNLOAD_OPENVIDU_LOGS=false)");
+		}
 	}
 
 	@Test
