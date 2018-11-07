@@ -26,7 +26,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 
 import com.jcraft.jsch.Channel;
@@ -50,6 +52,8 @@ public class ScpFileDownloader {
 	File f;
 	FileOutputStream fos;
 	String remoteFileName;
+	Thread downloadProgressThread;
+	AtomicBoolean keepProgressThread = new AtomicBoolean(true);
 
 	public ScpFileDownloader(String username, String hostname) {
 		JSch jsch = new JSch();
@@ -120,8 +124,9 @@ public class ScpFileDownloader {
 				}
 
 				remoteFileName = file;
+				final long fileSizeAux = filesize;
 
-				log.info("File: {} | Size: {} MB", remoteFileName, (int) (filesize / (1024 * 1024)));
+				log.info("File: {}. Size: {} KB", remoteFileName, (int) (filesize / (1024)));
 
 				// Send '\0'
 				buf[0] = 0;
@@ -130,16 +135,29 @@ public class ScpFileDownloader {
 
 				// Do not overwrite existing files when storing remote file
 				String filePath = localPath + "/" + remoteFileName;
+				String remoteFileNameWithOutExt = FilenameUtils.removeExtension(remoteFileName);
+				String remoteFileExtension = FilenameUtils.getExtension(remoteFileName);
 				f = new File(filePath);
 				boolean alreadyExists = f.exists();
 				int fileIndex = 1;
 				while (alreadyExists) {
-					filePath = OpenViduLoadTest.RESULTS_PATH.substring(0, OpenViduLoadTest.RESULTS_PATH.length() - 4)
-							+ "-" + fileIndex + ".txt";
+					if (remoteFileExtension.isEmpty()) {
+						filePath = localPath + "/" + remoteFileNameWithOutExt + "-" + fileIndex;
+					} else {
+						filePath = localPath + "/" + remoteFileNameWithOutExt + "-" + fileIndex + "."
+								+ remoteFileExtension;
+					}
 					f = new File(filePath);
 					alreadyExists = f.exists();
 					fileIndex++;
 				}
+
+				downloadProgressThread = new Thread(() -> {
+					while (keepProgressThread.get()) {
+						downloadProgress(f, fileSizeAux);
+					}
+				});
+				downloadProgressThread.start();
 
 				// Read a content of lfile
 				this.fos = new FileOutputStream(f);
@@ -172,10 +190,12 @@ public class ScpFileDownloader {
 				out.flush();
 			}
 
+			downloadProgressThread.interrupt();
+			keepProgressThread.set(false);
 			jschSession.disconnect();
+			printProgress(f, null);
 
-			log.info("File {} downloaded successfully. Available at path {}", filename,
-					localPath + "/" + remoteFileName);
+			log.info("File {} downloaded successfully. Available at {}", filename, f.getAbsolutePath());
 
 		} catch (Exception e) {
 			log.error(e.toString());
@@ -215,6 +235,19 @@ public class ScpFileDownloader {
 			}
 		}
 		return b;
+	}
+
+	private void downloadProgress(File f, Long finalSize) {
+		printProgress(f, finalSize);
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+		}
+	}
+
+	private void printProgress(File f, Long finalSize) {
+		int progress = finalSize == null ? 100 : (int) ((f.length() * 100) / finalSize);
+		log.info("{}% [{}]", progress, remoteFileName);
 	}
 
 }
