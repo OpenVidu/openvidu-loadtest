@@ -63,9 +63,13 @@ public class LogHelper {
 		OpenViduLoadTest.RESULTS_PATH = testDirectory.getAbsolutePath();
 	}
 
-	public void close() throws IOException {
-		log.info("Closing results file");
+	public void closeLogFile() throws IOException {
+		log.info("Closing test log file");
 		testLogWriter.close();
+	}
+	
+	public void closeInfoFile() throws IOException {
+		log.info("Closing test info file");
 		testInfoWriter.close();
 	}
 

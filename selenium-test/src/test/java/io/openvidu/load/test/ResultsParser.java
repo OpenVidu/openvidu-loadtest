@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
 import io.openvidu.load.test.utils.LogHelper;
 
@@ -115,7 +116,14 @@ public class ResultsParser {
 			sc = new Scanner(inputStream, "UTF-8");
 			while (sc.hasNextLine()) {
 				numberOfLines++;
-				JsonObject json = parser.parse(sc.nextLine()).getAsJsonObject();
+				JsonObject json = null;
+				String nextLine = sc.nextLine();
+				try {
+					json = parser.parse(nextLine).getAsJsonObject();
+				} catch(JsonSyntaxException ex) {
+					log.error("Line {} is not a JSON object: {}", numberOfLines, nextLine);
+					continue;
+				}
 				if (json.has("event")) {
 					// Test event log
 					String eventName = json.get("event").getAsJsonObject().get("name").getAsString();

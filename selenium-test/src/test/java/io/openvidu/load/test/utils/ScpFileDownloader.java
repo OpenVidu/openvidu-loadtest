@@ -173,9 +173,11 @@ public class ScpFileDownloader {
 				out.write(buf, 0, 1);
 				out.flush();
 			}
-
-			downloadProgressThread.interrupt();
-			keepProgressThread.set(false);
+			
+			if (downloadProgressThread != null) {
+				downloadProgressThread.interrupt();
+				keepProgressThread.set(false);
+			}
 			jschSession.disconnect();
 			printProgress(f, null);
 

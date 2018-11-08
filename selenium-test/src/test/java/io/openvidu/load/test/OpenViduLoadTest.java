@@ -288,6 +288,13 @@ public class OpenViduLoadTest {
 		// Terminate all instances
 		browserProvider.terminateInstances();
 
+		// Close results file
+		try {
+			logHelper.closeLogFile();
+		} catch (IOException e) {
+			log.error("Error closing results file: {}", e.getMessage());
+		}
+
 		// Process test results
 		new ResultsParser(logHelper).processResultFile();
 
@@ -307,7 +314,7 @@ public class OpenViduLoadTest {
 
 		// Close results file
 		try {
-			logHelper.close();
+			logHelper.closeInfoFile();
 		} catch (IOException e) {
 			log.error("Error closing results file: {}", e.getMessage());
 		}
@@ -318,6 +325,8 @@ public class OpenViduLoadTest {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
+		log.info("TEST FINISHED");
 	}
 
 	@Test
