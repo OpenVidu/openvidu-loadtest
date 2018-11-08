@@ -28,7 +28,6 @@ import java.io.OutputStream;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 
 import com.jcraft.jsch.Channel;
@@ -132,31 +131,17 @@ public class ScpFileDownloader {
 				out.write(buf, 0, 1);
 				out.flush();
 
-				// Do not overwrite existing files when storing remote file
 				String filePath = localPath + "/" + remoteFileName;
-				String remoteFileNameWithOutExt = FilenameUtils.removeExtension(remoteFileName);
-				String remoteFileExtension = FilenameUtils.getExtension(remoteFileName);
 				f = new File(filePath);
-				boolean alreadyExists = f.exists();
-				int fileIndex = 1;
-				while (alreadyExists) {
-					if (remoteFileExtension.isEmpty()) {
-						filePath = localPath + "/" + remoteFileNameWithOutExt + "-" + fileIndex;
-					} else {
-						filePath = localPath + "/" + remoteFileNameWithOutExt + "-" + fileIndex + "."
-								+ remoteFileExtension;
-					}
-					f = new File(filePath);
-					alreadyExists = f.exists();
-					fileIndex++;
-				}
 
-				downloadProgressThread = new Thread(() -> {
-					while (keepProgressThread.get()) {
-						downloadProgress(f, fileSizeAux);
-					}
-				});
-				downloadProgressThread.start();
+				if (fileSizeAux > 0) {
+					downloadProgressThread = new Thread(() -> {
+						while (keepProgressThread.get()) {
+							downloadProgress(f, fileSizeAux);
+						}
+					});
+					downloadProgressThread.start();
+				}
 
 				// Read a content of lfile
 				this.fos = new FileOutputStream(f);

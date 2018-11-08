@@ -20,7 +20,6 @@ package io.openvidu.load.test;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -88,22 +87,20 @@ public class OpenViduServerManager {
 	}
 
 	public void downloadOpenViduKmsLogFiles() throws InterruptedException {
-		final String downloadPath = Paths.get(OpenViduLoadTest.RESULTS_PATH).getParent().toString();
-
 		Thread openviduLogThread = new Thread(() -> {
 			ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
 					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
-			fileDownloader.downloadFile(OPENVIDU_LOG_PATH, OPENVIDU_LOG_FILENAME, downloadPath);
+			fileDownloader.downloadFile(OPENVIDU_LOG_PATH, OPENVIDU_LOG_FILENAME, OpenViduLoadTest.RESULTS_PATH);
 		});
 		Thread kmsLogThread = new Thread(() -> {
 			ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
 					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
-			fileDownloader.downloadFile(KMS_LOG_PATH, KMS_LOG_FILENAME, downloadPath);
+			fileDownloader.downloadFile(KMS_LOG_PATH, KMS_LOG_FILENAME, OpenViduLoadTest.RESULTS_PATH);
 		});
 		Thread kmsErrorThread = new Thread(() -> {
 			ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
 					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
-			fileDownloader.downloadFile(KMS_ERROR_PATH, KMS_ERROR_FILENAME, downloadPath);
+			fileDownloader.downloadFile(KMS_ERROR_PATH, KMS_ERROR_FILENAME, OpenViduLoadTest.RESULTS_PATH);
 		});
 
 		// Run download threads

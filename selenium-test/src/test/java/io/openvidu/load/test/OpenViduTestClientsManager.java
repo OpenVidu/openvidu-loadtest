@@ -97,7 +97,7 @@ public class OpenViduTestClientsManager {
 	}
 
 	public void gatherEventsAndStats(String userId, int roundCount) {
-		log.info("Gathering events and stats for user {} (round {})", userId, roundCount);
+		log.debug("Gathering events and stats for user {} (round {})", userId, roundCount);
 		this.getEventsAndStatsFromBrowser(false);
 		this.emitEvents();
 	}

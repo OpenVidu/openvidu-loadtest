@@ -21,6 +21,7 @@ import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -29,6 +30,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
@@ -48,6 +50,7 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -108,8 +111,9 @@ public class OpenViduLoadTest {
 	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
 	public static boolean REMOTE = false;
 	public static boolean BROWSER_INIT_AT_ONCE = false;
-	public static String RESULTS_PATH = "/opt/openvidu/testload/loadTestStats.txt";
+	public static String RESULTS_PATH = "/opt/openvidu/testload";
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
+	public static int[] RECORD_BROWSERS;
 
 	static BrowserProvider browserProvider;
 	static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
@@ -140,6 +144,7 @@ public class OpenViduLoadTest {
 		String browserInitAtOnce = System.getProperty("BROWSER_INIT_AT_ONCE");
 		String resultsPath = System.getProperty("RESULTS_PATH");
 		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
+		String recordBrowsers = System.getProperty("RECORD_BROWSERS");
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -186,6 +191,7 @@ public class OpenViduLoadTest {
 		if (downloadOpenviduLogs != null) {
 			DOWNLOAD_OPENVIDU_LOGS = Boolean.parseBoolean(downloadOpenviduLogs);
 		}
+		initializeRecordBrowsersProperty(recordBrowsers);
 
 		SERVER_SSH_HOSTNAME = OpenViduLoadTest.OPENVIDU_URL.replace("https://", "").replaceAll(":[0-9]+/$", "")
 				.replaceAll("/$", "");
@@ -194,15 +200,15 @@ public class OpenViduLoadTest {
 		startNewSession = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 		lastRoundCount = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 
-		String filePath = RESULTS_PATH;
 		try {
-			logHelper = new LogHelper(filePath);
+			logHelper = new LogHelper();
 		} catch (IOException e) {
 			log.error("Result output file couldn't be opened: {}", e.toString());
 			Assert.fail("Result output file couldn't be opened: " + e.toString());
 			return;
 		}
 
+		// Accept insecure certificates when consuming OpenVidu Server REST API
 		TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
 			public java.security.cert.X509Certificate[] getAcceptedIssuers() {
 				return null;
@@ -231,24 +237,23 @@ public class OpenViduLoadTest {
 		};
 		// Install the all-trusting host verifier
 		HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
-		/* End of the fix */
 
+		// Test information logging
 		String testInfo = "------------ TEST CONFIGURATION ----------" + System.getProperty("line.separator")
-				+ "> OpenVidu URL:          " + OPENVIDU_URL + System.getProperty("line.separator")
-				+ "> OpenVidu secret:       " + OPENVIDU_SECRET + System.getProperty("line.separator")
-				+ "> App URL:               " + APP_URL + System.getProperty("line.separator")
-				+ "> Session limit:         " + SESSIONS + System.getProperty("line.separator")
-				+ "> Users per session:     " + USERS_SESSION + System.getProperty("line.separator")
-				+ "> Expected browsers:     " + SESSIONS * USERS_SESSION + System.getProperty("line.separator")
-				+ "> Expected Publishers:   " + SESSIONS * USERS_SESSION + System.getProperty("line.separator")
-				+ "> Expected Subscribers:  " + SESSIONS * (USERS_SESSION * (USERS_SESSION - 1))
-				+ System.getProperty("line.separator") + "> Browsers init at once: " + BROWSER_INIT_AT_ONCE
-				+ System.getProperty("line.separator") + "> Is remote:             " + REMOTE
-				+ System.getProperty("line.separator") + "> Results stored under:  " + filePath
-				+ System.getProperty("line.separator") + "---------------------------------------- "
-				+ System.getProperty("line.separator");
+				+ "OpenVidu URL:          " + OPENVIDU_URL + System.getProperty("line.separator")
+				+ "OpenVidu secret:       " + OPENVIDU_SECRET + System.getProperty("line.separator")
+				+ "App URL:               " + APP_URL + System.getProperty("line.separator") + "Session limit:         "
+				+ SESSIONS + System.getProperty("line.separator") + "Users per session:     " + USERS_SESSION
+				+ System.getProperty("line.separator") + "Expected browsers:     " + SESSIONS * USERS_SESSION
+				+ System.getProperty("line.separator") + "Expected Publishers:   " + SESSIONS * USERS_SESSION
+				+ System.getProperty("line.separator") + "Expected Subscribers:  "
+				+ SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)) + System.getProperty("line.separator")
+				+ "Browsers init at once: " + BROWSER_INIT_AT_ONCE + System.getProperty("line.separator")
+				+ "Is remote:             " + REMOTE + System.getProperty("line.separator") + "Results stored under:  "
+				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
+				+ "----------------------------------------";
 		logHelper.logTestInfo(testInfo);
-		log.info(testInfo);
+		log.info(System.getProperty("line.separator") + testInfo);
 	}
 
 	@AfterAll
@@ -278,12 +283,6 @@ public class OpenViduLoadTest {
 		// Stop OpenVidu Server monitoring thread
 		openViduServerManager.stopMonitoringPolling();
 
-		// Close results file
-		try {
-			logHelper.close();
-		} catch (IOException e) {
-			log.error("Error closing results file: {}", e.getMessage());
-		}
 		log.info("Load test finished");
 
 		// Terminate all instances
@@ -296,6 +295,7 @@ public class OpenViduLoadTest {
 		if (DOWNLOAD_OPENVIDU_LOGS) {
 			log.info("Test configured to download remote result files");
 			try {
+				openViduServerManager = new OpenViduServerManager();
 				openViduServerManager.downloadOpenViduKmsLogFiles();
 			} catch (InterruptedException e) {
 				log.error("Some log download thread couldn't finish in 5 minutes: {}", e.getMessage());
@@ -303,6 +303,20 @@ public class OpenViduLoadTest {
 			log.info("All remote files have been successfully downloaded!");
 		} else {
 			log.info("Test configured to NOT download remote result files (DOWNLOAD_OPENVIDU_LOGS=false)");
+		}
+
+		// Close results file
+		try {
+			logHelper.close();
+		} catch (IOException e) {
+			log.error("Error closing results file: {}", e.getMessage());
+		}
+
+		// Copy test log file to results folder
+		try {
+			FileUtils.copyFile(new File("./logs/test.log"), new File(OpenViduLoadTest.RESULTS_PATH + "/test.log"));
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -641,6 +655,48 @@ public class OpenViduLoadTest {
 		in.close();
 		con.disconnect();
 		return content.toString();
+	}
+
+	private static void initializeRecordBrowsersProperty(String recordBrowsers) {
+		if (recordBrowsers != null) {
+			String[] items = recordBrowsers.replaceAll("\\[", "").replaceAll("\\]", "").replaceAll("\\s", "")
+					.split(",");
+			if (items.length < SESSIONS) {
+				log.warn(
+						"RECORD_BROWSERS array length is lower than the number of sessions to be launched. Rest of sessions will not have recorded browsers");
+			} else if (items.length > SESSIONS) {
+				log.warn(
+						"RECORD_BROWSERS array length is higher than the number of sessions to be launched. Excess array positions will not be taken into account");
+			}
+			int[] results = new int[SESSIONS];
+			boolean wrongType = false;
+
+			for (int i = 0; i < SESSIONS; i++) {
+				try {
+					results[i] = i < items.length ? Integer.parseInt(items[i]) : 0;
+				} catch (NumberFormatException nfe) {
+					log.error(
+							"RECORD_BROWSERS array element '{}' is not an integer. Setting property RECORD_BROWSERS to default value",
+							items[i]);
+					setRecordBrowsersDefaultValue();
+					wrongType = true;
+					break;
+				}
+			}
+			if (!wrongType) {
+				RECORD_BROWSERS = results;
+			}
+		} else {
+			setRecordBrowsersDefaultValue();
+		}
+		log.info("Recording browsers {}", Arrays.toString(RECORD_BROWSERS));
+	}
+
+	private static void setRecordBrowsersDefaultValue() {
+		RECORD_BROWSERS = new int[SESSIONS];
+		for (int i = 0; i < SESSIONS; i++) {
+			RECORD_BROWSERS[i] = 0;
+		}
 	}
 
 }

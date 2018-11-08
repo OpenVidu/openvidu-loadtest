@@ -27,8 +27,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.channels.Channels;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Scanner;
 
 import org.slf4j.Logger;
@@ -103,27 +101,17 @@ public class ResultsParser {
 		FileInputStream inputStream = null;
 		Scanner sc = null;
 
-		Path resultPath = Paths.get(OpenViduLoadTest.RESULTS_PATH);
-		String directory = resultPath.getParent().toString();
-
-		this.file = new File(directory, "loadTestResults.csv");
-		boolean alreadyExists = this.file.exists();
-		int fileIndex = 1;
-		while (alreadyExists) {
-			this.file = new File(directory, "loadTestResults-" + fileIndex + ".csv");
-			alreadyExists = this.file.exists();
-			fileIndex++;
-		}
+		this.file = new File(OpenViduLoadTest.RESULTS_PATH, "loadTestResults.csv");
 		try {
 			this.outputStream = new FileOutputStream(file.getAbsoluteFile(), true);
 			this.writer = Channels.newWriter(outputStream.getChannel(), "UTF-8");
 		} catch (FileNotFoundException e) {
-			log.error("CSV results file couldn't be created at {}. Error: {}", directory + "/loadTestResults.csv",
-					e.getMessage());
+			log.error("CSV results file couldn't be created at {}. Error: {}",
+					OpenViduLoadTest.RESULTS_PATH + "/loadTestResults.csv", e.getMessage());
 		}
 
 		try {
-			inputStream = new FileInputStream(OpenViduLoadTest.RESULTS_PATH);
+			inputStream = new FileInputStream(OpenViduLoadTest.RESULTS_PATH + "/" + LogHelper.testLogFilename);
 			sc = new Scanner(inputStream, "UTF-8");
 			while (sc.hasNextLine()) {
 				numberOfLines++;
@@ -285,15 +273,16 @@ public class ResultsParser {
 	}
 
 	private void presentResults() {
-		String testInfo = "----------------- TEST RESULTS ---------------" + System.getProperty("line.separator")
-				+ "Test duration: " + testDuration + " s" + System.getProperty("line.separator")
-				+ "Number of browsers reached: " + numberOfBrowsersReached + " of "
-				+ OpenViduLoadTest.SESSIONS * OpenViduLoadTest.USERS_SESSION + System.getProperty("line.separator")
-				+ "Total unstable browsers: " + totalUnstableBrowsers + System.getProperty("line.separator")
-				+ "Number of lines parsed from log: " + numberOfLines + System.getProperty("line.separator")
-				+ "------- WebRTC streams stats -------" + System.getProperty("line.separator") + "Average WebRTC RTT: "
-				+ averageRtt + " ms" + System.getProperty("line.separator") + "Average WebRTC packets lost: "
-				+ averagePacketsLost + System.getProperty("line.separator") + "Average WebRTC subscribers Jitter: "
+		String testInfo = System.getProperty("line.separator") + "----------------- TEST RESULTS ---------------"
+				+ System.getProperty("line.separator") + "Test duration: " + testDuration + " s"
+				+ System.getProperty("line.separator") + "Number of browsers reached: " + numberOfBrowsersReached
+				+ " of " + OpenViduLoadTest.SESSIONS * OpenViduLoadTest.USERS_SESSION
+				+ System.getProperty("line.separator") + "Total unstable browsers: " + totalUnstableBrowsers
+				+ System.getProperty("line.separator") + "Number of lines parsed from log: " + numberOfLines
+				+ System.getProperty("line.separator") + "------- WebRTC streams stats -------"
+				+ System.getProperty("line.separator") + "Average WebRTC RTT: " + averageRtt + " ms"
+				+ System.getProperty("line.separator") + "Average WebRTC packets lost: " + averagePacketsLost
+				+ System.getProperty("line.separator") + "Average WebRTC subscribers Jitter: "
 				+ averageSubscribersJitter + System.getProperty("line.separator") + "Average WebRTC subscribers delay: "
 				+ averageSubscribersDelay + " ms" + System.getProperty("line.separator")
 				+ "Average WebRTC subscribers bitrate: " + averageSubscribersBitrate + " KB/s"

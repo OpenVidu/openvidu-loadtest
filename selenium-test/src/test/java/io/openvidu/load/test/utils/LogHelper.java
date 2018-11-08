@@ -23,8 +23,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import org.slf4j.Logger;
 
@@ -34,7 +34,8 @@ import com.google.gson.JsonParser;
 import io.openvidu.load.test.OpenViduLoadTest;
 
 /**
- * Test logging service: writes standard logs and information logs
+ * Test logging service: writes standard logs and information logs to output
+ * files
  *
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
  */
@@ -43,31 +44,23 @@ public class LogHelper {
 	final static Logger log = getLogger(lookup().lookupClass());
 
 	// Test standard log file (events, stats, monitoring, OpenVidu sessions)
-	final String testLogFilename = "loadTestStats";
+	public final static String testLogFilename = "loadTestStats.txt";
 	// Test information file (configuration and average results)
-	final String testInfoFilename = "loadTestInfo";
+	public final static String testInfoFilename = "loadTestInfo.txt";
 
 	public FileWriter testLogWriter;
 	public FileWriter testInfoWriter;
 	private JsonParser parser = new JsonParser();
 
-	public LogHelper(String filePath) throws IOException {
-		Path resultPath = Paths.get(OpenViduLoadTest.RESULTS_PATH);
-		String directory = resultPath.getParent().toString();
+	public LogHelper() throws IOException {
+		String resultsPath = OpenViduLoadTest.RESULTS_PATH;
+		File testDirectory = new File(resultsPath.replaceAll("/$", "") + "/loadtest_"
+				+ (new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss").format(new Date())));
+		testDirectory.mkdirs();
 
-		File logFile = new File(directory, testLogFilename + ".txt");
-		File infoFile = new File(directory, testInfoFilename + ".txt");
-		boolean alreadyExists = logFile.exists();
-		int fileIndex = 1;
-		while (alreadyExists) {
-			logFile = new File(directory, testLogFilename + "-" + fileIndex + ".txt");
-			infoFile = new File(directory, testInfoFilename + "-" + fileIndex + ".txt");
-			alreadyExists = logFile.exists();
-			fileIndex++;
-		}
-		testLogWriter = new FileWriter(logFile, true);
-		testInfoWriter = new FileWriter(infoFile, true);
-		OpenViduLoadTest.RESULTS_PATH = filePath;
+		testLogWriter = new FileWriter(new File(testDirectory, testLogFilename), true);
+		testInfoWriter = new FileWriter(new File(testDirectory, testInfoFilename), true);
+		OpenViduLoadTest.RESULTS_PATH = testDirectory.getAbsolutePath();
 	}
 
 	public void close() throws IOException {
