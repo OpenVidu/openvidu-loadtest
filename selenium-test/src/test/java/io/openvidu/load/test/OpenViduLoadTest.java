@@ -76,6 +76,7 @@ import io.openvidu.load.test.browser.RemoteBrowserProvider;
 import io.openvidu.load.test.utils.CustomLatch;
 import io.openvidu.load.test.utils.CustomLatch.AbortedException;
 import io.openvidu.load.test.utils.LogHelper;
+import io.openvidu.load.test.utils.ZipGenerator;
 
 /**
  * E2E test for OpenVidu load testing
@@ -307,7 +308,7 @@ public class OpenViduLoadTest {
 			} catch (InterruptedException e) {
 				log.error("Some log download thread couldn't finish in 5 minutes: {}", e.getMessage());
 			}
-			log.info("All remote files have been successfully downloaded!");
+			log.info("All remote files have been successfully downloaded");
 		} else {
 			log.info("Test configured to NOT download remote result files (DOWNLOAD_OPENVIDU_LOGS=false)");
 		}
@@ -322,6 +323,13 @@ public class OpenViduLoadTest {
 		// Copy test log file to results folder
 		try {
 			FileUtils.copyFile(new File("./logs/test.log"), new File(OpenViduLoadTest.RESULTS_PATH + "/test.log"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// Compress result files into zip
+		try {
+			new ZipGenerator().zipFiles();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
