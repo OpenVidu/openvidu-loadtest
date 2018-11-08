@@ -1,9 +1,11 @@
 #!/bin/bash
 set -eu -o pipefail
 
+export AWS_DEFAULT_REGION=us-west-2
+
 # Please, refer to https://cloud-images.ubuntu.com/locator/ec2/
 # to find a valid EC2 AMI
-IMAGE_ID=ami-00b36349b3dba2ec3
+IMAGE_ID=ami-01e0cf6e025c036e4
 
 # Please, upload the template EC2Instance-ElastestBrowsers.yaml
 # to a S3 bucket
