@@ -71,12 +71,11 @@ public class ScpFileDownloader {
 	}
 
 	public void downloadFile(String remotePath, String filename, String localPath) {
-
-		log.info("Downloading file {} from {}", remotePath + "/" + filename, jschSession.getHost());
-
 		try {
 
-			// Exec 'scp -f FILE_PATH' remotely
+			log.info("Downloading file {} from {}", remotePath + "/" + filename, jschSession.getHost());
+
+			// Exec 'scp -f FILE_PATH'
 			String command = "scp -f " + remotePath + "/" + filename;
 			Channel channel = jschSession.openChannel("exec");
 			((ChannelExec) channel).setCommand(command);

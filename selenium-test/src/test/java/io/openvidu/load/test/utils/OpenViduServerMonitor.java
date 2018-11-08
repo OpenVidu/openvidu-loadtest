@@ -34,6 +34,12 @@ import com.jcraft.jsch.Session;
 
 import io.openvidu.load.test.OpenViduLoadTest;
 
+/**
+ * Monitoring service for Linux machines. Gathers CPU, memory and network usage
+ * through SSH
+ *
+ * @author Pablo Fuente (pablofuenteperez@gmail.com)
+ */
 public class OpenViduServerMonitor {
 
 	final static Logger log = getLogger(lookup().lookupClass());

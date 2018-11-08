@@ -23,6 +23,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.slf4j.Logger;
 
@@ -31,62 +33,92 @@ import com.google.gson.JsonParser;
 
 import io.openvidu.load.test.OpenViduLoadTest;
 
+/**
+ * Test logging service: writes standard logs and information logs
+ *
+ * @author Pablo Fuente (pablofuenteperez@gmail.com)
+ */
 public class LogHelper {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	public static FileWriter fileWriter;
+	// Test standard log file (events, stats, monitoring, OpenVidu sessions)
+	final String testLogFilename = "loadTestStats";
+	// Test information file (configuration and average results)
+	final String testInfoFilename = "loadTestInfo";
+
+	public FileWriter testLogWriter;
+	public FileWriter testInfoWriter;
 	private JsonParser parser = new JsonParser();
 
 	public LogHelper(String filePath) throws IOException {
-		boolean alreadyExists = new File(filePath).exists();
+		Path resultPath = Paths.get(OpenViduLoadTest.RESULTS_PATH);
+		String directory = resultPath.getParent().toString();
+
+		File logFile = new File(directory, testLogFilename + ".txt");
+		File infoFile = new File(directory, testInfoFilename + ".txt");
+		boolean alreadyExists = logFile.exists();
 		int fileIndex = 1;
 		while (alreadyExists) {
-			filePath = OpenViduLoadTest.RESULTS_PATH.substring(0, OpenViduLoadTest.RESULTS_PATH.length() - 4) + "-"
-					+ fileIndex + ".txt";
-			alreadyExists = new File(filePath).exists();
+			logFile = new File(directory, testLogFilename + "-" + fileIndex + ".txt");
+			infoFile = new File(directory, testInfoFilename + "-" + fileIndex + ".txt");
+			alreadyExists = logFile.exists();
 			fileIndex++;
 		}
-		fileWriter = new FileWriter(filePath, true);
+		testLogWriter = new FileWriter(logFile, true);
+		testInfoWriter = new FileWriter(infoFile, true);
 		OpenViduLoadTest.RESULTS_PATH = filePath;
 	}
 
 	public void close() throws IOException {
 		log.info("Closing results file");
-		fileWriter.close();
+		testLogWriter.close();
+		testInfoWriter.close();
 	}
 
 	public void logTestEvent(JsonObject event) {
 		JsonObject testEvent = new JsonObject();
 		testEvent.add("event", event);
 		testEvent.addProperty("timestamp", System.currentTimeMillis());
-		LogHelper.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
+		writeToTestLog(testEvent.toString() + System.getProperty("line.separator"));
 	}
 
 	public void logTestEvent(JsonObject event, Long timestamp) {
 		JsonObject testEvent = new JsonObject();
 		testEvent.add("event", event);
 		testEvent.addProperty("timestamp", timestamp);
-		LogHelper.writeToOutput(testEvent.toString() + System.getProperty("line.separator"));
+		writeToTestLog(testEvent.toString() + System.getProperty("line.separator"));
 	}
 
 	public void logBrowserStats(JsonObject stats) {
-		LogHelper.writeToOutput(stats.toString() + System.getProperty("line.separator"));
+		writeToTestLog(stats.toString() + System.getProperty("line.separator"));
 	}
 
 	public void logServerMonitoringStats(MonitoringStats stats) {
-		LogHelper.writeToOutput(stats.toJson().toString() + System.getProperty("line.separator"));
+		writeToTestLog(stats.toJson().toString() + System.getProperty("line.separator"));
 	}
 
 	public void logOpenViduSessionInfo(String info) {
 		JsonObject jsonInfo = parser.parse(info).getAsJsonObject();
 		jsonInfo.addProperty("timestamp", System.currentTimeMillis());
-		LogHelper.writeToOutput(info.toString() + System.getProperty("line.separator"));
+		writeToTestLog(info.toString() + System.getProperty("line.separator"));
 	}
 
-	private static synchronized void writeToOutput(String s) {
+	public void logTestInfo(String info) {
+		writeToTestInfo(info + System.getProperty("line.separator"));
+	}
+
+	private synchronized void writeToTestLog(String s) {
 		try {
-			LogHelper.fileWriter.write(s);
+			testLogWriter.write(s);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private synchronized void writeToTestInfo(String s) {
+		try {
+			testInfoWriter.write(s);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

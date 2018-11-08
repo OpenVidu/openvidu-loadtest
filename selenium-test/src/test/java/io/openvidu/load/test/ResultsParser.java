@@ -37,9 +37,19 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import io.openvidu.load.test.utils.LogHelper;
+
+/**
+ * Processes tests's standard log file to obtain final results
+ *
+ * @author Pablo Fuente (pablofuenteperez@gmail.com)
+ */
 public class ResultsParser {
 
 	final static Logger log = getLogger(lookup().lookupClass());
+
+	private LogHelper logHelper;
+
 	private File file;
 	private FileOutputStream outputStream;
 	private Writer writer;
@@ -84,6 +94,10 @@ public class ResultsParser {
 	private int totalUnstableBrowsers;
 
 	private int testDuration;
+
+	public ResultsParser(LogHelper logHelper) {
+		this.logHelper = logHelper;
+	}
 
 	public void processResultFile() {
 		FileInputStream inputStream = null;
@@ -271,33 +285,38 @@ public class ResultsParser {
 	}
 
 	private void presentResults() {
-		log.info("----------------- TEST RESULTS ---------------");
-		log.info("Test duration: {} s", testDuration);
-		log.info("Number of browsers reached: {} of {}", numberOfBrowsersReached,
-				OpenViduLoadTest.SESSIONS * OpenViduLoadTest.USERS_SESSION);
-		log.info("Total unstable browsers: {}", totalUnstableBrowsers);
-		log.info("Number of lines parsed from log: {}", numberOfLines);
-		log.info("------- WebRTC streams stats -------");
-		log.info("Average WebRTC RTT: {} ms", averageRtt);
-		log.info("Average WebRTC packets lost: {}", averagePacketsLost);
-		log.info("Average WebRTC subscribers Jitter: {}", averageSubscribersJitter);
-		log.info("Average WebRTC subscribers delay: {} ms", averageSubscribersDelay);
-		log.info("Average WebRTC subscribers bitrate: {} KB/s", averageSubscribersBitrate);
-		log.info("Average WebRTC publishers bitrate: {} KB/s", averagePublishersBitrate);
-		log.info("Average WebRTC available receive bandwidth: {}", averageAvailableSubscribersBandwitdh);
-		log.info("Average WebRTC available send bandwidth: {}", averageAvailablePublishersBandwitdh);
-		log.info("Max WebRTC RTT: {}", maxRtt);
-		log.info("Max WebRTC packets lost: {}", maxPacketsLost);
-		log.info("Max WebRTC subscribers Jitter: {}", maxSubscribersJitter);
-		log.info("Max WebRTC subscribers delay: {}", maxSubscribersDelay);
-		log.info("------- OpenVidu Server monitoring -------");
-		log.info("Max CPU usage in OpenVidu Server: {}", maxCpuUsage);
-		log.info("Max memory usage in OpenVidu Server: {}", maxMemUsage);
-		log.info("Total received MBs by OpenVidu Server: {} MB", totalReceivedMbs);
-		log.info("Total sent MBs by OpenVidu Server: {} MB", totalSentMbs);
-		log.info("Average received bitrate by OpenVidu Server: {} KB/s", averageReceivedBitrate);
-		log.info("Average sent bitrate by OpenVidu Server: {} KB/s", averageSentBitrate);
-		log.info("----------------------------------------------");
+		String testInfo = "----------------- TEST RESULTS ---------------" + System.getProperty("line.separator")
+				+ "Test duration: " + testDuration + " s" + System.getProperty("line.separator")
+				+ "Number of browsers reached: " + numberOfBrowsersReached + " of "
+				+ OpenViduLoadTest.SESSIONS * OpenViduLoadTest.USERS_SESSION + System.getProperty("line.separator")
+				+ "Total unstable browsers: " + totalUnstableBrowsers + System.getProperty("line.separator")
+				+ "Number of lines parsed from log: " + numberOfLines + System.getProperty("line.separator")
+				+ "------- WebRTC streams stats -------" + System.getProperty("line.separator") + "Average WebRTC RTT: "
+				+ averageRtt + " ms" + System.getProperty("line.separator") + "Average WebRTC packets lost: "
+				+ averagePacketsLost + System.getProperty("line.separator") + "Average WebRTC subscribers Jitter: "
+				+ averageSubscribersJitter + System.getProperty("line.separator") + "Average WebRTC subscribers delay: "
+				+ averageSubscribersDelay + " ms" + System.getProperty("line.separator")
+				+ "Average WebRTC subscribers bitrate: " + averageSubscribersBitrate + " KB/s"
+				+ System.getProperty("line.separator") + "Average WebRTC publishers bitrate: "
+				+ averagePublishersBitrate + " KB/s" + System.getProperty("line.separator")
+				+ "Average WebRTC available receive bandwidth: " + averageAvailableSubscribersBandwitdh
+				+ System.getProperty("line.separator") + "Average WebRTC available send bandwidth: "
+				+ averageAvailablePublishersBandwitdh + System.getProperty("line.separator") + "Max WebRTC RTT: "
+				+ maxRtt + System.getProperty("line.separator") + "Max WebRTC packets lost: " + maxPacketsLost
+				+ System.getProperty("line.separator") + "Max WebRTC subscribers Jitter: " + maxSubscribersJitter
+				+ System.getProperty("line.separator") + "Max WebRTC subscribers delay: " + maxSubscribersDelay + " ms"
+				+ System.getProperty("line.separator") + "------- OpenVidu Server monitoring -------"
+				+ System.getProperty("line.separator") + "Max CPU usage in OpenVidu Server: " + maxCpuUsage + "%"
+				+ System.getProperty("line.separator") + "Max memory usage in OpenVidu Server: " + maxMemUsage + "%"
+				+ System.getProperty("line.separator") + "Total received MBs by OpenVidu Server: " + totalReceivedMbs
+				+ " MB" + System.getProperty("line.separator") + "Total sent MBs by OpenVidu Server: " + totalSentMbs
+				+ " MB" + System.getProperty("line.separator") + "Average received bitrate by OpenVidu Server: "
+				+ averageReceivedBitrate + " KB/s" + System.getProperty("line.separator")
+				+ "Average sent bitrate by OpenVidu Server: " + averageSentBitrate + " KB/s"
+				+ System.getProperty("line.separator") + "----------------------------------------------";
+
+		this.logHelper.logTestInfo(testInfo);
+		log.info(testInfo);
 	}
 
 	private void writeCsvLine(StringBuilder sb) throws IOException {

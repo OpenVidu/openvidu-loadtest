@@ -233,19 +233,22 @@ public class OpenViduLoadTest {
 		HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
 		/* End of the fix */
 
-		log.info("------------ TEST CONFIGURATION ----------");
-		log.info("> OpenVidu URL:          {}", OPENVIDU_URL);
-		log.info("> OpenVidu secret:       {}", OPENVIDU_SECRET);
-		log.info("> App URL:               {}", APP_URL);
-		log.info("> Session limit:         {}", SESSIONS);
-		log.info("> Users per session:     {}", USERS_SESSION);
-		log.info("> Expected browsers:     {}", SESSIONS * USERS_SESSION);
-		log.info("> Expected Publishers:   {}", SESSIONS * USERS_SESSION);
-		log.info("> Expected Subscribers:  {}", SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)));
-		log.info("> Browsers init at once: {}", BROWSER_INIT_AT_ONCE);
-		log.info("> Is remote:             {}", REMOTE);
-		log.info("> Results stored under:  {}", filePath);
-		log.info("---------------------------------------- ");
+		String testInfo = "------------ TEST CONFIGURATION ----------" + System.getProperty("line.separator")
+				+ "> OpenVidu URL:          " + OPENVIDU_URL + System.getProperty("line.separator")
+				+ "> OpenVidu secret:       " + OPENVIDU_SECRET + System.getProperty("line.separator")
+				+ "> App URL:               " + APP_URL + System.getProperty("line.separator")
+				+ "> Session limit:         " + SESSIONS + System.getProperty("line.separator")
+				+ "> Users per session:     " + USERS_SESSION + System.getProperty("line.separator")
+				+ "> Expected browsers:     " + SESSIONS * USERS_SESSION + System.getProperty("line.separator")
+				+ "> Expected Publishers:   " + SESSIONS * USERS_SESSION + System.getProperty("line.separator")
+				+ "> Expected Subscribers:  " + SESSIONS * (USERS_SESSION * (USERS_SESSION - 1))
+				+ System.getProperty("line.separator") + "> Browsers init at once: " + BROWSER_INIT_AT_ONCE
+				+ System.getProperty("line.separator") + "> Is remote:             " + REMOTE
+				+ System.getProperty("line.separator") + "> Results stored under:  " + filePath
+				+ System.getProperty("line.separator") + "---------------------------------------- "
+				+ System.getProperty("line.separator");
+		logHelper.logTestInfo(testInfo);
+		log.info(testInfo);
 	}
 
 	@AfterAll
@@ -287,7 +290,7 @@ public class OpenViduLoadTest {
 		browserProvider.terminateInstances();
 
 		// Process test results
-		new ResultsParser().processResultFile();
+		new ResultsParser(logHelper).processResultFile();
 
 		// Download remote result files from OpenVidu Server instance if configured
 		if (DOWNLOAD_OPENVIDU_LOGS) {
