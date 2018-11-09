@@ -176,7 +176,7 @@ You'll need to provide some parameters like:
 
 `OpenViduVersion`: Which OpenVidu version you want to try. Default 2.6.0
 
-`KMSVersion`: Which KMS version you want to try: Default 6.8.1
+`KMSVersion`: Which KMS version you want to try. Set to nightly if you want to try the version which is being developing at the moment: Default 6.8.1
 
 `KeyName`: Your RSA key to access the instance through SSH.
 
