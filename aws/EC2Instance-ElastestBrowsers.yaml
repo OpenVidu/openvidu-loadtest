@@ -52,6 +52,13 @@ Resources:
             "/usr/local/bin/launchBrowser":
               content: |
                 #!/bin/bash
+                # Wait for Docker to start
+                until pids=$(pidof dockerd)
+                do
+                  sleep 1
+                done
+                sleep 1
+                # Creating folder for recordings
                 mkdir -p /home/ubuntu/recordings
                 chmod 777 /home/ubuntu/recordings
                 docker run --detach --name chrome -p 4444:4444 -p 6080:6080 -p 5900:5900 --cap-add=SYS_ADMIN -v /home/ubuntu/recordings:/home/ubuntu/recordings -v /opt/openvidu:/opt/openvidu elastestbrowsers/chrome:latest-2.0.0
@@ -63,6 +70,9 @@ Resources:
                 #!/bin/sh -e
                 /usr/local/bin/launchBrowser
                 exit 0
+              mode: "000755"
+              owner: "root"
+              group: "root"
     Properties:
       ImageId: !Ref ImageId
       InstanceType: "t3.small"
