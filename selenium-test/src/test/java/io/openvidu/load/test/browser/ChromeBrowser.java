@@ -27,8 +27,8 @@ import org.openqa.selenium.chrome.ChromeOptions;
  */
 public class ChromeBrowser extends Browser {
 
-	ChromeBrowser(String sessionId, String userId, int timeOfWaitInSeconds, WebDriver driver) {
-		super(sessionId, userId, timeOfWaitInSeconds, driver);
+	ChromeBrowser(String sessionId, String userId, boolean isRecorded, int timeOfWaitInSeconds, WebDriver driver) {
+		super(sessionId, userId, isRecorded, timeOfWaitInSeconds, driver);
 	}
 
 	static ChromeOptions generateFakeVideoChromeOptions(String videoFileLocation, String audioFileLocation) {

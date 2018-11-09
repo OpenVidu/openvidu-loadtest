@@ -98,8 +98,15 @@ public class ScriptExecutor {
 
 	private Map<String, AmazonInstance> parseInstanceJsonToMap(String str) {
 		Map<String, AmazonInstance> instanceMap = new HashMap<>();
+		JsonObject json;
 
-		JsonObject json = parser.parse(str).getAsJsonObject();
+		try {
+			json = parser.parse(str).getAsJsonObject();
+		} catch (IllegalStateException e) {
+			log.error(
+					"The response from AWS-CLI is not a JSON object. Some error must have occured when calling aws-cli command");
+			return instanceMap;
+		}
 		JsonArray reservations = null;
 
 		try {

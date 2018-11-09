@@ -42,6 +42,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.IntStream;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -90,7 +91,7 @@ public class OpenViduLoadTest {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	public static ExecutorService browserTaskExecutor = Executors
+	public static ExecutorService browserInitializationTaskExecutor = Executors
 			.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
 			Runtime.getRuntime().availableProcessors());
@@ -117,7 +118,7 @@ public class OpenViduLoadTest {
 	public static int[] RECORD_BROWSERS;
 
 	static BrowserProvider browserProvider;
-	static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
+	public static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
 	public static Long timeTestStarted;
 	static Map<String, Long> timeSessionStarted = new ConcurrentHashMap<>();
 
@@ -250,7 +251,7 @@ public class OpenViduLoadTest {
 				+ System.getProperty("line.separator") + "Expected Subscribers:  "
 				+ SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)) + System.getProperty("line.separator")
 				+ "Browsers init at once: " + BROWSER_INIT_AT_ONCE + System.getProperty("line.separator")
-				+ "Browsers recorded: " + Arrays.toString(RECORD_BROWSERS) + System.getProperty("line.separator")
+				+ "Browsers recorded:     " + Arrays.toString(RECORD_BROWSERS) + System.getProperty("line.separator")
 				+ "Is remote:             " + REMOTE + System.getProperty("line.separator") + "Results stored under:  "
 				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
 				+ "----------------------------------------";
@@ -369,17 +370,18 @@ public class OpenViduLoadTest {
 	 * initialization thread is in charge of running the test)
 	 **/
 
-	private void startSessionBrowserAfterBrowser(int index) {
-		String sessionId = "session-" + index;
+	private void startSessionBrowserAfterBrowser(int sessionIndex) {
+		String sessionId = "session-" + sessionIndex;
 		lastSession = sessionId;
 		log.info("Starting session: {}", sessionId);
 		final Collection<Runnable> threads = new ArrayList<>();
 
 		for (int user = 1; user <= USERS_SESSION; user++) {
-			final String userId = "user-" + index + "-" + user;
+			final int userIndex = user;
+			final String userId = "user-" + sessionIndex + "-" + userIndex;
 			threads.add(() -> {
 				try {
-					startBrowser(index, userId);
+					startBrowser(sessionIndex, userIndex);
 				} catch (TimeoutException e) {
 					startNewSession
 							.abort("User '" + userId + "' in session '" + sessionId + "' for not receiving enough '"
@@ -390,9 +392,9 @@ public class OpenViduLoadTest {
 			});
 		}
 		for (Runnable r : threads) {
-			browserTaskExecutor.execute(r);
+			browserInitializationTaskExecutor.execute(r);
 		}
-		if (index < SESSIONS) {
+		if (sessionIndex < SESSIONS) {
 			try {
 				startNewSession.await();
 			} catch (AbortedException e) {
@@ -403,7 +405,7 @@ public class OpenViduLoadTest {
 			startNewSession = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
-			this.startSessionBrowserAfterBrowser(index + 1);
+			this.startSessionBrowserAfterBrowser(sessionIndex + 1);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
 			lastBrowserRound.set(true);
@@ -419,9 +421,9 @@ public class OpenViduLoadTest {
 			log.info("Terminating browser threads");
 			this.statGatheringTaskExecutor.shutdown();
 		}
-		browserTaskExecutor.shutdown();
+		browserInitializationTaskExecutor.shutdown();
 		try {
-			browserTaskExecutor.awaitTermination(5, TimeUnit.MINUTES);
+			browserInitializationTaskExecutor.awaitTermination(5, TimeUnit.MINUTES);
 		} catch (InterruptedException e) {
 			log.error("Browser tasks couldn't finish in 5 minutes");
 			Assert.fail(e.getMessage());
@@ -429,13 +431,18 @@ public class OpenViduLoadTest {
 		}
 	}
 
-	private void startBrowser(int sessionIndex, String userId) throws TimeoutException, BrowserNotReadyException {
-		log.info("Starting user: {}", userId);
-		browserThread(setupBrowser("chrome", "session-" + sessionIndex, userId));
+	private void startBrowser(int sessionIndex, int userIndex) throws TimeoutException, BrowserNotReadyException {
+		log.info("Starting user: user-{}-{}", sessionIndex, userIndex);
+		browserThread(setupBrowser("chrome", sessionIndex, userIndex));
 	}
 
-	private Browser setupBrowser(String browserType, String sessionId, String userId) throws BrowserNotReadyException {
-		Browser browser = browserProvider.getBrowser(browserType, sessionId, userId, SECONDS_OF_WAIT);
+	private Browser setupBrowser(String browserType, int sessionIndex, int userIndex) throws BrowserNotReadyException {
+
+		String sessionId = "session-" + sessionIndex;
+		String userId = "user-" + sessionIndex + "-" + userIndex;
+
+		Browser browser = browserProvider.getBrowser(browserType, sessionId, userId,
+				isBrowserRecorded(sessionIndex, userIndex), SECONDS_OF_WAIT);
 		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 				+ sessionId + "&userId=" + userId);
 		browser.getManager().startEventPolling(userId, sessionId);
@@ -453,22 +460,22 @@ public class OpenViduLoadTest {
 	 * each one of them
 	 **/
 
-	private void startSessionAllBrowsersAtOnce(int index) {
-		String sessionId = "session-" + index;
+	private void startSessionAllBrowsersAtOnce(int sessionIndex) {
+		String sessionId = "session-" + sessionIndex;
 		lastSession = sessionId;
 		log.info("Starting session: {}", sessionId);
 		Collection<Runnable> threads = new ArrayList<>();
 		try {
-			threads = startMultipleBrowsers(index);
+			threads = startMultipleBrowsers(sessionIndex);
 		} catch (BrowserNotReadyException e) {
 			log.error("Some browser was not ready. {}", e.getMessage());
 			Assert.fail("Some browser was not ready. " + e.getMessage());
 			return;
 		}
 		for (Runnable r : threads) {
-			browserTaskExecutor.execute(r);
+			browserInitializationTaskExecutor.execute(r);
 		}
-		if (index < SESSIONS) {
+		if (sessionIndex < SESSIONS) {
 			try {
 				startNewSession.await();
 			} catch (AbortedException e) {
@@ -479,7 +486,7 @@ public class OpenViduLoadTest {
 			startNewSession = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
-			this.startSessionAllBrowsersAtOnce(index + 1);
+			this.startSessionAllBrowsersAtOnce(sessionIndex + 1);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
 			lastBrowserRound.set(true);
@@ -495,9 +502,9 @@ public class OpenViduLoadTest {
 			log.info("Terminating browser threads");
 			this.statGatheringTaskExecutor.shutdown();
 		}
-		browserTaskExecutor.shutdown();
+		browserInitializationTaskExecutor.shutdown();
 		try {
-			browserTaskExecutor.awaitTermination(5, TimeUnit.MINUTES);
+			browserInitializationTaskExecutor.awaitTermination(5, TimeUnit.MINUTES);
 		} catch (InterruptedException e) {
 			log.error("Browser tasks couldn't finish in 5 minutes");
 			Assert.fail(e.getMessage());
@@ -512,7 +519,7 @@ public class OpenViduLoadTest {
 		}
 		log.info("Starting users: {}", userIds.toString());
 
-		List<Browser> browsers = setupBrowsers(USERS_SESSION, "chrome", "session-" + sessionIndex, userIds);
+		List<Browser> browsers = setupBrowsers(USERS_SESSION, "chrome", sessionIndex, userIds);
 		final Collection<Runnable> browserThreads = new ArrayList<>();
 		for (Browser b : browsers) {
 			browserThreads.add(() -> {
@@ -528,10 +535,13 @@ public class OpenViduLoadTest {
 		return browserThreads;
 	}
 
-	private List<Browser> setupBrowsers(int numberOfBrowsers, String browserType, String sessionId,
+	private List<Browser> setupBrowsers(int numberOfBrowsers, String browserType, int sessionIndex,
 			List<String> userIds) throws BrowserNotReadyException {
+
+		String sessionId = "session-" + sessionIndex;
+
 		List<Browser> listOfBrowsers = browserProvider.getBrowsers(numberOfBrowsers, browserType, sessionId, userIds,
-				SECONDS_OF_WAIT);
+				areBrowsersRecorded(sessionIndex), SECONDS_OF_WAIT);
 		int i = 0;
 		for (Browser b : listOfBrowsers) {
 			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
@@ -681,10 +691,12 @@ public class OpenViduLoadTest {
 					.split(",");
 			if (items.length < SESSIONS) {
 				log.warn(
-						"RECORD_BROWSERS array length ({}) is lower than the number of sessions to be launched ({}). Rest of sessions will not have recorded browsers", items.length, SESSIONS);
+						"RECORD_BROWSERS array length ({}) is lower than the number of sessions to be launched ({}). Rest of sessions will not have recorded browsers",
+						items.length, SESSIONS);
 			} else if (items.length > SESSIONS) {
 				log.warn(
-						"RECORD_BROWSERS array length ({}) is higher than the number of sessions to be launched ({}). Excess array positions will not be taken into account", items.length, SESSIONS);
+						"RECORD_BROWSERS array length ({}) is higher than the number of sessions to be launched ({}). Excess array positions will not be taken into account",
+						items.length, SESSIONS);
 			}
 			int[] results = new int[SESSIONS];
 			boolean wrongType = false;
@@ -715,6 +727,22 @@ public class OpenViduLoadTest {
 		for (int i = 0; i < SESSIONS; i++) {
 			RECORD_BROWSERS[i] = 0;
 		}
+	}
+
+	public boolean isBrowserRecorded(int sessionIndex, int userIndex) {
+		return RECORD_BROWSERS[sessionIndex] > (userIndex - 1);
+	}
+
+	public List<Boolean> areBrowsersRecorded(int sessionIndex) {
+		List<Boolean> areRecorded = new ArrayList<Boolean>();
+		for (int i = 0; i < USERS_SESSION; i++) {
+			areRecorded.add(i < RECORD_BROWSERS[sessionIndex - 1]);
+		}
+		return areRecorded;
+	}
+
+	public static boolean someBrowserIsRecorded() {
+		return IntStream.of(RECORD_BROWSERS).sum() > 0;
 	}
 
 }

@@ -73,6 +73,7 @@ public class OpenViduServerManager {
 					log.debug("OpenVidu Server monitoring polling thread interrupted");
 				}
 			}
+			log.info("OpenVidu Server monitoring poll is now stopped");
 		});
 		this.pollingThread.setUncaughtExceptionHandler(h);
 		this.pollingThread.start();
@@ -83,7 +84,7 @@ public class OpenViduServerManager {
 	public void stopMonitoringPolling() {
 		this.isInterrupted.set(true);
 		this.pollingThread.interrupt();
-		log.info("OpenVidu Server monitoring poll stopped");
+		log.info("Stopping OpenVidu Server monitoring poll...");
 	}
 
 	public void downloadOpenViduKmsLogFiles() throws InterruptedException {

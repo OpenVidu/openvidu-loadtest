@@ -39,7 +39,8 @@ public class LocalBrowserProvider implements BrowserProvider {
 	final static Logger log = getLogger(lookup().lookupClass());
 
 	@Override
-	public Browser getBrowser(String browserType, String sessionId, String userId, int timeOfWaitInSeconds) {
+	public Browser getBrowser(String browserType, String sessionId, String userId, boolean isRecorded,
+			int timeOfWaitInSeconds) {
 		Browser browser;
 		DesiredCapabilities capabilities;
 
@@ -51,7 +52,7 @@ public class LocalBrowserProvider implements BrowserProvider {
 			capabilities.setAcceptInsecureCerts(true);
 			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
 			WebDriver driver = new ChromeDriver(options);
-			browser = new ChromeBrowser(sessionId, userId, timeOfWaitInSeconds, driver);
+			browser = new ChromeBrowser(sessionId, userId, false, timeOfWaitInSeconds, driver);
 			log.info("Using local Chrome web driver");
 			break;
 		/*
@@ -60,14 +61,14 @@ public class LocalBrowserProvider implements BrowserProvider {
 		 * case "opera": break;
 		 */
 		default:
-			return this.getBrowser("chrome", sessionId, userId, timeOfWaitInSeconds);
+			return this.getBrowser("chrome", sessionId, userId, isRecorded, timeOfWaitInSeconds);
 		}
 		return browser;
 	}
 
 	@Override
 	public List<Browser> getBrowsers(int numberOfBrowsers, String browserType, String sessionId, List<String> userIds,
-			int timeOfWaitInSeconds) {
+			List<Boolean> areRecorded, int timeOfWaitInSeconds) {
 
 		List<Browser> browsers = new ArrayList<>();
 		DesiredCapabilities capabilities;
@@ -81,12 +82,12 @@ public class LocalBrowserProvider implements BrowserProvider {
 			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
 			for (int i = 0; i < numberOfBrowsers; i++) {
 				WebDriver driver = new ChromeDriver(options);
-				browsers.add(new ChromeBrowser(sessionId, userIds.get(i), timeOfWaitInSeconds, driver));
+				browsers.add(new ChromeBrowser(sessionId, userIds.get(i), false, timeOfWaitInSeconds, driver));
 			}
 			log.info("Using local Chrome web drivers");
 			break;
 		default:
-			return this.getBrowsers(numberOfBrowsers, "chrome", sessionId, userIds, timeOfWaitInSeconds);
+			return this.getBrowsers(numberOfBrowsers, "chrome", sessionId, userIds, areRecorded, timeOfWaitInSeconds);
 		}
 		return browsers;
 	}

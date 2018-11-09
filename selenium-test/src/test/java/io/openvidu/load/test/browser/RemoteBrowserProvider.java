@@ -24,7 +24,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
@@ -43,6 +45,8 @@ import com.google.gson.JsonObject;
 
 import io.openvidu.load.test.AmazonInstance;
 import io.openvidu.load.test.OpenViduLoadTest;
+import io.openvidu.load.test.utils.BrowserRecordingManager;
+import io.openvidu.load.test.utils.ScpFileDownloader;
 import io.openvidu.load.test.utils.ScriptExecutor;
 
 /**
@@ -58,15 +62,17 @@ public class RemoteBrowserProvider implements BrowserProvider {
 		String instanceIP;
 		String sessionId;
 		String userId;
+		boolean isRecorded;
 		DesiredCapabilities capabilities;
 		int timeOfWaitInSeconds;
 
 		public RemoteWebDriverCallable(String instanceID, String instanceIP, String sessionId, String userId,
-				DesiredCapabilities capabilities, int timeOfWaitInSeconds) {
+				boolean isRecorded, DesiredCapabilities capabilities, int timeOfWaitInSeconds) {
 			this.instanceID = instanceID;
 			this.instanceIP = instanceIP;
 			this.sessionId = sessionId;
 			this.userId = userId;
+			this.isRecorded = isRecorded;
 			this.capabilities = capabilities;
 			this.timeOfWaitInSeconds = timeOfWaitInSeconds;
 		}
@@ -114,28 +120,30 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				}
 			}
 			if (driver != null) {
-				returnedBrowser = new ChromeBrowser(sessionId, userId, timeOfWaitInSeconds, driver);
+				returnedBrowser = new ChromeBrowser(sessionId, userId, isRecorded, timeOfWaitInSeconds, driver);
 				return returnedBrowser;
 			} else {
 				throw new BrowserNotReadyException(
-						"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+						"The browser wasn't reachable in " + SECONDS_OF_BROWSER_WAIT + " seconds");
 			}
 		}
 	}
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
+	Map<String, AmazonInstance> instanceIdInstance = new ConcurrentHashMap<>();
+	Map<String, AmazonInstance> userIdInstance = new ConcurrentHashMap<>();
 	ScriptExecutor scriptExecutor = new ScriptExecutor();
-	Map<String, AmazonInstance> amazonInstances = new ConcurrentHashMap<>();
-	Map<String, Browser> amazonBrowsers = new ConcurrentHashMap<>();
 
 	final String URL_END = ":4444/wd/hub";
 	final int SECONDS_OF_BROWSER_WAIT = 60;
 	final int SLEEP_INTERVAL_OF_WAIT = 400;
+	public final static String PATH_TO_RECORDING = "/home/ubuntu/recordings";
+	public final static String RECORDING_NAME = "recording-";
 
 	@Override
-	public Browser getBrowser(String browserType, String sessionId, String userId, int timeOfWaitInSeconds)
-			throws BrowserNotReadyException {
+	public Browser getBrowser(String browserType, String sessionId, String userId, boolean isRecorded,
+			int timeOfWaitInSeconds) throws BrowserNotReadyException {
 
 		Map<String, AmazonInstance> map = this.scriptExecutor.launchBrowsers(1);
 		Browser browser = null;
@@ -151,12 +159,14 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 			for (Entry<String, AmazonInstance> entry : map.entrySet()) {
 				final String instanceID = entry.getKey();
-				if (this.amazonInstances.putIfAbsent(instanceID, map.get(instanceID)) == null) {
+				final String instanceIP = map.get(entry.getKey()).getIp();
+				if (this.instanceIdInstance.putIfAbsent(instanceID, map.get(instanceID)) == null) {
 					// New instance id
+					this.userIdInstance.putIfAbsent(userId, map.get(instanceID));
 					try {
-						Future<Browser> future = OpenViduLoadTest.browserTaskExecutor
-								.submit(new RemoteWebDriverCallable(instanceID, map.get(instanceID).getIp(), sessionId,
-										userId, capabilities, timeOfWaitInSeconds));
+						Future<Browser> future = OpenViduLoadTest.browserInitializationTaskExecutor
+								.submit(new RemoteWebDriverCallable(instanceID, instanceIP, sessionId, userId,
+										isRecorded, capabilities, timeOfWaitInSeconds));
 						browser = future.get();
 						break;
 					} catch (InterruptedException | ExecutionException e1) {
@@ -168,9 +178,19 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			log.info("Using remote Chrome web driver");
 			break;
 		default:
-			return this.getBrowser("chrome", sessionId, userId, timeOfWaitInSeconds);
+			return this.getBrowser("chrome", sessionId, userId, isRecorded, timeOfWaitInSeconds);
 		}
 		if (browser != null) {
+			if (browser.isRecorded()) {
+				try {
+					BrowserRecordingManager rManager = new BrowserRecordingManager(
+							userIdInstance.get(browser.getUserId()), browser.getUserId());
+					browser.configureRecordingManager(rManager);
+					rManager.startRecording();
+				} catch (Exception e) {
+					log.error("Error when recording browser {}" + browser.getUserId());
+				}
+			}
 			return browser;
 		} else {
 			throw new BrowserNotReadyException("There wasn't any browser avaiable according to aws-cli");
@@ -179,7 +199,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 	@Override
 	public List<Browser> getBrowsers(int numberOfBrowsers, String browserType, String sessionId, List<String> userIds,
-			int timeOfWaitInSeconds) throws BrowserNotReadyException {
+			List<Boolean> areRecorded, int timeOfWaitInSeconds) throws BrowserNotReadyException {
 
 		List<Browser> browsers = new ArrayList<>();
 		Map<String, AmazonInstance> map = this.scriptExecutor.launchBrowsers(numberOfBrowsers);
@@ -200,10 +220,12 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				final String instanceID = entry.getKey();
 				final String instanceIP = map.get(entry.getKey()).getIp();
 				if (numberOfLaunchedBrowsers < numberOfBrowsers) {
-					if (this.amazonInstances.putIfAbsent(instanceID, map.get(instanceID)) == null) {
+					if (this.instanceIdInstance.putIfAbsent(instanceID, map.get(instanceID)) == null) {
 						// This is a new created instance
+						this.userIdInstance.putIfAbsent(userIds.get(numberOfLaunchedBrowsers), map.get(instanceID));
 						threads.add(new RemoteWebDriverCallable(instanceID, instanceIP, sessionId,
-								userIds.get(numberOfLaunchedBrowsers), capabilities, timeOfWaitInSeconds));
+								userIds.get(numberOfLaunchedBrowsers), areRecorded.get(numberOfLaunchedBrowsers),
+								capabilities, timeOfWaitInSeconds));
 						numberOfLaunchedBrowsers++;
 					}
 				} else {
@@ -214,7 +236,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 			List<Future<Browser>> futures = null;
 			try {
-				futures = OpenViduLoadTest.browserTaskExecutor.invokeAll(threads);
+				futures = OpenViduLoadTest.browserInitializationTaskExecutor.invokeAll(threads);
 			} catch (InterruptedException e1) {
 				throw new BrowserNotReadyException(
 						"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
@@ -230,7 +252,45 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			log.info("Using remote Chrome web drivers");
 			break;
 		default:
-			return this.getBrowsers(numberOfBrowsers, "chrome", sessionId, userIds, timeOfWaitInSeconds);
+			return this.getBrowsers(numberOfBrowsers, "chrome", sessionId, userIds, areRecorded, timeOfWaitInSeconds);
+		}
+
+		log.info("Starting browsers recording");
+		final Map<String, Thread> startRecordingThreads = new HashMap<>();
+		for (Browser browser : browsers) {
+			if (browser.isRecorded()) {
+				startRecordingThreads.put(browser.getUserId(), new Thread(() -> {
+					try {
+						BrowserRecordingManager rManager = new BrowserRecordingManager(
+								userIdInstance.get(browser.getUserId()), browser.getUserId());
+						browser.configureRecordingManager(rManager);
+						rManager.startRecording();
+					} catch (Exception e) {
+						log.error("Error when recording browser {}", browser.getUserId());
+					}
+				}));
+			}
+		}
+		for (Thread t : startRecordingThreads.values()) {
+			t.start();
+		}
+		for (Entry<String, Thread> entry : startRecordingThreads.entrySet()) {
+			try {
+				entry.getValue().join(10000);
+			} catch (InterruptedException e) {
+				log.error("Browser {} couldn't start the recording process in 10 seconds", entry.getKey());
+				// Cancel recording in browser
+				ListIterator<Browser> it = browsers.listIterator();
+				boolean found = false;
+				Browser failedBrowser;
+				while (it.hasNext() && !found) {
+					failedBrowser = it.next();
+					if (failedBrowser.getUserId().equals(entry.getKey())) {
+						failedBrowser.setRecorded(false);
+						found = true;
+					}
+				}
+			}
 		}
 
 		return browsers;
@@ -239,22 +299,84 @@ public class RemoteBrowserProvider implements BrowserProvider {
 	@Override
 	public void terminateInstances() {
 		log.info("Terminating AWS instances");
-		boolean emptyResponse = false;
-		do {
-			Map<String, AmazonInstance> aliveInstances = this.scriptExecutor.bringDownAllBrowsers();
-			emptyResponse = aliveInstances.isEmpty();
-			if (emptyResponse) {
-				log.info("All instances are now shutted down");
-				break;
-			} else {
+		if (OpenViduLoadTest.someBrowserIsRecorded()) {
+			log.info("Some browsers are supposedly being recorded. Stopping first not recorded instances");
+
+			final Map<String, Thread> stopRecordingThreads = new HashMap<>();
+
+			OpenViduLoadTest.sessionIdsBrowsers.values().forEach(sessionBrowsers -> {
+				sessionBrowsers.forEach(browser -> {
+					if (!browser.isRecorded()) {
+
+						// Immediately terminate not recorded instances
+						String instanceToTerminate = this.userIdInstance.get(browser.getUserId()).getInstanceId();
+						log.info("Stopping not recorded instance {} of user {}", instanceToTerminate,
+								browser.getUserId());
+						this.scriptExecutor.bringDownBrowser(instanceToTerminate);
+					} else {
+
+						// Stop recording and download video file asynchronously from recorded instances
+
+						stopRecordingThreads.put(browser.getUserId(), new Thread(() -> {
+							if (browser.getRecordingManager() != null) {
+
+								// Stop recording
+								browser.getRecordingManager().stopRecording();
+
+								// Download video file
+								String instanceIp = this.userIdInstance.get(browser.getUserId()).getIp();
+								ScpFileDownloader fileDownloader = new ScpFileDownloader(
+										OpenViduLoadTest.SERVER_SSH_USER, instanceIp);
+								fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_RECORDING,
+										RemoteBrowserProvider.RECORDING_NAME + browser.getUserId() + ".mp4",
+										OpenViduLoadTest.RESULTS_PATH);
+
+								// Terminate instance
+								String instanceToTerminate = this.userIdInstance.get(browser.getUserId())
+										.getInstanceId();
+								log.info("Stopping recorded instance {} of user {}", instanceToTerminate,
+										browser.getUserId());
+								this.scriptExecutor.bringDownBrowser(instanceToTerminate);
+								log.info("Instance {} of user {} stopped", instanceToTerminate, browser.getUserId());
+							} else {
+								log.error("No BrowserRecordingManager configured for browser {}", browser.getUserId());
+							}
+						}));
+					}
+				});
+			});
+			for (Thread t : stopRecordingThreads.values()) {
+				t.start();
+			}
+			for (Entry<String, Thread> entry : stopRecordingThreads.entrySet()) {
 				try {
-					log.info("Instances still alive: {}", aliveInstances.toString());
-					Thread.sleep(500);
+					entry.getValue().join(600000); // Wait for 10 minutes
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					log.error("Recording of browser {} couldn't be downloaded in 10 minutes", entry.getKey());
+
+					// Terminate instance either way
+					String instanceToTerminate = this.userIdInstance.get(entry.getKey()).getInstanceId();
+					this.scriptExecutor.bringDownBrowser(instanceToTerminate);
 				}
 			}
-		} while (!emptyResponse);
+		} else {
+			boolean emptyResponse = false;
+			do {
+				Map<String, AmazonInstance> aliveInstances = this.scriptExecutor.bringDownAllBrowsers();
+				emptyResponse = aliveInstances.isEmpty();
+				if (emptyResponse) {
+					log.info("All instances are now shutted down");
+					break;
+				} else {
+					try {
+						log.info("Instances still alive: {}", aliveInstances.toString());
+						Thread.sleep(500);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			} while (!emptyResponse);
+		}
 	}
 
 }

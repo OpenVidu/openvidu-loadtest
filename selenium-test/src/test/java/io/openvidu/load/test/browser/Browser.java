@@ -28,6 +28,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 
 import io.openvidu.load.test.OpenViduTestClientsManager;
+import io.openvidu.load.test.utils.BrowserRecordingManager;
 
 /**
  * Browser encapsulation for OpenVidu load testing
@@ -42,12 +43,15 @@ public class Browser {
 	protected WebDriverWait waiter;
 	protected String sessionId;
 	protected String userId;
+	protected boolean isRecorded;
 	protected int timeOfWaitInSeconds;
 	protected OpenViduTestClientsManager eventManager;
+	protected BrowserRecordingManager recordingManager;
 
-	Browser(String sessionId, String userId, int timeOfWaitInSeconds, WebDriver driver) {
+	Browser(String sessionId, String userId, boolean isRecorded, int timeOfWaitInSeconds, WebDriver driver) {
 		this.sessionId = sessionId;
 		this.userId = userId;
+		this.isRecorded = isRecorded;
 		this.timeOfWaitInSeconds = timeOfWaitInSeconds;
 		this.driver = driver;
 		this.driver.manage().timeouts().setScriptTimeout(this.timeOfWaitInSeconds, TimeUnit.SECONDS);
@@ -74,6 +78,22 @@ public class Browser {
 
 	public String getUserId() {
 		return this.userId;
+	}
+
+	public boolean isRecorded() {
+		return this.isRecorded;
+	}
+
+	public void configureRecordingManager(BrowserRecordingManager recordingManager) {
+		this.recordingManager = recordingManager;
+	}
+
+	public BrowserRecordingManager getRecordingManager() {
+		return this.recordingManager;
+	}
+
+	public void setRecorded(boolean recorded) {
+		this.isRecorded = recorded;
 	}
 
 	public int getTimeOfWait() {
