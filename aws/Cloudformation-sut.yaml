@@ -8,7 +8,7 @@ Parameters:
     Type: String
     Default: 2.6.0
   KMSVersion:
-    Description: Kurento Media Server Version
+    Description: Kurento Media Server Version. Set to nightly for nightly version.
     Type: String
     Default: 6.8.1
   KeyName:
@@ -66,10 +66,16 @@ Resources:
               content: !Sub |
                 #!/bin/bash
                 set -eu -o pipefail
-                echo "deb http://ubuntu.openvidu.io/${KMSVersion} xenial kms6" > /etc/apt/sources.list.d/kurento.list
-                apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5AFA7A83
-                apt-get update
-                apt-get -y install kurento-media-server
+                if [ "${KMSVersion}" == "nightly" ]; then
+                  git clone https://github.com/Kurento/adm-scripts.git /opt/kurento
+                  /opt/kurento/development/kurento-repo-xenial-nightly-2018
+                  /opt/kurento/development/kurento-install-debugging-2018 
+                else
+                  echo "deb http://ubuntu.openvidu.io/${KMSVersion} xenial kms6" > /etc/apt/sources.list.d/kurento.list
+                  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5AFA7A83
+                  apt-get update
+                  apt-get -y install kurento-media-server
+                fi
                 systemctl enable kurento-media-server
               mode: "000755"
               owner: "root"
