@@ -250,6 +250,7 @@ public class OpenViduLoadTest {
 				+ System.getProperty("line.separator") + "Expected Subscribers:  "
 				+ SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)) + System.getProperty("line.separator")
 				+ "Browsers init at once: " + BROWSER_INIT_AT_ONCE + System.getProperty("line.separator")
+				+ "Browsers recorded: " + Arrays.toString(RECORD_BROWSERS) + System.getProperty("line.separator")
 				+ "Is remote:             " + REMOTE + System.getProperty("line.separator") + "Results stored under:  "
 				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
 				+ "----------------------------------------";
@@ -680,10 +681,10 @@ public class OpenViduLoadTest {
 					.split(",");
 			if (items.length < SESSIONS) {
 				log.warn(
-						"RECORD_BROWSERS array length is lower than the number of sessions to be launched. Rest of sessions will not have recorded browsers");
+						"RECORD_BROWSERS array length ({}) is lower than the number of sessions to be launched ({}). Rest of sessions will not have recorded browsers", items.length, SESSIONS);
 			} else if (items.length > SESSIONS) {
 				log.warn(
-						"RECORD_BROWSERS array length is higher than the number of sessions to be launched. Excess array positions will not be taken into account");
+						"RECORD_BROWSERS array length ({}) is higher than the number of sessions to be launched ({}). Excess array positions will not be taken into account", items.length, SESSIONS);
 			}
 			int[] results = new int[SESSIONS];
 			boolean wrongType = false;
