@@ -596,15 +596,11 @@ public class OpenViduLoadTest {
 							/ 1000);
 			logHelper.logTestEvent(sessionUnstableEvent);
 
-			try {
-				log.info("User {} requesting OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(),
-						browser.getSessionId());
-				String sessionInfo = performGetApiSession(browser.getSessionId());
-				if (sessionInfo != null) {
-					logHelper.logOpenViduSessionInfo(sessionInfo);
-				}
-			} catch (IOException e2) {
-				log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
+			log.info("User {} requesting OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(),
+					browser.getSessionId());
+			String sessionInfo = performGetApiSession(browser.getSessionId());
+			if (sessionInfo != null) {
+				logHelper.logOpenViduSessionInfo(sessionInfo);
 			}
 			return;
 		}
@@ -624,15 +620,11 @@ public class OpenViduLoadTest {
 				(System.currentTimeMillis() - OpenViduLoadTest.timeSessionStarted.get(browser.getSessionId())) / 1000);
 		logHelper.logTestEvent(sessionStableEvent);
 
-		try {
-			log.info("User {} requesting OpenVidu session information for {} (is STABLE)", browser.getUserId(),
-					browser.getSessionId());
-			String sessionInfo = performGetApiSession(browser.getSessionId());
-			if (sessionInfo != null) {
-				logHelper.logOpenViduSessionInfo(sessionInfo);
-			}
-		} catch (IOException e2) {
-			log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
+		log.info("User {} requesting OpenVidu session information for {} (is STABLE)", browser.getUserId(),
+				browser.getSessionId());
+		String sessionInfo = performGetApiSession(browser.getSessionId());
+		if (sessionInfo != null) {
+			logHelper.logOpenViduSessionInfo(sessionInfo);
 		}
 
 		browser.getManager().stopEventPolling();
