@@ -24,6 +24,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -597,7 +600,9 @@ public class OpenViduLoadTest {
 				log.info("User {} requesting OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(),
 						browser.getSessionId());
 				String sessionInfo = performGetApiSession(browser.getSessionId());
-				logHelper.logOpenViduSessionInfo(sessionInfo);
+				if (sessionInfo != null) {
+					logHelper.logOpenViduSessionInfo(sessionInfo);
+				}
 			} catch (IOException e2) {
 				log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
 			}
@@ -623,7 +628,9 @@ public class OpenViduLoadTest {
 			log.info("User {} requesting OpenVidu session information for {} (is STABLE)", browser.getUserId(),
 					browser.getSessionId());
 			String sessionInfo = performGetApiSession(browser.getSessionId());
-			logHelper.logOpenViduSessionInfo(sessionInfo);
+			if (sessionInfo != null) {
+				logHelper.logOpenViduSessionInfo(sessionInfo);
+			}
 		} catch (IOException e2) {
 			log.error("Error requesting OpenVidu Server advanced session information: {}", e2.getMessage());
 		}
@@ -661,26 +668,68 @@ public class OpenViduLoadTest {
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), 0));
 	}
 
-	private String performGetApiSession(String sessionId) throws IOException {
-		URL url = new URL(OpenViduLoadTest.OPENVIDU_URL + "api/sessions/" + sessionId + "?webRtcStats=true");
+	private String performGetApiSession(String sessionId) {
+		URL url = null;
+		String urlString = OpenViduLoadTest.OPENVIDU_URL + "api/sessions/" + sessionId + "?webRtcStats=true";
+		try {
+			url = new URL(urlString);
+		} catch (MalformedURLException e) {
+			log.error("Url {} is malformed", urlString);
+		}
 
-		HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-		con.setRequestMethod("GET");
+		HttpsURLConnection con = null;
+		try {
+			con = (HttpsURLConnection) url.openConnection();
+		} catch (IOException e) {
+			log.error("Error opening GET connection: ", e.getMessage());
+		}
+		try {
+			con.setRequestMethod("GET");
+		} catch (ProtocolException e) {
+			log.error("Protocol exception: ", e.getMessage());
+		}
 		con.setRequestProperty("Content-Type", "application/json");
 
 		String encoded = Base64.getEncoder()
 				.encodeToString(("OPENVIDUAPP:" + OpenViduLoadTest.OPENVIDU_SECRET).getBytes(StandardCharsets.UTF_8));
 		con.setRequestProperty("Authorization", "Basic " + encoded);
-		con.setConnectTimeout(4000);
-		con.setReadTimeout(4000);
+		con.setConnectTimeout(5000);
+		con.setReadTimeout(5000);
 
-		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-		String inputLine;
 		StringBuffer content = new StringBuffer();
-		while ((inputLine = in.readLine()) != null) {
-			content.append(inputLine);
+		BufferedReader in = null;
+		try {
+			in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+			String inputLine;
+			while ((inputLine = in.readLine()) != null) {
+				content.append(inputLine);
+			}
+			in.close();
+		} catch (SocketTimeoutException e) {
+			log.error("Timeout error requesting session information for {}: {}", sessionId, e.getMessage());
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+			}
+			con.disconnect();
+			return null;
+		} catch (IOException e) {
+			log.error(
+					"An error different than a timeout has taken place when requesting session information for {}: {}",
+					sessionId, e.getMessage());
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+			}
+			con.disconnect();
+			return null;
 		}
-		in.close();
 		con.disconnect();
 		return content.toString();
 	}
