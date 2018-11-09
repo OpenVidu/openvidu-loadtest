@@ -359,24 +359,24 @@ public class RemoteBrowserProvider implements BrowserProvider {
 					this.scriptExecutor.bringDownBrowser(instanceToTerminate);
 				}
 			}
-		} else {
-			boolean emptyResponse = false;
-			do {
-				Map<String, AmazonInstance> aliveInstances = this.scriptExecutor.bringDownAllBrowsers();
-				emptyResponse = aliveInstances.isEmpty();
-				if (emptyResponse) {
-					log.info("All instances are now shutted down");
-					break;
-				} else {
-					try {
-						log.info("Instances still alive: {}", aliveInstances.toString());
-						Thread.sleep(500);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			} while (!emptyResponse);
 		}
+
+		boolean emptyResponse = false;
+		do {
+			Map<String, AmazonInstance> aliveInstances = this.scriptExecutor.bringDownAllBrowsers();
+			emptyResponse = aliveInstances.isEmpty();
+			if (emptyResponse) {
+				log.info("All instances are now shutted down");
+				break;
+			} else {
+				try {
+					log.info("Instances still alive: {}", aliveInstances.toString());
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		} while (!emptyResponse);
 	}
 
 }
