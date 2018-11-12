@@ -61,7 +61,7 @@ public class ScpFileDownloader {
 		config.put("PreferredAuthentications", "publickey");
 		try {
 			jsch.addIdentity(OpenViduLoadTest.PRIVATE_KEY_PATH);
-			jschSession = jsch.getSession(username, hostname);
+			jschSession = jsch.getSession(username, hostname, 22);
 			jschSession.setConfig(config);
 			jschSession.connect();
 		} catch (JSchException e) {

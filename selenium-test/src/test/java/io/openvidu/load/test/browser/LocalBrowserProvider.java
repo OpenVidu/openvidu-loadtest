@@ -21,6 +21,7 @@ import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.openqa.selenium.WebDriver;
@@ -39,12 +40,11 @@ public class LocalBrowserProvider implements BrowserProvider {
 	final static Logger log = getLogger(lookup().lookupClass());
 
 	@Override
-	public Browser getBrowser(String browserType, String sessionId, String userId, boolean isRecorded,
-			int timeOfWaitInSeconds) {
-		Browser browser;
+	public Browser getBrowser(BrowserProperties properties) {
+		Browser browser = null;
 		DesiredCapabilities capabilities;
 
-		switch (browserType) {
+		switch (properties.type()) {
 		case "chrome":
 			ChromeOptions options = ChromeBrowser.generateFakeVideoChromeOptions("/opt/openvidu/fakevideo.y4m",
 					"/opt/openvidu/fakeaudio.wav");
@@ -52,7 +52,7 @@ public class LocalBrowserProvider implements BrowserProvider {
 			capabilities.setAcceptInsecureCerts(true);
 			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
 			WebDriver driver = new ChromeDriver(options);
-			browser = new ChromeBrowser(sessionId, userId, false, timeOfWaitInSeconds, driver);
+			browser = new ChromeBrowser(properties, driver);
 			log.info("Using local Chrome web driver");
 			break;
 		/*
@@ -60,34 +60,30 @@ public class LocalBrowserProvider implements BrowserProvider {
 		 * 
 		 * case "opera": break;
 		 */
-		default:
-			return this.getBrowser("chrome", sessionId, userId, isRecorded, timeOfWaitInSeconds);
 		}
 		return browser;
 	}
 
 	@Override
-	public List<Browser> getBrowsers(int numberOfBrowsers, String browserType, String sessionId, List<String> userIds,
-			List<Boolean> areRecorded, int timeOfWaitInSeconds) {
-
+	public List<Browser> getBrowsers(List<BrowserProperties> properties) {
 		List<Browser> browsers = new ArrayList<>();
-		DesiredCapabilities capabilities;
+		Iterator<BrowserProperties> iterator = properties.iterator();
 
-		switch (browserType) {
-		case "chrome":
-			ChromeOptions options = ChromeBrowser.generateFakeVideoChromeOptions("/opt/openvidu/fakevideo.y4m",
-					"/opt/openvidu/fakeaudio.wav");
-			capabilities = DesiredCapabilities.chrome();
-			capabilities.setAcceptInsecureCerts(true);
-			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
-			for (int i = 0; i < numberOfBrowsers; i++) {
+		while (iterator.hasNext()) {
+			BrowserProperties props = iterator.next();
+			DesiredCapabilities capabilities;
+			switch (props.type()) {
+			case "chrome":
+				ChromeOptions options = ChromeBrowser.generateFakeVideoChromeOptions("/opt/openvidu/fakevideo.y4m",
+						"/opt/openvidu/fakeaudio.wav");
+				capabilities = DesiredCapabilities.chrome();
+				capabilities.setAcceptInsecureCerts(true);
+				capabilities.setCapability(ChromeOptions.CAPABILITY, options);
 				WebDriver driver = new ChromeDriver(options);
-				browsers.add(new ChromeBrowser(sessionId, userIds.get(i), false, timeOfWaitInSeconds, driver));
+				browsers.add(new ChromeBrowser(props, driver));
+				log.info("Using local Chrome web drivers");
+				break;
 			}
-			log.info("Using local Chrome web drivers");
-			break;
-		default:
-			return this.getBrowsers(numberOfBrowsers, "chrome", sessionId, userIds, areRecorded, timeOfWaitInSeconds);
 		}
 		return browsers;
 	}

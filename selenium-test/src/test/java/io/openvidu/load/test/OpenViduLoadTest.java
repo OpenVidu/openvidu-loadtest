@@ -36,8 +36,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,14 +70,20 @@ import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.slf4j.Logger;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
 import io.github.bonigarcia.SeleniumExtension;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.openvidu.load.test.browser.Browser;
 import io.openvidu.load.test.browser.BrowserNotReadyException;
+import io.openvidu.load.test.browser.BrowserProperties;
 import io.openvidu.load.test.browser.BrowserProvider;
 import io.openvidu.load.test.browser.LocalBrowserProvider;
+import io.openvidu.load.test.browser.NetworkRestriction;
 import io.openvidu.load.test.browser.RemoteBrowserProvider;
 import io.openvidu.load.test.utils.CustomLatch;
 import io.openvidu.load.test.utils.CustomLatch.AbortedException;
@@ -119,6 +127,7 @@ public class OpenViduLoadTest {
 	public static String RESULTS_PATH = "/opt/openvidu/testload";
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
 	public static int[] RECORD_BROWSERS;
+	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 
 	static BrowserProvider browserProvider;
 	public static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
@@ -150,6 +159,7 @@ public class OpenViduLoadTest {
 		String resultsPath = System.getProperty("RESULTS_PATH");
 		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
 		String recordBrowsers = System.getProperty("RECORD_BROWSERS");
+		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -196,7 +206,9 @@ public class OpenViduLoadTest {
 		if (downloadOpenviduLogs != null) {
 			DOWNLOAD_OPENVIDU_LOGS = Boolean.parseBoolean(downloadOpenviduLogs);
 		}
+
 		initializeRecordBrowsersProperty(recordBrowsers);
+		initializeNetworkRestrictionsBrowsersProperty(networkRestrictionsBrowsers);
 
 		SERVER_SSH_HOSTNAME = OpenViduLoadTest.OPENVIDU_URL.replace("https://", "").replaceAll(":[0-9]+/$", "")
 				.replaceAll("/$", "");
@@ -255,9 +267,10 @@ public class OpenViduLoadTest {
 				+ SESSIONS * (USERS_SESSION * (USERS_SESSION - 1)) + System.getProperty("line.separator")
 				+ "Browsers init at once: " + BROWSER_INIT_AT_ONCE + System.getProperty("line.separator")
 				+ "Browsers recorded:     " + Arrays.toString(RECORD_BROWSERS) + System.getProperty("line.separator")
-				+ "Is remote:             " + REMOTE + System.getProperty("line.separator") + "Results stored under:  "
-				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
-				+ "----------------------------------------";
+				+ "Browsers networking:   " + Arrays.toString(NETWORK_RESTRICTIONS_BROWSERS)
+				+ System.getProperty("line.separator") + "Is remote:             " + REMOTE
+				+ System.getProperty("line.separator") + "Results stored under:  " + OpenViduLoadTest.RESULTS_PATH
+				+ System.getProperty("line.separator") + "----------------------------------------";
 		logHelper.logTestInfo(testInfo);
 		log.info(System.getProperty("line.separator") + testInfo);
 	}
@@ -359,6 +372,7 @@ public class OpenViduLoadTest {
 
 		// Init OpenVidu Serve monitoring thread
 		openViduServerManager = new OpenViduServerManager();
+		openViduServerManager.cleanTurnLogs();
 		openViduServerManager.startMonitoringPolling();
 
 		if (BROWSER_INIT_AT_ONCE) {
@@ -440,12 +454,14 @@ public class OpenViduLoadTest {
 	}
 
 	private Browser setupBrowser(String browserType, int sessionIndex, int userIndex) throws BrowserNotReadyException {
-
 		String sessionId = "session-" + sessionIndex;
 		String userId = "user-" + sessionIndex + "-" + userIndex;
+		BrowserProperties properties = new BrowserProperties.Builder().type("chrome").sessionId(sessionId)
+				.userId(userId).timeOfWaitInSeconds(SECONDS_OF_WAIT)
+				.isRecorded(isBrowserRecorded(sessionIndex, userIndex))
+				.networkRestriction(getNetworkRestriction(sessionIndex, userIndex)).build();
 
-		Browser browser = browserProvider.getBrowser(browserType, sessionId, userId,
-				isBrowserRecorded(sessionIndex, userIndex), SECONDS_OF_WAIT);
+		Browser browser = browserProvider.getBrowser(properties);
 		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 				+ sessionId + "&userId=" + userId);
 		browser.getManager().startEventPolling(userId, sessionId);
@@ -522,7 +538,7 @@ public class OpenViduLoadTest {
 		}
 		log.info("Starting users: {}", userIds.toString());
 
-		List<Browser> browsers = setupBrowsers(USERS_SESSION, "chrome", sessionIndex, userIds);
+		List<Browser> browsers = setupBrowsers(USERS_SESSION, "chrome", sessionIndex);
 		final Collection<Runnable> browserThreads = new ArrayList<>();
 		for (Browser b : browsers) {
 			browserThreads.add(() -> {
@@ -538,18 +554,26 @@ public class OpenViduLoadTest {
 		return browserThreads;
 	}
 
-	private List<Browser> setupBrowsers(int numberOfBrowsers, String browserType, int sessionIndex,
-			List<String> userIds) throws BrowserNotReadyException {
-
+	private List<Browser> setupBrowsers(int numberOfBrowsers, String browserType, int sessionIndex)
+			throws BrowserNotReadyException {
 		String sessionId = "session-" + sessionIndex;
+		List<BrowserProperties> propertiesList = new ArrayList<>();
 
-		List<Browser> listOfBrowsers = browserProvider.getBrowsers(numberOfBrowsers, browserType, sessionId, userIds,
-				areBrowsersRecorded(sessionIndex), SECONDS_OF_WAIT);
+		for (int userIndex = 1; userIndex <= numberOfBrowsers; userIndex++) {
+			String userId = "user-" + sessionIndex + "-" + userIndex;
+			BrowserProperties properties = new BrowserProperties.Builder().type("chrome").sessionId(sessionId)
+					.userId(userId).timeOfWaitInSeconds(SECONDS_OF_WAIT)
+					.isRecorded(isBrowserRecorded(sessionIndex, userIndex))
+					.networkRestriction(getNetworkRestriction(sessionIndex, userIndex)).build();
+			propertiesList.add(properties);
+		}
+
+		List<Browser> listOfBrowsers = browserProvider.getBrowsers(propertiesList);
 		int i = 0;
 		for (Browser b : listOfBrowsers) {
 			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
-					+ sessionId + "&userId=" + userIds.get(i));
-			b.getManager().startEventPolling(userIds.get(i), sessionId);
+					+ sessionId + "&userId=" + propertiesList.get(i).userId());
+			b.getManager().startEventPolling(propertiesList.get(i).userId(), sessionId);
 			Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
 			if (browsers != null) {
 				browsers.add(b);
@@ -763,6 +787,96 @@ public class OpenViduLoadTest {
 		log.info("Recording browsers {}", Arrays.toString(RECORD_BROWSERS));
 	}
 
+	private static void initializeNetworkRestrictionsBrowsersProperty(String networkRestrictionsBrowsers) {
+		if (networkRestrictionsBrowsers != null) {
+			JsonParser parser = new JsonParser();
+			JsonArray items = null;
+			try {
+				items = parser.parse(networkRestrictionsBrowsers).getAsJsonArray();
+			} catch (IllegalStateException e) {
+				log.error(
+						"Property NETWORK_RESTRICTIONS_BROWSERS is not a JSON array. Setting network restrictions to default value");
+				setNetworkRestrictionBrowsersDefaultValue();
+				return;
+			}
+			if (items.size() < SESSIONS) {
+				log.warn(
+						"NETWORK_RESTRICTIONS_BROWSERS array length ({}) is lower than the number of sessions to be launched ({}). Rest of sessions will have no network restrictions",
+						items.size(), SESSIONS);
+			} else if (items.size() > SESSIONS) {
+				log.warn(
+						"NETWORK_RESTRICTIONS_BROWSERS array length ({}) is higher than the number of sessions to be launched ({}). Excess array positions will not be taken into account",
+						items.size(), SESSIONS);
+			}
+			JsonObject[] results = new JsonObject[SESSIONS];
+
+			for (int i = 0; i < SESSIONS; i++) {
+				JsonObject json;
+				if (i < items.size()) {
+					try {
+						json = items.get(i).getAsJsonObject();
+						int accumulatedUsers = 0;
+						JsonObject jsonAux = new JsonObject();
+						boolean clearRestoOfValues = false;
+						for (Entry<String, JsonElement> entryJson : json.entrySet()) {
+							try {
+								NetworkRestriction.valueOf(entryJson.getKey());
+							} catch (IllegalArgumentException e) {
+								log.error(
+										"Key {} of JSON object {} of property NETWORK_RESTRICTIONS_BROWSERS must be \"ALL_OPEN\", \"TCP_ONLY\" or \"TURN\". Setting item to default value",
+										entryJson.getKey(), entryJson.toString());
+								json = new JsonObject();
+								json.addProperty("ALL_OPEN", USERS_SESSION);
+								accumulatedUsers = USERS_SESSION;
+								break;
+							}
+							try {
+								int value = entryJson.getValue().getAsInt();
+								if ((accumulatedUsers + value) < USERS_SESSION) {
+									accumulatedUsers += value;
+									jsonAux.add(entryJson.getKey(), entryJson.getValue());
+								} else {
+									entryJson.setValue(new JsonPrimitive(USERS_SESSION - accumulatedUsers));
+									jsonAux.add(entryJson.getKey(), entryJson.getValue());
+									clearRestoOfValues = true;
+									break;
+								}
+							} catch (Exception e) {
+								log.error(
+										"Value {} in property {} of JSON object {} in property NETWORK_RESTRICTIONS_BROWSERS is not an integer. Setting item to default value",
+										entryJson.getValue(), entryJson, json.toString());
+								json = new JsonObject();
+								json.addProperty("ALL_OPEN", USERS_SESSION);
+								accumulatedUsers = USERS_SESSION;
+								break;
+							}
+						}
+						if (clearRestoOfValues) {
+							json = jsonAux;
+						} else if (accumulatedUsers != USERS_SESSION) {
+							int allOpen = json.has("ALL_OPEN") ? json.get("ALL_OPEN").getAsInt() : 0;
+							json.addProperty("ALL_OPEN", allOpen + USERS_SESSION - accumulatedUsers);
+						}
+					} catch (IllegalStateException e) {
+						log.error(
+								"Item {} with index {} of NETWORK_RESTRICTIONS_BROWSERS property is not a JSON object. Setting item to default value",
+								items.get(i), i);
+						json = new JsonObject();
+						json.addProperty("ALL_OPEN", USERS_SESSION);
+					}
+				} else {
+					json = new JsonObject();
+					json.addProperty("ALL_OPEN", USERS_SESSION);
+				}
+				results[i] = json;
+			}
+			NETWORK_RESTRICTIONS_BROWSERS = results;
+		} else {
+			setNetworkRestrictionBrowsersDefaultValue();
+		}
+		log.info("Network restricitions {}", Arrays.toString(NETWORK_RESTRICTIONS_BROWSERS));
+	}
+
 	private static void setRecordBrowsersDefaultValue() {
 		RECORD_BROWSERS = new int[SESSIONS];
 		for (int i = 0; i < SESSIONS; i++) {
@@ -770,20 +884,36 @@ public class OpenViduLoadTest {
 		}
 	}
 
-	public boolean isBrowserRecorded(int sessionIndex, int userIndex) {
-		return RECORD_BROWSERS[sessionIndex] > (userIndex - 1);
+	private static void setNetworkRestrictionBrowsersDefaultValue() {
+		NETWORK_RESTRICTIONS_BROWSERS = new JsonObject[SESSIONS];
+		for (int i = 0; i < SESSIONS; i++) {
+			JsonObject json = new JsonObject();
+			json.addProperty("ALL_OPEN", USERS_SESSION);
+			NETWORK_RESTRICTIONS_BROWSERS[i] = json;
+		}
 	}
 
-	public List<Boolean> areBrowsersRecorded(int sessionIndex) {
-		List<Boolean> areRecorded = new ArrayList<Boolean>();
-		for (int i = 0; i < USERS_SESSION; i++) {
-			areRecorded.add(i < RECORD_BROWSERS[sessionIndex - 1]);
-		}
-		return areRecorded;
+	public boolean isBrowserRecorded(int sessionIndex, int userIndex) {
+		return RECORD_BROWSERS[sessionIndex - 1] > (userIndex - 1);
 	}
 
 	public static boolean someBrowserIsRecorded() {
 		return IntStream.of(RECORD_BROWSERS).sum() > 0;
+	}
+
+	public NetworkRestriction getNetworkRestriction(int sessionIndex, int userIndex) {
+		JsonObject json = NETWORK_RESTRICTIONS_BROWSERS[sessionIndex - 1];
+		Iterator<Entry<String, JsonElement>> it = json.entrySet().iterator();
+		int totalBrowsersChecked = 0;
+		String value = null;
+		while (it.hasNext() && value == null) {
+			Entry<String, JsonElement> restriction = it.next();
+			totalBrowsersChecked += restriction.getValue().getAsInt();
+			if (userIndex <= totalBrowsersChecked) {
+				value = restriction.getKey();
+			}
+		}
+		return NetworkRestriction.valueOf(value);
 	}
 
 }

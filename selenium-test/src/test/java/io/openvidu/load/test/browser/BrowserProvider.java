@@ -26,14 +26,12 @@ import java.util.List;
  */
 public interface BrowserProvider {
 
-	Browser getBrowser(String browserType, String sessionId, String userId, boolean isRecorded, int timeOfWaitInSeconds)
-			throws BrowserNotReadyException;
+	Browser getBrowser(BrowserProperties properties) throws BrowserNotReadyException;
 
 	/*
 	 * Sync method. Until all WebDrivers are not ready this method shouldn't return
 	 */
-	List<Browser> getBrowsers(int numberOfBrowsers, String browserType, String sessionId, List<String> clientData,
-			List<Boolean> areRecorded, int timeOfWaitInSeconds) throws BrowserNotReadyException;
+	List<Browser> getBrowsers(List<BrowserProperties> properties) throws BrowserNotReadyException;
 
 	void terminateInstances();
 

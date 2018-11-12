@@ -95,6 +95,17 @@ public class OpenViduServerMonitor {
 		}
 	}
 
+	public boolean deleteAllTurnLogs() {
+		log.info("Cleaning COTURN logs in OpenVidu Server");
+		String result = sendCommand("sudo rm /var/log/turn_*");
+		if (result != null && result.isEmpty()) {
+			log.info("COTURN logs cleaned up in OpenVidu Server");
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 	private String sendCommand(String command) {
 		if (this.session.isConnected()) {
 			StringBuilder outputBuffer = new StringBuilder();

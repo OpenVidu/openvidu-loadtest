@@ -1,0 +1,1 @@
+iptables -I INPUT -j ACCEPT

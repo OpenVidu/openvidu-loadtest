@@ -1,0 +1,2 @@
+sudo iptables -A OUTPUT -p udp --dport 0:65535 -j DROP
+sudo iptables -A INPUT -p udp --dport 0:65535 -j DROP

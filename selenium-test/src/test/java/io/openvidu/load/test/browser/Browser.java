@@ -28,7 +28,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 
 import io.openvidu.load.test.OpenViduTestClientsManager;
-import io.openvidu.load.test.utils.BrowserRecordingManager;
+import io.openvidu.load.test.utils.BrowserSshManager;
 
 /**
  * Browser encapsulation for OpenVidu load testing
@@ -41,22 +41,16 @@ public class Browser {
 
 	protected WebDriver driver;
 	protected WebDriverWait waiter;
-	protected String sessionId;
-	protected String userId;
-	protected boolean isRecorded;
-	protected int timeOfWaitInSeconds;
+	protected BrowserProperties properties;
 	protected OpenViduTestClientsManager eventManager;
-	protected BrowserRecordingManager recordingManager;
+	protected BrowserSshManager sshManager;
 
-	Browser(String sessionId, String userId, boolean isRecorded, int timeOfWaitInSeconds, WebDriver driver) {
-		this.sessionId = sessionId;
-		this.userId = userId;
-		this.isRecorded = isRecorded;
-		this.timeOfWaitInSeconds = timeOfWaitInSeconds;
+	Browser(BrowserProperties properties, WebDriver driver) {
+		this.properties = properties;
 		this.driver = driver;
-		this.driver.manage().timeouts().setScriptTimeout(this.timeOfWaitInSeconds, TimeUnit.SECONDS);
-		this.waiter = new WebDriverWait(this.driver, this.timeOfWaitInSeconds);
-		this.eventManager = new OpenViduTestClientsManager(this.driver, this.timeOfWaitInSeconds);
+		this.driver.manage().timeouts().setScriptTimeout(properties.timeOfWaitInSeconds(), TimeUnit.SECONDS);
+		this.waiter = new WebDriverWait(this.driver, (properties.timeOfWaitInSeconds()));
+		this.eventManager = new OpenViduTestClientsManager(this.driver, (properties.timeOfWaitInSeconds()));
 		this.driver.manage().window().setSize(new Dimension(1920, 1080));
 	}
 
@@ -72,32 +66,40 @@ public class Browser {
 		return this.eventManager;
 	}
 
+	public BrowserProperties getBrowserProperties() {
+		return this.properties;
+	}
+
 	public String getSessionId() {
-		return this.sessionId;
+		return this.properties.sessionId();
 	}
 
 	public String getUserId() {
-		return this.userId;
+		return this.properties.userId();
 	}
 
 	public boolean isRecorded() {
-		return this.isRecorded;
+		return this.properties.isRecorded();
 	}
 
-	public void configureRecordingManager(BrowserRecordingManager recordingManager) {
-		this.recordingManager = recordingManager;
+	public NetworkRestriction networkRestriction() {
+		return this.properties.networkRestriction();
 	}
 
-	public BrowserRecordingManager getRecordingManager() {
-		return this.recordingManager;
+	public void configureSshManager(BrowserSshManager sshManager) {
+		this.sshManager = sshManager;
+	}
+
+	public BrowserSshManager getSshManager() {
+		return this.sshManager;
 	}
 
 	public void setRecorded(boolean recorded) {
-		this.isRecorded = recorded;
+		this.properties.changeRecordedConfig(recorded);
 	}
 
 	public int getTimeOfWait() {
-		return this.timeOfWaitInSeconds;
+		return this.properties.timeOfWaitInSeconds();
 	}
 
 	protected void newWaiter(int timeOfWait) {

@@ -44,6 +44,8 @@ public class OpenViduServerManager {
 	final String KMS_LOG_FILENAME = "20*.log";
 	final String KMS_ERROR_PATH = "/var/log/kurento-media-server";
 	final String KMS_ERROR_FILENAME = "errors.log";
+	final String TURN_LOG_PATH = "/var/log";
+	final String TURN_LOG_FILENAME = "turn_*_";
 
 	private Thread pollingThread;
 	private AtomicBoolean isInterrupted = new AtomicBoolean(false);
@@ -103,17 +105,27 @@ public class OpenViduServerManager {
 					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
 			fileDownloader.downloadFile(KMS_ERROR_PATH, KMS_ERROR_FILENAME, OpenViduLoadTest.RESULTS_PATH);
 		});
+		Thread turnLogThread = new Thread(() -> {
+			ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
+					OpenViduLoadTest.SERVER_SSH_HOSTNAME);
+			fileDownloader.downloadFile(TURN_LOG_PATH, TURN_LOG_FILENAME, OpenViduLoadTest.RESULTS_PATH);
+		});
 
 		// Run download threads
 		openviduLogThread.start();
 		kmsLogThread.start();
 		kmsErrorThread.start();
+		turnLogThread.start();
 
 		// Wait for download threads to finish, with a timeout of 10 minutes
-		// (10*60*1000=300000 milliseconds)
+		// (10*60*1000=600000 ms)
 		kmsErrorThread.join(600000);
 		openviduLogThread.join(600000);
 		kmsLogThread.join(600000);
+	}
+	
+	public void cleanTurnLogs() {
+		this.monitor.deleteAllTurnLogs();
 	}
 
 }
