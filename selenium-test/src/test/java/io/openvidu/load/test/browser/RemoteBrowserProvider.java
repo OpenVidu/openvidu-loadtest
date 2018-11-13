@@ -73,7 +73,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 		}
 
 		@Override
-		public Browser call() throws Exception {
+		public Browser call() throws BrowserNotReadyException {
 			Browser returnedBrowser = null;
 			String browserUrl = "http://" + instanceIP + URL_END;
 			log.info("Connecting to browser {}", browserUrl);
@@ -122,7 +122,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				}
 				return returnedBrowser;
 			} else {
-				throw new BrowserNotReadyException(
+				throw new BrowserNotReadyException(instanceID, properties, capabilities,
 						"The browser wasn't reachable in " + SECONDS_OF_BROWSER_WAIT + " seconds");
 			}
 		}
@@ -145,7 +145,8 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 		Map<String, AmazonInstance> map = this.scriptExecutor.launchBrowsers(1);
 		Browser browser = null;
-		DesiredCapabilities capabilities;
+		DesiredCapabilities capabilities = null;
+		String selectedInstanceId = null;
 
 		switch (properties.type()) {
 		case "chrome":
@@ -155,23 +156,8 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			capabilities.setAcceptInsecureCerts(true);
 			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
 
-			for (Entry<String, AmazonInstance> entry : map.entrySet()) {
-				final String instanceID = entry.getKey();
-				final String instanceIP = map.get(entry.getKey()).getIp();
-				if (this.instanceIdInstance.putIfAbsent(instanceID, map.get(instanceID)) == null) {
-					// New instance id
-					this.userIdInstance.putIfAbsent(properties.userId(), map.get(instanceID));
-					try {
-						Future<Browser> future = OpenViduLoadTest.browserInitializationTaskExecutor
-								.submit(new RemoteWebDriverCallable(instanceID, instanceIP, properties, capabilities));
-						browser = future.get();
-						break;
-					} catch (InterruptedException | ExecutionException e1) {
-						throw new BrowserNotReadyException(
-								"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
-					}
-				}
-			}
+			browser = this.initSingleRemoteWebDriver(map, properties, capabilities);
+
 			log.info("Using remote Chrome web driver");
 			break;
 		}
@@ -208,12 +194,14 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			return browser;
 
 		} else {
-			throw new BrowserNotReadyException("There wasn't any browser avaiable according to aws-cli");
+			log.error("There wasn't any browser avaiable according to aws-cli");
+			throw new BrowserNotReadyException(selectedInstanceId, properties, capabilities,
+					"There wasn't any browser avaiable according to aws-cli");
 		}
 	}
 
 	@Override
-	public List<Browser> getBrowsers(List<BrowserProperties> properties) throws BrowserNotReadyException {
+	public List<Browser> getBrowsers(List<BrowserProperties> properties) throws InterruptedException {
 
 		Map<String, AmazonInstance> map = this.scriptExecutor.launchBrowsers(properties.size());
 		Iterator<BrowserProperties> iterator = properties.iterator();
@@ -262,15 +250,38 @@ public class RemoteBrowserProvider implements BrowserProvider {
 		try {
 			futures = OpenViduLoadTest.browserInitializationTaskExecutor.invokeAll(threads);
 		} catch (InterruptedException e1) {
-			throw new BrowserNotReadyException(
-					"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+			log.error(
+					"Some remote web driver initialization thread was interrupted while waiting to be executed in the thread pool");
+			throw e1;
 		}
 		for (Future<Browser> f : futures) {
 			try {
 				browsers.add(f.get());
-			} catch (ExecutionException | InterruptedException e) {
-				throw new BrowserNotReadyException(
-						"The browser wasn't reachabled in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+			} catch (ExecutionException e) {
+				log.error("The browser wasn't reachable in " + SECONDS_OF_BROWSER_WAIT
+						+ " seconds. Terminating instance and retriying with a new one");
+				BrowserNotReadyException exception = (BrowserNotReadyException) e.getCause();
+
+				// Bring down failed instance
+				this.scriptExecutor.bringDownBrowser(exception.getInstanceId());
+
+				// Launch new instance
+				Map<String, AmazonInstance> mapAux = this.scriptExecutor.launchBrowsers(1);
+
+				// Init new remote web driver
+				try {
+					browsers.add(this.initSingleRemoteWebDriver(mapAux, exception.getProperties(),
+							exception.getCapabilities()));
+				} catch (BrowserNotReadyException exception2) {
+					log.error("Second attempt to launch a browser for user {} wasn't succesful. Ending test",
+							exception2.getProperties().userId());
+					throw new InterruptedException(
+							"Second attempt to launch a browser for user " + exception.getProperties().userId()
+									+ " wasn't succesful. Ending test.The browser wasn't reachable in "
+									+ SECONDS_OF_BROWSER_WAIT + " seconds");
+				}
+			} catch (InterruptedException e) {
+				log.error("The remote web driver initialization thread was interrupted");
 			}
 		}
 
@@ -460,6 +471,29 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				}
 			}
 		} while (!emptyResponse);
+	}
+
+	private Browser initSingleRemoteWebDriver(Map<String, AmazonInstance> map, BrowserProperties properties,
+			DesiredCapabilities capabilities) throws BrowserNotReadyException {
+		Browser browser = null;
+		for (Entry<String, AmazonInstance> entry : map.entrySet()) {
+			final String instanceID = entry.getKey();
+			final String instanceIP = map.get(entry.getKey()).getIp();
+			if (this.instanceIdInstance.putIfAbsent(instanceID, map.get(instanceID)) == null) {
+				// New instance id
+				this.userIdInstance.putIfAbsent(properties.userId(), map.get(instanceID));
+				try {
+					Future<Browser> future = OpenViduLoadTest.browserInitializationTaskExecutor
+							.submit(new RemoteWebDriverCallable(instanceID, instanceIP, properties, capabilities));
+					browser = future.get();
+					break;
+				} catch (InterruptedException | ExecutionException e1) {
+					throw new BrowserNotReadyException(instanceID, properties, capabilities,
+							"The browser wasn't reachable in " + SECONDS_OF_BROWSER_WAIT + " seconds");
+				}
+			}
+		}
+		return browser;
 	}
 
 }

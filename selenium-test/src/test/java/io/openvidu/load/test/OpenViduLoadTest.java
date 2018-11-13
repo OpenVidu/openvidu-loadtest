@@ -486,7 +486,7 @@ public class OpenViduLoadTest {
 		Collection<Runnable> threads = new ArrayList<>();
 		try {
 			threads = startMultipleBrowsers(sessionIndex);
-		} catch (BrowserNotReadyException e) {
+		} catch (InterruptedException e) {
 			log.error("Some browser was not ready. {}", e.getMessage());
 			Assert.fail("Some browser was not ready. " + e.getMessage());
 			return;
@@ -531,7 +531,7 @@ public class OpenViduLoadTest {
 		}
 	}
 
-	private Collection<Runnable> startMultipleBrowsers(int sessionIndex) throws BrowserNotReadyException {
+	private Collection<Runnable> startMultipleBrowsers(int sessionIndex) throws InterruptedException {
 		List<String> userIds = new ArrayList<>();
 		for (int i = 1; i <= USERS_SESSION; i++) {
 			userIds.add("user-" + sessionIndex + "-" + i);
@@ -555,7 +555,7 @@ public class OpenViduLoadTest {
 	}
 
 	private List<Browser> setupBrowsers(int numberOfBrowsers, String browserType, int sessionIndex)
-			throws BrowserNotReadyException {
+			throws InterruptedException {
 		String sessionId = "session-" + sessionIndex;
 		List<BrowserProperties> propertiesList = new ArrayList<>();
 
