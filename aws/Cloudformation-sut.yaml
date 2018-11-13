@@ -112,6 +112,7 @@ Resources:
                 stunServerAddress=${PUBLIC_IP}
                 stunServerPort=3478
                 EOF
+                echo "export GST_DEBUG_NO_COLOR=1" >> /etc/default/kurento-media-server
                 # Configure coturn
                 cat >/etc/turnserver.conf<<EOF
                 external-ip=${PUBLIC_IP}
