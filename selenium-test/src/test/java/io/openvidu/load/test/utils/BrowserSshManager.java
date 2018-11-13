@@ -39,7 +39,6 @@ import io.openvidu.load.test.AmazonInstance;
 import io.openvidu.load.test.OpenViduLoadTest;
 import io.openvidu.load.test.browser.BrowserProperties;
 import io.openvidu.load.test.browser.NetworkRestriction;
-import io.openvidu.load.test.browser.RemoteBrowserProvider;
 
 public class BrowserSshManager {
 
@@ -65,20 +64,36 @@ public class BrowserSshManager {
 
 	public void startRecording() throws Exception {
 		log.info("Starting recording of browser {} in instance {}", properties.userId(), amazonInstance.toString());
-		String response = this.sendCommand("docker exec -t -d chrome start-video-recording.sh -n "
-				+ RemoteBrowserProvider.RECORDING_NAME + properties.userId());
-		if (response.isEmpty()) {
-			log.info("Browser {} is now being recorded", properties.userId());
-		} else {
-			throw new Exception(
-					"Some error ocurred in browser instance " + properties.userId() + " when starting recording");
+		String command;
+		try {
+			command = readCommandFromFile("startRecording.txt");
+			command = command.replace("USERID", properties.userId());
+		} catch (IOException e) {
+			log.error("Couldn't read file '{}' to get recording start commands. Browser instance {} won't be recorded",
+					properties.userId());
+			return;
+		}
+		if (command != null) {
+			String response = this.sendCommand(command);
+			if (response.isEmpty()) {
+				log.info("Browser {} is now being recorded", properties.userId());
+			} else {
+				throw new Exception(
+						"Some error ocurred in browser instance " + properties.userId() + " when starting recording");
+			}
 		}
 	}
 
 	public void stopRecording() {
 		log.info("Stopping recording of browser {} in instance {}", properties.userId(), amazonInstance.toString());
-		log.info("Response of stopping recording: {}",
-				this.sendCommand("docker exec -t -d chrome stop-video-recording.sh"));
+		String command;
+		try {
+			command = readCommandFromFile("stopRecording.txt");
+		} catch (IOException e) {
+			log.error("Couldn't read file '{}' to get recording stop commands");
+			return;
+		}
+		log.info("Response of stopping recording: {}", this.sendCommand(command));
 	}
 
 	public void updateNetworkingRestrictions(NetworkRestriction networkRestriction) throws Exception {
@@ -113,6 +128,39 @@ public class BrowserSshManager {
 				throw new Exception("Some error ocurred in browser instance " + properties.userId()
 						+ " when configuring network conditions");
 			}
+		}
+	}
+
+	public void startTcpDump() {
+		log.info("Starting tcpdump process of browser {} in instance {}", properties.userId(),
+				amazonInstance.toString());
+		String command;
+		try {
+			command = readCommandFromFile("startTcpdump.txt");
+			command = command.replace("USERID", properties.userId());
+		} catch (IOException e) {
+			log.error(
+					"Couldn't read file '{}' to get starting tcpdump commands. Browser instance {} won't gather network info",
+					properties.userId());
+			return;
+		}
+		if (command != null) {
+			log.info("Response of start tcpdump: {}", this.sendCommand(command));
+		}
+	}
+
+	public void stopTcpDump() {
+		log.info("Stopping tcpdump process of browser {} in instance {}", properties.userId(),
+				amazonInstance.toString());
+		String command;
+		try {
+			command = readCommandFromFile("stopTcpdump.txt");
+		} catch (IOException e) {
+			log.error("Couldn't read file '{}' to get stopping tcpdump commands");
+			return;
+		}
+		if (command != null) {
+			log.info("Response of stop tcpdump: {}", this.sendCommand(command));
 		}
 	}
 

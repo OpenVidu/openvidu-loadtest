@@ -27,7 +27,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.channels.Channels;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 
@@ -37,6 +41,12 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import io.openvidu.load.test.utils.LogHelper;
+import io.pkts.PacketHandler;
+import io.pkts.Pcap;
+import io.pkts.packet.IPPacket;
+import io.pkts.packet.Packet;
+import io.pkts.packet.TransportPacket;
+import io.pkts.protocol.Protocol;
 
 /**
  * Processes tests's standard log file to obtain final results
@@ -98,7 +108,7 @@ public class ResultsParser {
 		this.logHelper = logHelper;
 	}
 
-	public void processResultFile() {
+	public void processLoadTestStats() {
 		FileInputStream inputStream = null;
 		Scanner sc = null;
 
@@ -120,7 +130,7 @@ public class ResultsParser {
 				String nextLine = sc.nextLine();
 				try {
 					json = parser.parse(nextLine).getAsJsonObject();
-				} catch(JsonSyntaxException ex) {
+				} catch (JsonSyntaxException ex) {
 					log.error("Line {} is not a JSON object: {}", numberOfLines, nextLine);
 					continue;
 				}
@@ -250,6 +260,38 @@ public class ResultsParser {
 
 			this.calcAverageValues();
 			this.presentResults();
+		}
+	}
+
+	public void processTcpdumps() {
+		try {
+			List<String> tcpdumpFiles = Files
+					.find(Paths.get(OpenViduLoadTest.RESULTS_PATH), 100, (p, a) -> p.toString().endsWith(".pcap"))
+					.map(path -> path.getFileName().toString()).collect(Collectors.toList());
+			for (String file : tcpdumpFiles) {
+				final Pcap pcap = Pcap.openStream(OpenViduLoadTest.RESULTS_PATH + "/" + file);
+
+				pcap.loop(new PacketHandler() {
+					@Override
+					public boolean nextPacket(final Packet packet) throws IOException {
+						if (packet.hasProtocol(Protocol.UDP)) {
+							TransportPacket transportPacket = (TransportPacket) packet.getPacket(Protocol.UDP);
+							IPPacket ipPacket = (IPPacket) packet.getPacket(Protocol.IPv4);
+							/*
+							 * System.out.println("Src IP: " + ipPacket.getSourceIP() + " - Src port: " +
+							 * transportPacket.getSourcePort() + " | Dest IP: " +
+							 * ipPacket.getDestinationIP() + " - Dest port: " +
+							 * transportPacket.getDestinationPort());
+							 */
+						}
+						return true;
+					}
+				});
+			}
+		} catch (IOException e) {
+			log.error("Couldn't list tcpdump files in path {}. No further processing of tcpdump files",
+					OpenViduLoadTest.RESULTS_PATH);
+			return;
 		}
 	}
 

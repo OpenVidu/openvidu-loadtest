@@ -138,7 +138,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 	final int SECONDS_OF_BROWSER_WAIT = 60;
 	final int SLEEP_INTERVAL_OF_WAIT = 400;
 	public final static String PATH_TO_RECORDING = "/home/ubuntu/recordings";
-	public final static String RECORDING_NAME = "recording-";
+	public final static String PATH_TO_TCPDUMP = "/home/ubuntu";
 
 	@Override
 	public Browser getBrowser(BrowserProperties properties) throws BrowserNotReadyException {
@@ -188,6 +188,15 @@ public class RemoteBrowserProvider implements BrowserProvider {
 					browser.getSshManager().startRecording();
 				} catch (Exception e) {
 					log.error("Error when recording browser {}" + browser.getUserId());
+				}
+			}
+
+			// tcpdump process
+			if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+				try {
+					browser.getSshManager().startTcpDump();
+				} catch (Exception e) {
+					log.error("Error when starting tcpdump process for browser {}" + browser.getUserId());
 				}
 			}
 
@@ -290,6 +299,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 		// Browser recording and network configuration
 		final Map<String, Thread> networkRestrictionThreads = new HashMap<>();
 		final Map<String, Thread> startRecordingThreads = new HashMap<>();
+		final Map<String, Thread> startTcpdumpThreads = new HashMap<>();
 		for (Browser browser : browsers) {
 
 			// Networking process (only if different to ALL_OPEN)
@@ -320,6 +330,22 @@ public class RemoteBrowserProvider implements BrowserProvider {
 						browser.getSshManager().startRecording();
 					} catch (Exception e) {
 						log.error("Error when recording browser {}" + browser.getUserId());
+					}
+				}));
+			}
+
+			// tcpdump threads (only if system property TCPDUMP_CAPTURE_TIME is > 0)
+			if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+				startTcpdumpThreads.put(browser.getUserId(), new Thread(() -> {
+					try {
+						if (browser.getSshManager() == null) {
+							BrowserSshManager sshManager = new BrowserSshManager(
+									userIdInstance.get(browser.getUserId()), browser.getBrowserProperties());
+							browser.configureSshManager(sshManager);
+						}
+						browser.getSshManager().startTcpDump();
+					} catch (Exception e) {
+						log.error("Error when starting tcpdump process in browser {}" + browser.getUserId());
 					}
 				}));
 			}
@@ -364,6 +390,20 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 		log.info("All recordings for session {} are now started", properties.get(0).sessionId());
 
+		// Async start of every tcpdump processes
+		for (Thread t : startTcpdumpThreads.values()) {
+			t.start();
+		}
+		for (Entry<String, Thread> entry : startTcpdumpThreads.entrySet()) {
+			try {
+				entry.getValue().join(10000);
+			} catch (InterruptedException e) {
+				log.error("Browser instance {} couldn't start tcpdump process in 10 seconds", entry.getKey());
+			}
+		}
+
+		log.info("All tcpdump processes for session {} are now started", properties.get(0).sessionId());
+
 		return browsers;
 	}
 
@@ -382,13 +422,27 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 						// Immediately terminate not recorded instances
 
-						final String instanceToTerminate = this.userIdInstance.get(browser.getUserId()).getInstanceId();
+						final String instanceToTerminateID = this.userIdInstance.get(browser.getUserId())
+								.getInstanceId();
+						final String instanceToTerminateIP = this.userIdInstance.get(browser.getUserId()).getIp();
 						stopNotRecordedBrowsersThreads.put(browser.getUserId(), new Thread(() -> {
-							log.info("Stopping not recorded instance {} of user {}", instanceToTerminate,
+
+							// Download tcpdump file
+							if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+								log.info("Downloading tcpdump file of not recorded instance {} of user {}",
+										instanceToTerminateID, browser.getUserId());
+								ScpFileDownloader fileDownloader = new ScpFileDownloader(
+										OpenViduLoadTest.SERVER_SSH_USER, instanceToTerminateIP);
+								fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_TCPDUMP,
+										"tcpdump-" + browser.getUserId() + ".pcap", OpenViduLoadTest.RESULTS_PATH);
+							}
+
+							// Stop instance
+							log.info("Stopping not recorded instance {} of user {}", instanceToTerminateID,
 									browser.getUserId());
-							this.scriptExecutor.bringDownBrowser(instanceToTerminate);
+							this.scriptExecutor.bringDownBrowser(instanceToTerminateID);
 							log.info("Not recorded instance {} of user {} succcessfully terminated",
-									instanceToTerminate, browser.getUserId());
+									instanceToTerminateID, browser.getUserId());
 						}));
 					} else {
 
@@ -405,8 +459,17 @@ public class RemoteBrowserProvider implements BrowserProvider {
 								ScpFileDownloader fileDownloader = new ScpFileDownloader(
 										OpenViduLoadTest.SERVER_SSH_USER, instanceIp);
 								fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_RECORDING,
-										RemoteBrowserProvider.RECORDING_NAME + browser.getUserId() + ".mp4",
-										OpenViduLoadTest.RESULTS_PATH);
+										"recording-" + browser.getUserId() + ".mp4", OpenViduLoadTest.RESULTS_PATH);
+
+								// Download tcpdump file
+								if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+									log.info("Downloading tcpdump file of recorded instance {} of user {}", instanceIp,
+											browser.getUserId());
+									fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
+											instanceIp);
+									fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_TCPDUMP,
+											"tcpdump-" + browser.getUserId() + ".pcap", OpenViduLoadTest.RESULTS_PATH);
+								}
 
 								// Terminate instance
 								String instanceToTerminate = this.userIdInstance.get(browser.getUserId())
@@ -453,6 +516,32 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			}
 
 			log.info("All recorded instances are now terminated");
+
+		} else if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+			// Download all tcpdump files
+			final Map<String, Thread> downloadTcpDumpThreads = new HashMap<>();
+			OpenViduLoadTest.sessionIdsBrowsers.values().forEach(sessionBrowsers -> {
+				sessionBrowsers.forEach(browser -> {
+					final String instanceIp = this.userIdInstance.get(browser.getUserId()).getIp();
+					downloadTcpDumpThreads.put(browser.getUserId(), new Thread(() -> {
+						log.info("Downloading tcpdump file of instance {} of user {}", instanceIp, browser.getUserId());
+						ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
+								instanceIp);
+						fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_TCPDUMP,
+								"tcpdump-" + browser.getUserId() + ".pcap", OpenViduLoadTest.RESULTS_PATH);
+					}));
+				});
+			});
+			for (Thread t : downloadTcpDumpThreads.values()) {
+				t.start();
+			}
+			for (Entry<String, Thread> entry : downloadTcpDumpThreads.entrySet()) {
+				try {
+					entry.getValue().join(300000); // Wait for 5 minutes
+				} catch (InterruptedException e) {
+					log.error("Tcpdump file of browser {} couldn't be downloaded in 5 minutes", entry.getKey());
+				}
+			}
 		}
 
 		boolean emptyResponse = false;
