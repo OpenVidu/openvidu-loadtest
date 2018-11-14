@@ -104,7 +104,8 @@ public class ScriptExecutor {
 			json = parser.parse(str).getAsJsonObject();
 		} catch (IllegalStateException e) {
 			log.error(
-					"The response from AWS-CLI is not a JSON object. Some error must have occured when calling aws-cli command");
+					"The response from AWS-CLI is not a JSON object. Some error must have occured when calling aws-cli command. Response: {}",
+					str);
 			return instanceMap;
 		}
 		JsonArray reservations = null;
