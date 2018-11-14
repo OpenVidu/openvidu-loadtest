@@ -39,8 +39,10 @@ Resources:
                 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
                 apt-get update 
                 apt-get install -y docker-ce
-                # downloading Elastest Browsers 
+                # Building custom Elastest Browser with iptables
                 docker pull elastestbrowsers/chrome:latest-2.0.0
+                wget -q https://raw.githubusercontent.com/OpenVidu/openvidu-loadtest/master/aws/browser-docker-image/chrome/Dockerfile .
+                docker build -t elastestbrowsers/chrome:iptables .
                 # Provisioning media files
                 mkdir /opt/openvidu
                 wget -q http://public.openvidu.io/fakeaudio.wav -O /opt/openvidu/fakeaudio.wav
@@ -64,7 +66,7 @@ Resources:
                 mkdir -p /home/ubuntu/recordings
                 chmod 777 /home/ubuntu/recordings
 
-                docker run --detach --name chrome -p 4444:4444 -p 6080:6080 -p 5900:5900 --cap-add=SYS_ADMIN --cap-add=NET_ADMIN -v /home/ubuntu/recordings:/home/ubuntu/recordings -v /opt/openvidu:/opt/openvidu elastestbrowsers/chrome:latest-2.0.0
+                docker run --detach --name chrome -p 4444:4444 -p 6080:6080 -p 5900:5900 --cap-add=SYS_ADMIN --cap-add=NET_ADMIN -v /home/ubuntu/recordings:/home/ubuntu/recordings -v /opt/openvidu:/opt/openvidu elastestbrowsers/chrome:iptables
               mode: "000755"
               owner: "root"
               group: "root"
