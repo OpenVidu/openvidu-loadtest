@@ -308,16 +308,11 @@ public class ResultsParser {
 						}
 
 						if (ipPacket != null && transportPacket != null) {
-							String keySource = ipPacket.getSourceIP() + ":" + transportPacket.getSourcePort();
-							String keyDestination = ipPacket.getDestinationIP() + ":"
-									+ transportPacket.getDestinationPort();
-
-							Integer val1 = packetsTable.get(keySource, transportPacket.getProtocol());
-							Integer val2 = packetsTable.get(keyDestination, transportPacket.getProtocol());
-							val1 = val1 == null ? 1 : (val1 + 1);
-							val2 = val2 == null ? 1 : (val2 + 1);
-							packetsTable.put(keySource, transportPacket.getProtocol(), val1);
-							packetsTable.put(keyDestination, transportPacket.getProtocol(), val2);
+							String key = ipPacket.getSourceIP() + ":" + transportPacket.getSourcePort() + ">"
+									+ ipPacket.getDestinationIP() + ":" + transportPacket.getDestinationPort();
+							Integer val = packetsTable.get(key, transportPacket.getProtocol());
+							val = val == null ? 1 : (val + 1);
+							packetsTable.put(key, transportPacket.getProtocol(), val);
 						}
 
 						return true;
