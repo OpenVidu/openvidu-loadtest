@@ -106,6 +106,8 @@ public class OpenViduLoadTest {
 			.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
 			Runtime.getRuntime().availableProcessors());
+	final static ScheduledThreadPoolExecutor tcpdumpStopProcesses = new ScheduledThreadPoolExecutor(
+			Runtime.getRuntime().availableProcessors());
 
 	static OpenViduServerManager openViduServerManager;
 	public static LogHelper logHelper;
@@ -128,6 +130,7 @@ public class OpenViduLoadTest {
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
 	public static int[] RECORD_BROWSERS;
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
+	public static int TCPDUMP_CAPTURE_TIME = 5;
 
 	static BrowserProvider browserProvider;
 	public static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
@@ -160,6 +163,7 @@ public class OpenViduLoadTest {
 		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
 		String recordBrowsers = System.getProperty("RECORD_BROWSERS");
 		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
+		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -205,6 +209,9 @@ public class OpenViduLoadTest {
 		}
 		if (downloadOpenviduLogs != null) {
 			DOWNLOAD_OPENVIDU_LOGS = Boolean.parseBoolean(downloadOpenviduLogs);
+		}
+		if (tcpdumpCaptureTime != null) {
+			TCPDUMP_CAPTURE_TIME = Integer.parseInt(tcpdumpCaptureTime);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -268,6 +275,7 @@ public class OpenViduLoadTest {
 				+ "Browsers init at once: " + BROWSER_INIT_AT_ONCE + System.getProperty("line.separator")
 				+ "Browsers recorded:     " + Arrays.toString(RECORD_BROWSERS) + System.getProperty("line.separator")
 				+ "Browsers networking:   " + Arrays.toString(NETWORK_RESTRICTIONS_BROWSERS)
+				+ System.getProperty("line.separator") + "Tcpdump during:        " + TCPDUMP_CAPTURE_TIME + " s"
 				+ System.getProperty("line.separator") + "Is remote:             " + REMOTE
 				+ System.getProperty("line.separator") + "Results stored under:  " + OpenViduLoadTest.RESULTS_PATH
 				+ System.getProperty("line.separator") + "----------------------------------------";
@@ -315,7 +323,9 @@ public class OpenViduLoadTest {
 		}
 
 		// Process test results
-		new ResultsParser(logHelper).processResultFile();
+		ResultsParser resultsParser = new ResultsParser(logHelper);
+		resultsParser.processLoadTestStats();
+		resultsParser.processTcpdumps();
 
 		// Download remote result files from OpenVidu Server instance if configured
 		if (DOWNLOAD_OPENVIDU_LOGS) {
@@ -486,7 +496,7 @@ public class OpenViduLoadTest {
 		Collection<Runnable> threads = new ArrayList<>();
 		try {
 			threads = startMultipleBrowsers(sessionIndex);
-		} catch (BrowserNotReadyException e) {
+		} catch (InterruptedException e) {
 			log.error("Some browser was not ready. {}", e.getMessage());
 			Assert.fail("Some browser was not ready. " + e.getMessage());
 			return;
@@ -531,7 +541,7 @@ public class OpenViduLoadTest {
 		}
 	}
 
-	private Collection<Runnable> startMultipleBrowsers(int sessionIndex) throws BrowserNotReadyException {
+	private Collection<Runnable> startMultipleBrowsers(int sessionIndex) throws InterruptedException {
 		List<String> userIds = new ArrayList<>();
 		for (int i = 1; i <= USERS_SESSION; i++) {
 			userIds.add("user-" + sessionIndex + "-" + i);
@@ -555,7 +565,7 @@ public class OpenViduLoadTest {
 	}
 
 	private List<Browser> setupBrowsers(int numberOfBrowsers, String browserType, int sessionIndex)
-			throws BrowserNotReadyException {
+			throws InterruptedException {
 		String sessionId = "session-" + sessionIndex;
 		List<BrowserProperties> propertiesList = new ArrayList<>();
 
@@ -632,6 +642,13 @@ public class OpenViduLoadTest {
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
 		Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
 				true, true));
+
+		// Stop tcpdump process
+		if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+			OpenViduLoadTest.tcpdumpStopProcesses.schedule(() -> {
+				browser.getSshManager().stopTcpDump();
+			}, OpenViduLoadTest.TCPDUMP_CAPTURE_TIME, TimeUnit.SECONDS);
+		}
 
 		// Log session stable for thread's user
 		JsonObject sessionStableEvent = new JsonObject();

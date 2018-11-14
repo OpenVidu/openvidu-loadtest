@@ -17,6 +17,8 @@
 
 package io.openvidu.load.test.browser;
 
+import org.openqa.selenium.remote.DesiredCapabilities;
+
 /**
  * Exception thrown by RemoteBrowserProvider when browser inside EC2 machine
  * wasn't reachable in the specified timeout
@@ -27,8 +29,28 @@ public class BrowserNotReadyException extends Exception {
 
 	private static final long serialVersionUID = 1L;
 
-	public BrowserNotReadyException(String message) {
+	private String instanceId;
+	private BrowserProperties properties;
+	private DesiredCapabilities capabilities;
+
+	public BrowserNotReadyException(String instanceId, BrowserProperties properties, DesiredCapabilities capabilities,
+			String message) {
 		super(message);
+		this.instanceId = instanceId;
+		this.properties = properties;
+		this.capabilities = capabilities;
+	}
+
+	public String getInstanceId() {
+		return instanceId;
+	}
+
+	public BrowserProperties getProperties() {
+		return properties;
+	}
+
+	public DesiredCapabilities getCapabilities() {
+		return capabilities;
 	}
 
 }

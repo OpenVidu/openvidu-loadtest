@@ -31,7 +31,7 @@ public interface BrowserProvider {
 	/*
 	 * Sync method. Until all WebDrivers are not ready this method shouldn't return
 	 */
-	List<Browser> getBrowsers(List<BrowserProperties> properties) throws BrowserNotReadyException;
+	List<Browser> getBrowsers(List<BrowserProperties> properties) throws InterruptedException;
 
 	void terminateInstances();
 
