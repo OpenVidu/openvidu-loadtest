@@ -401,8 +401,10 @@ public class RemoteBrowserProvider implements BrowserProvider {
 	public void terminateInstances() {
 		log.info("Terminating AWS instances");
 		if (OpenViduLoadTest.someBrowserIsRecorded()) {
-			log.info("Some browsers are supposedly being recorded. Stopping first not recorded instances");
+			log.info("Some browsers are being recorded. Stopping recordings, terminating first not recorded "
+					+ "instances and finally terminating recorded instances");
 
+			final Map<String, Thread> stopAllRecordingsThreads = new HashMap<>();
 			final Map<String, Thread> stopNotRecordedBrowsersThreads = new HashMap<>();
 			final Map<String, Thread> stopRecordedBrowsersThreads = new HashMap<>();
 
@@ -435,13 +437,15 @@ public class RemoteBrowserProvider implements BrowserProvider {
 						}));
 					} else {
 
-						// Stop recording and download video file asynchronously from recorded instances
+						// Stop all recordings
+
+						stopAllRecordingsThreads.put(browser.getInstance().getInstanceId(),
+								new Thread(() -> browser.getSshManager().stopRecording()));
+
+						// Download video file asynchronously from recorded instances and tcpdumps files
 
 						stopRecordedBrowsersThreads.put(browser.getInstance().getInstanceId(), new Thread(() -> {
 							if (browser.getSshManager() != null) {
-
-								// Stop recording
-								browser.getSshManager().stopRecording();
 
 								// Download video file
 								String instancePublicIp = browser.getInstance().getPublicIp();
@@ -474,6 +478,19 @@ public class RemoteBrowserProvider implements BrowserProvider {
 					}
 				});
 			});
+
+			for (Thread t : stopAllRecordingsThreads.values()) {
+				t.start();
+			}
+			for (Entry<String, Thread> entry : stopAllRecordingsThreads.entrySet()) {
+				try {
+					entry.getValue().join(60000); // Wait for 1 minute
+				} catch (InterruptedException e) {
+					log.error("Recording of instance {} couldn't be stopped in 1 minute", entry.getKey());
+				}
+			}
+
+			log.info("All recordings are now stopped");
 
 			for (Thread t : stopNotRecordedBrowsersThreads.values()) {
 				t.start();
