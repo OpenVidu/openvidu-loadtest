@@ -40,9 +40,13 @@ Resources:
                 apt-get update 
                 apt-get install -y docker-ce
                 # Building custom Elastest Browser with iptables
+                TMPDIR=$(mktemp -d)
+                pushd $TMPDIR
                 docker pull elastestbrowsers/chrome:latest-2.0.0
-                wget -q https://raw.githubusercontent.com/OpenVidu/openvidu-loadtest/master/aws/browser-docker-image/chrome/Dockerfile .
+                wget -O Dockerfile https://raw.githubusercontent.com/OpenVidu/openvidu-loadtest/master/aws/browser-docker-image/chrome/Dockerfile 
                 docker build -t elastestbrowsers/chrome:iptables .
+                popd
+                rm -rf $TMPDIR
                 # Provisioning media files
                 mkdir /opt/openvidu
                 wget -q http://public.openvidu.io/fakeaudio.wav -O /opt/openvidu/fakeaudio.wav
