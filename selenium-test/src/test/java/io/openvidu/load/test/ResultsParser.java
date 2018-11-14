@@ -20,30 +20,28 @@ package io.openvidu.load.test;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Writer;
-import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
-import io.openvidu.load.test.models.ProcessedPacket;
 import io.openvidu.load.test.utils.LogHelper;
 import io.pkts.PacketHandler;
 import io.pkts.Pcap;
@@ -65,7 +63,7 @@ public class ResultsParser {
 
 	private File file;
 	private FileOutputStream outputStream;
-	private Writer writer;
+	private BufferedWriter writer;
 
 	private final JsonParser parser = new JsonParser();
 	private int numberOfLines;
@@ -116,13 +114,12 @@ public class ResultsParser {
 		FileInputStream inputStream = null;
 		Scanner sc = null;
 
-		this.file = new File(OpenViduLoadTest.RESULTS_PATH, "loadTestResults.csv");
+		this.file = new File(OpenViduLoadTest.RESULTS_PATH, "loadTestSubscriberResults.csv");
 		try {
-			this.outputStream = new FileOutputStream(file.getAbsoluteFile(), true);
-			this.writer = Channels.newWriter(outputStream.getChannel(), "UTF-8");
-		} catch (FileNotFoundException e) {
+			this.writer = new BufferedWriter(new FileWriter(file.getAbsoluteFile().toString(), true));
+		} catch (IOException e) {
 			log.error("CSV results file couldn't be created at {}. Error: {}",
-					OpenViduLoadTest.RESULTS_PATH + "/loadTestResults.csv", e.getMessage());
+					OpenViduLoadTest.RESULTS_PATH + "/loadTestSubscriberResults.csv", e.getMessage());
 		}
 
 		try {
@@ -167,10 +164,11 @@ public class ResultsParser {
 					});
 				} else if (json.has("connections")) {
 					// OpenVidu session info (JSON response to
-					// /api/sessions/SESSION_ID?webRtcStats=true
+					// /api/sessions/SESSION_ID?webRtcStats=true)
 
 				} else {
 					// Browser WebRtc statistics log
+					final int secondsSinceTestStarted = json.get("secondsSinceTestStarted").getAsInt();
 					json.entrySet().forEach(entry1 -> {
 						if (entry1.getValue().isJsonObject()) {
 							entry1.getValue().getAsJsonObject().entrySet().forEach(entry2 -> {
@@ -206,15 +204,28 @@ public class ResultsParser {
 
 											totalSubscribersJitter += stats.get("jitter").getAsDouble();
 											totalSubscribersDelay += stats.get("delay").getAsDouble();
-										}
-										StringBuilder sb = new StringBuilder(500);
 
-										// TODO sb.append();
-
-										try {
-											writeCsvLine(sb);
-										} catch (IOException e) {
-											log.error("Couldn't write WebRTC stat in CSV file: {}", e.getMessage());
+											// time | rtt | bitrate | jitter | delay | packetLost |
+											// availableReceiveBandwidth
+											StringBuilder sb = new StringBuilder(500);
+											sb.append(secondsSinceTestStarted);
+											sb.append(",");
+											sb.append(stats.get("rtt").getAsInt());
+											sb.append(",");
+											sb.append(stats.get("bitrate").getAsInt());
+											sb.append(",");
+											sb.append(stats.get("jitter").getAsInt());
+											sb.append(",");
+											sb.append(stats.get("delay").getAsInt());
+											sb.append(",");
+											sb.append(stats.get("packetsLost").getAsInt());
+											sb.append(",");
+											sb.append(stats.get("availableReceiveBandwidth").getAsInt());
+											try {
+												writeCsvLine(sb);
+											} catch (IOException e) {
+												log.error("Couldn't write WebRTC stat in CSV file: {}", e.getMessage());
+											}
 										}
 									} catch (UnsupportedOperationException exc) {
 										log.error("Error reading value from log entry in line {}: {}. {}",
@@ -264,6 +275,7 @@ public class ResultsParser {
 
 			this.calcAverageValues();
 			this.presentResults();
+			this.generateGraphsWithR();
 		}
 	}
 
@@ -275,26 +287,50 @@ public class ResultsParser {
 
 			for (String file : tcpdumpFiles) {
 
-				final Map<String, Collection<ProcessedPacket>> packetsByOrigin = new HashMap<>();
-				final Map<String, Collection<ProcessedPacket>> packetsByDest = new HashMap<>();
+				Table<String, Protocol, Integer> packetsTable = HashBasedTable.create();
 				final Pcap pcap = Pcap.openStream(OpenViduLoadTest.RESULTS_PATH + "/" + file);
 
 				pcap.loop(new PacketHandler() {
 					@Override
 					public boolean nextPacket(final Packet packet) throws IOException {
-						if (packet.hasProtocol(Protocol.UDP)) {
-							TransportPacket transportPacket = (TransportPacket) packet.getPacket(Protocol.UDP);
-							IPPacket ipPacket = (IPPacket) packet.getPacket(Protocol.IPv4);
-							/*
-							 * System.out.println("Src IP: " + ipPacket.getSourceIP() + " - Src port: " +
-							 * transportPacket.getSourcePort() + " | Dest IP: " +
-							 * ipPacket.getDestinationIP() + " - Dest port: " +
-							 * transportPacket.getDestinationPort());
-							 */
+						IPPacket ipPacket = null;
+						if (packet.hasProtocol(Protocol.IPv4)) {
+							ipPacket = (IPPacket) packet.getPacket(Protocol.IPv4);
+						} else if (packet.hasProtocol(Protocol.IPv6)) {
+							ipPacket = (IPPacket) packet.getPacket(Protocol.IPv6);
 						}
+
+						TransportPacket transportPacket = null;
+						if (packet.hasProtocol(Protocol.TCP)) {
+							transportPacket = (TransportPacket) packet.getPacket(Protocol.TCP);
+						} else if (packet.hasProtocol(Protocol.UDP)) {
+							transportPacket = (TransportPacket) packet.getPacket(Protocol.UDP);
+						}
+
+						if (ipPacket != null && transportPacket != null) {
+							String keySource = ipPacket.getSourceIP() + ":" + transportPacket.getSourcePort();
+							String keyDestination = ipPacket.getDestinationIP() + ":"
+									+ transportPacket.getDestinationPort();
+
+							Integer val1 = packetsTable.get(keySource, transportPacket.getProtocol());
+							Integer val2 = packetsTable.get(keyDestination, transportPacket.getProtocol());
+							val1 = val1 == null ? 1 : (val1 + 1);
+							val2 = val2 == null ? 1 : (val2 + 1);
+							packetsTable.put(keySource, transportPacket.getProtocol(), val1);
+							packetsTable.put(keyDestination, transportPacket.getProtocol(), val2);
+						}
+
 						return true;
 					}
 				});
+
+				log.info("Packet dump results for file {}", file);
+				log.info(packetsTable.toString());
+				/*
+				 * for (Cell<String, Protocol, Integer> cell : packetsTable.cellSet()) {
+				 * System.out.println(cell.getRowKey() + " " + cell.getColumnKey().getName() +
+				 * " " + cell.getValue()); }
+				 */
 			}
 		} catch (IOException e) {
 			log.error("Couldn't list tcpdump files in path {}. No further processing of tcpdump files",
@@ -366,8 +402,12 @@ public class ResultsParser {
 		log.info(testInfo);
 	}
 
+	private void generateGraphsWithR() {
+		// TODO
+	}
+
 	private void writeCsvLine(StringBuilder sb) throws IOException {
-		this.writer.append(sb);
+		this.writer.append(sb.toString() + System.lineSeparator());
 	}
 
 }
