@@ -46,6 +46,8 @@ Resources:
                 wget -q http://public.openvidu.io/fakeaudio.wav -O /opt/openvidu/fakeaudio.wav
                 wget -q http://public.openvidu.io/fakevideo.y4m -O /opt/openvidu/fakevideo.y4m
                 chmod -R 777 /opt/openvidu
+                # Adding regular user to Docker group
+                usermod -aG docker ubuntu
               mode: "000755"
               owner: "root"
               group: "root"
@@ -61,13 +63,23 @@ Resources:
                 # Creating folder for recordings
                 mkdir -p /home/ubuntu/recordings
                 chmod 777 /home/ubuntu/recordings
+
                 docker run --detach --name chrome -p 4444:4444 -p 6080:6080 -p 5900:5900 --cap-add=SYS_ADMIN -v /home/ubuntu/recordings:/home/ubuntu/recordings -v /opt/openvidu:/opt/openvidu elastestbrowsers/chrome:latest-2.0.0
+              mode: "000755"
+              owner: "root"
+              group: "root"
+            "/usr/local/bin/setHosts.sh":
+              content: |
+                #!/bin/bash
+                # Config hostname in hosts
+                echo $(hostname -I | cut -d\  -f1) $(hostname) >> /etc/hosts
               mode: "000755"
               owner: "root"
               group: "root"
             "/etc/rc.local":
               content: |
                 #!/bin/sh -e
+                /usr/local/bin/setHosts.sh
                 /usr/local/bin/launchBrowser
                 exit 0
               mode: "000755"
