@@ -204,8 +204,8 @@ public class BrowserSshManager {
 			}
 			return outputBuffer.toString();
 		} else {
-			log.error("There's no SSH connection to instance {} of user {}. Cannot send recording command",
-					amazonInstance.getInstanceId(), properties.userId());
+			log.error("There's no SSH connection to instance {} of user {}. Cannot send command '{}'",
+					amazonInstance.getInstanceId(), properties.userId(), command);
 			return null;
 		}
 	}
