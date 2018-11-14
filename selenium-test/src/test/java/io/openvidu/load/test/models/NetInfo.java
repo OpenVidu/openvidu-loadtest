@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.load.test.utils;
+package io.openvidu.load.test.models;
 
 import java.io.Serializable;
 import java.util.Map;

@@ -44,8 +44,8 @@ import org.slf4j.Logger;
 import com.google.gson.JsonObject;
 import com.jcraft.jsch.JSchException;
 
-import io.openvidu.load.test.AmazonInstance;
 import io.openvidu.load.test.OpenViduLoadTest;
+import io.openvidu.load.test.models.AmazonInstance;
 import io.openvidu.load.test.utils.BrowserSshManager;
 import io.openvidu.load.test.utils.ScpFileDownloader;
 import io.openvidu.load.test.utils.ScriptExecutor;
@@ -59,15 +59,13 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 	class RemoteWebDriverCallable implements Callable<Browser> {
 
-		String instanceID;
-		String instanceIP;
+		AmazonInstance instance;
 		BrowserProperties properties;
 		DesiredCapabilities capabilities;
 
-		public RemoteWebDriverCallable(String instanceID, String instanceIP, BrowserProperties properties,
+		public RemoteWebDriverCallable(BrowserProperties properties, AmazonInstance instance,
 				DesiredCapabilities capabilities) {
-			this.instanceID = instanceID;
-			this.instanceIP = instanceIP;
+			this.instance = instance;
 			this.properties = properties;
 			this.capabilities = capabilities;
 		}
@@ -75,7 +73,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 		@Override
 		public Browser call() throws BrowserNotReadyException {
 			Browser returnedBrowser = null;
-			String browserUrl = "http://" + instanceIP + URL_END;
+			String browserUrl = "http://" + instance.getPublicIp() + URL_END;
 			log.info("Connecting to browser {}", browserUrl);
 			WebDriver driver = null;
 			int tries = 0;
@@ -117,12 +115,12 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			if (driver != null) {
 				switch (properties.type()) {
 				case "chrome":
-					returnedBrowser = new ChromeBrowser(properties, driver);
+					returnedBrowser = new ChromeBrowser(properties, instance, driver);
 					break;
 				}
 				return returnedBrowser;
 			} else {
-				throw new BrowserNotReadyException(instanceID, properties, capabilities,
+				throw new BrowserNotReadyException(instance.getInstanceId(), properties, capabilities,
 						"The browser wasn't reachable in " + SECONDS_OF_BROWSER_WAIT + " seconds");
 			}
 		}
@@ -130,9 +128,9 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	Map<String, AmazonInstance> instanceIdInstance = new ConcurrentHashMap<>();
-	Map<String, AmazonInstance> userIdInstance = new ConcurrentHashMap<>();
 	ScriptExecutor scriptExecutor = new ScriptExecutor();
+
+	final Map<String, Boolean> allocatedInstances = new ConcurrentHashMap<>();
 
 	final String URL_END = ":4444/wd/hub";
 	final int SECONDS_OF_BROWSER_WAIT = 60;
@@ -166,8 +164,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 			// Establish SSH connection
 			try {
-				BrowserSshManager sshManager = new BrowserSshManager(userIdInstance.get(browser.getUserId()),
-						browser.getBrowserProperties());
+				BrowserSshManager sshManager = new BrowserSshManager(browser);
 				browser.configureSshManager(sshManager);
 			} catch (JSchException e) {
 				log.error("Couldn't connect through ssh in 10 seconds to browser {}", browser.getUserId());
@@ -237,15 +234,11 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 		int numberOfLaunchedBrowsers = 0;
 		for (Entry<String, AmazonInstance> entry : map.entrySet()) {
-			final String instanceID = entry.getKey();
-			final String instanceIP = map.get(entry.getKey()).getIp();
 			if (numberOfLaunchedBrowsers < properties.size()) {
-				if (this.instanceIdInstance.putIfAbsent(instanceID, map.get(instanceID)) == null) {
+				if (this.allocatedInstances.putIfAbsent(entry.getKey(), true) == null) {
 					// This is a new created instance
-					this.userIdInstance.putIfAbsent(properties.get(numberOfLaunchedBrowsers).userId(),
-							map.get(instanceID));
-					threads.add(new RemoteWebDriverCallable(instanceID, instanceIP,
-							properties.get(numberOfLaunchedBrowsers), capabilities.get(numberOfLaunchedBrowsers)));
+					threads.add(new RemoteWebDriverCallable(properties.get(numberOfLaunchedBrowsers), entry.getValue(),
+							capabilities.get(numberOfLaunchedBrowsers)));
 					numberOfLaunchedBrowsers++;
 				}
 			} else {
@@ -307,8 +300,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				networkRestrictionThreads.put(browser.getUserId(), new Thread(() -> {
 					try {
 						if (browser.getSshManager() == null) {
-							BrowserSshManager sshManager = new BrowserSshManager(
-									userIdInstance.get(browser.getUserId()), browser.getBrowserProperties());
+							BrowserSshManager sshManager = new BrowserSshManager(browser);
 							browser.configureSshManager(sshManager);
 						}
 						browser.getSshManager().updateNetworkingRestrictions(browser.networkRestriction());
@@ -323,8 +315,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				startRecordingThreads.put(browser.getUserId(), new Thread(() -> {
 					try {
 						if (browser.getSshManager() == null) {
-							BrowserSshManager sshManager = new BrowserSshManager(
-									userIdInstance.get(browser.getUserId()), browser.getBrowserProperties());
+							BrowserSshManager sshManager = new BrowserSshManager(browser);
 							browser.configureSshManager(sshManager);
 						}
 						browser.getSshManager().startRecording();
@@ -339,8 +330,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				startTcpdumpThreads.put(browser.getUserId(), new Thread(() -> {
 					try {
 						if (browser.getSshManager() == null) {
-							BrowserSshManager sshManager = new BrowserSshManager(
-									userIdInstance.get(browser.getUserId()), browser.getBrowserProperties());
+							BrowserSshManager sshManager = new BrowserSshManager(browser);
 							browser.configureSshManager(sshManager);
 						}
 						browser.getSshManager().startTcpDump();
@@ -422,10 +412,9 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 						// Immediately terminate not recorded instances
 
-						final String instanceToTerminateID = this.userIdInstance.get(browser.getUserId())
-								.getInstanceId();
-						final String instanceToTerminateIP = this.userIdInstance.get(browser.getUserId()).getIp();
-						stopNotRecordedBrowsersThreads.put(browser.getUserId(), new Thread(() -> {
+						final String instanceToTerminateID = browser.getInstance().getInstanceId();
+						final String instanceToTerminateIP = browser.getInstance().getPublicIp();
+						stopNotRecordedBrowsersThreads.put(browser.getInstance().getInstanceId(), new Thread(() -> {
 
 							// Download tcpdump file
 							if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
@@ -448,32 +437,31 @@ public class RemoteBrowserProvider implements BrowserProvider {
 
 						// Stop recording and download video file asynchronously from recorded instances
 
-						stopRecordedBrowsersThreads.put(browser.getUserId(), new Thread(() -> {
+						stopRecordedBrowsersThreads.put(browser.getInstance().getInstanceId(), new Thread(() -> {
 							if (browser.getSshManager() != null) {
 
 								// Stop recording
 								browser.getSshManager().stopRecording();
 
 								// Download video file
-								String instanceIp = this.userIdInstance.get(browser.getUserId()).getIp();
+								String instancePublicIp = browser.getInstance().getPublicIp();
 								ScpFileDownloader fileDownloader = new ScpFileDownloader(
-										OpenViduLoadTest.SERVER_SSH_USER, instanceIp);
+										OpenViduLoadTest.SERVER_SSH_USER, instancePublicIp);
 								fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_RECORDING,
 										"recording-" + browser.getUserId() + ".mp4", OpenViduLoadTest.RESULTS_PATH);
 
 								// Download tcpdump file
 								if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
-									log.info("Downloading tcpdump file of recorded instance {} of user {}", instanceIp,
-											browser.getUserId());
+									log.info("Downloading tcpdump file of recorded instance {} of user {}",
+											instancePublicIp, browser.getUserId());
 									fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
-											instanceIp);
+											instancePublicIp);
 									fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_TCPDUMP,
 											"tcpdump-" + browser.getUserId() + ".pcap", OpenViduLoadTest.RESULTS_PATH);
 								}
 
 								// Terminate instance
-								String instanceToTerminate = this.userIdInstance.get(browser.getUserId())
-										.getInstanceId();
+								String instanceToTerminate = browser.getInstance().getInstanceId();
 								log.info("Stopping recorded instance {} of user {}", instanceToTerminate,
 										browser.getUserId());
 								this.scriptExecutor.bringDownBrowser(instanceToTerminate);
@@ -494,7 +482,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				try {
 					entry.getValue().join(60000); // Wait for 1 minute
 				} catch (InterruptedException e) {
-					log.error("Not recorded browser {} couldn't be stopped in 1 minute", entry.getKey());
+					log.error("Not recorded browser of instance {} couldn't be stopped in 1 minute", entry.getKey());
 				}
 			}
 
@@ -507,10 +495,11 @@ public class RemoteBrowserProvider implements BrowserProvider {
 				try {
 					entry.getValue().join(600000); // Wait for 10 minutes
 				} catch (InterruptedException e) {
-					log.error("Recording of browser {} couldn't be downloaded in 10 minutes", entry.getKey());
+					log.error("Recording of browser in instance {} couldn't be downloaded in 10 minutes",
+							entry.getKey());
 
 					// Terminate instance either way
-					String instanceToTerminate = this.userIdInstance.get(entry.getKey()).getInstanceId();
+					String instanceToTerminate = entry.getKey();
 					this.scriptExecutor.bringDownBrowser(instanceToTerminate);
 				}
 			}
@@ -522,11 +511,12 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			final Map<String, Thread> downloadTcpDumpThreads = new HashMap<>();
 			OpenViduLoadTest.sessionIdsBrowsers.values().forEach(sessionBrowsers -> {
 				sessionBrowsers.forEach(browser -> {
-					final String instanceIp = this.userIdInstance.get(browser.getUserId()).getIp();
+					final String instancePublicIp = browser.getInstance().getPublicIp();
 					downloadTcpDumpThreads.put(browser.getUserId(), new Thread(() -> {
-						log.info("Downloading tcpdump file of instance {} of user {}", instanceIp, browser.getUserId());
+						log.info("Downloading tcpdump file of instance {} of user {}", instancePublicIp,
+								browser.getUserId());
 						ScpFileDownloader fileDownloader = new ScpFileDownloader(OpenViduLoadTest.SERVER_SSH_USER,
-								instanceIp);
+								instancePublicIp);
 						fileDownloader.downloadFile(RemoteBrowserProvider.PATH_TO_TCPDUMP,
 								"tcpdump-" + browser.getUserId() + ".pcap", OpenViduLoadTest.RESULTS_PATH);
 					}));
@@ -566,18 +556,15 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			DesiredCapabilities capabilities) throws BrowserNotReadyException {
 		Browser browser = null;
 		for (Entry<String, AmazonInstance> entry : map.entrySet()) {
-			final String instanceID = entry.getKey();
-			final String instanceIP = map.get(entry.getKey()).getIp();
-			if (this.instanceIdInstance.putIfAbsent(instanceID, map.get(instanceID)) == null) {
+			if (this.allocatedInstances.putIfAbsent(entry.getKey(), true) == null) {
 				// New instance id
-				this.userIdInstance.putIfAbsent(properties.userId(), map.get(instanceID));
 				try {
 					Future<Browser> future = OpenViduLoadTest.browserInitializationTaskExecutor
-							.submit(new RemoteWebDriverCallable(instanceID, instanceIP, properties, capabilities));
+							.submit(new RemoteWebDriverCallable(properties, entry.getValue(), capabilities));
 					browser = future.get();
 					break;
 				} catch (InterruptedException | ExecutionException e1) {
-					throw new BrowserNotReadyException(instanceID, properties, capabilities,
+					throw new BrowserNotReadyException(entry.getKey(), properties, capabilities,
 							"The browser wasn't reachable in " + SECONDS_OF_BROWSER_WAIT + " seconds");
 				}
 			}

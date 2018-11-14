@@ -28,6 +28,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 
 import io.openvidu.load.test.OpenViduTestClientsManager;
+import io.openvidu.load.test.models.AmazonInstance;
 import io.openvidu.load.test.utils.BrowserSshManager;
 
 /**
@@ -44,14 +45,24 @@ public class Browser {
 	protected BrowserProperties properties;
 	protected OpenViduTestClientsManager eventManager;
 	protected BrowserSshManager sshManager;
+	protected AmazonInstance instance;
 
 	Browser(BrowserProperties properties, WebDriver driver) {
+		this(properties, null, driver);
+	}
+
+	Browser(BrowserProperties properties, AmazonInstance instance, WebDriver driver) {
 		this.properties = properties;
+		this.instance = instance;
 		this.driver = driver;
 		this.driver.manage().timeouts().setScriptTimeout(properties.timeOfWaitInSeconds(), TimeUnit.SECONDS);
 		this.waiter = new WebDriverWait(this.driver, (properties.timeOfWaitInSeconds()));
 		this.eventManager = new OpenViduTestClientsManager(this.driver, (properties.timeOfWaitInSeconds()));
 		this.driver.manage().window().setSize(new Dimension(1920, 1080));
+	}
+
+	public AmazonInstance getInstance() {
+		return this.instance;
 	}
 
 	public WebDriver getDriver() {

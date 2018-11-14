@@ -33,6 +33,8 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import io.openvidu.load.test.OpenViduLoadTest;
+import io.openvidu.load.test.models.MonitoringStats;
+import io.openvidu.load.test.models.NetInfo;
 
 /**
  * Monitoring service for Linux machines. Gathers CPU, memory and network usage

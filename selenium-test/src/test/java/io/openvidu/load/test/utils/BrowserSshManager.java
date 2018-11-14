@@ -35,10 +35,11 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
-import io.openvidu.load.test.AmazonInstance;
 import io.openvidu.load.test.OpenViduLoadTest;
+import io.openvidu.load.test.browser.Browser;
 import io.openvidu.load.test.browser.BrowserProperties;
 import io.openvidu.load.test.browser.NetworkRestriction;
+import io.openvidu.load.test.models.AmazonInstance;
 
 public class BrowserSshManager {
 
@@ -49,15 +50,15 @@ public class BrowserSshManager {
 	JSch jsch;
 	Session jschSession;
 
-	public BrowserSshManager(AmazonInstance amazonInstance, BrowserProperties properties) throws JSchException {
-		this.amazonInstance = amazonInstance;
-		this.properties = properties;
+	public BrowserSshManager(Browser browser) throws JSchException {
+		this.amazonInstance = browser.getInstance();
+		this.properties = browser.getBrowserProperties();
 		this.jsch = new JSch();
 		Properties config = new Properties();
 		config.put("StrictHostKeyChecking", "no");
 		config.put("PreferredAuthentications", "publickey");
 		jsch.addIdentity(OpenViduLoadTest.PRIVATE_KEY_PATH);
-		jschSession = jsch.getSession(OpenViduLoadTest.SERVER_SSH_USER, amazonInstance.getIp(), 22);
+		jschSession = jsch.getSession(OpenViduLoadTest.SERVER_SSH_USER, amazonInstance.getPublicIp(), 22);
 		jschSession.setConfig(config);
 		jschSession.connect(10000);
 	}
@@ -188,7 +189,7 @@ public class BrowserSshManager {
 				}
 
 				if (errorBuffer.length() > 0) {
-					log.error("Error sending command '{}' to {}: {}", command, amazonInstance.getIp(),
+					log.error("Error sending command '{}' to {}: {}", command, amazonInstance.getPublicIp(),
 							errorBuffer.toString());
 					return errorBuffer.toString();
 				}

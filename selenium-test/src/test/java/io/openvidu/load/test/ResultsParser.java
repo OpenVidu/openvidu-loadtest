@@ -29,7 +29,10 @@ import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
@@ -40,6 +43,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
+import io.openvidu.load.test.models.ProcessedPacket;
 import io.openvidu.load.test.utils.LogHelper;
 import io.pkts.PacketHandler;
 import io.pkts.Pcap;
@@ -268,7 +272,11 @@ public class ResultsParser {
 			List<String> tcpdumpFiles = Files
 					.find(Paths.get(OpenViduLoadTest.RESULTS_PATH), 100, (p, a) -> p.toString().endsWith(".pcap"))
 					.map(path -> path.getFileName().toString()).collect(Collectors.toList());
+
 			for (String file : tcpdumpFiles) {
+
+				final Map<String, Collection<ProcessedPacket>> packetsByOrigin = new HashMap<>();
+				final Map<String, Collection<ProcessedPacket>> packetsByDest = new HashMap<>();
 				final Pcap pcap = Pcap.openStream(OpenViduLoadTest.RESULTS_PATH + "/" + file);
 
 				pcap.loop(new PacketHandler() {

@@ -133,9 +133,10 @@ public class OpenViduLoadTest {
 	public static int TCPDUMP_CAPTURE_TIME = 5;
 
 	static BrowserProvider browserProvider;
-	public static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
 	public static Long timeTestStarted;
 	static Map<String, Long> timeSessionStarted = new ConcurrentHashMap<>();
+
+	public static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
 
 	static CustomLatch startNewSession;
 	static CustomLatch lastRoundCount;
@@ -475,6 +476,7 @@ public class OpenViduLoadTest {
 		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 				+ sessionId + "&userId=" + userId);
 		browser.getManager().startEventPolling(userId, sessionId);
+
 		Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
 		if (browsers != null) {
 			browsers.add(browser);
@@ -579,17 +581,14 @@ public class OpenViduLoadTest {
 		}
 
 		List<Browser> listOfBrowsers = browserProvider.getBrowsers(propertiesList);
+		sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
 		int i = 0;
+
 		for (Browser b : listOfBrowsers) {
 			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 					+ sessionId + "&userId=" + propertiesList.get(i).userId());
 			b.getManager().startEventPolling(propertiesList.get(i).userId(), sessionId);
-			Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
-			if (browsers != null) {
-				browsers.add(b);
-			} else {
-				sessionIdsBrowsers.get(sessionId).add(b);
-			}
+			sessionIdsBrowsers.get(sessionId).add(b);
 			i++;
 		}
 		return listOfBrowsers;

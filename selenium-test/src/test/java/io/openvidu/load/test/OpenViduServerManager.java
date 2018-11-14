@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 
-import io.openvidu.load.test.utils.MonitoringStats;
+import io.openvidu.load.test.models.MonitoringStats;
 import io.openvidu.load.test.utils.OpenViduServerMonitor;
 import io.openvidu.load.test.utils.ScpFileDownloader;
 

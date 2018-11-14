@@ -20,6 +20,8 @@ package io.openvidu.load.test.browser;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
+import io.openvidu.load.test.models.AmazonInstance;
+
 /**
  * Chrome browser encapsulation for OpenVidu load testing
  *
@@ -27,6 +29,10 @@ import org.openqa.selenium.chrome.ChromeOptions;
  */
 public class ChromeBrowser extends Browser {
 
+	ChromeBrowser(BrowserProperties properties, AmazonInstance instance, WebDriver driver) {
+		super(properties, instance, driver);
+	}
+	
 	ChromeBrowser(BrowserProperties properties, WebDriver driver) {
 		super(properties, driver);
 	}

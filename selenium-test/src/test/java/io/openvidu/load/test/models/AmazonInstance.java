@@ -15,7 +15,7 @@
  *
  */
 
-package io.openvidu.load.test;
+package io.openvidu.load.test.models;
 
 /**
  * Amazon EC2 instance representation (instance id and ip)
@@ -25,24 +25,31 @@ package io.openvidu.load.test;
 public class AmazonInstance {
 
 	private String instanceId;
-	private String ip;
+	private String publicIp;
+	private String privateIp;
 
-	public AmazonInstance(String instanceId, String ip) {
+	public AmazonInstance(String instanceId, String publicIp, String privateIp) {
 		this.instanceId = instanceId;
-		this.ip = ip;
+		this.publicIp = publicIp;
+		this.privateIp = privateIp;
 	}
 
 	public String getInstanceId() {
 		return this.instanceId;
 	}
 
-	public String getIp() {
-		return this.ip;
+	public String getPublicIp() {
+		return this.publicIp;
+	}
+
+	public String getPrivateIp() {
+		return this.privateIp;
 	}
 
 	@Override
 	public String toString() {
-		return "{id: \"" + this.instanceId + "\", ip: \"" + this.ip + "\"}";
+		return "{id: \"" + this.instanceId + "\", publicIp: \"" + this.publicIp + "\", privateIp: \"" + this.privateIp
+				+ "\"}";
 	}
 
 }

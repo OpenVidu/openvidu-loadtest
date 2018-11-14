@@ -33,7 +33,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import io.openvidu.load.test.AmazonInstance;
+import io.openvidu.load.test.models.AmazonInstance;
 
 /**
  * Executes bash scripts under src/test/resources folder. These scripts manage
@@ -123,8 +123,10 @@ public class ScriptExecutor {
 					if ("OpenViduLoadTest".equals(instanceJson.get("Tags").getAsJsonArray().get(0).getAsJsonObject()
 							.get("Value").getAsString())) {
 						String instanceId = instanceJson.get("InstanceId").getAsString();
-						String instanceIp = instanceJson.get("PublicIpAddress").getAsString();
-						instanceMap.put(instanceId, new AmazonInstance(instanceId, instanceIp));
+						String instancePublicIp = instanceJson.get("PublicIpAddress").getAsString();
+						String instancePrivateIp = instanceJson.get("PrivateIpAddress").getAsString();
+						instanceMap.put(instanceId,
+								new AmazonInstance(instanceId, instancePublicIp, instancePrivateIp));
 					}
 				});
 			});

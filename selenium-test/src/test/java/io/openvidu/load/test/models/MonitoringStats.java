@@ -15,14 +15,14 @@
  *
  */
 
-package io.openvidu.load.test.utils;
+package io.openvidu.load.test.models;
 
 import java.util.Map.Entry;
 
 import com.google.gson.JsonObject;
 
 import io.openvidu.load.test.OpenViduLoadTest;
-import io.openvidu.load.test.utils.NetInfo.NetInfoEntry;
+import io.openvidu.load.test.models.NetInfo.NetInfoEntry;
 
 public class MonitoringStats {
 

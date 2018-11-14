@@ -32,6 +32,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import io.openvidu.load.test.OpenViduLoadTest;
+import io.openvidu.load.test.models.MonitoringStats;
 
 /**
  * Test logging service: writes standard logs and information logs to output
