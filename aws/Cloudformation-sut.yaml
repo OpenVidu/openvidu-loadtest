@@ -51,7 +51,7 @@ Resources:
                 set -eu -o pipefail
                 # installing necessary software
                 apt-get update
-                apt-get upgrade -y
+                
                 apt-get install -y awscli zip unzip openjdk-8-jdk pwgen nginx supervisor ec2-ami-tools
                 
                 # install coturn
