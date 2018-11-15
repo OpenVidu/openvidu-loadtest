@@ -497,7 +497,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			}
 			for (Entry<String, Thread> entry : stopNotRecordedBrowsersThreads.entrySet()) {
 				try {
-					entry.getValue().join(60000); // Wait for 1 minute
+					entry.getValue().join(600000); // Wait for 10 minutes
 				} catch (InterruptedException e) {
 					log.error("Not recorded browser of instance {} couldn't be stopped in 1 minute", entry.getKey());
 				}
