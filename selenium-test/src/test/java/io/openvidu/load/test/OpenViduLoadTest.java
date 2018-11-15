@@ -585,8 +585,10 @@ public class OpenViduLoadTest {
 		int i = 0;
 
 		for (Browser b : listOfBrowsers) {
+			log.info("Browser {} connecting now to {}", b.getUserId(), APP_URL);
 			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 					+ sessionId + "&userId=" + propertiesList.get(i).userId());
+			log.info("Browser {} is now connected to to {}", b.getUserId(), APP_URL);
 			b.getManager().startEventPolling(propertiesList.get(i).userId(), sessionId);
 			sessionIdsBrowsers.get(sessionId).add(b);
 			i++;
