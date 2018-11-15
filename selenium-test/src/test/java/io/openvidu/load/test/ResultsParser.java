@@ -289,70 +289,74 @@ public class ResultsParser {
 				Table<String, String, Integer> packetsTable = HashBasedTable.create();
 				final Pcap pcap = Pcap.openStream(OpenViduLoadTest.RESULTS_PATH + "/" + file);
 
-				pcap.loop(new PacketHandler() {
-					@Override
-					public boolean nextPacket(final Packet packet) throws IOException {
+				try {
+					pcap.loop(new PacketHandler() {
+						@Override
+						public boolean nextPacket(final Packet packet) throws IOException {
 
-						String fullProtocolStack = "";
+							String fullProtocolStack = "";
 
-						// Layer 3: [IPv4, IPv6] (not processed: ICMP, ICMP6, IGMP, ARP)
-						IPPacket ipPacket = null;
-						if (packet.hasProtocol(Protocol.IPv4)) {
-							ipPacket = (IPPacket) packet.getPacket(Protocol.IPv4);
-							fullProtocolStack += Protocol.IPv4.getName();
-						} else if (packet.hasProtocol(Protocol.IPv6)) {
-							ipPacket = (IPPacket) packet.getPacket(Protocol.IPv6);
-							fullProtocolStack += Protocol.IPv6.getName();
+							// Layer 3: [IPv4, IPv6] (not processed: ICMP, ICMP6, IGMP, ARP)
+							IPPacket ipPacket = null;
+							if (packet.hasProtocol(Protocol.IPv4)) {
+								ipPacket = (IPPacket) packet.getPacket(Protocol.IPv4);
+								fullProtocolStack += Protocol.IPv4.getName();
+							} else if (packet.hasProtocol(Protocol.IPv6)) {
+								ipPacket = (IPPacket) packet.getPacket(Protocol.IPv6);
+								fullProtocolStack += Protocol.IPv6.getName();
+							}
+
+							// Layer 4: [TCP, UDP, SCTP]
+							TransportPacket transportPacket = null;
+							if (packet.hasProtocol(Protocol.TCP)) {
+								transportPacket = (TransportPacket) packet.getPacket(Protocol.TCP);
+								fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+								fullProtocolStack += Protocol.TCP.getName();
+							} else if (packet.hasProtocol(Protocol.UDP)) {
+								transportPacket = (TransportPacket) packet.getPacket(Protocol.UDP);
+								fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+								fullProtocolStack += Protocol.UDP.getName();
+							} else if (packet.hasProtocol(Protocol.SCTP)) {
+								transportPacket = (TransportPacket) packet.getPacket(Protocol.SCTP);
+								fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+								fullProtocolStack += Protocol.SCTP.getName();
+							}
+
+							// Layer 7 (directly extends layer 4 in pkts library): [TLS, SIP, SDP, RTP,
+							// RTCP]
+							if (packet.hasProtocol(Protocol.SDP)) {
+								fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+								fullProtocolStack += Protocol.SDP.getName();
+							} else if (packet.hasProtocol(Protocol.RTP)) {
+								fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+								fullProtocolStack += Protocol.RTP.getName();
+							} else if (packet.hasProtocol(Protocol.RTCP)) {
+								fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+								fullProtocolStack += Protocol.RTCP.getName();
+							}
+
+							if (ipPacket != null && transportPacket != null) {
+								String key = ipPacket.getSourceIP() + ":" + transportPacket.getSourcePort() + ">"
+										+ ipPacket.getDestinationIP() + ":" + transportPacket.getDestinationPort();
+								Integer val = packetsTable.get(key, fullProtocolStack);
+								val = val == null ? 1 : (val + 1);
+								packetsTable.put(key, fullProtocolStack, val);
+							}
+
+							return true;
 						}
-
-						// Layer 4: [TCP, UDP, SCTP]
-						TransportPacket transportPacket = null;
-						if (packet.hasProtocol(Protocol.TCP)) {
-							transportPacket = (TransportPacket) packet.getPacket(Protocol.TCP);
-							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
-							fullProtocolStack += Protocol.TCP.getName();
-						} else if (packet.hasProtocol(Protocol.UDP)) {
-							transportPacket = (TransportPacket) packet.getPacket(Protocol.UDP);
-							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
-							fullProtocolStack += Protocol.UDP.getName();
-						} else if (packet.hasProtocol(Protocol.SCTP)) {
-							transportPacket = (TransportPacket) packet.getPacket(Protocol.SCTP);
-							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
-							fullProtocolStack += Protocol.SCTP.getName();
-						}
-
-						// Layer 7 (directly extends layer 4 in pkts library): [TLS, SIP, SDP, RTP,
-						// RTCP]
-						if (packet.hasProtocol(Protocol.SDP)) {
-							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
-							fullProtocolStack += Protocol.SDP.getName();
-						} else if (packet.hasProtocol(Protocol.RTP)) {
-							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
-							fullProtocolStack += Protocol.RTP.getName();
-						} else if (packet.hasProtocol(Protocol.RTCP)) {
-							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
-							fullProtocolStack += Protocol.RTCP.getName();
-						}
-
-						if (ipPacket != null && transportPacket != null) {
-							String key = ipPacket.getSourceIP() + ":" + transportPacket.getSourcePort() + ">"
-									+ ipPacket.getDestinationIP() + ":" + transportPacket.getDestinationPort();
-							Integer val = packetsTable.get(key, fullProtocolStack);
-							val = val == null ? 1 : (val + 1);
-							packetsTable.put(key, fullProtocolStack, val);
-						}
-
-						return true;
-					}
-				});
-
-				log.info("Packet dump results for file {}", file);
-				log.info(packetsTable.toString());
-				/*
-				 * for (Cell<String, Protocol, Integer> cell : packetsTable.cellSet()) {
-				 * System.out.println(cell.getRowKey() + " " + cell.getColumnKey().getName() +
-				 * " " + cell.getValue()); }
-				 */
+					});
+					log.info("Packet dump results for file {}", file);
+					log.info(packetsTable.toString());
+					/*
+					 * for (Cell<String, Protocol, Integer> cell : packetsTable.cellSet()) {
+					 * System.out.println(cell.getRowKey() + " " + cell.getColumnKey().getName() +
+					 * " " + cell.getValue()); }
+					 */
+				} catch (Exception e) {
+					log.error("File {} generated an error while packet processing. Error: {}",
+							OpenViduLoadTest.RESULTS_PATH + "/" + file, e.getMessage());
+				}
 			}
 		} catch (IOException e) {
 			log.error("Couldn't list tcpdump files in path {}. No further processing of tcpdump files",
