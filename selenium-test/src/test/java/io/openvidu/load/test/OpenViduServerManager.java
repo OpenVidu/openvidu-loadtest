@@ -122,6 +122,7 @@ public class OpenViduServerManager {
 		kmsErrorThread.join(600000);
 		openviduLogThread.join(600000);
 		kmsLogThread.join(600000);
+		turnLogThread.join(600000);
 	}
 	
 	public void cleanTurnLogs() {
