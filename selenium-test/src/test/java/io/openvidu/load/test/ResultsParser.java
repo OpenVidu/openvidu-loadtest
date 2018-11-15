@@ -117,6 +117,7 @@ public class ResultsParser {
 		this.file = new File(OpenViduLoadTest.RESULTS_PATH, "loadTestSubscriberResults.csv");
 		try {
 			this.writer = new BufferedWriter(new FileWriter(file.getAbsoluteFile().toString(), true));
+			writeCsvLine("time,rtt,bitrate,jitter,delay,packetsLost,availableReceiveBandwidth");
 		} catch (IOException e) {
 			log.error("CSV results file couldn't be created at {}. Error: {}",
 					OpenViduLoadTest.RESULTS_PATH + "/loadTestSubscriberResults.csv", e.getMessage());
@@ -205,8 +206,6 @@ public class ResultsParser {
 											totalSubscribersJitter += stats.get("jitter").getAsDouble();
 											totalSubscribersDelay += stats.get("delay").getAsDouble();
 
-											// time | rtt | bitrate | jitter | delay | packetLost |
-											// availableReceiveBandwidth
 											StringBuilder sb = new StringBuilder(500);
 											sb.append(secondsSinceTestStarted);
 											sb.append(",");
@@ -222,7 +221,7 @@ public class ResultsParser {
 											sb.append(",");
 											sb.append(stats.get("availableReceiveBandwidth").getAsInt());
 											try {
-												writeCsvLine(sb);
+												writeCsvLine(sb.toString());
 											} catch (IOException e) {
 												log.error("Couldn't write WebRTC stat in CSV file: {}", e.getMessage());
 											}
@@ -287,32 +286,60 @@ public class ResultsParser {
 
 			for (String file : tcpdumpFiles) {
 
-				Table<String, Protocol, Integer> packetsTable = HashBasedTable.create();
+				Table<String, String, Integer> packetsTable = HashBasedTable.create();
 				final Pcap pcap = Pcap.openStream(OpenViduLoadTest.RESULTS_PATH + "/" + file);
 
 				pcap.loop(new PacketHandler() {
 					@Override
 					public boolean nextPacket(final Packet packet) throws IOException {
+
+						String fullProtocolStack = "";
+
+						// Layer 3: [IPv4, IPv6] (not processed: ICMP, ICMP6, IGMP, ARP)
 						IPPacket ipPacket = null;
 						if (packet.hasProtocol(Protocol.IPv4)) {
 							ipPacket = (IPPacket) packet.getPacket(Protocol.IPv4);
+							fullProtocolStack += Protocol.IPv4.getName();
 						} else if (packet.hasProtocol(Protocol.IPv6)) {
 							ipPacket = (IPPacket) packet.getPacket(Protocol.IPv6);
+							fullProtocolStack += Protocol.IPv6.getName();
 						}
 
+						// Layer 4: [TCP, UDP, SCTP]
 						TransportPacket transportPacket = null;
 						if (packet.hasProtocol(Protocol.TCP)) {
 							transportPacket = (TransportPacket) packet.getPacket(Protocol.TCP);
+							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+							fullProtocolStack += Protocol.TCP.getName();
 						} else if (packet.hasProtocol(Protocol.UDP)) {
 							transportPacket = (TransportPacket) packet.getPacket(Protocol.UDP);
+							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+							fullProtocolStack += Protocol.UDP.getName();
+						} else if (packet.hasProtocol(Protocol.SCTP)) {
+							transportPacket = (TransportPacket) packet.getPacket(Protocol.SCTP);
+							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+							fullProtocolStack += Protocol.SCTP.getName();
+						}
+
+						// Layer 7 (directly extends layer 4 in pkts library): [TLS, SIP, SDP, RTP,
+						// RTCP]
+						if (packet.hasProtocol(Protocol.SDP)) {
+							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+							fullProtocolStack += Protocol.SDP.getName();
+						} else if (packet.hasProtocol(Protocol.RTP)) {
+							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+							fullProtocolStack += Protocol.RTP.getName();
+						} else if (packet.hasProtocol(Protocol.RTCP)) {
+							fullProtocolStack = fullProtocolStack.isEmpty() ? "" : fullProtocolStack + "-";
+							fullProtocolStack += Protocol.RTCP.getName();
 						}
 
 						if (ipPacket != null && transportPacket != null) {
 							String key = ipPacket.getSourceIP() + ":" + transportPacket.getSourcePort() + ">"
 									+ ipPacket.getDestinationIP() + ":" + transportPacket.getDestinationPort();
-							Integer val = packetsTable.get(key, transportPacket.getProtocol());
+							Integer val = packetsTable.get(key, fullProtocolStack);
 							val = val == null ? 1 : (val + 1);
-							packetsTable.put(key, transportPacket.getProtocol(), val);
+							packetsTable.put(key, fullProtocolStack, val);
 						}
 
 						return true;
@@ -401,8 +428,8 @@ public class ResultsParser {
 		// TODO
 	}
 
-	private void writeCsvLine(StringBuilder sb) throws IOException {
-		this.writer.append(sb.toString() + System.lineSeparator());
+	private void writeCsvLine(String line) throws IOException {
+		this.writer.append(line + System.lineSeparator());
 	}
 
 }
