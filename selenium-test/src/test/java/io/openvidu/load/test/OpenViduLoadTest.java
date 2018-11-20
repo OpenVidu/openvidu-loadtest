@@ -636,6 +636,8 @@ public class OpenViduLoadTest {
 			String sessionInfo = performGetApiSession(browser.getSessionId());
 			if (sessionInfo != null) {
 				logHelper.logOpenViduSessionInfo(sessionInfo);
+			} else {
+				log.warn("No session info could be retrieved for unstable browser {}", browser.getUserId());
 			}
 			return;
 		}
