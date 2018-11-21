@@ -130,6 +130,7 @@ public class OpenViduLoadTest {
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
 	public static int[] RECORD_BROWSERS;
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
+	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 5;
 
 	static BrowserProvider browserProvider;
@@ -164,6 +165,7 @@ public class OpenViduLoadTest {
 		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
 		String recordBrowsers = System.getProperty("RECORD_BROWSERS");
 		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
+		String tcpdumpCaptureBeforeConnect = System.getProperty("TCPDUMP_CAPTURE_BEFORE_CONNECT");
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
 
 		if (openviduUrl != null) {
@@ -210,6 +212,9 @@ public class OpenViduLoadTest {
 		}
 		if (downloadOpenviduLogs != null) {
 			DOWNLOAD_OPENVIDU_LOGS = Boolean.parseBoolean(downloadOpenviduLogs);
+		}
+		if (tcpdumpCaptureBeforeConnect != null) {
+			TCPDUMP_CAPTURE_BEFORE_CONNECT = Boolean.parseBoolean(tcpdumpCaptureBeforeConnect);
 		}
 		if (tcpdumpCaptureTime != null) {
 			TCPDUMP_CAPTURE_TIME = Integer.parseInt(tcpdumpCaptureTime);
@@ -646,7 +651,16 @@ public class OpenViduLoadTest {
 		Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
 				true, true));
 
-		// Stop tcpdump process
+		// Start tcpdump process if option TCPDUMP_CAPTURE_BEFORE_CONNECT is false
+		if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0 && !OpenViduLoadTest.TCPDUMP_CAPTURE_BEFORE_CONNECT) {
+			try {
+				browser.getSshManager().startTcpDump();
+			} catch (Exception e) {
+				log.error("Error when starting tcpdump process for browser {}" + browser.getUserId());
+			}
+		}
+
+		// Stop tcpdump process after TCPDUMP_CAPTURE_TIME seconds
 		if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
 			OpenViduLoadTest.tcpdumpStopProcesses.schedule(() -> {
 				browser.getSshManager().stopTcpDump();

@@ -189,7 +189,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			}
 
 			// tcpdump process
-			if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+			if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0 && OpenViduLoadTest.TCPDUMP_CAPTURE_BEFORE_CONNECT) {
 				try {
 					browser.getSshManager().startTcpDump();
 				} catch (Exception e) {
