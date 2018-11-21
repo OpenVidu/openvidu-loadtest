@@ -26,6 +26,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 
@@ -111,7 +113,21 @@ public class BrowserSshManager {
 				command = readCommandFromFile("tcpOnly.txt");
 				break;
 			case TURN:
-				command = readCommandFromFile("turn.txt");
+				command = readCommandFromFile("turnAux.txt") + " && ";
+				String portNotBlocked = null;
+				String activeTcpConnections = CommandExecutor.executeCommand("netstat -tn");
+
+				String keyword = this.amazonInstance.getPublicIp() + ":" + 4444;
+				String rx = "(\\w+)\\s+(" + keyword + ")";
+				Matcher matcher = Pattern.compile(rx).matcher(activeTcpConnections);
+				if (matcher.find()) {
+					portNotBlocked = matcher.group(1);
+					log.info("Not blocking port {} in remote browser machine {}", portNotBlocked, this.amazonInstance.getPublicIp());
+				}
+
+				command = command.replaceAll("DYNAMIC_PORT", portNotBlocked);
+				String fixedCommands = readCommandFromFile("turn.txt");
+				command = command + fixedCommands;
 				break;
 			}
 		} catch (IOException e) {

@@ -1,0 +1,4 @@
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport DYNAMIC_PORT -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport DYNAMIC_PORT -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport DYNAMIC_PORT -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport DYNAMIC_PORT -j ACCEPT

@@ -1,22 +1,40 @@
-sudo iptables -A OUTPUT -p tcp --dport 4444 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 6080 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 5900 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 4443 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 3478 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 4444 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 6080 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 5900 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 4443 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 3478 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 53 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
-sudo iptables -A INPUT -p tcp --sport 53 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
-sudo iptables -A INPUT -p tcp --sport 22 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
-sudo iptables -A INPUT -p tcp -j DROP
-sudo iptables -A OUTPUT -p tcp -j DROP
-sudo iptables -A OUTPUT -p udp --dport 0:65535 -j DROP
-sudo iptables -A INPUT -p udp --dport 0:65535 -j DROP
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 4444 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 6080 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 5900 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 4443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 3478 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 4444 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 6080 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 5900 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 4443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 3478 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 4444 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 6080 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 5900 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 4443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 3478 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 4444 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 6080 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 5900 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 4443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 3478 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p udp --sport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p udp --dport 53 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 22 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp --sport 443 -j ACCEPT
+docker exec -t -d chrome sudo iptables -A INPUT -p tcp -j DROP
+docker exec -t -d chrome sudo iptables -A OUTPUT -p tcp -j DROP
+docker exec -t -d chrome sudo iptables -A OUTPUT -p udp --dport 0:65535 -j DROP
+docker exec -t -d chrome sudo iptables -A INPUT -p udp --dport 0:65535 -j DROP

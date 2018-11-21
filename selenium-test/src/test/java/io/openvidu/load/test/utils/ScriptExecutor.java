@@ -20,10 +20,7 @@ package io.openvidu.load.test.utils;
 import static java.lang.invoke.MethodHandles.lookup;
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,43 +54,27 @@ public class ScriptExecutor {
 		fileGetActiveInstances = new File(classLoader.getResource("getActiveInstances.sh").getFile());
 		fileTerminateInstances = new File(classLoader.getResource("terminateInstances.sh").getFile());
 		fileTerminateOneInstance = new File(classLoader.getResource("terminateOneInstance.sh").getFile());
-		this.executeCommand("chmod 777 " + fileBrowserProvider.getAbsolutePath());
-		this.executeCommand("chmod 777 " + fileGetActiveInstances.getAbsolutePath());
-		this.executeCommand("chmod 777 " + fileTerminateInstances.getAbsolutePath());
-		this.executeCommand("chmod 777 " + fileTerminateOneInstance.getAbsolutePath());
+		CommandExecutor.executeCommand("chmod 777 " + fileBrowserProvider.getAbsolutePath());
+		CommandExecutor.executeCommand("chmod 777 " + fileGetActiveInstances.getAbsolutePath());
+		CommandExecutor.executeCommand("chmod 777 " + fileTerminateInstances.getAbsolutePath());
+		CommandExecutor.executeCommand("chmod 777 " + fileTerminateOneInstance.getAbsolutePath());
 	}
 
 	public Map<String, AmazonInstance> launchBrowsers(int numberOfBrowsers) {
 		String cmd = fileBrowserProvider.getAbsolutePath() + " " + numberOfBrowsers;
-		return parseInstanceJsonToMap(this.executeCommand(cmd));
+		return parseInstanceJsonToMap(CommandExecutor.executeCommand(cmd));
 	}
 
 	public Map<String, AmazonInstance> getActiveBrowsers() {
-		return parseInstanceJsonToMap(this.executeCommand(this.fileGetActiveInstances.getAbsolutePath()));
+		return parseInstanceJsonToMap(CommandExecutor.executeCommand(this.fileGetActiveInstances.getAbsolutePath()));
 	}
 
 	public void bringDownBrowser(String instanceId) {
-		this.executeCommand(this.fileTerminateOneInstance.getAbsolutePath() + " " + instanceId);
+		CommandExecutor.executeCommand(this.fileTerminateOneInstance.getAbsolutePath() + " " + instanceId);
 	}
 
 	public Map<String, AmazonInstance> bringDownAllBrowsers() {
-		return parseInstanceJsonToMap(this.executeCommand(this.fileTerminateInstances.getAbsolutePath()));
-	}
-
-	private String executeCommand(String bashCommand) {
-		String result = "";
-		try {
-			Process p = Runtime.getRuntime().exec(bashCommand);
-			BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
-			String inputLine;
-			while ((inputLine = in.readLine()) != null) {
-				result += inputLine;
-			}
-			in.close();
-		} catch (IOException e) {
-			log.error(e.toString());
-		}
-		return result;
+		return parseInstanceJsonToMap(CommandExecutor.executeCommand(this.fileTerminateInstances.getAbsolutePath()));
 	}
 
 	private Map<String, AmazonInstance> parseInstanceJsonToMap(String str) {
