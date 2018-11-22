@@ -38,8 +38,8 @@ public class OpenViduServerManager {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	final String OPENVIDU_LOG_PATH = "/var/log";
-	final String OPENVIDU_LOG_FILENAME = "openvidu.log";
+	final String OPENVIDU_LOG_PATH = "/var/log/supervisor";
+	final String OPENVIDU_LOG_FILENAME = "openvidu-server-stdout*.log";
 	final String KMS_LOG_PATH = "/var/log/kurento-media-server";
 	final String KMS_LOG_FILENAME = "20*.log";
 	final String KMS_ERROR_PATH = "/var/log/kurento-media-server";

@@ -207,7 +207,7 @@ public class OpenViduTestClientsManager {
 	private void getEventsAndStatsFromBrowser(boolean ignoreStats) {
 		JsonObject eventsAndStats = this.getEventsAndStatsInBrowser();
 
-		if (eventsAndStats.isJsonNull()) {
+		if (eventsAndStats == null || eventsAndStats.isJsonNull()) {
 			return;
 		}
 
@@ -265,9 +265,14 @@ public class OpenViduTestClientsManager {
 		// 'user-1-2': ...
 		// }
 		// }
-		String eventsAndStats = (String) ((JavascriptExecutor) driver).executeScript(
-				"window.collectEventsAndStats();" + "var result = JSON.stringify(window.openviduLoadTest);"
-						+ "window.resetEventsAndStats();" + "return result;");
+		String eventsAndStats = null;
+		try {
+			eventsAndStats = (String) ((JavascriptExecutor) driver).executeScript(
+					"window.collectEventsAndStats();" + "var result = JSON.stringify(window.openviduLoadTest);"
+							+ "window.resetEventsAndStats();" + "return result;");
+		} catch (Exception e) {
+			return null;
+		}
 		return this.jsonParser.parse(eventsAndStats).getAsJsonObject();
 	}
 

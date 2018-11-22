@@ -184,7 +184,9 @@ public class ScpFileDownloader {
 			log.info("File {} downloaded successfully. Available at {}", filename, f.getAbsolutePath());
 
 		} catch (Exception e) {
-			log.error(e.toString());
+			if (e != null) {
+				log.error(e.toString());
+			}
 			if (fos != null) {
 				try {
 					fos.close();

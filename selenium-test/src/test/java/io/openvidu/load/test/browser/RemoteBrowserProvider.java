@@ -191,6 +191,7 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			// tcpdump process
 			if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0 && OpenViduLoadTest.TCPDUMP_CAPTURE_BEFORE_CONNECT) {
 				try {
+					log.info("Starting tcpdump process before connect for browser {}", browser.getUserId());
 					browser.getSshManager().startTcpDump();
 				} catch (Exception e) {
 					log.error("Error when starting tcpdump process for browser {}" + browser.getUserId());
@@ -326,13 +327,14 @@ public class RemoteBrowserProvider implements BrowserProvider {
 			}
 
 			// tcpdump threads (only if system property TCPDUMP_CAPTURE_TIME is > 0)
-			if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0) {
+			if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0 && OpenViduLoadTest.TCPDUMP_CAPTURE_BEFORE_CONNECT) {
 				startTcpdumpThreads.put(browser.getUserId(), new Thread(() -> {
 					try {
 						if (browser.getSshManager() == null) {
 							BrowserSshManager sshManager = new BrowserSshManager(browser);
 							browser.configureSshManager(sshManager);
 						}
+						log.info("Starting tcpdump process before connect for browser {}", browser.getUserId());
 						browser.getSshManager().startTcpDump();
 					} catch (Exception e) {
 						log.error("Error when starting tcpdump process in browser {}" + browser.getUserId());

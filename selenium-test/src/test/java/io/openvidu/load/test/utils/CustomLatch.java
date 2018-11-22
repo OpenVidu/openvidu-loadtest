@@ -18,6 +18,7 @@
 package io.openvidu.load.test.utils;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Customized CountDownLatch to support external abortion
@@ -36,7 +37,7 @@ public class CustomLatch {
 	}
 
 	private CountDownLatch latch;
-	private boolean aborted = false;
+	private AtomicBoolean aborted = new AtomicBoolean(false);
 	private String errorMessage = "";
 
 	public CustomLatch(int countDown) {
@@ -45,23 +46,23 @@ public class CustomLatch {
 
 	public void await() throws AbortedException {
 		try {
-			latch.await();
+			this.latch.await();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-			if (aborted) {
+			if (aborted.get()) {
 				throw new AbortedException(errorMessage);
 			}
 		}
-		if (aborted) {
+		if (aborted.get()) {
 			throw new AbortedException(errorMessage);
 		}
 	}
 
-	public void abort(String errorMessage) {
-		this.aborted = true;
+	public synchronized void abort(String errorMessage) {
+		this.aborted.set(true);
 		this.errorMessage = errorMessage;
-		while (latch.getCount() > 0) {
-			latch.countDown();
+		while (this.latch.getCount() > 0) {
+			this.latch.countDown();
 		}
 	}
 

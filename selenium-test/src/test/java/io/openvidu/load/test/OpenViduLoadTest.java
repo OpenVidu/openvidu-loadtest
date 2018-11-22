@@ -85,6 +85,7 @@ import io.openvidu.load.test.browser.BrowserProvider;
 import io.openvidu.load.test.browser.LocalBrowserProvider;
 import io.openvidu.load.test.browser.NetworkRestriction;
 import io.openvidu.load.test.browser.RemoteBrowserProvider;
+import io.openvidu.load.test.utils.BrowserSshManager;
 import io.openvidu.load.test.utils.CustomLatch;
 import io.openvidu.load.test.utils.CustomLatch.AbortedException;
 import io.openvidu.load.test.utils.LogHelper;
@@ -139,8 +140,8 @@ public class OpenViduLoadTest {
 
 	public static Map<String, Collection<Browser>> sessionIdsBrowsers = new ConcurrentHashMap<>();
 
-	static CustomLatch startNewSession;
-	static CustomLatch lastRoundCount;
+	static final CustomLatch[] startNewSession = new CustomLatch[1];
+	static final CustomLatch[] lastRoundCount = new CustomLatch[1];
 	static AtomicBoolean lastBrowserRound = new AtomicBoolean(false);
 	static String lastSession;
 
@@ -227,8 +228,8 @@ public class OpenViduLoadTest {
 				.replaceAll("/$", "");
 
 		browserProvider = REMOTE ? new RemoteBrowserProvider() : new LocalBrowserProvider();
-		startNewSession = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
-		lastRoundCount = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
+		startNewSession[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
+		lastRoundCount[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 
 		try {
 			logHelper = new LogHelper();
@@ -281,10 +282,12 @@ public class OpenViduLoadTest {
 				+ "Browsers init at once: " + BROWSER_INIT_AT_ONCE + System.getProperty("line.separator")
 				+ "Browsers recorded:     " + Arrays.toString(RECORD_BROWSERS) + System.getProperty("line.separator")
 				+ "Browsers networking:   " + Arrays.toString(NETWORK_RESTRICTIONS_BROWSERS)
-				+ System.getProperty("line.separator") + "Tcpdump during:        " + TCPDUMP_CAPTURE_TIME + " s"
-				+ System.getProperty("line.separator") + "Is remote:             " + REMOTE
-				+ System.getProperty("line.separator") + "Results stored under:  " + OpenViduLoadTest.RESULTS_PATH
-				+ System.getProperty("line.separator") + "----------------------------------------";
+				+ System.getProperty("line.separator") + "Start tcpdump before connect:  "
+				+ TCPDUMP_CAPTURE_BEFORE_CONNECT + System.getProperty("line.separator") + "Tcpdump during:        "
+				+ TCPDUMP_CAPTURE_TIME + " s" + System.getProperty("line.separator") + "Is remote:             "
+				+ REMOTE + System.getProperty("line.separator") + "Results stored under:  "
+				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
+				+ "----------------------------------------";
 		logHelper.logTestInfo(testInfo);
 		log.info(System.getProperty("line.separator") + testInfo);
 	}
@@ -416,11 +419,21 @@ public class OpenViduLoadTest {
 				try {
 					startBrowser(sessionIndex, userIndex);
 				} catch (TimeoutException e) {
-					startNewSession
-							.abort("User '" + userId + "' in session '" + sessionId + "' for not receiving enough '"
-									+ e.getMessage() + "' events in " + SECONDS_OF_WAIT + " seconds");
+					if (lastBrowserRound.get()) {
+						lastRoundCount[0]
+								.abort("User '" + userId + "' in session '" + sessionId + "' for not receiving enough '"
+										+ e.getMessage() + "' events in " + SECONDS_OF_WAIT + " seconds");
+					} else {
+						startNewSession[0]
+								.abort("User '" + userId + "' in session '" + sessionId + "' for not receiving enough '"
+										+ e.getMessage() + "' events in " + SECONDS_OF_WAIT + " seconds");
+					}
 				} catch (BrowserNotReadyException e) {
-					startNewSession.abort("Browser " + userId + " in session " + sessionId + " was not ready");
+					if (lastBrowserRound.get()) {
+						lastRoundCount[0].abort("Browser " + userId + " in session " + sessionId + " was not ready");
+					} else {
+						startNewSession[0].abort("Browser " + userId + " in session " + sessionId + " was not ready");
+					}
 				}
 			});
 		}
@@ -429,13 +442,13 @@ public class OpenViduLoadTest {
 		}
 		if (sessionIndex < SESSIONS) {
 			try {
-				startNewSession.await();
+				startNewSession[0].await();
 			} catch (AbortedException e) {
 				log.error("Some browser thread did not reach a stable session status: {}", e.getMessage());
 				Assert.fail("Session did not reach stable status in timeout: " + e.getMessage());
 				return;
 			}
-			startNewSession = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
+			startNewSession[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
 			this.startSessionBrowserAfterBrowser(sessionIndex + 1);
@@ -443,7 +456,7 @@ public class OpenViduLoadTest {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
 			lastBrowserRound.set(true);
 			try {
-				lastRoundCount.await();
+				lastRoundCount[0].await();
 			} catch (AbortedException e) {
 				log.error("Some browser thread did not reach a stable session status: {}", e.getMessage());
 				Assert.fail("Session did not reach stable status in timeout: " + e.getMessage());
@@ -513,13 +526,13 @@ public class OpenViduLoadTest {
 		}
 		if (sessionIndex < SESSIONS) {
 			try {
-				startNewSession.await();
+				startNewSession[0].await();
 			} catch (AbortedException e) {
 				log.error("Some browser thread did not reach a stable session status: {}", e.getMessage());
 				Assert.fail(e.getMessage());
 				return;
 			}
-			startNewSession = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
+			startNewSession[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
 			this.startSessionAllBrowsersAtOnce(sessionIndex + 1);
@@ -527,7 +540,7 @@ public class OpenViduLoadTest {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
 			lastBrowserRound.set(true);
 			try {
-				lastRoundCount.await();
+				lastRoundCount[0].await();
 			} catch (AbortedException e) {
 				log.error("Some browser thread did not reach a stable session status: {}", e.getMessage());
 				Assert.fail(e.getMessage());
@@ -562,9 +575,15 @@ public class OpenViduLoadTest {
 				try {
 					browserThread(b);
 				} catch (TimeoutException e) {
-					startNewSession.abort("User '" + b.getUserId() + "' in session '" + b.getSessionId()
-							+ "' for not receiving enough '" + e.getMessage() + "' events in " + SECONDS_OF_WAIT
-							+ " seconds");
+					if (lastBrowserRound.get()) {
+						lastRoundCount[0].abort("User '" + b.getUserId() + "' in session '" + b.getSessionId()
+								+ "' for not receiving enough '" + e.getMessage() + "' events in " + SECONDS_OF_WAIT
+								+ " seconds");
+					} else {
+						startNewSession[0].abort("User '" + b.getUserId() + "' in session '" + b.getSessionId()
+								+ "' for not receiving enough '" + e.getMessage() + "' events in " + SECONDS_OF_WAIT
+								+ " seconds");
+					}
 				}
 			});
 		}
@@ -654,9 +673,14 @@ public class OpenViduLoadTest {
 		// Start tcpdump process if option TCPDUMP_CAPTURE_BEFORE_CONNECT is false
 		if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0 && !OpenViduLoadTest.TCPDUMP_CAPTURE_BEFORE_CONNECT) {
 			try {
+				if (browser.getSshManager() == null) {
+					BrowserSshManager sshManager = new BrowserSshManager(browser);
+					browser.configureSshManager(sshManager);
+				}
+				log.info("Starting tcpdump process after connect for browser {}", browser.getUserId());
 				browser.getSshManager().startTcpDump();
 			} catch (Exception e) {
-				log.error("Error when starting tcpdump process for browser {}" + browser.getUserId());
+				log.error("Error when starting tcpdump process for browser {}: {}", browser.getUserId(), e.getMessage());
 			}
 		}
 
@@ -699,9 +723,9 @@ public class OpenViduLoadTest {
 			public void run() {
 				browser.getManager().gatherEventsAndStats(browser.getUserId(), gatheringRoundCount);
 				if (browser.getSessionId().equals(lastSession)) {
-					startNewSession.succeed();
+					startNewSession[0].succeed();
 					if (lastBrowserRound.get()) {
-						lastRoundCount.succeed();
+						lastRoundCount[0].succeed();
 					}
 				}
 				gatheringRoundCount++;
