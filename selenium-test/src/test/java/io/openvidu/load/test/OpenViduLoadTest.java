@@ -664,7 +664,12 @@ public class OpenViduLoadTest {
 			} else {
 				log.warn("No session info could be retrieved for unstable browser {}", browser.getUserId());
 			}
-			return;
+
+			browser.getManager().stopEventPolling();
+			log.info(
+					"User {} is now seeing a UNstable session ({}). OpenVidu events polling thread interrupted and starting stats gathering",
+					browser.getUserId(), browser.getSessionId());
+			startStatsGathering(browser);
 		}
 
 		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
@@ -681,7 +686,8 @@ public class OpenViduLoadTest {
 				log.info("Starting tcpdump process after connect for browser {}", browser.getUserId());
 				browser.getSshManager().startTcpDump();
 			} catch (Exception e) {
-				log.error("Error when starting tcpdump process for browser {}: {}", browser.getUserId(), e.getMessage());
+				log.error("Error when starting tcpdump process for browser {}: {}", browser.getUserId(),
+						e.getMessage());
 			}
 		}
 
@@ -709,6 +715,8 @@ public class OpenViduLoadTest {
 		log.info("User {} got OpenVidu session information for {} (is STABLE)", browser.getUserId());
 		if (sessionInfo != null) {
 			logHelper.logOpenViduSessionInfo(sessionInfo);
+		} else {
+			log.warn("No session info could be retrieved for stable browser {}", browser.getUserId());
 		}
 
 		browser.getManager().stopEventPolling();
@@ -717,6 +725,10 @@ public class OpenViduLoadTest {
 				"User {} is now seeing a stable session ({}). OpenVidu events polling thread interrupted and starting stats gathering",
 				browser.getUserId(), browser.getSessionId());
 
+		startStatsGathering(browser);
+	}
+
+	private void startStatsGathering(Browser browser) {
 		// Session stable. Start webrtc stats gathering
 		Runnable runnable = new Runnable() {
 			int gatheringRoundCount = 1;
