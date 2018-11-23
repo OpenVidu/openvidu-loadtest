@@ -24,7 +24,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -65,20 +64,19 @@ public class ResultsParser {
 	private LogHelper logHelper;
 
 	private File csvFileSubscribers;
-	private FileOutputStream outputStreamSubscribers;
 	private BufferedWriter writerSubscribers;
 
 	private File csvAverageFileSubscribers;
-	private FileOutputStream outputAverageStreamSubscribers;
 	private BufferedWriter writerAverageSubscribers;
 
 	private File csvFilePublishers;
-	private FileOutputStream outputStreamPublishers;
 	private BufferedWriter writerPublishers;
 
 	private File csvAverageFilePublishers;
-	private FileOutputStream outputAverageStreamPublishers;
 	private BufferedWriter writerAveragePublishers;
+
+	private File packetsFile;
+	private BufferedWriter writerPackets;
 
 	private final JsonParser parser = new JsonParser();
 	private int numberOfLines;
@@ -143,6 +141,7 @@ public class ResultsParser {
 				"loadTestSubscriberResultsAverage.csv");
 		this.csvFilePublishers = new File(OpenViduLoadTest.RESULTS_PATH, "loadTestPublisherResults.csv");
 		this.csvAverageFilePublishers = new File(OpenViduLoadTest.RESULTS_PATH, "loadTestPublisherResultsAverage.csv");
+		this.packetsFile = new File(OpenViduLoadTest.RESULTS_PATH, "packetsInfo.txt");
 		try {
 			// Subscribers results
 			this.writerSubscribers = new BufferedWriter(
@@ -159,6 +158,8 @@ public class ResultsParser {
 			this.writerAveragePublishers = new BufferedWriter(
 					new FileWriter(csvAverageFilePublishers.getAbsoluteFile().toString(), true));
 			writeCsvAverageLinePublishers("time,browsers,rtt,bitrate,packetsLost,availableSendBandwidth,cpu,mem");
+			// Packets results
+			this.writerPackets = new BufferedWriter(new FileWriter(packetsFile.getAbsoluteFile().toString(), true));
 		} catch (IOException e) {
 			log.error("CSV results file couldn't be created at {}. Error: {}",
 					OpenViduLoadTest.RESULTS_PATH + "/loadTestSubscriberResults.csv", e.getMessage());
@@ -418,7 +419,6 @@ public class ResultsParser {
 						currentSeconds = secondsSinceTestStarted;
 						newTime = false;
 					}
-
 				}
 			}
 			if (sc.ioException() != null) {
@@ -439,17 +439,13 @@ public class ResultsParser {
 			if (sc != null) {
 				sc.close();
 			}
-			// Close OutputStreams
-			closeOutputStream(outputStreamSubscribers);
-			closeOutputStream(outputAverageStreamSubscribers);
-			closeOutputStream(outputStreamPublishers);
-			closeOutputStream(outputAverageStreamPublishers);
 
 			// Close BufferedWriters
 			closeWriter(writerSubscribers);
 			closeWriter(writerAverageSubscribers);
 			closeWriter(writerPublishers);
 			closeWriter(writerAveragePublishers);
+			closeWriter(writerPackets);
 
 			this.calcAverageValues();
 			this.presentResults();
@@ -525,8 +521,8 @@ public class ResultsParser {
 							return true;
 						}
 					});
-					log.info("Packet dump results for file {}", file);
-					log.info(packetsTable.toString());
+					log.info(file + ": " + packetsTable.toString());
+					writePacketsLine(file + ": " + packetsTable.toString());
 				} catch (Exception e) {
 					log.error("File {} generated an error while packet processing. Error: {}",
 							OpenViduLoadTest.RESULTS_PATH + "/" + file, e.getMessage());
@@ -633,14 +629,8 @@ public class ResultsParser {
 		this.writerAveragePublishers.append(line + System.lineSeparator());
 	}
 
-	private void closeOutputStream(FileOutputStream stream) {
-		if (stream != null) {
-			try {
-				stream.close();
-			} catch (IOException e) {
-				log.error("Error closing output stream");
-			}
-		}
+	private void writePacketsLine(String line) throws IOException {
+		this.writerPackets.append(line + System.lineSeparator());
 	}
 
 	private void closeWriter(BufferedWriter writer) {
