@@ -48,6 +48,24 @@ legendPosition = c(0.11, 0.91)
 plot = ggplot(subscriberData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=delay, colour="Delay"), size=1.1) + ylab("Delay (milliseconds") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
 savePng("subscriberDELAY", plot)
 
+# CPU usage
+scaleFactor = max(subscriberData$cpu) / max(subscriberData$browsers)
+if (scaleFactor == 0) {
+	scaleFactor = 1;
+}
+legendPosition = c(0.11, 0.91)
+plot = ggplot(subscriberData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=cpu, colour="CPU"), size=1.1) + ylab("CPU usage (%)") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
+savePng("cpuUsage", plot)
+
+# MEM usage
+scaleFactor = max(subscriberData$cpu) / max(subscriberData$browsers)
+if (scaleFactor == 0) {
+	scaleFactor = 1;
+}
+legendPosition = c(0.11, 0.91)
+plot = ggplot(subscriberData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=mem, colour="Memory"), size=1.1) + ylab("Memory usage (%)") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
+savePng("memoryUsage", plot)
+
 # Publisher RTT
 scaleFactor = max(publisherData$rtt) / max(publisherData$browsers)
 if (scaleFactor == 0) {
