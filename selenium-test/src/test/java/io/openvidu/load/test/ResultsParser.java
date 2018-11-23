@@ -445,7 +445,6 @@ public class ResultsParser {
 			closeWriter(writerAverageSubscribers);
 			closeWriter(writerPublishers);
 			closeWriter(writerAveragePublishers);
-			closeWriter(writerPackets);
 
 			this.calcAverageValues();
 			this.presentResults();
@@ -532,6 +531,8 @@ public class ResultsParser {
 			log.error("Couldn't list tcpdump files in path {}. No further processing of tcpdump files",
 					OpenViduLoadTest.RESULTS_PATH);
 			return;
+		} finally {
+			closeWriter(writerPackets);
 		}
 	}
 
