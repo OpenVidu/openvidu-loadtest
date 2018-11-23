@@ -658,7 +658,7 @@ public class OpenViduLoadTest {
 			log.info("User {} requesting OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(),
 					browser.getSessionId());
 			String sessionInfo = performGetApiSession(browser.getSessionId());
-			log.info("User {} got OpenVidu session information for {} (is UNSTABLE)", browser.getUserId());
+			log.info("User {} got OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(), browser.getSessionId());
 			if (sessionInfo != null) {
 				logHelper.logOpenViduSessionInfo(sessionInfo);
 			} else {
@@ -712,7 +712,7 @@ public class OpenViduLoadTest {
 		log.info("User {} requesting OpenVidu session information for {} (is STABLE)", browser.getUserId(),
 				browser.getSessionId());
 		String sessionInfo = performGetApiSession(browser.getSessionId());
-		log.info("User {} got OpenVidu session information for {} (is STABLE)", browser.getUserId());
+		log.info("User {} got OpenVidu session information for {} (is STABLE)", browser.getUserId(), browser.getSessionId());
 		if (sessionInfo != null) {
 			logHelper.logOpenViduSessionInfo(sessionInfo);
 		} else {

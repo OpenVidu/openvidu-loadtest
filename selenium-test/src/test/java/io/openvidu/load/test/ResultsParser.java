@@ -605,6 +605,7 @@ public class ResultsParser {
 	}
 
 	private void generateGraphsWithR() {
+		log.info("Generating graphs with R");
 		if (CommandExecutor.executeCommand("which R").isEmpty()) {
 			log.error("Cannot generate graphs. R is not installed");
 			return;
