@@ -35,7 +35,7 @@ scaleFactor = max(subscriberData$jitter) / max(subscriberData$browsers)
 if (scaleFactor == 0) {
 	scaleFactor = 1;
 }
-legendPosition = c(0.11, 0.91)
+legendPosition = c(0.87, 0.15)
 plot = ggplot(subscriberData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=jitter, colour="Jitter"), size=1.1) + ylab("Jitter") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
 savePng("subscriberJITTER", plot)
 
@@ -80,6 +80,6 @@ scaleFactor = max(publisherData$bitrate) / max(publisherData$browsers)
 if (scaleFactor == 0) {
 	scaleFactor = 1;
 }
-legendPosition = c(0.11, 0.91)
+legendPosition = c(0.87, 0.15)
 plot = ggplot(publisherData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=bitrate, colour="Bitrate"), size=1.1) + ylab("Bitrate (kbps)") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
 savePng("publisherBITRATE", plot)
