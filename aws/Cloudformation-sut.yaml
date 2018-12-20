@@ -16,9 +16,15 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     ConstraintDescription: "must be the name of an existing EC2 KeyPair."
   InstanceType:
-    Description: "Instance Type"
-    Type: "String"
-    Default: "c5.2xlarge"
+    Description: "EC2 Instance type"
+    Type: String
+    Default: c5.xlarge
+    AllowedValues:
+    - c5.large
+    - c5.xlarge
+    - c5.2xlarge
+    - c5.4xlarge
+    ConstraintDescription: "Must be a valid EC2 instance type."
 
 Resources:
   OpenviduServer:
