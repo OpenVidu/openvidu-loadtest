@@ -180,7 +180,7 @@ You'll need to provide some parameters like:
 
 `KeyName`: Your RSA key to access the instance through SSH.
 
-`InstanceType`: Which instance type you want to try. Default c5.2xlarge.
+`InstanceType`: Which instance type you want to try. Default c5.xlarge.
 
 To deploy the template login in the Cloudformation dashboard and click **Create Stack**
 
