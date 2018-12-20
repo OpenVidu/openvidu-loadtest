@@ -32,7 +32,7 @@ Set that URL in the script.
 
 After configuring the script you will be able to launch it.
 
-`$ ./EC2Instance-ElastestBrowsers.yaml`
+`$ ./createAMI.sh`
 
 In about five minutes more or less, you can check EC2 Dashboard -> Images -> AMIs and seeing the new AMI.
 
