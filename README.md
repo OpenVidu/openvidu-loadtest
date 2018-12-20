@@ -35,16 +35,23 @@ The testing process for every client node will be:
 
 3) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws/#the-test-orchestrator-cloudformation-template).
 
-After successfully deploying the Test Orchestrator instance, connect to it through ssh and enter root mode:
+After successfully deploying the *Test Orchestrator Instance*, copy your key file to the instance. The test will need it to connect to *OpenVidu Server Instance*.
+
+```
+scp -i /path/to/your/key.pem /path/to/your/key.pem ubuntu@PUBLIC_IP_OF_TEST_ORCHESTRATOR_INSTANCE:.
+```
+
+Then connect to it through ssh:
 
 ```
 ssh -i /path/to/your/key.pem ubuntu@PUBLIC_IP_OF_TEST_ORCHESTRATOR_INSTANCE
 ```
 
-Once connected to the instance...
+Once connected to the instance enter root mode and move your key file to path `/opt/openvidu/testload`:
 
 ```
 sudo -s
+mv /home/ubuntu/key.pem /opt/openvidu/testload/.
 ```
 
 Now watch path `/home/ubuntu/`. When a folder `openvidu-loadtest` appears inside of it, then you will be ready to run the load test.
