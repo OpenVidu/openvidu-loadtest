@@ -33,7 +33,7 @@ The testing process for every client node will be:
 
 2) You will need then to deploy OpenVidu Server in Amazon Web Services (from now on ***OpenVidu Server Instance***). You can do so very easily following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template).
 
-3) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-test-orchestrator-cloudformation-template).
+3) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws/#the-test-orchestrator-cloudformation-template).
 
 After successfully deploying the Test Orchestrator instance, connect to it through ssh and enter root mode:
 
