@@ -168,7 +168,7 @@ The Cloudformation is configured to **not** rollback if it fails, so you could t
 
 which contains the provisioning process and can light the problem.
 
-## The SUT (Subject under Test) Cloudformation Template
+## The SUT (Subject under Test) Cloudformation template
 
 Template *[Cloudformation-sut.yaml](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/Cloudformation-sut.yaml)* can deploy a full OpenVidu stack with Kurento Media Server, Coturn, Redis and OpenVidu running behind a Nginx reverse proxy with a test app ready to be tested.
 
@@ -208,3 +208,20 @@ You can access OpenVidu with this credentials:
 | -----------: | :---------- |
 | **User**     | OPENVIDUAPP |
 | **Password** | MY_SECRET   |
+
+
+## The Test Orchestrator Cloudformation template
+
+Template *[Cloudformation-TestOrchestrator.yaml](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/Cloudformation-TestOrchestrator.yaml)* will deploy an Ubuntu machine with everything necessary to run the load test and coordinate its execution.
+
+You'll need to provide some parameters:
+
+`AWSAccessKey`: AWS access key for accessing your OpenVidu Server instance deployed in [this step](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template).
+
+`AWSSecretAccessKey`: AWS secret access key
+
+`InstanceType`: Which instance type you want for your test orchestrator. Default c5.xlarge.
+
+`KeyName`: Your RSA key to access the instance through SSH. **MUST BE THE SAME USED IN [OPENVIDU SERVER DEPLOYMENT](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template)**
+
+To deploy the template login in the AWS Cloudformation dashboard and follow the same steps as explained in [OpenVidu Server deployment](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template)

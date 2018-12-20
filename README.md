@@ -2,29 +2,76 @@
 
 This repository aims to facilitate the definition, execution and review of massive load testing scenarios of an OpenVidu application in a distributed cluster of containerized browsers, located in Amazon Web Services Cloud.
 
-Number of total sessions and participants must be customizable. Test will have the following default conditions:
+Number of total sessions and participants per session must be customizable. Test will have the following default conditions:
 
-- Every participant will be connecting from a single browser. Eveyr browser will be launched in its own Docker container with fixed resource configuration (available RAM, number of cores and bandwidth)
+- Every participant will be connecting from a single browser. Every browser will be launched in its own Docker container with fixed resource configuration (available RAM, number of cores and bandwidth)
 - Every browser will be a Chrome instance launched with the following options: `allow-file-access-from-files`, `use-file-for-fake-video-capture=fakevideo.y4m`, `use-file-for-fake-audio-capture=fakeaudio.wav`, `window-size=1980,1280`
 - OpenVidu will be deployed in a dedicated EC2 machine. Every OpenVidu session (and therefore every dockerized browser) will be connecting to this same instance
 - Each session will have 7 participants (7 publishers and 42 subscribers)
 - Each video will have a resolution of 540×360 pixels, 30 fps
 - Each browser will be responsible of obtaining the necessary token to connect to its specific test session (URL will contain as parameters the secret, the session identifier and the ip where to perform REST operations, so the JavaScript code can get the token)
-- Any kind of complexity in the client code will be avoided: just HTML videos displaying the local and remote streams
-- Every RTCPeerConnection object will be exposed to gather statistics thanks to method getStats()
+- Client HTML/JS code will show up 1 local video and 6 remotes videos, including WebRTC stats for all of them
+- Every RTCPeerConnection object will be exposed to gather statistics thanks to method [`RTCPeerConnection.getStats()`](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats)
 - The following statistics will be the ones gathered for each RTCPeerConnection object: Sender Round-Trip-Time (googRtt), Receviers Round-Trip-Time (googRtt), Received Bit-Rate, Sent Bit-Rate, Packet loss
 - Every browser will be monitored to ensure each one of the 7 videos is playing media
+- It must be possible to configure browsers to be recorded, so real quality can be then analysed
 
 The testing process for every client node will be:
 
-1. Launch Chrome with the required flags (selenium code in the test orchestrator will launch every client node)
-2. Wait fot the testing web application to load. This static web app will be hosted in the same EC22 machine as OpenVidu Server. RECORD TIME
-3. Wait for the browser to connect to the session in OpenVidu Server (`connectionCreated` event). RECORD TIME
-4. Wait for the local video to be playing (`videoPlaying` event). RECORD TIME
-5. Wait for each one of the 6 remote videos to be playing (`videoPlaying` event). RECORD TIME
-6. Gather statistics. Each call to getStats over each RTCPeerConnection object (7 calls to getStats in total) will take place every second, n times (n=8 by default)
-7. Close browser
+1. Launch Chrome with the required flags ([selenium code](https://github.com/OpenVidu/openvidu-loadtest/tree/master/selenium-test) in the test orchestrator will launch every client node)
+2. Wait fot the testing web application to load. This static web app will be hosted in the same AWS EC2 machine as OpenVidu Server.
+3. Wait for the browser to connect to the session in OpenVidu Server (`connectionCreated` event)
+4. Wait for the local video to be playing (`videoPlaying` event)
+5. Wait for each one of the 6 remote videos to be playing (`videoPlaying` event)
+6. Gather statistics. Each call to `getStats()` over each `RTCPeerConnection` object will take place periodically (customizable period)
+7. Wait until the test orchestrator node terminates the test. Close browser.
 
+
+## Running OpenVidu Load Test
+
+1) First you have to generate an Amazon AMI with the browser (from now on ***Client Instance***), so your test can quickly launch clients to connect to OpenVidu sessions. Perform [this step](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#configuration) and the [following one](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#creating-the-ami).
+
+2) You will need then to deploy OpenVidu Server in Amazon Web Services (from now on ***OpenVidu Server Instance***). You can do so very easily following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template).
+
+3) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-test-orchestrator-cloudformation-template).
+
+After successfully deploying the Test Orchestrator instance, connect to it through ssh and enter root mode:
+
+```
+ssh -i /path/to/your/key.pem ubuntu@PUBLIC_IP_OF_TEST_ORCHESTRATOR_INSTANCE
+```
+
+Once connected to the instance...
+
+```
+sudo -s
+```
+
+Now watch path `/home/ubuntu/`. When a folder `openvidu-loadtest` appears inside of it, then you will be ready to run the load test.
+
+First modify file `/home/ubuntu/openvidu-loadtest/src/test/resources/browserProvider.sh`, setting valid values to properties
+
+```
+IMAGE_ID=
+INSTANCE_TYPE=
+KEY_NAME=
+SECURITY_GROUP=
+```
+
+Being:
+
+- `IMAGE_ID`: identifier of the AMI created for your *Client Instances* during [these step](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#creating-the-ami)
+- `INSTANCE_TYPE`: type of instance for your *Client Instances*. For example `c5.xlarge`
+- `KEY_NAME`: the name of the key you used when deploying both *OpenVidu Server Instance* and *Test Orchestrator Instance*
+- `SECURITY_GROUP`: name of the security group needed to launch *Client Instances*
+
+
+You are now ready to launch the load test! Please, check out next section to learn about every configuration parameter you can pass to the `mvn test` command below:
+
+```
+cd /home/ubuntu/openvidu-loadtest/selenium-test
+mvn -Dtest=OpenViduLoadTest -DCONFIGURATION_PARAMETER=value test
+```
 
 ## Configuration parameters
 
