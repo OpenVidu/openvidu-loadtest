@@ -170,7 +170,7 @@ which contains the provisioning process and can light the problem.
 
 ## The SUT (Subject under Test) Cloudformation Template
 
-This template can deploy a full OpenVidu stack with Kurento Media Server, Coturn, Redis and OpenVidu running behind a Nginx reverse proxy with a test app ready to be tested.
+Template *[Cloudformation-sut.yaml](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/Cloudformation-sut.yaml)* can deploy a full OpenVidu stack with Kurento Media Server, Coturn, Redis and OpenVidu running behind a Nginx reverse proxy with a test app ready to be tested.
 
 You'll need to provide some parameters like:
 
