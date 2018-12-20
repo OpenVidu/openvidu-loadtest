@@ -1,16 +1,16 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Openvidu Server Pro CloudFormation AMI template.
+Description: Openvidu Server CloudFormation AMI template.
 
 Parameters:
   OpenViduVersion:
     Description: Openvidu Version
     Type: String
-    Default: 2.6.0
+    Default: 2.7.0
   KMSVersion:
     Description: Kurento Media Server Version. Set to nightly for nightly version.
     Type: String
-    Default: 6.8.1
+    Default: 6.9.0
   KeyName:
     Description: "Name of an existing EC2 KeyPair to enable SSH access to the instance."
     Type: AWS::EC2::KeyPair::KeyName
