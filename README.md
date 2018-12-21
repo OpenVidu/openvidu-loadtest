@@ -10,10 +10,10 @@ Number of total sessions and participants per session must be customizable. Test
 - Each session will have 7 participants by default (7 publishers and 42 subscribers), but this must be customizable
 - Each video will have a resolution of 540×360 pixels, 30 fps
 - Each browser will be responsible of obtaining the necessary token to connect to its specific test session (URL will contain as parameters the secret, the session identifier and the ip where to perform REST operations, so the JavaScript code can get the token)
-- Client HTML/JS code will show up 1 local video and 6 remotes videos, including WebRTC stats for all of them
+- Client HTML/JS code will show up 1 local video and 6 remotes videos (for 7 users per session), including WebRTC stats for all of them
 - Every RTCPeerConnection object will be exposed to gather statistics thanks to method [`RTCPeerConnection.getStats()`](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats)
 - The following statistics will be the ones gathered for each RTCPeerConnection object: Sender Round-Trip-Time (googRtt), Receviers Round-Trip-Time (googRtt), Received Bit-Rate, Sent Bit-Rate, Packet loss
-- Every browser will be monitored to ensure each one of the 7 videos is playing media
+- Every browser will be monitored to ensure each one of the videos is playing media
 - It must be possible to configure browsers to be recorded, so real quality can be then analysed
 
 The testing process for every client node will be:
