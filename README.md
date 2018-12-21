@@ -22,7 +22,7 @@ The testing process for every client node will be:
 2. Wait fot the testing web application to load. This static web app will be hosted in the same AWS EC2 machine as OpenVidu Server.
 3. Wait for the browser to connect to the session in OpenVidu Server (`connectionCreated` event)
 4. Wait for the local video to be playing (`videoPlaying` event)
-5. Wait for each one of the 6 remote videos to be playing (`videoPlaying` event)
+5. Wait for each one of the remote videos to be playing (`videoPlaying` event)
 6. Gather statistics. Each call to `getStats()` over each `RTCPeerConnection` object will take place periodically (customizable period)
 7. Wait until the test orchestrator node terminates the test. Close browser.
 
