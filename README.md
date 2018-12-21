@@ -7,7 +7,7 @@ Number of total sessions and participants per session must be customizable. Test
 - Every participant will be connecting from a single browser. Every browser will be launched in its own Docker container with fixed resource configuration (available RAM, number of cores and bandwidth)
 - Every browser will be a Chrome instance launched with the following options: `allow-file-access-from-files`, `use-file-for-fake-video-capture=fakevideo.y4m`, `use-file-for-fake-audio-capture=fakeaudio.wav`, `window-size=1980,1280`
 - OpenVidu will be deployed in a dedicated EC2 machine. Every OpenVidu session (and therefore every dockerized browser) will be connecting to this same instance
-- Each session will have 7 participants (7 publishers and 42 subscribers)
+- Each session will have 7 participants by default (7 publishers and 42 subscribers), but this must be customizable
 - Each video will have a resolution of 540×360 pixels, 30 fps
 - Each browser will be responsible of obtaining the necessary token to connect to its specific test session (URL will contain as parameters the secret, the session identifier and the ip where to perform REST operations, so the JavaScript code can get the token)
 - Client HTML/JS code will show up 1 local video and 6 remotes videos, including WebRTC stats for all of them
