@@ -110,6 +110,11 @@ Resources:
 
             # sending the finish call
             /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WaitCondition --region ${AWS::Region}
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 16
             
   TestOrchestratorSecurityGroup:
     Type: AWS::EC2::SecurityGroup
