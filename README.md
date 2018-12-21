@@ -110,21 +110,39 @@ Configuration properties when running `mvn test` in `selenium-test/.` (configure
 
 ## Results format
 
-The resulting output file (configured with parameter `RESULTS_PATH`) contains one JSON formatted string in each line. It can be:
+Inside folder configured with parameter `RESULTS_PATH` you will find another folder named like `loadtest_DATE_TIME`. It containes all of the files generated during certain load test execution. This files are:
 
-- **Test event log**: the load test will generate a log entry for certain key situations during the test execution. This includes:
-    - `testStarted`: recorded when the load test has started
-    - `testFinished`: recorded when the load test has finished
-    - `connectingToBrowser`: recorded when the process of initializing a remote web driver starts
-    - `connectedToBrowser`: recorded when the process of initializing a remote web driver ends
-    - `sessionStarted`: recorded **once** when the first user of one session successfully connects to it
-    - `sessionStable`: recorded when each browser reaches a stable session state: that is, the publisher video is successfully being played and each one of the 6 remote videos has media and is playing. Ideally there will be 7 _sessionStable_ events for each session
-    - `sessionUnstable`: recorded if a browser is not able to reach a stable session state in the given `SECONDS_OF_WAIT` timeout. This means: a) Some OpenVidu event is not triggered (`connectionCreated`, `streamCreated`...) and therefore OpenVidu Server has not been able to send the appropriate events to the newly connected browser through its websocket or b) Some remote video is not being received by the browser
+- **test.log**: log of the selenium test (from ***Test Orchestrator Instance***)
+- **[DATE_TIME].pid[NUMBER].log**: standard log for Kurento Media Server (from ***OpenVidu Server Instance***)
+- **errors.log**: error log for Kurento Media Server (from ***OpenVidu Server Instance***)
+- **turn_[ID]**: log for TURN server (from ***OpenVidu Server Instance***)
+- **loadTestInfo.txt**: useful summary of the test execution, with the specified configuration and a glance of the results
+- ***.csv** files: spreadsheets containing information about Publisher and Subscriber statistics
+- ***.pcap** files: network packet dumps (from ***Client Instance***). Only available if property `TCPDUMP_CAPTURE_TIME` is not set to 0
+- **packetsInfo.txt**: information about the number and full protocol stack of network packets send and receive by every ***Client Instance*** (this is obtained using .pcap files). Only available if property `TCPDUMP_CAPTURE_TIME` is not set to 0. Each line of the file has the following format:
 
-    > Each test event log has the following structure: `{"event":{"name":"EVENT_NAME","sessionId":"session-5","userId":"user-5-1","secondsSinceTestStarted":325,"secondsSinceSessionStarted":8},"timestamp":1541503314461}`
+        {[SOURCE_IP]:[SOURCE_PORT]>[DESTINATION_IP]:[DESTINATION_PORT]={[protocolA-protocolB-protocolC]={[NUMBER_OF_PACKETS], [protocolX-protocolY-protocolZ]=[NUMBER_OF_PACKETS]}, ... }
 
-- **Browser WebRTC stats**: each browser connecting to a session will generate WebRTC statistics gathered by the test every `BROWSER_POLL_INTERVAL` milliseconds.
+        # For example
+        # tcpdump-user-4-2.pcap: {172.31.44.154:26351>172.31.20.11:56140={ip-udp-rtp=229, ip-udp=6}, 172.31.25.59:48944>91.189.95.15:80={ip-tcp=6}}
 
-- **OpenVidu Server monitoring stats**: the test will gather cpu usage, memory usage and network activity (bytes sent and received) from OpenVidu Server every `SERVER_POLL_INTERVAL` milliseconds.
+- ***.png** files: useful graphs generated with gathered statistics
+- ***.mp4** files: browser recordings (from ***Client Instance***). Only available for those clients configured in property `RECORD_BROWSERS`.
+- **loadTestStats.txt**: file with stats and events of the test. Has one JSON formatted string in each line that can be:
 
-- **OpenVidu session information**: every browser will perform a GET request to `/api/sessions/{SESSION_ID}` just before `sessionStable` or `sessionUnstable` test event is recorded.
+    - **Test event log**: the load test will generate a log entry for certain key situations during the test execution. This includes:
+        - `testStarted`: recorded when the load test has started
+        - `testFinished`: recorded when the load test has finished
+        - `connectingToBrowser`: recorded when the process of initializing a remote web driver starts
+        - `connectedToBrowser`: recorded when the process of initializing a remote web driver ends
+        - `sessionStarted`: recorded **once** when the first user of one session successfully connects to it
+        - `sessionStable`: recorded when each browser reaches a stable session state: that is, the publisher video is successfully being played and each one of the 6 remote videos has media and is playing. Ideally there will be 7 _sessionStable_ events for each session
+        - `sessionUnstable`: recorded if a browser is not able to reach a stable session state in the given `SECONDS_OF_WAIT` timeout. This means: a) Some OpenVidu event is not triggered (`connectionCreated`, `streamCreated`...) and therefore OpenVidu Server has not been able to send the appropriate events to the newly connected browser through its websocket or b) Some remote video is not being received by the browser
+
+        > Each test event log has the following structure: `{"event":{"name":"EVENT_NAME","sessionId":"session-5","userId":"user-5-1","secondsSinceTestStarted":325,"secondsSinceSessionStarted":8},"timestamp":1541503314461}`
+
+    - **Browser WebRTC stats**: each browser connecting to a session will generate WebRTC statistics gathered by the test every `BROWSER_POLL_INTERVAL` milliseconds.
+
+    - **OpenVidu Server monitoring stats**: the test will gather cpu usage, memory usage and network activity (bytes sent and received) from OpenVidu Server every `SERVER_POLL_INTERVAL` milliseconds.
+
+    - **OpenVidu session information**: every browser will perform a GET request to `/api/sessions/{SESSION_ID}` just before `sessionStable` or `sessionUnstable` test event is recorded.
