@@ -14,6 +14,8 @@ In this folder we provide the files for deploying and provisioning infraestructu
 
 `terminateInstances.sh`: Terminate all the instances used by the test.
 
+`Cloudformation-sut-webapp.yaml`: This template is special for using OpenVidu Pro (OpenVidu' paid version).
+
 ## Configuration
 
 You must perform some changes in the files provided in order to fit your needs. For example, depends on your region you need to use a different base AMI, we use Ubuntu 16.04 to install Docker and the browser, this AMI is provided by Amazon and it's different in each region.
