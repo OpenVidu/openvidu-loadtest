@@ -62,7 +62,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
@@ -76,7 +75,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
-import io.github.bonigarcia.SeleniumExtension;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.openvidu.load.test.browser.Browser;
 import io.openvidu.load.test.browser.BrowserNotReadyException;
@@ -97,7 +95,6 @@ import io.openvidu.load.test.utils.ZipGenerator;
  * @author Pablo Fuente (pablofuenteperez@gmail.com)
  */
 @DisplayName("OpenVidu load test")
-@ExtendWith(SeleniumExtension.class)
 @RunWith(JUnitPlatform.class)
 public class OpenViduLoadTest {
 
@@ -658,7 +655,8 @@ public class OpenViduLoadTest {
 			log.info("User {} requesting OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(),
 					browser.getSessionId());
 			String sessionInfo = performGetApiSession(browser.getSessionId());
-			log.info("User {} got OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(), browser.getSessionId());
+			log.info("User {} got OpenVidu session information for {} (is UNSTABLE)", browser.getUserId(),
+					browser.getSessionId());
 			if (sessionInfo != null) {
 				logHelper.logOpenViduSessionInfo(sessionInfo);
 			} else {
@@ -712,7 +710,8 @@ public class OpenViduLoadTest {
 		log.info("User {} requesting OpenVidu session information for {} (is STABLE)", browser.getUserId(),
 				browser.getSessionId());
 		String sessionInfo = performGetApiSession(browser.getSessionId());
-		log.info("User {} got OpenVidu session information for {} (is STABLE)", browser.getUserId(), browser.getSessionId());
+		log.info("User {} got OpenVidu session information for {} (is STABLE)", browser.getUserId(),
+				browser.getSessionId());
 		if (sessionInfo != null) {
 			logHelper.logOpenViduSessionInfo(sessionInfo);
 		} else {
