@@ -77,7 +77,7 @@ Resources:
                   /opt/kurento/development/kurento-repo-xenial-nightly-2018
                   /opt/kurento/development/kurento-install-debugging-2018 
                 else
-                  echo "deb http://ubuntu.openvidu.io/${KMSVersion} xenial kms6" > /etc/apt/sources.list.d/kurento.list
+                  echo "deb [arch=amd64] http://ubuntu.openvidu.io/${KMSVersion} xenial kms6" > /etc/apt/sources.list.d/kurento.list
                   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5AFA7A83
                   apt-get update
                   apt-get -y install kurento-media-server
