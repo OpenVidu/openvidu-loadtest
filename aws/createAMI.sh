@@ -1,14 +1,14 @@
 #!/bin/bash
 set -eu -o pipefail
 
-export AWS_DEFAULT_REGION=us-west-2
+export AWS_DEFAULT_REGION=eu-west-1
 
 # Copy template to S3
 aws s3 cp EC2Instance-ElastestBrowsers.yaml s3://public.openvidu.io --acl public-read
 
 # Please, refer to https://cloud-images.ubuntu.com/locator/ec2/
 # to find a valid EC2 AMI
-IMAGE_ID=ami-0afae182eed9d2b46
+IMAGE_ID=ami-03746875d916becc0
 
 # Please, upload the template EC2Instance-ElastestBrowsers.yaml
 # to a S3 bucket
