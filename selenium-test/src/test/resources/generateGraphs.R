@@ -48,6 +48,24 @@ legendPosition = c(0.11, 0.91)
 plot = ggplot(subscriberData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=delay, colour="Delay"), size=1.1) + ylab("Delay (milliseconds") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
 savePng("subscriberDELAY", plot)
 
+# Subscriber FramesDecoded
+scaleFactor = max(subscriberData$framesDecoded) / max(subscriberData$browsers)
+if (scaleFactor == 0) {
+	scaleFactor = 1;
+}
+legendPosition = c(0.11, 0.91)
+plot = ggplot(subscriberData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=framesDecoded, colour="FramesDecoded"), size=1.1) + ylab("FramesDecoded") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
+savePng("subscriberFRAMESDECODED", plot)
+
+# Subscriber PacketsLost
+scaleFactor = max(subscriberData$packetsLost) / max(subscriberData$browsers)
+if (scaleFactor == 0) {
+	scaleFactor = 1;
+}
+legendPosition = c(0.11, 0.91)
+plot = ggplot(subscriberData, aes(x=time)) + xlab("Time (seconds)") + geom_line(aes(y=packetsLost, colour="PacketsLost"), size=1.1) + ylab("PacketsLost") + geom_line(aes(y=browsers*scaleFactor, colour="Participants"), size=1.1) + scale_y_continuous(sec.axis = sec_axis(~./scaleFactor, name = "Number of participants")) + theme(legend.position = legendPosition)
+savePng("subscriberPACKETSLOST", plot)
+
 # CPU usage
 scaleFactor = max(subscriberData$cpu) / max(subscriberData$browsers)
 if (scaleFactor == 0) {

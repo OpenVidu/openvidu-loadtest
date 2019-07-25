@@ -350,6 +350,7 @@ function gatherStatsForPeer(rtcPeerConnection, userId, isSubscriber, errorCallba
 				userStatsJson.jitter = Number(videoStats.googJitterBufferMs);
 				userStatsJson.delay = Number(videoStats.googCurrentDelayMs);
 				userStatsJson.packetsLost = Number(videoStats.packetsLost);
+				userStatsJson.framesDecoded = Number(videoStats.framesDecoded);
 
 				// Store variables for next stats gathering
 				lastStatGatheringTime[userId] = videoStats.timestamp.getTime();

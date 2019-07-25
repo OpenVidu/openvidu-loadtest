@@ -96,6 +96,7 @@ public class ResultsParser {
 	private double totalPublisherBitrate;
 	private double totalAvailablePublisherBandwitdh;
 	private double totalAvailableSubscriberBandwitdh;
+	private double totalSubscriberFramesDecoded;
 
 	private int maxSubscriberRtt;
 	private int maxPublisherRtt;
@@ -113,6 +114,7 @@ public class ResultsParser {
 	private int averageSubscriberBitrate;
 	private int averagePublisherBitrate;
 	private int averageAvailableSubscriberBandwitdh;
+	private int averageSubscriberFramesDecoded;
 	private int averageAvailablePublisherBandwitdh;
 
 	private double maxCpuUsage;
@@ -146,15 +148,16 @@ public class ResultsParser {
 			// Subscribers results
 			this.writerSubscribers = new BufferedWriter(
 					new FileWriter(csvFileSubscribers.getAbsoluteFile().toString(), true));
-			writeCsvLineSubscribers("time,rtt,bitrate,jitter,delay,packetsLost,availableReceiveBandwidth");
+			writeCsvLineSubscribers(
+					"time,rtt,bitrate,jitter,delay,packetsLost,availableReceiveBandwidth,framesDecoded");
 			this.writerAverageSubscribers = new BufferedWriter(
 					new FileWriter(csvAverageFileSubscribers.getAbsoluteFile().toString(), true));
 			writeCsvAverageLineSubscribers(
-					"time,browsers,rtt,bitrate,jitter,delay,packetsLost,availableReceiveBandwidth,cpu,mem");
+					"time,browsers,rtt,bitrate,jitter,delay,packetsLost,availableReceiveBandwidth,framesDecoded,cpu,mem");
 			// Publisher results
 			this.writerPublishers = new BufferedWriter(
 					new FileWriter(csvFilePublishers.getAbsoluteFile().toString(), true));
-			writeCsvLinePublishers("time,rtt,bitrate,packetsLost,availableReceiveBandwidth");
+			writeCsvLinePublishers("time,rtt,bitrate,packetsLost,availableSendBandwidth");
 			this.writerAveragePublishers = new BufferedWriter(
 					new FileWriter(csvAverageFilePublishers.getAbsoluteFile().toString(), true));
 			writeCsvAverageLinePublishers("time,browsers,rtt,bitrate,packetsLost,availableSendBandwidth,cpu,mem");
@@ -179,6 +182,7 @@ public class ResultsParser {
 			int averageDelaySubscribers = 0;
 			int averagePacketLostSubscribers = 0;
 			int averageAvailableReceiveBandwidthSubscribers = 0;
+			int averageFramesDecodedSubscribers = 0;
 
 			int averageRttPublishers = 0;
 			int averageBitratePublishers = 0;
@@ -302,12 +306,14 @@ public class ResultsParser {
 											int packetsLost = stats.get("packetsLost").getAsInt();
 											int availableReceiveBandwidth = stats.get("availableReceiveBandwidth")
 													.getAsInt();
+											int framesDecoded = stats.get("framesDecoded").getAsInt();
 
 											maxSubscriberRtt = Math.max(maxSubscriberRtt, rtt);
 											totalSubscriberRtt += rtt;
 											maxSubscriberPacketsLost = Math.max(maxSubscriberPacketsLost, packetsLost);
 											totalSubscriberPacketsLost += packetsLost;
 											totalAvailableSubscriberBandwitdh += availableReceiveBandwidth;
+											totalSubscriberFramesDecoded += framesDecoded;
 											totalSubscriberBitrate += bitrate;
 
 											maxSubscriberJitter = Math.max(maxSubscriberJitter, jitter);
@@ -323,6 +329,7 @@ public class ResultsParser {
 											averageDelaySubscribers += delay;
 											averagePacketLostSubscribers += packetsLost;
 											averageAvailableReceiveBandwidthSubscribers += availableReceiveBandwidth;
+											averageFramesDecodedSubscribers += framesDecoded;
 
 											StringBuilder sb = new StringBuilder(200);
 											sb.append(secondsSinceTestStarted - initialTime);
@@ -338,6 +345,8 @@ public class ResultsParser {
 											sb.append(packetsLost);
 											sb.append(",");
 											sb.append(availableReceiveBandwidth);
+											sb.append(",");
+											sb.append(framesDecoded);
 											try {
 												writeCsvLineSubscribers(sb.toString());
 											} catch (IOException e) {
@@ -372,6 +381,8 @@ public class ResultsParser {
 						sb.append(",");
 						sb.append(averageAvailableReceiveBandwidthSubscribers / countSameTimeSubscribers);
 						sb.append(",");
+						sb.append(averageFramesDecodedSubscribers / countSameTimeSubscribers);
+						sb.append(",");
 						sb.append((int) lastCpuUsage);
 						sb.append(",");
 						sb.append((int) lastMemUsage);
@@ -386,6 +397,7 @@ public class ResultsParser {
 						averageDelaySubscribers = 0;
 						averagePacketLostSubscribers = 0;
 						averageAvailableReceiveBandwidthSubscribers = 0;
+						averageFramesDecodedSubscribers = 0;
 						countSameTimeSubscribers = 0;
 
 						// Average publisher entry
@@ -542,6 +554,8 @@ public class ResultsParser {
 		this.averageSubscriberBitrate = (int) (this.totalSubscriberBitrate / this.numberOfSubscriberEntries);
 		this.averageAvailableSubscriberBandwitdh = (int) (this.totalAvailableSubscriberBandwitdh
 				/ this.numberOfSubscriberEntries);
+		this.averageSubscriberFramesDecoded = (int) (this.totalSubscriberFramesDecoded
+				/ this.numberOfSubscriberEntries);
 		this.averageSubscriberJitter = (int) (this.totalSubscriberJitter / this.numberOfSubscriberEntries);
 		this.averageSubscriberDelay = (int) (this.totalSubscriberDelay / this.numberOfSubscriberEntries);
 
@@ -583,6 +597,8 @@ public class ResultsParser {
 				+ "Average WebRTC sender bitrate: " + averagePublisherBitrate + " kbps"
 				+ System.getProperty("line.separator") + "Average WebRTC available receive bandwidth: "
 				+ averageAvailableSubscriberBandwitdh + System.getProperty("line.separator")
+				+ System.getProperty("line.separator") + "Average WebRTC receiver frames decoded: "
+				+ averageSubscriberFramesDecoded + System.getProperty("line.separator")
 				+ "Average WebRTC available send bandwidth: " + averageAvailablePublisherBandwitdh
 				+ System.getProperty("line.separator") + "Max WebRTC receiver RTT: " + maxSubscriberRtt
 				+ System.getProperty("line.separator") + "Max WebRTC sender RTT: " + maxPublisherRtt
