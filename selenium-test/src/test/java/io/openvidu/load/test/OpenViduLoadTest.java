@@ -100,12 +100,11 @@ public class OpenViduLoadTest {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	public static ExecutorService browserInitializationTaskExecutor = Executors
-			.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+	public static ExecutorService browserInitializationTaskExecutor;
 	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
 			Runtime.getRuntime().availableProcessors());
 	final static ScheduledThreadPoolExecutor tcpdumpStopProcesses = new ScheduledThreadPoolExecutor(
-			Runtime.getRuntime().availableProcessors());
+			Runtime.getRuntime().availableProcessors()*4);
 
 	static OpenViduServerManager openViduServerManager;
 	public static LogHelper logHelper;
@@ -217,6 +216,8 @@ public class OpenViduLoadTest {
 		if (tcpdumpCaptureTime != null) {
 			TCPDUMP_CAPTURE_TIME = Integer.parseInt(tcpdumpCaptureTime);
 		}
+
+		browserInitializationTaskExecutor = Executors.newFixedThreadPool(USERS_SESSION);
 
 		initializeRecordBrowsersProperty(recordBrowsers);
 		initializeNetworkRestrictionsBrowsersProperty(networkRestrictionsBrowsers);
