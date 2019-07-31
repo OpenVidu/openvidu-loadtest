@@ -24,6 +24,8 @@ Parameters:
     - c5.xlarge
     - c5.2xlarge
     - c5.4xlarge
+    - t3.large
+    - t3.xlarge
     ConstraintDescription: "Must be a valid EC2 instance type."
 
 Resources:
