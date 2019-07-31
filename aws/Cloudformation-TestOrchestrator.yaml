@@ -75,10 +75,10 @@ Resources:
                 echo "install.packages(\"ggplot2\", repos=\"https://cran.rstudio.com\")" | R --no-save
 
                 # Configure AWS-CLI
-                aws configure set aws_access_key_id ${AWSAccessKey}
-                aws configure set aws_secret_access_key ${AWSSecretAccessKey}
-                aws configure set region ${AWS::Region}
-                aws configure set output json
+                su -l ubuntu -c "aws configure set aws_access_key_id ${AWSAccessKey}"
+                su -l ubuntu -c "aws configure set aws_secret_access_key ${AWSSecretAccessKey}"
+                su -l ubuntu -c "aws configure set region ${AWS::Region}"
+                su -l ubuntu -c "aws configure set output json"
 
                 # Clone openvidu-loadtest repo
                 git clone https://github.com/OpenVidu/openvidu-loadtest.git /home/ubuntu/openvidu-loadtest
