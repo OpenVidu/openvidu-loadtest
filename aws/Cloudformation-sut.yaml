@@ -231,7 +231,7 @@ Resources:
               owner: "root"
               group: "root"
     Properties:
-      ImageId:  "ami-01e0cf6e025c036e4"
+      ImageId:  "ami-03ef731cc103c9f09"
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !Ref OpenviduServerSecurityGroup
