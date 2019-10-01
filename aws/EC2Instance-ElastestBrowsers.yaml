@@ -5,6 +5,7 @@ Parameters:
   ImageId:
     Type: AWS::EC2::Image::Id
     Description: An Amazon EC2 image ID, such as ami-0ff8a91507f77f867.
+    Default: ami-03ef731cc103c9f09
 
 Resources:
   BrowserInstance:
@@ -39,6 +40,7 @@ Resources:
                 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
                 apt-get update 
                 apt-get install -y docker-ce
+                
                 # Building custom Elastest Browser with iptables
                 TMPDIR=$(mktemp -d)
                 pushd $TMPDIR
@@ -47,11 +49,19 @@ Resources:
                 docker build -t elastestbrowsers/chrome:iptables .
                 popd
                 rm -rf $TMPDIR
+
                 # Provisioning media files
                 mkdir /opt/openvidu
-                wget -q http://public.openvidu.io/fakeaudio.wav -O /opt/openvidu/fakeaudio.wav
-                wget -q http://public.openvidu.io/fakevideo.y4m -O /opt/openvidu/fakevideo.y4m
                 chmod -R 777 /opt/openvidu
+                pushd /opt/openvidu
+                cat >url.txt<<EOF
+                http://public.openvidu.io/fakeaudio.wav
+                http://public.openvidu.io/fakevideo.y4m
+                http://public.openvidu.io/fakevideo_with_padding.y4m
+                EOF
+                cat url.txt | xargs -n 1 -P 10 wget 
+                rm url.txt
+               
                 # Adding regular user to Docker group
                 usermod -aG docker ubuntu
               mode: "000755"
@@ -117,5 +127,5 @@ Resources:
     Type: AWS::CloudFormation::WaitCondition
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT15M
+        Timeout: PT25M
         Count: 1
