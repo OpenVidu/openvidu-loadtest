@@ -8,10 +8,8 @@ aws s3 cp EC2Instance-ElastestBrowsers.yaml s3://public.openvidu.io --acl public
 
 # Please, refer to https://cloud-images.ubuntu.com/locator/ec2/
 # to find a valid EC2 AMI
-IMAGE_ID=ami-03746875d916becc0
+IMAGE_ID=ami-03ef731cc103c9f09
 
-# Please, upload the template EC2Instance-ElastestBrowsers.yaml
-# to a S3 bucket
 CF_URL=https://s3-eu-west-1.amazonaws.com/public.openvidu.io/EC2Instance-ElastestBrowsers.yaml
 
 DATESTAMP=$(date +%s)
