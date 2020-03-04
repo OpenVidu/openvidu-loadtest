@@ -112,8 +112,9 @@ public class OpenViduLoadTest {
 	public static String OPENVIDU_SECRET = "MY_SECRET";
 	public static String OPENVIDU_URL = "https://localhost:4443/";
 	public static String APP_URL = "http://localhost:8080/";
+	public static String RECORDING_OUTPUT_MODE = "COMPOSED";
 	public static int SESSIONS = 10;
-	public static int USERS_SESSION = 7;
+	public static int USERS_SESSION = 2;
 	public static int SECONDS_OF_WAIT = 40;
 	public static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
@@ -148,6 +149,7 @@ public class OpenViduLoadTest {
 		String openviduUrl = System.getProperty("OPENVIDU_URL");
 		String openviduSecret = System.getProperty("OPENVIDU_SECRET");
 		String appUrl = System.getProperty("APP_URL");
+		String recordingOutputMode = System.getProperty("RECORDING_OUTPUT_MODE");
 		String sessions = System.getProperty("SESSIONS");
 		String usersSession = System.getProperty("USERS_SESSION");
 		String secondsOfWait = System.getProperty("SECONDS_OF_WAIT");
@@ -173,6 +175,9 @@ public class OpenViduLoadTest {
 		}
 		if (appUrl != null) {
 			APP_URL = appUrl;
+		}
+		if (recordingOutputMode != null){
+			RECORDING_OUTPUT_MODE = recordingOutputMode;
 		}
 		if (sessions != null) {
 			SESSIONS = Integer.parseInt(sessions);
@@ -269,7 +274,8 @@ public class OpenViduLoadTest {
 		String testInfo = "------------ TEST CONFIGURATION ----------" + System.getProperty("line.separator")
 				+ "OpenVidu URL:          " + OPENVIDU_URL + System.getProperty("line.separator")
 				+ "OpenVidu secret:       " + OPENVIDU_SECRET + System.getProperty("line.separator")
-				+ "App URL:               " + APP_URL + System.getProperty("line.separator") + "Session limit:         "
+				+ "App URL:               " + APP_URL + System.getProperty("line.separator") + "Recording Mode:         "
+				+  RECORDING_OUTPUT_MODE + System.getProperty("line.separator") + "Session limit:         "
 				+ SESSIONS + System.getProperty("line.separator") + "Users per session:     " + USERS_SESSION
 				+ System.getProperty("line.separator") + "Expected browsers:     " + SESSIONS * USERS_SESSION
 				+ System.getProperty("line.separator") + "Expected Publishers:   " + SESSIONS * USERS_SESSION
@@ -487,8 +493,8 @@ public class OpenViduLoadTest {
 				.networkRestriction(getNetworkRestriction(sessionIndex, userIndex)).build();
 
 		Browser browser = browserProvider.getBrowser(properties);
-		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
-				+ sessionId + "&userId=" + userId);
+		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&recordingmode=" + RECORDING_OUTPUT_MODE + "&secret="
+		 		 + OPENVIDU_SECRET + "&sessionId=" + sessionId + "&userId=" + userId);
 		browser.getManager().startEventPolling(userId, sessionId);
 
 		Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
@@ -606,7 +612,7 @@ public class OpenViduLoadTest {
 
 		for (Browser b : listOfBrowsers) {
 			log.info("Browser {} connecting now to {}", b.getUserId(), APP_URL);
-			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
+			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&recordingmode=" + RECORDING_OUTPUT_MODE + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 					+ sessionId + "&userId=" + propertiesList.get(i).userId());
 			log.info("Browser {} is now connected to to {}", b.getUserId(), APP_URL);
 			b.getManager().startEventPolling(propertiesList.get(i).userId(), sessionId);

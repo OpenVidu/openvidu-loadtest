@@ -1,7 +1,15 @@
+
+const RECORDING_MODE = Object.freeze({ALWAYS:'ALWAYS', MANUAL: 'MANUAL' });
+const OUTPUT_MODE = Object.freeze({COMPOSED:'COMPOSED', INDIVIDUAL: 'INDIVIDUAL' });
+const RECORDING_LAYOUT = Object.freeze({BEST_FIT:'BEST_FIT', CUSTOM: 'CUSTOM' });
+
+const RESOLUTION = "320x240";
+
 var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
 var SESSION_ID;
 var USER_ID;
+var RECORDING_OUTPUT_MODE;
 
 var OV;
 var session;
@@ -9,13 +17,17 @@ var session;
 var lastStatGatheringTime = {};
 var lastBytesReceived = {};
 
+
 window.onload = () => {
 	var url = new URL(window.location.href);
+	console.log("URL", url)
 	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl");
 	OPENVIDU_SERVER_SECRET = url.searchParams.get("secret");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
-	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID) {
+	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
+
+	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID || !RECORDING_OUTPUT_MODE) {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
 	} else {
@@ -69,7 +81,13 @@ function joinSession() {
 	getToken().then(token => {
 		session.connect(token, USER_ID)
 			.then(() => {
-				var publisher = OV.initPublisher(insertPublisherContainer(), { resolution: "540x360", frameRate: 30, mirror: false });
+				var publisher = OV.initPublisher(insertPublisherContainer(), {
+					 resolution: RESOLUTION,
+					 frameRate: 30,
+					 mirror: false,
+					 filter: {type: "GStreamerFilter", options: { command: "textoverlay text='Embedded text' valignment=center halignment=center font-desc='Cantarell 30'"}}
+				});
+
 				setPublisherButtonsActions(publisher);
 				session.publish(publisher);
 			})
@@ -145,7 +163,7 @@ function setPublisherButtonsActions(publisher) {
 		} else {
 			var elem = document.getElementById('video-publisher');
 			elem.parentNode.removeChild(elem);
-			var publisher2 = OV.initPublisher(insertPublisherContainer(), { resolution: "540x360", frameRate: 30, mirror: false });
+			var publisher2 = OV.initPublisher(insertPublisherContainer(), { resolution: RESOLUTION, frameRate: 30, mirror: false });
 			setPublisherButtonsActions(publisher2);
 			session.publish(publisher2);
 			event.target.innerText = 'Unpublish';
@@ -220,6 +238,7 @@ function initFormValues() {
 	document.getElementById("form-secret").value = OPENVIDU_SERVER_SECRET;
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
+	document.getElementById("form-recordingmode").value = RECORDING_OUTPUT_MODE;
 }
 
 function joinWithForm() {
@@ -255,7 +274,18 @@ function createSession() { // See https://openvidu.io/docs/reference-docs/REST-A
 				}
 			};
 		}
-		request.send(JSON.stringify({ customSessionId: SESSION_ID }));
+		var properties = {customSessionId: SESSION_ID};
+
+		if(!!RECORDING_OUTPUT_MODE){
+			properties. defaultOutputMode = RECORDING_OUTPUT_MODE;
+			properties. defaultRecordingLayout = RECORDING_LAYOUT.BEST_FIT;
+			properties. recordingMode = RECORDING_MODE.ALWAYS;
+		}
+
+		console.log("Is recording enabled? : ", !!RECORDING_OUTPUT_MODE);
+		console.log("Session properties : ", properties);
+
+		request.send(JSON.stringify(properties));
 	});
 }
 
@@ -274,7 +304,15 @@ function createToken() { // See https://openvidu.io/docs/reference-docs/REST-API
 				}
 			};
 		}
-		request.send(JSON.stringify({ session: SESSION_ID }));
+
+		var properties = {
+			session: SESSION_ID,
+			kurentoOptions: {
+				allowedFilters: ["GStreamerFilter"]
+			}
+		};
+
+		request.send(JSON.stringify(properties));
 	});
 }
 
