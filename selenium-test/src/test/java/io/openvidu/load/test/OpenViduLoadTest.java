@@ -56,6 +56,12 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
@@ -68,12 +74,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.slf4j.Logger;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.openvidu.load.test.browser.Browser;
@@ -110,10 +110,10 @@ public class OpenViduLoadTest {
 	public static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
-	public static String OPENVIDU_URL = "https://localhost:4443/";
-	public static String APP_URL = "http://localhost:8080/";
-	public static String RECORDING_OUTPUT_MODE = "COMPOSED";
-	public static int SESSIONS = 10;
+	public static String OPENVIDU_URL = "https://ec2-34-240-56-69.eu-west-1.compute.amazonaws.com:4443/";
+	public static String APP_URL = "https://ec2-52-214-115-5.eu-west-1.compute.amazonaws.com";
+	public static String RECORDING_OUTPUT_MODE = "INDIVIDUAL";
+	public static int SESSIONS = 100;
 	public static int USERS_SESSION = 2;
 	public static int SECONDS_OF_WAIT = 40;
 	public static int NUMBER_OF_POLLS = 8;
@@ -122,14 +122,15 @@ public class OpenViduLoadTest {
 	public static String SERVER_SSH_USER = "ubuntu";
 	public static String SERVER_SSH_HOSTNAME;
 	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
-	public static boolean REMOTE = false;
+	public static boolean REMOTE = true;
 	public static boolean BROWSER_INIT_AT_ONCE = false;
 	public static String RESULTS_PATH = "/opt/openvidu/testload";
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
 	public static int[] RECORD_BROWSERS;
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
-	public static int TCPDUMP_CAPTURE_TIME = 5;
+	public static int TCPDUMP_CAPTURE_TIME = 0;
+	public static int WAIT_TIME_BETWEEN_SESSIONS = 20;
 
 	static BrowserProvider browserProvider;
 	public static Long timeTestStarted;
@@ -162,10 +163,11 @@ public class OpenViduLoadTest {
 		String browserInitAtOnce = System.getProperty("BROWSER_INIT_AT_ONCE");
 		String resultsPath = System.getProperty("RESULTS_PATH");
 		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
-		String recordBrowsers = System.getProperty("RECORD_BROWSERS");
+		String recordBrowsers = "[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]";//System.getProperty("RECORD_BROWSERS");
 		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
 		String tcpdumpCaptureBeforeConnect = System.getProperty("TCPDUMP_CAPTURE_BEFORE_CONNECT");
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
+		String waitTimeBetweenSessions = System.getProperty("WAIT_TIME_BETWEEN_SESSIONS");
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -220,6 +222,9 @@ public class OpenViduLoadTest {
 		}
 		if (tcpdumpCaptureTime != null) {
 			TCPDUMP_CAPTURE_TIME = Integer.parseInt(tcpdumpCaptureTime);
+		}
+		if (waitTimeBetweenSessions != null) {
+			WAIT_TIME_BETWEEN_SESSIONS = Integer.parseInt(waitTimeBetweenSessions);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -286,7 +291,8 @@ public class OpenViduLoadTest {
 				+ "Browsers networking:   " + Arrays.toString(NETWORK_RESTRICTIONS_BROWSERS)
 				+ System.getProperty("line.separator") + "Start tcpdump before connect:  "
 				+ TCPDUMP_CAPTURE_BEFORE_CONNECT + System.getProperty("line.separator") + "Tcpdump during:        "
-				+ TCPDUMP_CAPTURE_TIME + " s" + System.getProperty("line.separator") + "Is remote:             "
+				+ TCPDUMP_CAPTURE_TIME + " s" + System.getProperty("line.separator") + "Wait time bewteen sessions: "
+				+ WAIT_TIME_BETWEEN_SESSIONS + " s" + System.getProperty("line.separator") + "Is remote:             "
 				+ REMOTE + System.getProperty("line.separator") + "Results stored under:  "
 				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
 				+ "----------------------------------------";
@@ -453,6 +459,14 @@ public class OpenViduLoadTest {
 			startNewSession[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
+
+			try {
+				log.info("Waiting between sessions {} seconds", WAIT_TIME_BETWEEN_SESSIONS);
+				Thread.sleep(WAIT_TIME_BETWEEN_SESSIONS * 1000);	
+			} catch(Exception e) {
+				e.printStackTrace();
+			} 
+					
 			this.startSessionBrowserAfterBrowser(sessionIndex + 1);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
@@ -537,6 +551,14 @@ public class OpenViduLoadTest {
 			startNewSession[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
+					
+			try {
+				log.info("Waiting between sessions {} seconds", WAIT_TIME_BETWEEN_SESSIONS);
+				Thread.sleep(WAIT_TIME_BETWEEN_SESSIONS * 1000);	
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+					
 			this.startSessionAllBrowsersAtOnce(sessionIndex + 1);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
