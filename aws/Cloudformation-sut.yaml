@@ -72,7 +72,7 @@ Resources:
                 git clone https://github.com/OpenVidu/openvidu-loadtest.git
                 
                 pushd openvidu-loadtest
-                cd openvidu-loadtest && git checkout recording_loadtest
+                git checkout recording_loadtest
                 popd
                 
                 cp -rav openvidu-loadtest/webapp/* /var/www/html
