@@ -3,18 +3,11 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Openvidu Server CloudFormation AMI template.
 
 Parameters:
-  OpenViduVersion:
-    Description: Openvidu Version
-    Type: String
-    Default: 2.7.0
-  KMSVersion:
-    Description: Kurento Media Server Version. Set to nightly for nightly version.
-    Type: String
-    Default: 6.9.0
   KeyName:
     Description: "Name of an existing EC2 KeyPair to enable SSH access to the instance."
     Type: AWS::EC2::KeyPair::KeyName
     ConstraintDescription: "must be the name of an existing EC2 KeyPair."
+    Default: kms-aws-share-key
   InstanceType:
     Description: "EC2 Instance type"
     Type: String
@@ -70,33 +63,6 @@ Resources:
               mode: "000755"
               owner: "root"
               group: "root"
-            "/usr/local/bin/installKMS.sh":
-              content: !Sub |
-                #!/bin/bash
-                set -eu -o pipefail
-                if [ "${KMSVersion}" == "nightly" ]; then
-                  git clone https://github.com/Kurento/adm-scripts.git /opt/kurento
-                  /opt/kurento/development/kurento-repo-xenial-nightly-2018
-                  /opt/kurento/development/kurento-install-debugging-2018 
-                else
-                  echo "deb [arch=amd64] http://ubuntu.openvidu.io/${KMSVersion} xenial kms6" > /etc/apt/sources.list.d/kurento.list
-                  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5AFA7A83
-                  apt-get update
-                  apt-get -y install kurento-media-server
-                fi
-                systemctl enable kurento-media-server
-              mode: "000755"
-              owner: "root"
-              group: "root"
-            "/usr/local/bin/getOpenVidu.sh":
-              content: !Sub |
-                #!/bin/bash
-                set -eu -o pipefail
-                mkdir -p /opt/openvidu
-                wget https://github.com/OpenVidu/openvidu/releases/download/v${OpenViduVersion}/openvidu-server-${OpenViduVersion}.jar -O /opt/openvidu/openvidu-server.jar
-              mode: "000755"
-              owner: "root"
-              group: "root"
             "/usr/local/bin/getTestApp.sh":
               content: |
                 #!/bin/bash
@@ -104,39 +70,13 @@ Resources:
                 WORKDIR=$(mktemp -d)
                 pushd $WORKDIR
                 git clone https://github.com/OpenVidu/openvidu-loadtest.git
+                
+                pushd openvidu-loadtest
+                cd openvidu-loadtest && git checkout recording_loadtest
+                popd
+                
                 cp -rav openvidu-loadtest/webapp/* /var/www/html
                 popd
-              mode: "000755"
-              owner: "root"
-              group: "root"
-            "/usr/local/bin/openvidu-config.sh":
-              content: |
-                #!/bin/bash -x
-                set -eu -o pipefail
-                # Vars
-                PUBLIC_IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
-                # Configure kurento
-                cat >/etc/kurento/modules/kurento/WebRtcEndpoint.conf.ini<<EOF
-                stunServerAddress=${PUBLIC_IP}
-                stunServerPort=3478
-                EOF
-                echo "export GST_DEBUG_NO_COLOR=1" >> /etc/default/kurento-media-server
-                # Configure coturn
-                cat >/etc/turnserver.conf<<EOF
-                external-ip=${PUBLIC_IP}
-                listening-port=3478
-                fingerprint
-                lt-cred-mech
-                max-port=65535
-                min-port=49152
-                pidfile="/var/run/turnserver.pid"
-                realm=openvidu
-                simple-log
-                redis-userdb="ip=127.0.0.1 dbname=0 password=turn connect_timeout=30"
-                verbose
-                EOF
-                # Configure coturn
-                echo "TURNSERVER_ENABLED=1" > /etc/default/coturn
               mode: "000755"
               owner: "root"
               group: "root"
@@ -160,17 +100,6 @@ Resources:
                   ssl_certificate_key /etc/nginx/certs/key.pem;
                   include sites-available/proxy.conf;
                   root /var/www/html;
-                }
-                server {
-                  listen 4443 ssl;
-                  server_name ${PUBLIC_HOSTNAME};
-                  ssl on;
-                  ssl_certificate /etc/nginx/certs/cert.pem;
-                  ssl_certificate_key /etc/nginx/certs/key.pem;
-                  include sites-available/proxy.conf;
-                  location / {
-                    proxy_pass http://${PUBLIC_HOSTNAME}:5443;
-                  }
                 }
                 EOF
                 cat >sites-available/proxy.conf<<EOF
@@ -222,11 +151,7 @@ Resources:
               content: |
                 #!/bin/bash
                 PUBLIC_HOSTNAME=$(curl http://169.254.169.254/latest/meta-data/public-hostname)
-                systemctl restart redis-server
-                systemctl restart coturn 
-                systemctl restart kurento-media-server
                 systemctl restart nginx
-                exec java -jar -Dopenvidu.secret=MY_SECRET -Dserver.ssl.enabled=false -Dserver.port=5443 -Dopenvidu.publicurl=https://${PUBLIC_HOSTNAME}:4443/ -Dopenvidu.streams.video.max-recv-bandwidth=0 -Dopenvidu.streams.video.min-recv-bandwidth=0 -Dopenvidu.streams.video.max-send-bandwidth=0 -Dopenvidu.streams.video.min-send-bandwidth=0 /opt/openvidu/openvidu-server.jar >/var/log/openvidu.log 2>&1 &
               mode: "000755"
               owner: "root"
               group: "root"
@@ -252,13 +177,7 @@ Resources:
                         
             /usr/local/bin/installSoftware.sh || { echo "[Openvidu] error installing software"; exit 1; }
             
-            /usr/local/bin/installKMS.sh || { echo "[Openvidu] error installing KMS"; exit 1; }
-            
-            /usr/local/bin/getOpenVidu.sh || { echo "[Openvidu] error installing OpenVidu"; exit 1; }
-
             /usr/local/bin/getTestApp.sh || { echo "[Openvidu] error installing TestApp"; exit 1; }
-
-            /usr/local/bin/openvidu-config.sh || { echo "[Openvidu] error configuring OpenVidu"; exit 1; }
 
             /usr/local/bin/configure-nginx.sh || { echo "[Openvidu] error configuring Nginx"; exit 1; }
 
