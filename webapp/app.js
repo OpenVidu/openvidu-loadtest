@@ -246,6 +246,7 @@ function joinWithForm() {
 	OPENVIDU_SERVER_SECRET = document.getElementById("form-secret").value;
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
+	RECORDING_OUTPUT_MODE = document.getElementById("form-recordingmode").value;
 	document.getElementById('join-form').style.display = 'none';
 	joinSession();
 	return false;
