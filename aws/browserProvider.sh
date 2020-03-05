@@ -1,10 +1,10 @@
 #!/bin/bash
 set -eu -o pipefail
 
-IMAGE_ID=
-INSTANCE_TYPE=
-KEY_NAME=
-SECURITY_GROUP=
+IMAGE_ID=ami-0bef0976da1fbaa64
+INSTANCE_TYPE=c5.xlarge
+KEY_NAME=kms-aws-share-key
+SECURITY_GROUP=Elastest-Browsers
 
 NUM_INSTANCES=${NUM_INSTANCES:-1}
 
@@ -20,4 +20,4 @@ aws ec2 run-instances \
 INSTANCES=$(aws ec2 describe-instances --filters Name=tag:Type,Values=OpenViduLoadTest,Name=instance-state-name,Values=pending | jq -r ' .Reservations[] | .Instances[] | .InstanceId')
 aws ec2 wait instance-running --instance-ids $INSTANCES
 
-aws ec2 describe-instances --filters Name=tag:Type,Values=OpenViduLoadTest,Name=instance-state-name,Values=running 
+aws ec2 describe-instances --filters Name=tag:Type,Values=OpenViduLoadTest,Name=instance-state-name,Values=running

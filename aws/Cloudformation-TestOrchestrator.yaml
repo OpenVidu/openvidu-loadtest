@@ -82,6 +82,7 @@ Resources:
 
                 # Clone openvidu-loadtest repo
                 git clone https://github.com/OpenVidu/openvidu-loadtest.git /home/ubuntu/openvidu-loadtest
+                cd /home/ubuntu/openvidu-loadtest && git checkout recording_loadtest
 
               mode: "000755"
               owner: "root"
@@ -98,14 +99,14 @@ Resources:
       UserData:
         "Fn::Base64":
           !Sub |
-            #!/bin/bash 
+            #!/bin/bash
             set -eu -o pipefail
             apt-get update
             apt-get install -y python-pip
             pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
 
             cfn-init --region ${AWS::Region} --stack ${AWS::StackId} --resource TestOrchestrator
-                        
+
             /usr/local/bin/installSoftware.sh || { echo "[Openvidu] error installing software"; exit 1; }
 
             # sending the finish call
@@ -115,21 +116,21 @@ Resources:
           DeviceName: /dev/sda1
           Ebs:
             VolumeSize: 16
-            
+
   TestOrchestratorSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Openvidu ports
       SecurityGroupIngress:
-      - IpProtocol: tcp 
+      - IpProtocol: tcp
         FromPort: 0
         ToPort: 65535
         CidrIp: 0.0.0.0/0
       - IpProtocol: udp
         FromPort: 0
         ToPort: 65535
-        CidrIp: 0.0.0.0/0            
-            
+        CidrIp: 0.0.0.0/0
+
   WaitCondition:
     Type: AWS::CloudFormation::WaitCondition
     CreationPolicy:
@@ -140,6 +141,6 @@ Resources:
 Outputs:
   OpenViduURL:
     Description: "Use this IP to connect to the Test Orchestrator through ssh (ssh -i /path/to/your/key.pem ubuntu@PUBLIC_IP)"
-    Value: !Join 
+    Value: !Join
       - ''
-      - - !GetAtt TestOrchestrator.PublicIp 
+      - - !GetAtt TestOrchestrator.PublicIp
