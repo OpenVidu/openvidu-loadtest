@@ -112,7 +112,7 @@ public class OpenViduLoadTest {
 	public static String OPENVIDU_SECRET = "MY_SECRET";
 	public static String OPENVIDU_URL = "https://ec2-54-80-238-35.compute-1.amazonaws.com:4443/";
 	public static String APP_URL = "https://ec2-52-90-99-170.compute-1.amazonaws.com";
-	public static String RECORDING_OUTPUT_MODE = "COMPOSED";
+	public static String RECORDING_OUTPUT_MODE = "INDIVIDUAL";
 	public static int SESSIONS = 100;
 	public static int USERS_SESSION = 2;
 	public static int SECONDS_OF_WAIT = 60;
@@ -480,7 +480,7 @@ public class OpenViduLoadTest {
 			// Wait specified time to stop browsers
 			try {
 				log.info("Waiting {} seconds to end all sessions", SECONDS_WITH_ALL_SESSIONS_ACTIVE);
-				Thread.sleep(SECONDS_WITH_ALL_SESSIONS_ACTIVE);	
+				Thread.sleep(SECONDS_WITH_ALL_SESSIONS_ACTIVE * 1000);	
 			} catch (InterruptedException e) {
 				log.error("Can't wait for sessions to be active {} seconds", SECONDS_WITH_ALL_SESSIONS_ACTIVE);
 				e.printStackTrace();
