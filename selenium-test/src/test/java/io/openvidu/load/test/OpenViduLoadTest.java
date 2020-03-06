@@ -112,7 +112,7 @@ public class OpenViduLoadTest {
 	public static String OPENVIDU_SECRET = "MY_SECRET";
 	public static String OPENVIDU_URL = "https://ec2-54-80-238-35.compute-1.amazonaws.com:4443/";
 	public static String APP_URL = "https://ec2-52-90-99-170.compute-1.amazonaws.com";
-	public static String RECORDING_OUTPUT_MODE = "INDIVIDUAL";
+	public static String RECORDING_OUTPUT_MODE = "COMPOSED";
 	public static int SESSIONS = 100;
 	public static int USERS_SESSION = 2;
 	public static int SECONDS_OF_WAIT = 60;
@@ -131,6 +131,7 @@ public class OpenViduLoadTest {
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
 	public static int SESSION_AFTER_FULL_CPU = 2;
+	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 600;
 
 	static BrowserProvider browserProvider;
 	public static Long timeTestStarted;
@@ -167,8 +168,8 @@ public class OpenViduLoadTest {
 		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
 		String tcpdumpCaptureBeforeConnect = System.getProperty("TCPDUMP_CAPTURE_BEFORE_CONNECT");
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
-		String maxNumberOfSessionsAfterMaxCpu = System.getProperty("MAX_NUMBER_OF_SESSIONS_AFTER_MAX_CPU");
 		String sessionAfterFullCpu = System.getProperty("SESSION_AFTER_FULL_CPU");
+		String secondsWithAllSessionsActive = System.getProperty("SECONDS_WITH_ALL_SESSIONS_ACTIVE");
 
 
 		if (openviduUrl != null) {
@@ -227,6 +228,9 @@ public class OpenViduLoadTest {
 		}
 		if (sessionAfterFullCpu != null) {
 			SESSION_AFTER_FULL_CPU = Integer.parseInt(sessionAfterFullCpu);
+		}
+		if (secondsWithAllSessionsActive != null) {
+			SECONDS_WITH_ALL_SESSIONS_ACTIVE = Integer.parseInt(secondsWithAllSessionsActive);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -472,6 +476,15 @@ public class OpenViduLoadTest {
 					
 			this.startSessionBrowserAfterBrowser(sessionIndex + 1, actualSessionsAfterMaxCpu);
 		} else {
+			
+			// Wait specified time to stop browsers
+			try {
+				log.info("Waiting {} seconds to end all sessions", SECONDS_WITH_ALL_SESSIONS_ACTIVE);
+				Thread.sleep(SECONDS_WITH_ALL_SESSIONS_ACTIVE);	
+			} catch (InterruptedException e) {
+				log.error("Can't wait for sessions to be active {} seconds", SECONDS_WITH_ALL_SESSIONS_ACTIVE);
+				e.printStackTrace();
+			}
 			log.info("Session limit succesfully reached ({})", SESSIONS);
 			lastBrowserRound.set(true);
 			try {
