@@ -1,10 +1,10 @@
 #!/bin/bash
 set -eu -o pipefail
 
-IMAGE_ID=ami-00a2dd95ccea1c97f
-INSTANCE_TYPE=c5.xlarge
-KEY_NAME=kms-aws-share-key-virginia
-SECURITY_GROUP=sg-0a77a999916042c0d
+IMAGE_ID=
+INSTANCE_TYPE=
+KEY_NAME=kms-
+SECURITY_GROUP=
 
 NUM_INSTANCES=$1
 

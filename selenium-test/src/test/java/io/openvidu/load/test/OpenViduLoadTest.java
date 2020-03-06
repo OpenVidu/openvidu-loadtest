@@ -110,8 +110,8 @@ public class OpenViduLoadTest {
 	public static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
-	public static String OPENVIDU_URL = "https://ec2-54-80-238-35.compute-1.amazonaws.com:4443/";
-	public static String APP_URL = "https://ec2-52-90-99-170.compute-1.amazonaws.com";
+	public static String OPENVIDU_URL = "https://localhost:4443/";
+	public static String APP_URL = "http://localhost:8080/";
 	public static String RECORDING_OUTPUT_MODE = "INDIVIDUAL";
 	public static int SESSIONS = 100;
 	public static int USERS_SESSION = 2;
@@ -164,7 +164,7 @@ public class OpenViduLoadTest {
 		String browserInitAtOnce = System.getProperty("BROWSER_INIT_AT_ONCE");
 		String resultsPath = System.getProperty("RESULTS_PATH");
 		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
-		String recordBrowsers = "[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]";//System.getProperty("RECORD_BROWSERS");
+		String recordBrowsers = System.getProperty("RECORD_BROWSERS");
 		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
 		String tcpdumpCaptureBeforeConnect = System.getProperty("TCPDUMP_CAPTURE_BEFORE_CONNECT");
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
@@ -300,7 +300,8 @@ public class OpenViduLoadTest {
 				+ TCPDUMP_CAPTURE_TIME + " s" + System.getProperty("line.separator") + "Session limit after CPU is 100%: "
 				+ SESSION_AFTER_FULL_CPU + " s" + System.getProperty("line.separator") + "Is remote:             "
 				+ REMOTE + System.getProperty("line.separator") + "Results stored under:  "
-				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
+				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator") + "Seconds all sessions active: "
+				+ SECONDS_WITH_ALL_SESSIONS_ACTIVE + System.getProperty("line.separator")
 				+ "----------------------------------------";
 		logHelper.logTestInfo(testInfo);
 		log.info(System.getProperty("line.separator") + testInfo);
