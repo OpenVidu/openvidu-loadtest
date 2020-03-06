@@ -22,6 +22,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.common.util.concurrent.AtomicDouble;
+
 import org.slf4j.Logger;
 
 import io.openvidu.load.test.models.MonitoringStats;
@@ -49,6 +51,7 @@ public class OpenViduServerManager {
 
 	private Thread pollingThread;
 	private AtomicBoolean isInterrupted = new AtomicBoolean(false);
+	private AtomicDouble cpuUsage = new AtomicDouble(0.0);
 	private OpenViduServerMonitor monitor;
 
 	public OpenViduServerManager() {
@@ -68,6 +71,7 @@ public class OpenViduServerManager {
 				if (stats != null) {
 					log.info(stats.toString());
 					OpenViduLoadTest.logHelper.logServerMonitoringStats(stats);
+					this.cpuUsage.set(stats.getCpuInfo());
 				}
 				try {
 					Thread.sleep(OpenViduLoadTest.SERVER_POLL_INTERVAL);
@@ -87,6 +91,10 @@ public class OpenViduServerManager {
 		this.isInterrupted.set(true);
 		this.pollingThread.interrupt();
 		log.info("Stopping OpenVidu Server monitoring poll...");
+	}
+	
+	public double getCpuUsage() {
+		return this.cpuUsage.get();
 	}
 
 	public void downloadOpenViduKmsLogFiles() throws InterruptedException {

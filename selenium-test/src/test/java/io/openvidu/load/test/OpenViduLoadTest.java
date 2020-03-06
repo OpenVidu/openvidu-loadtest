@@ -110,8 +110,8 @@ public class OpenViduLoadTest {
 	public static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
-	public static String OPENVIDU_URL = "https://ec2-34-240-56-69.eu-west-1.compute.amazonaws.com:4443/";
-	public static String APP_URL = "https://ec2-52-214-115-5.eu-west-1.compute.amazonaws.com";
+	public static String OPENVIDU_URL = "https://ec2-54-196-99-81.compute-1.amazonaws.com:4443/";
+	public static String APP_URL = "https://ec2-52-90-99-170.compute-1.amazonaws.com";
 	public static String RECORDING_OUTPUT_MODE = "INDIVIDUAL";
 	public static int SESSIONS = 100;
 	public static int USERS_SESSION = 2;
@@ -163,7 +163,7 @@ public class OpenViduLoadTest {
 		String browserInitAtOnce = System.getProperty("BROWSER_INIT_AT_ONCE");
 		String resultsPath = System.getProperty("RESULTS_PATH");
 		String downloadOpenviduLogs = System.getProperty("DOWNLOAD_OPENVIDU_LOGS");
-		String recordBrowsers = "[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]";//System.getProperty("RECORD_BROWSERS");
+		String recordBrowsers = "[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]";//System.getProperty("RECORD_BROWSERS");
 		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
 		String tcpdumpCaptureBeforeConnect = System.getProperty("TCPDUMP_CAPTURE_BEFORE_CONNECT");
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
@@ -405,7 +405,7 @@ public class OpenViduLoadTest {
 		if (BROWSER_INIT_AT_ONCE) {
 			this.startSessionAllBrowsersAtOnce(1);
 		} else {
-			this.startSessionBrowserAfterBrowser(1);
+			this.startSessionBrowserAfterBrowser(1, 0);
 		}
 	}
 
@@ -414,8 +414,9 @@ public class OpenViduLoadTest {
 	 * initialization thread is in charge of running the test)
 	 **/
 
-	private void startSessionBrowserAfterBrowser(int sessionIndex) {
+	private void startSessionBrowserAfterBrowser(int sessionIndex, int sessionsAfterMaxCpu) {
 		String sessionId = "session-" + sessionIndex;
+		int actualSessionsAfterMaxCpu = sessionsAfterMaxCpu;
 		lastSession = sessionId;
 		log.info("Starting session: {}", sessionId);
 		final Collection<Runnable> threads = new ArrayList<>();
@@ -448,7 +449,14 @@ public class OpenViduLoadTest {
 		for (Runnable r : threads) {
 			browserInitializationTaskExecutor.execute(r);
 		}
-		if (sessionIndex < SESSIONS) {
+		
+		double cpuUsage = openViduServerManager.getCpuUsage();
+		log.info("CPU usage from LoadTest {}", cpuUsage);
+		if(cpuUsage > 100.0) {
+			actualSessionsAfterMaxCpu++;
+		}
+		log.info("Actual sessions afterMaxCPU: {}", actualSessionsAfterMaxCpu);
+		if (sessionIndex < SESSIONS && actualSessionsAfterMaxCpu < 2) {
 			try {
 				startNewSession[0].await();
 			} catch (AbortedException e) {
@@ -459,15 +467,8 @@ public class OpenViduLoadTest {
 			startNewSession[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
-
-			try {
-				log.info("Waiting between sessions {} seconds", WAIT_TIME_BETWEEN_SESSIONS);
-				Thread.sleep(WAIT_TIME_BETWEEN_SESSIONS * 1000);	
-			} catch(Exception e) {
-				e.printStackTrace();
-			} 
 					
-			this.startSessionBrowserAfterBrowser(sessionIndex + 1);
+			this.startSessionBrowserAfterBrowser(sessionIndex + 1, actualSessionsAfterMaxCpu);
 		} else {
 			log.info("Session limit succesfully reached ({})", SESSIONS);
 			lastBrowserRound.set(true);
@@ -551,13 +552,6 @@ public class OpenViduLoadTest {
 			startNewSession[0] = new CustomLatch(USERS_SESSION * NUMBER_OF_POLLS);
 			log.info("Stats gathering rounds threshold for session {} reached ({} rounds). Next session scheduled",
 					sessionId, NUMBER_OF_POLLS);
-					
-			try {
-				log.info("Waiting between sessions {} seconds", WAIT_TIME_BETWEEN_SESSIONS);
-				Thread.sleep(WAIT_TIME_BETWEEN_SESSIONS * 1000);	
-			} catch(Exception e) {
-				e.printStackTrace();
-			}
 					
 			this.startSessionAllBrowsersAtOnce(sessionIndex + 1);
 		} else {
