@@ -110,12 +110,12 @@ public class OpenViduLoadTest {
 	public static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
-	public static String OPENVIDU_URL = "https://ec2-54-196-99-81.compute-1.amazonaws.com:4443/";
+	public static String OPENVIDU_URL = "https://ec2-54-80-238-35.compute-1.amazonaws.com:4443/";
 	public static String APP_URL = "https://ec2-52-90-99-170.compute-1.amazonaws.com";
 	public static String RECORDING_OUTPUT_MODE = "INDIVIDUAL";
 	public static int SESSIONS = 100;
 	public static int USERS_SESSION = 2;
-	public static int SECONDS_OF_WAIT = 40;
+	public static int SECONDS_OF_WAIT = 60;
 	public static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
 	public static int SERVER_POLL_INTERVAL = 5000;
@@ -131,6 +131,7 @@ public class OpenViduLoadTest {
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
 	public static int WAIT_TIME_BETWEEN_SESSIONS = 20;
+	public static int MAX_NUMBER_OF_SESSIONS_AFTER_MAX_CPU = 2;
 
 	static BrowserProvider browserProvider;
 	public static Long timeTestStarted;
@@ -168,6 +169,7 @@ public class OpenViduLoadTest {
 		String tcpdumpCaptureBeforeConnect = System.getProperty("TCPDUMP_CAPTURE_BEFORE_CONNECT");
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
 		String waitTimeBetweenSessions = System.getProperty("WAIT_TIME_BETWEEN_SESSIONS");
+		String maxNumberOfSessionsAfterMaxCpu = System.getProperty("MAX_NUMBER_OF_SESSIONS_AFTER_MAX_CPU");
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -225,6 +227,9 @@ public class OpenViduLoadTest {
 		}
 		if (waitTimeBetweenSessions != null) {
 			WAIT_TIME_BETWEEN_SESSIONS = Integer.parseInt(waitTimeBetweenSessions);
+		}
+		if (maxNumberOfSessionsAfterMaxCpu != null) {
+			MAX_NUMBER_OF_SESSIONS_AFTER_MAX_CPU = Integer.parseInt(maxNumberOfSessionsAfterMaxCpu);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -456,7 +461,7 @@ public class OpenViduLoadTest {
 			actualSessionsAfterMaxCpu++;
 		}
 		log.info("Actual sessions afterMaxCPU: {}", actualSessionsAfterMaxCpu);
-		if (sessionIndex < SESSIONS && actualSessionsAfterMaxCpu < 2) {
+		if (sessionIndex < SESSIONS && actualSessionsAfterMaxCpu < MAX_NUMBER_OF_SESSIONS_AFTER_MAX_CPU) {
 			try {
 				startNewSession[0].await();
 			} catch (AbortedException e) {

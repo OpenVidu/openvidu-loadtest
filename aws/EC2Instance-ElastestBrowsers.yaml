@@ -49,7 +49,7 @@ Resources:
                 TMPDIR=$(mktemp -d)
                 pushd $TMPDIR
                 docker pull elastestbrowsers/chrome:latest-2.0.0
-                wget -O Dockerfile https://raw.githubusercontent.com/OpenVidu/openvidu-loadtest/master/aws/browser-docker-image/chrome/Dockerfile
+                wget -O Dockerfile https://raw.githubusercontent.com/OpenVidu/openvidu-loadtest/recording_loadtest/aws/browser-docker-image/chrome/Dockerfile
                 docker build -t elastestbrowsers/chrome:iptables .
                 popd
                 rm -rf $TMPDIR
@@ -84,7 +84,7 @@ Resources:
                 mkdir -p /home/ubuntu/recordings
                 chmod 777 /home/ubuntu/recordings
 
-                docker run --detach --name chrome -p 4444:4444 -p 6080:6080 -p 5900:5900 --cap-add=SYS_ADMIN --cap-add=NET_ADMIN -v /home/ubuntu/recordings:/home/ubuntu/recordings -v /opt/openvidu:/opt/openvidu elastestbrowsers/chrome:iptables
+                docker run --detach --name chrome --network=host --cap-add=SYS_ADMIN --cap-add=NET_ADMIN -v /home/ubuntu/recordings:/home/ubuntu/recordings -v /opt/openvidu:/opt/openvidu elastestbrowsers/chrome:iptables
               mode: "000755"
               owner: "root"
               group: "root"
