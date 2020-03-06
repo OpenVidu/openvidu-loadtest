@@ -21,6 +21,7 @@ var lastBytesReceived = {};
 window.onload = () => {
 	var url = new URL(window.location.href);
 	console.log("URL", url)
+	startTime();
 	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl");
 	OPENVIDU_SERVER_SECRET = url.searchParams.get("secret");
 	SESSION_ID = url.searchParams.get("sessionId");
@@ -404,4 +405,9 @@ function gatherStatsForPeer(rtcPeerConnection, userId, isSubscriber, errorCallba
 			appendStats(userId, userStatsJson);
 		}
 	}, null, errorCallback);
+}
+
+function startTime() {
+	document.getElementById('time').innerHTML = new Date().toISOString();
+	t = setTimeout(() => startTime(), 10);
 }
