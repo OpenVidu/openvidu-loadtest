@@ -130,7 +130,7 @@ public class OpenViduLoadTest {
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
-	public static int WAIT_TIME_BETWEEN_SESSIONS = 20;
+	public static int SESSION_AFTER_FULL_CPU = 2;
 
 	static BrowserProvider browserProvider;
 	public static Long timeTestStarted;
@@ -167,7 +167,8 @@ public class OpenViduLoadTest {
 		String networkRestrictionsBrowsers = System.getProperty("NETWORK_RESTRICTIONS_BROWSERS");
 		String tcpdumpCaptureBeforeConnect = System.getProperty("TCPDUMP_CAPTURE_BEFORE_CONNECT");
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
-		String waitTimeBetweenSessions = System.getProperty("WAIT_TIME_BETWEEN_SESSIONS");
+		String sessionAfterFullCpu = System.getProperty("SESSION_AFTER_FULL_CPU");
+
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -223,8 +224,8 @@ public class OpenViduLoadTest {
 		if (tcpdumpCaptureTime != null) {
 			TCPDUMP_CAPTURE_TIME = Integer.parseInt(tcpdumpCaptureTime);
 		}
-		if (waitTimeBetweenSessions != null) {
-			WAIT_TIME_BETWEEN_SESSIONS = Integer.parseInt(waitTimeBetweenSessions);
+		if (sessionAfterFullCpu != null) {
+			SESSION_AFTER_FULL_CPU = Integer.parseInt(sessionAfterFullCpu);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -291,8 +292,8 @@ public class OpenViduLoadTest {
 				+ "Browsers networking:   " + Arrays.toString(NETWORK_RESTRICTIONS_BROWSERS)
 				+ System.getProperty("line.separator") + "Start tcpdump before connect:  "
 				+ TCPDUMP_CAPTURE_BEFORE_CONNECT + System.getProperty("line.separator") + "Tcpdump during:        "
-				+ TCPDUMP_CAPTURE_TIME + " s" + System.getProperty("line.separator") + "Wait time bewteen sessions: "
-				+ WAIT_TIME_BETWEEN_SESSIONS + " s" + System.getProperty("line.separator") + "Is remote:             "
+				+ TCPDUMP_CAPTURE_TIME + " s" + System.getProperty("line.separator") + "Session limit after CPU is 100%: "
+				+ SESSION_AFTER_FULL_CPU + " s" + System.getProperty("line.separator") + "Is remote:             "
 				+ REMOTE + System.getProperty("line.separator") + "Results stored under:  "
 				+ OpenViduLoadTest.RESULTS_PATH + System.getProperty("line.separator")
 				+ "----------------------------------------";
