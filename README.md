@@ -108,7 +108,7 @@ Configuration properties when running `mvn test` in `selenium-test/.` (configure
 - `TCPDUMP_CAPTURE_BEFORE_CONNECT`: whether to start the capture of tcpdump information before connection to a session or after session connection is stable. Default value: `true`
 - `TCPDUMP_CAPTURE_TIME`: how long network packet information should be captured in each browser after session is stable (only applies if `REMOTE` is true). The `tcpdump` process will always start before connecting to OpenVidu session. Then it will run for `TCPDUMP_CAPTURE_TIME` seconds, storing the results in a log file (_tcpdump.pcap_) that will be downloaded to the test node just before terminating the browser's instance. If you don't want this information to be collected, just set this property to `0`. Default value: `5`
  - `SESSION_AFTER_FULL_CPU`: Session limit after CPU is 100%. If the limit is reached, the test will be stopped. Default value = 2.
- - `SECONDS_WITH_ALL_SESSIONS_ACTIVE`: Time that sessions will be active after max Session limit.
+ - `SECONDS_WITH_ALL_SESSIONS_ACTIVE`: Time that sessions will be active after max Session limit. Default value = 600
 
 
 ## Results format
