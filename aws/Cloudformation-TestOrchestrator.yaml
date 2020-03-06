@@ -88,7 +88,7 @@ Resources:
               owner: "root"
               group: "root"
     Properties:
-      ImageId:  "ami-07891ef972bbf5ae7"
+      ImageId:  ami-03ef731cc103c9f09
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !Ref TestOrchestratorSecurityGroup
