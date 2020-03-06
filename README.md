@@ -87,6 +87,7 @@ Configuration properties when running `mvn test` in `selenium-test/.` (configure
 - `OPENVIDU_SECRET`: secret of OpenVidu Server. Default value = `MY_SECRET`
 - `OPENVIDU_URL`: url of OpenVidu Server. Default value = `https://localhost:4443/`
 - `APP_URL`: url of the web application where to connect the browsers to perform the test. Default value = `http://localhost:8080/`
+- `RECORDING_OUTPUT_MODE`: the recording output mode. Default value = `COMPOSED`
 - `SESSIONS`: upper limit of sessions. Default value = `10`
 - `USERS_SESSION`: number of users per session. Default value = `7`
 - `SECONDS_OF_WAIT`: timeout in seconds the test will wait for each group of OpenVidu events in each browser. Default value = `40`
