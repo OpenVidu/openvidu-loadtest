@@ -10,6 +10,7 @@ var OPENVIDU_SERVER_SECRET;
 var SESSION_ID;
 var USER_ID;
 var RECORDING_OUTPUT_MODE;
+var IS_FILTER_ENABLED;
 
 var OV;
 var session;
@@ -27,6 +28,8 @@ window.onload = () => {
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
 	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
+	IS_FILTER_ENABLED = url.searchParams.get("filtercheckbox") === 'true';
+	console.log("filtercheckbox", IS_FILTER_ENABLED);
 
 	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID || !RECORDING_OUTPUT_MODE) {
 		initFormValues();
@@ -82,12 +85,18 @@ function joinSession() {
 	getToken().then(token => {
 		session.connect(token, USER_ID)
 			.then(() => {
-				var publisher = OV.initPublisher(insertPublisherContainer(), {
-					 resolution: RESOLUTION,
-					 frameRate: 30,
-					 mirror: false,
-					 filter: {type: "GStreamerFilter", options: { command: "textoverlay text='Embedded text' valignment=center halignment=center font-desc='Cantarell 30'"}}
-				});
+
+				var properties = {
+					resolution: RESOLUTION,
+					frameRate: 30,
+					mirror: false,
+					// filter: {type: "GStreamerFilter", options: { command: "textoverlay text='Embedded text' valignment=center halignment=center font-desc='Cantarell 30'"}}
+			   };
+
+			   if(IS_FILTER_ENABLED){
+				   properties.filter = {type: "GStreamerFilter", options: { command: "textoverlay text='Embedded text' valignment=center halignment=center font-desc='Cantarell 30'"}};
+			   }
+				var publisher = OV.initPublisher(insertPublisherContainer(), properties);
 
 				setPublisherButtonsActions(publisher);
 				session.publish(publisher);
@@ -240,6 +249,7 @@ function initFormValues() {
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
 	document.getElementById("form-recordingmode").value = RECORDING_OUTPUT_MODE;
+	document.getElementById("form-filtercheckbox").checked = IS_FILTER_ENABLED;
 }
 
 function joinWithForm() {
@@ -248,6 +258,7 @@ function joinWithForm() {
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
 	RECORDING_OUTPUT_MODE = document.getElementById("form-recordingmode").value;
+	IS_FILTER_ENABLED = document.getElementById("form-filtercheckbox").checked;
 	document.getElementById('join-form').style.display = 'none';
 	joinSession();
 	return false;
@@ -279,9 +290,9 @@ function createSession() { // See https://openvidu.io/docs/reference-docs/REST-A
 		var properties = {customSessionId: SESSION_ID};
 
 		if(!!RECORDING_OUTPUT_MODE){
-			properties. defaultOutputMode = RECORDING_OUTPUT_MODE;
-			properties. defaultRecordingLayout = RECORDING_LAYOUT.BEST_FIT;
-			properties. recordingMode = RECORDING_MODE.ALWAYS;
+			properties.defaultOutputMode = RECORDING_OUTPUT_MODE;
+			properties.defaultRecordingLayout = RECORDING_LAYOUT.BEST_FIT;
+			properties.recordingMode = RECORDING_MODE.ALWAYS;
 		}
 
 		console.log("Is recording enabled? : ", !!RECORDING_OUTPUT_MODE);
@@ -309,10 +320,11 @@ function createToken() { // See https://openvidu.io/docs/reference-docs/REST-API
 
 		var properties = {
 			session: SESSION_ID,
-			kurentoOptions: {
-				allowedFilters: ["GStreamerFilter"]
-			}
 		};
+
+		if(IS_FILTER_ENABLED){
+			properties.kurentoOptions = {allowedFilters: ["GStreamerFilter"]};
+		}
 
 		request.send(JSON.stringify(properties));
 	});
