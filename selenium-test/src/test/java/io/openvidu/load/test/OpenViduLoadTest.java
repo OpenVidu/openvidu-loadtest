@@ -131,8 +131,9 @@ public class OpenViduLoadTest {
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
-	public static int SESSION_AFTER_FULL_CPU = 2;
+	public static int SESSION_AFTER_FULL_CPU = 4;
 	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 600;
+	public static double CPU_USAGE_LIMIT = 100.0;
 
 	static BrowserProvider browserProvider;
 	public static Long timeTestStarted;
@@ -465,7 +466,7 @@ public class OpenViduLoadTest {
 
 		double cpuUsage = openViduServerManager.getCpuUsage();
 		log.info("CPU usage from LoadTest {}", cpuUsage);
-		if(cpuUsage > 100.0) {
+		if(cpuUsage > CPU_USAGE_LIMIT) {
 			actualSessionsAfterMaxCpu++;
 		}
 		log.info("Actual sessions afterMaxCPU: {}", actualSessionsAfterMaxCpu);
