@@ -154,7 +154,7 @@ public class OpenViduLoadTest {
 		String openviduSecret = System.getProperty("OPENVIDU_SECRET");
 		String appUrl = System.getProperty("APP_URL");
 		String recordingOutputMode = System.getProperty("RECORDING_OUTPUT_MODE");
-		Boolean isFilterEnabled = Boolean.parseBoolean(System.getProperty("IS_FILTER_ENABLED"));
+		String isFilterEnabled = System.getProperty("IS_FILTER_ENABLED");
 		String sessions = System.getProperty("SESSIONS");
 		String usersSession = System.getProperty("USERS_SESSION");
 		String secondsOfWait = System.getProperty("SECONDS_OF_WAIT");
@@ -188,7 +188,7 @@ public class OpenViduLoadTest {
 			RECORDING_OUTPUT_MODE = recordingOutputMode;
 		}
 		if (isFilterEnabled != null){
-			IS_FILTER_ENABLED = isFilterEnabled;
+			IS_FILTER_ENABLED = Boolean.parseBoolean(isFilterEnabled);
 		}
 		if (sessions != null) {
 			SESSIONS = Integer.parseInt(sessions);

@@ -88,6 +88,7 @@ public class ScriptExecutor {
 					"The response from AWS-CLI is not a JSON object. Some error must have occured when calling aws-cli command "
 							+ "(WARNING: maybe you have a limit on the amount of instances of the required type you are launching. Response: {}",
 					str);
+			log.error(e.toString());
 			return instanceMap;
 		}
 		JsonArray reservations = null;
