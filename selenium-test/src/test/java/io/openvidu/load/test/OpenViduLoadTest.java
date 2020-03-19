@@ -100,7 +100,7 @@ public class OpenViduLoadTest {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	public static ExecutorService browserInitializationTaskExecutor = Executors.newCachedThreadPool();;
+	public static ExecutorService browserInitializationTaskExecutor = Executors.newCachedThreadPool();
 	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
 			Runtime.getRuntime().availableProcessors() * 4);
 	final static ScheduledThreadPoolExecutor tcpdumpStopProcesses = new ScheduledThreadPoolExecutor(
