@@ -3,7 +3,7 @@ const RECORDING_MODE = Object.freeze({ALWAYS:'ALWAYS', MANUAL: 'MANUAL' });
 const OUTPUT_MODE = Object.freeze({COMPOSED:'COMPOSED', INDIVIDUAL: 'INDIVIDUAL' });
 const RECORDING_LAYOUT = Object.freeze({BEST_FIT:'BEST_FIT', CUSTOM: 'CUSTOM' });
 
-const RESOLUTION = "320x240";
+const RESOLUTION = "540x360";
 
 var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
@@ -31,7 +31,7 @@ window.onload = () => {
 	IS_FILTER_ENABLED = url.searchParams.get("filtercheckbox") === 'true';
 	console.log("filtercheckbox", IS_FILTER_ENABLED);
 
-	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID || !RECORDING_OUTPUT_MODE) {
+	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID /*|| !RECORDING_OUTPUT_MODE*/) {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
 	} else {

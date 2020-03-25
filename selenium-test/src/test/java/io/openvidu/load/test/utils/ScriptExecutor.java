@@ -62,11 +62,36 @@ public class ScriptExecutor {
 
 	public Map<String, AmazonInstance> launchBrowsers(int numberOfBrowsers) {
 		String cmd = fileBrowserProvider.getAbsolutePath() + " " + numberOfBrowsers;
-		return parseInstanceJsonToMap(CommandExecutor.executeCommand(cmd));
+		String str = CommandExecutor.executeCommand(cmd);
+		try {
+			parser.parse(str).getAsJsonObject();
+			return parseInstanceJsonToMap(str);
+
+		} catch (IllegalStateException e) {
+			try {
+				Thread.sleep(10000);
+			} catch (InterruptedException e1) {
+				e1.printStackTrace();
+			}
+			return parseInstanceJsonToMap(CommandExecutor.executeCommand(cmd));
+		}
 	}
 
 	public Map<String, AmazonInstance> getActiveBrowsers() {
-		return parseInstanceJsonToMap(CommandExecutor.executeCommand(this.fileGetActiveInstances.getAbsolutePath()));
+		String str = CommandExecutor.executeCommand(this.fileGetActiveInstances.getAbsolutePath());
+
+		try {
+			parser.parse(str).getAsJsonObject();
+			return parseInstanceJsonToMap(str);
+		} catch (IllegalStateException e) {
+			log.error(e.toString());
+			try {
+				Thread.sleep(10000);
+			} catch (InterruptedException e1) {
+				e1.printStackTrace();
+			}
+			return parseInstanceJsonToMap(CommandExecutor.executeCommand(this.fileGetActiveInstances.getAbsolutePath()));
+		}
 	}
 
 	public void bringDownBrowser(String instanceId) {
