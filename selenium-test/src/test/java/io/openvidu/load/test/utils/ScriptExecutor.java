@@ -62,36 +62,11 @@ public class ScriptExecutor {
 
 	public Map<String, AmazonInstance> launchBrowsers(int numberOfBrowsers) {
 		String cmd = fileBrowserProvider.getAbsolutePath() + " " + numberOfBrowsers;
-		String str = CommandExecutor.executeCommand(cmd);
-		try {
-			parser.parse(str).getAsJsonObject();
-			return parseInstanceJsonToMap(str);
-
-		} catch (IllegalStateException e) {
-			try {
-				Thread.sleep(10000);
-			} catch (InterruptedException e1) {
-				e1.printStackTrace();
-			}
-			return parseInstanceJsonToMap(CommandExecutor.executeCommand(cmd));
-		}
+		return parseInstanceJsonToMap(CommandExecutor.executeCommand(cmd));
 	}
 
 	public Map<String, AmazonInstance> getActiveBrowsers() {
-		String str = CommandExecutor.executeCommand(this.fileGetActiveInstances.getAbsolutePath());
-
-		try {
-			parser.parse(str).getAsJsonObject();
-			return parseInstanceJsonToMap(str);
-		} catch (IllegalStateException e) {
-			log.error(e.toString());
-			try {
-				Thread.sleep(10000);
-			} catch (InterruptedException e1) {
-				e1.printStackTrace();
-			}
-			return parseInstanceJsonToMap(CommandExecutor.executeCommand(this.fileGetActiveInstances.getAbsolutePath()));
-		}
+		return parseInstanceJsonToMap(CommandExecutor.executeCommand(this.fileGetActiveInstances.getAbsolutePath()));
 	}
 
 	public void bringDownBrowser(String instanceId) {
@@ -113,7 +88,6 @@ public class ScriptExecutor {
 					"The response from AWS-CLI is not a JSON object. Some error must have occured when calling aws-cli command "
 							+ "(WARNING: maybe you have a limit on the amount of instances of the required type you are launching. Response: {}",
 					str);
-			log.error(e.toString());
 			return instanceMap;
 		}
 		JsonArray reservations = null;
