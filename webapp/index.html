@@ -3,9 +3,14 @@
 <head>
 	<title>OpenVidu Load Test</title>
 	<link rel="shortcut icon" href="resources/images/favicon.ico" type="image/x-icon">
-	<script src="openvidu-browser-2.11.0.js"></script>
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+		crossorigin="anonymous">
+	</script>
 	<script src="app.js"></script>
+	<script src="openvidu-webcomponent-2.12.0.js"></script>
 	<link rel="stylesheet" type="text/css" href="styles.css">
+	<link rel="stylesheet" href="openvidu-webcomponent-2.12.0.css">
+
 </head>
 
 <script type="text/javascript">
@@ -21,12 +26,13 @@
 			<input id="form-secret" type="text" name="secret" placeholder="OpenVidu secret" required>
 			<input id="form-sessionId" type="text" name="sessionId" placeholder="sessionId" required>
 			<input id="form-userId" type="text" name="userId" placeholder="userId" required>
-			<input id="form-recordingmode" type="text" name="recordingmode" placeholder="COMPOSED | INDIVIDUAL">
-			Text filter<input type="checkbox" id="form-filtercheckbox" name="filtercheckbox">
 			<input type="submit" value="Join session">
 		</form>
 	</div>
-	<div id="local" style="display: inline-block"></div>
+
+	<div id="webcomponent-div">
+		<openvidu-webcomponent style="display: none"></openvidu-webcomponent>
+	</div>
 	<div id="time" style="font-size: 20px"></div>
 </body>
 

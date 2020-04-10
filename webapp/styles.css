@@ -2,3 +2,15 @@ video {
     width: 540px;
     height: 360px;
 }
+
+#webcomponent-div {
+    position: absolute;
+    margin: auto;
+    padding: 40px;
+    top: 5%;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80%;
+    width: 90%;
+  }

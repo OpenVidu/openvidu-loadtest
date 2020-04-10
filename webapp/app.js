@@ -1,37 +1,30 @@
-
-const RECORDING_MODE = Object.freeze({ALWAYS:'ALWAYS', MANUAL: 'MANUAL' });
-const OUTPUT_MODE = Object.freeze({COMPOSED:'COMPOSED', INDIVIDUAL: 'INDIVIDUAL' });
-const RECORDING_LAYOUT = Object.freeze({BEST_FIT:'BEST_FIT', CUSTOM: 'CUSTOM' });
-
 const RESOLUTION = "540x360";
 
 var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
 var SESSION_ID;
 var USER_ID;
-var RECORDING_OUTPUT_MODE;
-var IS_FILTER_ENABLED;
 
 var OV;
 var session;
 
 var lastStatGatheringTime = {};
 var lastBytesReceived = {};
-
+var webComponent;
 
 window.onload = () => {
 	var url = new URL(window.location.href);
 	console.log("URL", url)
 	startTime();
+
+	webComponent = document.querySelector('openvidu-webcomponent');
+
 	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl");
 	OPENVIDU_SERVER_SECRET = url.searchParams.get("secret");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
-	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
-	IS_FILTER_ENABLED = url.searchParams.get("filtercheckbox") === 'true';
-	console.log("filtercheckbox", IS_FILTER_ENABLED);
 
-	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID /*|| !RECORDING_OUTPUT_MODE*/) {
+	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID ) {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
 	} else {
@@ -51,205 +44,97 @@ function appendStats(userId, stat) {
 }
 
 function joinSession() {
-	OV = new OpenVidu();
-	session = OV.initSession();
 
-	session.on("connectionCreated", event => {
-		appendEvent({ event: "connectionCreated", content: event.connection.connectionId });
-	});
+	webComponent.addEventListener('sessionCreated', (event) => {
+		session = event.detail;
 
-	session.on("streamCreated", event => {
-		appendEvent({ event: "streamCreated", content: event.stream.streamId });
-		var subscriber = session.subscribe(event.stream, insertSubscriberContainer(event));
-		subscriber.on("streamPlaying", e => {
-			appendEvent({ event: "streamPlaying", content: event.stream.streamId });
-			var userId = event.stream.connection.data;
-			window.openviduLoadTest.stats[userId] = [];
-			lastStatGatheringTime[userId] = Date.now();
+		session.on("connectionCreated", event => {
+			appendEvent({ event: "connectionCreated", content: event.connection.connectionId });
 		});
+
+		session.on("streamCreated", event => {
+			appendEvent({ event: "streamCreated", content: event.stream.streamId });
+			setTimeout(() => {
+				event.stream.streamManager.on("streamPlaying", e => {
+					appendEvent({ event: "streamPlaying", content: event.stream.streamId });
+					var userId = event.stream.connection.data;
+					window.openviduLoadTest.stats[userId] = [];
+					lastStatGatheringTime[userId] = Date.now();
+				})
+			}, 100);
+		});
+
+		session.on("streamDestroyed", event => {
+			appendEvent({ event: "streamDestroyed", content: event.stream.streamId });
+		});
+
+		session.on("sessionDisconnected", event => {
+			appendEvent({ event: "sessionDisconnected", content: session.connection.connectionId });
+		});
+
 	});
 
-	session.on("streamDestroyed", event => {
-		appendEvent({ event: "streamDestroyed", content: event.stream.streamId });
-		var userId = event.stream.connection.data;
-		document.getElementById('video-' + userId).outerHTML = "";
+	webComponent.addEventListener('publisherCreated', (event) => {
+        var publisher = event.detail;
+        publisher.once("accessAllowed", e => {
+			appendEvent({ event: "accessAllowed", content: '' });
+		});
+		publisher.once("streamCreated", e => {
+			appendEvent({ event: "streamCreated", content: e.stream.streamId });
+		});
+		publisher.once("streamPlaying", e => {
+			appendEvent({ event: "streamPlaying", content: 'Publisher' });
+			window.openviduLoadTest.stats[USER_ID] = [];
+		});
+		publisher.once("streamDestroyed", e => {
+			appendEvent({ event: "streamDestroyed", content: e.stream.streamId });
+		});
+    });
+
+    webComponent.addEventListener('error', (event) => {
+        console.log('Error event', event.detail);
 	});
 
-	session.on("sessionDisconnected", event => {
-		appendEvent({ event: "sessionDisconnected", content: session.connection.connectionId });
-		document.querySelectorAll('.video-container').forEach(a => {
-			a.remove()
-		})
-	});
+	var tokens = [];
+
+	var ovSettings = {
+		chat: true,
+		autopublish: true,
+		toolbarButtons: {
+		  audio: true,
+		  video: true,
+		  screenShare: false,
+		  fullscreen: true,
+		  layoutSpeaking: true,
+		  exit: true,
+		}
+	  };
+
 
 	getToken().then(token => {
-		session.connect(token, USER_ID)
-			.then(() => {
-
-				var properties = {
-					resolution: RESOLUTION,
-					frameRate: 30,
-					mirror: false,
-					// filter: {type: "GStreamerFilter", options: { command: "textoverlay text='Embedded text' valignment=center halignment=center font-desc='Cantarell 30'"}}
-			   };
-
-			   if(IS_FILTER_ENABLED){
-				   properties.filter = {type: "GStreamerFilter", options: { command: "textoverlay text='Embedded text' valignment=center halignment=center font-desc='Cantarell 30'"}};
-			   }
-				var publisher = OV.initPublisher(insertPublisherContainer(), properties);
-
-				setPublisherButtonsActions(publisher);
-				session.publish(publisher);
-			})
-			.catch(error => {
-				console.log("There was an error connecting to the session:", error.code, error.message);
-			});
+		console.log("token", token);
+		console.log("userID", USER_ID);
+		tokens.push(token);
+		webComponent.sessionConfig = { sessionName: SESSION_ID, user: USER_ID, tokens, ovSettings };
+		webComponent.style.display = 'block';
 	});
 
 }
 
 function leaveSession() {
-	session.disconnect();
+	webComponent.sessionConfig = {};
 }
 
 window.onbeforeunload = () => {
-	if (session) leaveSession();
+	if (webComponent) leaveSession();
 };
 
-function insertPublisherContainer() {
-	var commonTagStyle = "display: inline-block; cursor: pointer; background-color: #daae00; color: white; font-size: 13px; font-weight: bold; padding: 1px 3px; border-radius: 3px; font-family: 'Arial';";
-	var videoContainer = document.createElement('div');
-	videoContainer.id = 'video-publisher';
-	videoContainer.className = 'video-container';
-	videoContainer.setAttribute("style", "display: inline-block; margin: 5px 5px 0 0");
-	var infoContainer = document.createElement('div');
-	infoContainer.setAttribute("style", "display: flex; justify-content: space-between; margin-bottom: 3px");
-	var userId = document.createElement('div');
-	userId.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	userId.innerText = session.connection.data;
-	var rtt = document.createElement('div');
-	rtt.id = 'rtt';
-	rtt.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	var sendBandwidth = document.createElement('div');
-	sendBandwidth.id = 'send-bandwidth';
-	sendBandwidth.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	var bitrate = document.createElement('div');
-	bitrate.id = 'bitrate';
-	bitrate.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	var mute = document.createElement('div');
-	mute.id = 'mute';
-	mute.setAttribute("style", commonTagStyle);
-	mute.innerText = 'Mute';
-	var unpublish = document.createElement('div');
-	unpublish.id = 'unpublish';
-	unpublish.setAttribute("style", commonTagStyle);
-	unpublish.innerText = 'Unpublish';
-	var leave = document.createElement('div');
-	leave.id = 'leave';
-	leave.setAttribute("style", commonTagStyle);
-	leave.innerText = 'Leave';
-	infoContainer.appendChild(userId);
-	infoContainer.appendChild(rtt);
-	infoContainer.appendChild(sendBandwidth);
-	infoContainer.appendChild(bitrate);
-	infoContainer.appendChild(mute);
-	infoContainer.appendChild(unpublish);
-	infoContainer.appendChild(leave);
-	videoContainer.appendChild(infoContainer);
-	document.getElementById('local').appendChild(videoContainer);
-	return videoContainer;
-}
-
-function setPublisherButtonsActions(publisher) {
-	document.getElementById('mute').onclick = (e) => {
-		event.target.innerText = event.target.innerText === 'Mute' ? 'Unmute' : 'Mute';
-		publisher.publishAudio(!publisher.stream.audioActive);
-		publisher.publishVideo(!publisher.stream.videoActive);
-	}
-	document.getElementById('unpublish').onclick = () => {
-		if (event.target.innerText === 'Unpublish') {
-			session.unpublish(publisher);
-			event.target.innerText = 'Publish';
-		} else {
-			var elem = document.getElementById('video-publisher');
-			elem.parentNode.removeChild(elem);
-			var publisher2 = OV.initPublisher(insertPublisherContainer(), { resolution: RESOLUTION, frameRate: 30, mirror: false });
-			setPublisherButtonsActions(publisher2);
-			session.publish(publisher2);
-			event.target.innerText = 'Unpublish';
-		}
-	}
-	document.getElementById('leave').onclick = () => {
-		session.disconnect();
-	}
-	publisher.once("accessAllowed", e => {
-		appendEvent({ event: "accessAllowed", content: '' });
-	});
-	publisher.once("streamCreated", e => {
-		appendEvent({ event: "streamCreated", content: e.stream.streamId });
-	});
-	publisher.once("streamPlaying", e => {
-		appendEvent({ event: "streamPlaying", content: 'Publisher' });
-		window.openviduLoadTest.stats[USER_ID] = [];
-	});
-	publisher.once("streamDestroyed", e => {
-		appendEvent({ event: "streamDestroyed", content: e.stream.streamId });
-		if (e.reason !== 'unpublish') {
-			document.getElementById('video-publisher').outerHTML = "";
-		}
-	});
-}
-
-function insertSubscriberContainer(event) {
-	var commonTagStyle = "background-color: #0088aa; color: white; font-size: 13px; font-weight: bold; padding: 1px 3px; border-radius: 3px; font-family: 'Arial'";
-	var videoContainer = document.createElement('div');
-	videoContainer.id = 'video-' + event.stream.connection.data;
-	videoContainer.className = 'video-container';
-	videoContainer.setAttribute("style", "display: inline-block; margin: 5px 5px 0 0");
-	var infoContainer = document.createElement('div');
-	infoContainer.setAttribute("style", "display: flex; justify-content: space-between; margin-bottom: 3px");
-	var userId = document.createElement('div');
-	userId.setAttribute("style", commonTagStyle);
-	userId.innerText = event.stream.connection.data;
-	var resolution = document.createElement('div');
-	resolution.id = 'resolution-' + event.stream.connection.data;
-	resolution.setAttribute("style", "display: inline-block; " + commonTagStyle);
-	resolution.innerText = event.stream.videoDimensions.width + 'x' + event.stream.videoDimensions.height;
-	var rtt = document.createElement('div');
-	rtt.id = 'rtt-' + event.stream.connection.data;
-	rtt.setAttribute("style", "display: inline-block; " + commonTagStyle);
-	var delayMs = document.createElement('div');
-	delayMs.id = 'delay-' + event.stream.connection.data;
-	delayMs.setAttribute("style", "display: inline-block; " + commonTagStyle);
-	var jitter = document.createElement('div');
-	jitter.id = 'jitter-' + event.stream.connection.data;
-	jitter.setAttribute("style", "display: inline-block; " + commonTagStyle);
-	var receiveBandwidth = document.createElement('div');
-	receiveBandwidth.id = 'receive-bandwidth-' + event.stream.connection.data;
-	receiveBandwidth.setAttribute("style", "display: inline-block; " + commonTagStyle);
-	var bitrate = document.createElement('div');
-	bitrate.id = 'bitrate-' + event.stream.connection.data;
-	bitrate.setAttribute("style", commonTagStyle);
-	infoContainer.appendChild(userId);
-	infoContainer.appendChild(resolution);
-	infoContainer.appendChild(rtt);
-	infoContainer.appendChild(delayMs);
-	infoContainer.appendChild(jitter);
-	infoContainer.appendChild(receiveBandwidth);
-	infoContainer.appendChild(jitter);
-	infoContainer.appendChild(bitrate);
-	videoContainer.appendChild(infoContainer);
-	document.body.appendChild(videoContainer);
-	return videoContainer;
-}
 
 function initFormValues() {
 	document.getElementById("form-publicurl").value = OPENVIDU_SERVER_URL;
 	document.getElementById("form-secret").value = OPENVIDU_SERVER_SECRET;
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
-	document.getElementById("form-recordingmode").value = RECORDING_OUTPUT_MODE;
-	document.getElementById("form-filtercheckbox").checked = IS_FILTER_ENABLED;
 }
 
 function joinWithForm() {
@@ -257,8 +142,6 @@ function joinWithForm() {
 	OPENVIDU_SERVER_SECRET = document.getElementById("form-secret").value;
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
-	RECORDING_OUTPUT_MODE = document.getElementById("form-recordingmode").value;
-	IS_FILTER_ENABLED = document.getElementById("form-filtercheckbox").checked;
 	document.getElementById('join-form').style.display = 'none';
 	joinSession();
 	return false;
@@ -289,13 +172,6 @@ function createSession() { // See https://openvidu.io/docs/reference-docs/REST-A
 		}
 		var properties = {customSessionId: SESSION_ID};
 
-		if(!!RECORDING_OUTPUT_MODE){
-			properties.defaultOutputMode = RECORDING_OUTPUT_MODE;
-			properties.defaultRecordingLayout = RECORDING_LAYOUT.BEST_FIT;
-			properties.recordingMode = RECORDING_MODE.ALWAYS;
-		}
-
-		console.log("Is recording enabled? : ", !!RECORDING_OUTPUT_MODE);
 		console.log("Session properties : ", properties);
 
 		request.send(JSON.stringify(properties));
@@ -322,16 +198,12 @@ function createToken() { // See https://openvidu.io/docs/reference-docs/REST-API
 			session: SESSION_ID,
 		};
 
-		if(IS_FILTER_ENABLED){
-			properties.kurentoOptions = {allowedFilters: ["GStreamerFilter"]};
-		}
-
 		request.send(JSON.stringify(properties));
 	});
 }
 
 function collectEventsAndStats() {
-	this.session.streamManagers.forEach(streamManager => {
+	session.streamManagers.forEach(streamManager => {
 		this.gatherStatsForPeer(streamManager.stream.getRTCPeerConnection(), streamManager.stream.connection.data, streamManager.remote);
 	});
 }
@@ -368,23 +240,16 @@ function gatherStatsForPeer(rtcPeerConnection, userId, isSubscriber, errorCallba
 			userStatsJson.candidateType = activeCandidateStats.googRemoteCandidateType;
 			userStatsJson.localAddress = activeCandidateStats.googLocalAddress;
 			userStatsJson.remoteAddress = activeCandidateStats.googRemoteAddress;
-			if (isSubscriber) {
-				document.querySelector('#rtt-' + userId).innerText = 'RTT: ' + userStatsJson.rtt + ' ms';
-			} else {
-				document.querySelector('#rtt').innerText = 'RTT: ' + userStatsJson.rtt + ' ms';
-			}
+
 		}
 
 		var videoBwe = fullReport.find(report => report.type === 'VideoBwe');
 		if (!!videoBwe) {
 			if (isSubscriber) {
 				userStatsJson.availableReceiveBandwidth = Math.floor(videoBwe.googAvailableReceiveBandwidth / 1024);
-				document.querySelector('#receive-bandwidth-' + userId).innerText = 'Bandwidth: ' + userStatsJson.availableReceiveBandwidth + ' kbps';
 			} else {
 				userStatsJson.availableSendBandwidth = Math.floor(videoBwe.googAvailableSendBandwidth / 1024);
 				userStatsJson.bitrate = Math.floor(videoBwe.googTransmitBitrate / 1024);
-				document.querySelector('#send-bandwidth').innerText = 'Bandwidth: ' + userStatsJson.availableSendBandwidth + ' kbps';
-				document.querySelector('#bitrate').innerText = userStatsJson.bitrate + ' kbps';
 			}
 		}
 
@@ -407,10 +272,6 @@ function gatherStatsForPeer(rtcPeerConnection, userId, isSubscriber, errorCallba
 				// Store variables for next stats gathering
 				lastStatGatheringTime[userId] = videoStats.timestamp.getTime();
 				lastBytesReceived[userId] = userStatsJson.bytesReceived;
-
-				document.querySelector('#delay-' + userId).innerText = 'Delay: ' + userStatsJson.delay + ' ms';
-				document.querySelector('#jitter-' + userId).innerText = 'jitter: ' + userStatsJson.jitter;
-				document.querySelector('#bitrate-' + userId).innerText = userStatsJson.bitrate + ' kbps';
 			} else {
 				userStatsJson.bytesSent = Number(videoStats.bytesSent);
 			}
