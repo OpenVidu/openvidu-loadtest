@@ -75,6 +75,12 @@ import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.slf4j.Logger;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.openvidu.load.test.browser.Browser;
 import io.openvidu.load.test.browser.BrowserNotReadyException;
@@ -100,7 +106,7 @@ public class OpenViduLoadTest {
 
 	final static Logger log = getLogger(lookup().lookupClass());
 
-	public static ExecutorService browserInitializationTaskExecutor = Executors.newCachedThreadPool();;
+	public static ExecutorService browserInitializationTaskExecutor = Executors.newCachedThreadPool();
 	ScheduledThreadPoolExecutor statGatheringTaskExecutor = new ScheduledThreadPoolExecutor(
 			Runtime.getRuntime().availableProcessors() * 4);
 	final static ScheduledThreadPoolExecutor tcpdumpStopProcesses = new ScheduledThreadPoolExecutor(
@@ -112,16 +118,16 @@ public class OpenViduLoadTest {
 	public static String OPENVIDU_SECRET = "MY_SECRET";
 	public static String OPENVIDU_URL = "https://localhost:4443/";
 	public static String APP_URL = "http://localhost:8080/";
-	public static int SESSIONS = 1;
-	public static int USERS_SESSION = 500;
-	public static int SECONDS_OF_WAIT = 60;
+	public static int SESSIONS = 10;
+	public static int USERS_SESSION = 7;
+	public static int SECONDS_OF_WAIT = 40;
 	public static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
 	public static int SERVER_POLL_INTERVAL = 5000;
 	public static String SERVER_SSH_USER = "ubuntu";
 	public static String SERVER_SSH_HOSTNAME;
 	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
-	public static boolean REMOTE = true;
+	public static boolean REMOTE = false;
 	public static boolean BROWSER_INIT_AT_ONCE = false;
 	public static String RESULTS_PATH = "/opt/openvidu/testload";
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
@@ -281,8 +287,7 @@ public class OpenViduLoadTest {
 		String testInfo = "------------ TEST CONFIGURATION ----------" + System.getProperty("line.separator")
 				+ "OpenVidu URL:          " + OPENVIDU_URL + System.getProperty("line.separator")
 				+ "OpenVidu secret:       " + OPENVIDU_SECRET + System.getProperty("line.separator")
-				+ "App URL:               " + APP_URL + System.getProperty("line.separator") + "Recording Mode:         "
-				+  System.getProperty("line.separator") + "Session limit:         "
+				+ "App URL:               " + APP_URL + System.getProperty("line.separator") + "Session limit:         "
 				+ SESSIONS + System.getProperty("line.separator") + "Users per session:     " + USERS_SESSION
 				+ System.getProperty("line.separator") + "Expected browsers:     " + SESSIONS * USERS_SESSION
 				+ System.getProperty("line.separator") + "Expected Publishers:   " + SESSIONS * USERS_SESSION
@@ -520,8 +525,8 @@ public class OpenViduLoadTest {
 				.networkRestriction(getNetworkRestriction(sessionIndex, userIndex)).build();
 
 		Browser browser = browserProvider.getBrowser(properties);
-		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL +  "&secret="
-		 		 + OPENVIDU_SECRET + "&sessionId=" + sessionId + "&userId=" + userId);
+		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
+				+ sessionId + "&userId=" + userId);
 		browser.getManager().startEventPolling(userId, sessionId);
 
 		Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
@@ -640,7 +645,7 @@ public class OpenViduLoadTest {
 
 		for (Browser b : listOfBrowsers) {
 			log.info("Browser {} connecting now to {}", b.getUserId(), APP_URL);
-			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL  + "&secret=" + OPENVIDU_SECRET + "&sessionId="
+			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
 					+ sessionId + "&userId=" + propertiesList.get(i).userId());
 			log.info("Browser {} is now connected to to {}", b.getUserId(), APP_URL);
 			b.getManager().startEventPolling(propertiesList.get(i).userId(), sessionId);
