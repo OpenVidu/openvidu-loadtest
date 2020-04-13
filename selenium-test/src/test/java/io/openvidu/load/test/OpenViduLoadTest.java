@@ -127,7 +127,7 @@ public class OpenViduLoadTest {
 	public static String SERVER_SSH_USER = "ubuntu";
 	public static String SERVER_SSH_HOSTNAME;
 	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
-	public static boolean REMOTE = false;
+	public static boolean REMOTE = true;
 	public static boolean BROWSER_INIT_AT_ONCE = false;
 	public static String RESULTS_PATH = "/opt/openvidu/testload";
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
@@ -135,9 +135,10 @@ public class OpenViduLoadTest {
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
-	public static int SESSION_AFTER_FULL_CPU = 1;
-	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 100;
+	public static int SESSION_AFTER_FULL_CPU = 0;
+	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 60;
 	public static double CPU_USAGE_LIMIT = 100.0;
+	public static int MS_WAIT_BETWEEN_BROWSER = 10000;
 
 	static BrowserProvider browserProvider;
 	public static Long timeTestStarted;
@@ -456,6 +457,12 @@ public class OpenViduLoadTest {
 		}
 		for (Runnable r : threads) {
 			browserInitializationTaskExecutor.execute(r);
+			try {
+				Thread.sleep(MS_WAIT_BETWEEN_BROWSER);
+			} catch (InterruptedException e) {
+				log.info("Waiting {} miliseconds between browsers", MS_WAIT_BETWEEN_BROWSER);
+				e.printStackTrace();
+			}
 		}
 
 		double cpuUsage = openViduServerManager.getCpuUsage();
