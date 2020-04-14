@@ -236,7 +236,7 @@ function getToken() {
 	return createSession().then(sessionId => createToken(sessionId));
 }
 
-function createSession() { // See https://openvidu.io/docs/reference-docs/REST-API/#post-apisessions
+function createSession() { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-apisessions
 	return new Promise((resolve, reject) => {
 		var request = new XMLHttpRequest();
 		request.open("POST", OPENVIDU_SERVER_URL + "api/sessions", true);
@@ -259,7 +259,7 @@ function createSession() { // See https://openvidu.io/docs/reference-docs/REST-A
 	});
 }
 
-function createToken() { // See https://openvidu.io/docs/reference-docs/REST-API/#post-apitokens
+function createToken() { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-apitokens
 	return new Promise((resolve, reject) => {
 		var request = new XMLHttpRequest();
 		request.open("POST", OPENVIDU_SERVER_URL + "api/tokens", true);
