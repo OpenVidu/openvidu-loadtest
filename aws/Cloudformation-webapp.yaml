@@ -52,9 +52,9 @@ Resources:
                 set -eu -o pipefail
                 # installing necessary software
                 apt-get update
-                
+
                 apt-get install -y awscli zip unzip openjdk-8-jdk pwgen nginx supervisor ec2-ami-tools
-                
+
                 # install coturn
                 apt-get -y install coturn
 
@@ -70,11 +70,11 @@ Resources:
                 WORKDIR=$(mktemp -d)
                 pushd $WORKDIR
                 git clone https://github.com/OpenVidu/openvidu-loadtest.git
-                
+
                 pushd openvidu-loadtest
-                git checkout recording_loadtest
+                git checkout webcomponent_loadtest
                 popd
-                
+
                 cp -rav openvidu-loadtest/webapp/* /var/www/html
                 popd
               mode: "000755"
@@ -156,7 +156,7 @@ Resources:
               owner: "root"
               group: "root"
     Properties:
-      ImageId:  "ami-03ef731cc103c9f09"
+      ImageId:  "ami-039a49e70ea773ffc"
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !Ref OpenviduServerSecurityGroup
@@ -167,16 +167,16 @@ Resources:
       UserData:
         "Fn::Base64":
           !Sub |
-            #!/bin/bash 
+            #!/bin/bash
             set -eu -o pipefail
             apt-get update
             apt-get install -y python-pip
             pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
 
             cfn-init --region ${AWS::Region} --stack ${AWS::StackId} --resource OpenviduServer
-                        
+
             /usr/local/bin/installSoftware.sh || { echo "[Openvidu] error installing software"; exit 1; }
-            
+
             /usr/local/bin/getTestApp.sh || { echo "[Openvidu] error installing TestApp"; exit 1; }
 
             /usr/local/bin/configure-nginx.sh || { echo "[Openvidu] error configuring Nginx"; exit 1; }
@@ -185,21 +185,21 @@ Resources:
 
             # sending the finish call
             /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WaitCondition --region ${AWS::Region}
-            
+
   OpenviduServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Openvidu ports
       SecurityGroupIngress:
-      - IpProtocol: tcp 
+      - IpProtocol: tcp
         FromPort: 0
         ToPort: 65535
         CidrIp: 0.0.0.0/0
       - IpProtocol: udp
         FromPort: 0
         ToPort: 65535
-        CidrIp: 0.0.0.0/0            
-            
+        CidrIp: 0.0.0.0/0
+
   WaitCondition:
     Type: AWS::CloudFormation::WaitCondition
     CreationPolicy:
@@ -210,15 +210,15 @@ Resources:
 Outputs:
   OpenViduURL:
     Description: "Use this URL to connect OpenVidu with user and password"
-    Value: !Join 
+    Value: !Join
       - ''
       - - 'https://'
-        - !GetAtt OpenviduServer.PublicDnsName 
+        - !GetAtt OpenviduServer.PublicDnsName
         - ':4443'
 
   TestAppURL:
     Description: "Use this url to connect to the test app"
-    Value: !Join 
+    Value: !Join
       - ''
       - - 'https://'
-        - !GetAtt OpenviduServer.PublicDnsName 
+        - !GetAtt OpenviduServer.PublicDnsName
