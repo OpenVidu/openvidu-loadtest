@@ -75,12 +75,6 @@ import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.slf4j.Logger;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
-
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.openvidu.load.test.browser.Browser;
 import io.openvidu.load.test.browser.BrowserNotReadyException;
