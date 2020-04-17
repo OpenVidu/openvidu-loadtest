@@ -42,15 +42,12 @@ public class LocalBrowserProvider implements BrowserProvider {
 	@Override
 	public Browser getBrowser(BrowserProperties properties) {
 		Browser browser = null;
-		DesiredCapabilities capabilities;
 
 		switch (properties.type()) {
 		case "chrome":
 			ChromeOptions options = ChromeBrowser.generateFakeVideoChromeOptions("/opt/openvidu/fakevideo.y4m",
 					"/opt/openvidu/fakeaudio.wav");
-			capabilities = DesiredCapabilities.chrome();
-			capabilities.setAcceptInsecureCerts(true);
-			capabilities.setCapability(ChromeOptions.CAPABILITY, options);
+			options.setAcceptInsecureCerts(true);
 			WebDriver driver = new ChromeDriver(options);
 			browser = new ChromeBrowser(properties, driver);
 			log.info("Using local Chrome web driver");
