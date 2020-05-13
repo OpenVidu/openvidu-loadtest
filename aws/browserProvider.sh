@@ -1,10 +1,10 @@
 #!/bin/bash
 set -eu -o pipefail
 
-IMAGE_ID=ami-0bef0976da1fbaa64
-INSTANCE_TYPE=c5.xlarge
-KEY_NAME=kms-aws-share-key
-SECURITY_GROUP=Elastest-Browsers
+IMAGE_ID=ami-
+INSTANCE_TYPE=c5.large
+KEY_NAME=
+SECURITY_GROUP=sg-
 
 NUM_INSTANCES=${NUM_INSTANCES:-1}
 
@@ -12,7 +12,7 @@ aws ec2 run-instances \
   --image-id ${IMAGE_ID} \
   --instance-type ${INSTANCE_TYPE} \
   --key-name ${KEY_NAME} \
-  --security-groups ${SECURITY_GROUP} \
+  --security-group-ids ${SECURITY_GROUP} \
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Type,Value=OpenViduLoadTest}]' \
   --count 1:$NUM_INSTANCES >/dev/null
 
