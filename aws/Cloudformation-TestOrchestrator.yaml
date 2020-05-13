@@ -82,13 +82,13 @@ Resources:
 
                 # Clone openvidu-loadtest repo
                 git clone https://github.com/OpenVidu/openvidu-loadtest.git /home/ubuntu/openvidu-loadtest
-                cd /home/ubuntu/openvidu-loadtest && git checkout recording_loadtest
+                cd /home/ubuntu/openvidu-loadtest && git checkout webcomponent_loadtest
 
               mode: "000755"
               owner: "root"
               group: "root"
     Properties:
-      ImageId:  ami-03ef731cc103c9f09
+      ImageId:  ami-039a49e70ea773ffc
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !Ref TestOrchestratorSecurityGroup

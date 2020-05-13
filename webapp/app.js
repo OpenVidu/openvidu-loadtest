@@ -54,8 +54,10 @@ function joinSession() {
 
 		session.on("streamCreated", event => {
 			appendEvent({ event: "streamCreated", content: event.stream.streamId });
+			console.warn("SESSION STREAM CREATED");
 			setTimeout(() => {
 				event.stream.streamManager.on("streamPlaying", e => {
+					console.warn("SESSION streamPlaying");
 					appendEvent({ event: "streamPlaying", content: event.stream.streamId });
 					var userId = event.stream.connection.data;
 					window.openviduLoadTest.stats[userId] = [];

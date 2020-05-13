@@ -5,11 +5,11 @@ Parameters:
   ImageId:
     Type: AWS::EC2::Image::Id
     Description: An Amazon EC2 image ID, such as ami-0ff8a91507f77f867.
-    Default: ami-03ef731cc103c9f09
+    Default: ami-046842448f9e74e7d
   SSHKey:
     Type: String
     Description: SSH key
-    Default: kms-aws-share-key
+    Default: kms-aws-share-key-virginia
 
 Resources:
   BrowserInstance:
