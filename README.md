@@ -8,7 +8,7 @@ Number of total sessions and participants per session must be customizable. Test
 - Every browser will be a Chrome instance launched with the following options: `allow-file-access-from-files`, `use-file-for-fake-video-capture=fakevideo.y4m`, `use-file-for-fake-audio-capture=fakeaudio.wav`, `window-size=1980,1280`
 - OpenVidu will be deployed in a dedicated EC2 machine. Every OpenVidu session (and therefore every dockerized browser) will be connecting to this same instance
 - Each session will have 7 participants by default (7 publishers and 42 subscribers), but this must be customizable
-- Each video will have a resolution of 540×360 pixels, 30 fps
+- Each video will have a resolution of 640x480 pixels,(default resolution)
 - Each browser will be responsible of obtaining the necessary token to connect to its specific test session (URL will contain as parameters the secret, the session identifier and the ip where to perform REST operations, so the JavaScript code can get the token)
 - Client HTML/JS code will show up 1 local video and 6 remotes videos (for 7 users per session), including WebRTC stats for all of them
 - Every RTCPeerConnection object will be exposed to gather statistics thanks to method [`RTCPeerConnection.getStats()`](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/getStats)
@@ -18,22 +18,23 @@ Number of total sessions and participants per session must be customizable. Test
 
 The testing process for every client node will be:
 
-1. Launch Chrome with the required flags ([selenium code](https://github.com/OpenVidu/openvidu-loadtest/tree/master/selenium-test) in the test orchestrator will launch every client node)
+1. Launch Chrome with the required flags ([selenium code](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/selenium-test) in the test orchestrator will launch every client node)
 2. Wait fot the testing web application to load. This static web app will be hosted in the same AWS EC2 machine as OpenVidu Server.
 3. Wait for the browser to connect to the session in OpenVidu Server (`connectionCreated` event)
 4. Wait for the local video to be playing (`videoPlaying` event)
 5. Wait for each one of the remote videos to be playing (`videoPlaying` event)
 6. Gather statistics. Each call to `getStats()` over each `RTCPeerConnection` object will take place periodically (customizable period)
-7. Wait until the test orchestrator node terminates the test. Close browser.
+7. Wait until the test orchestrator node terminates the test.
+8. Close browsers.
 
 
 ## Running OpenVidu Load Test
 
-1) First you have to generate an Amazon AMI with the browser (from now on ***Client Instance***), so your test can quickly launch clients to connect to OpenVidu sessions. Perform [this step](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#configuration) and the [following one](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#creating-the-ami).
+1) First you have to generate an Amazon AMI with the browser (from now on ***Client Instance***), so your test can quickly launch clients to connect to OpenVidu sessions. Perform [this step](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#configuration) and the [following one](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws#creating-the-ami).
 
-2) You will need then to deploy OpenVidu Server in Amazon Web Services (from now on ***OpenVidu Server Instance***). You can do so very easily following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template).
+2) You will need then to deploy OpenVidu Server in Amazon Web Services (from now on ***OpenVidu Server Instance***). You can do so very easily following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws#the-sut-subject-under-test-cloudformation-template).
 
-3) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws/#the-test-orchestrator-cloudformation-template).
+3) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws/#the-test-orchestrator-cloudformation-template).
 
 After successfully deploying the *Test Orchestrator Instance*, copy your key file to the instance. The test will need it to connect to *OpenVidu Server Instance*.
 
@@ -67,7 +68,7 @@ SECURITY_GROUP=
 
 Being:
 
-- `IMAGE_ID`: identifier of the AMI created for your *Client Instances* during [these step](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#creating-the-ami)
+- `IMAGE_ID`: identifier of the AMI created for your *Client Instances* during [these step](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws#creating-the-ami)
 - `INSTANCE_TYPE`: type of instance for your *Client Instances*. For example `c5.xlarge`
 - `KEY_NAME`: the name of the key you used when deploying both *OpenVidu Server Instance* and *Test Orchestrator Instance*
 - `SECURITY_GROUP`: name of the security group needed to launch *Client Instances*
@@ -107,8 +108,10 @@ Configuration properties when running `mvn test` in `selenium-test/.` (configure
 - `DOWNLOAD_OPENVIDU_LOGS`: whether to download OpenVidu Server and Kurento Media Server logs from the SuT machine or not at the end of the test. This includes downloading file `openvidu.log` (output from OpenVidu Server Java process), `errors.log` (error output from Kurento Media Server), `20*.log` (standard output from Kurento Media Server) and `turn_*.log` (coturn server logs). All logs will be downloaded through _scp_ thanks to `SERVER_SSH_USER` and `PRIVATE_KEY_PATH` properties, and will be properly stored under `RESULTS_PATH` parent directory. Default value = `true`
 - `TCPDUMP_CAPTURE_BEFORE_CONNECT`: whether to start the capture of tcpdump information before connection to a session or after session connection is stable. Default value: `true`
 - `TCPDUMP_CAPTURE_TIME`: how long network packet information should be captured in each browser after session is stable (only applies if `REMOTE` is true). The `tcpdump` process will always start before connecting to OpenVidu session. Then it will run for `TCPDUMP_CAPTURE_TIME` seconds, storing the results in a log file (_tcpdump.pcap_) that will be downloaded to the test node just before terminating the browser's instance. If you don't want this information to be collected, just set this property to `0`. Default value: `5`
- - `SESSION_AFTER_FULL_CPU`: Session limit after CPU is 100%. If the limit is reached, the test will be stopped. Default value = 2.
- - `SECONDS_WITH_ALL_SESSIONS_ACTIVE`: Time that sessions will be active after max Session limit. Default value = 600
+ - `SESSION_AFTER_FULL_CPU`: Session limit after CPU is 100%. If the limit is reached, the test will be stopped. Default value = 0.
+ - `SECONDS_WITH_ALL_SESSIONS_ACTIVE`: Time that sessions will be active after max Session limit. Default value = 0
+- `CPU_USAGE_LIMIT`: Limit of the CPU usage, the test will stop when the CPU_USAGE_LIMIT is reached. (ONLY VALID FOR OPENVIDU CE). Default 100.0
+- `SECONDS_WAIT_BETWEEN_BROWSER`: Time that the app will wait between launching browsers and connect to the session (recommended if your use case is a load test of a single session). Default value = 0
 
 
 ## Results format
