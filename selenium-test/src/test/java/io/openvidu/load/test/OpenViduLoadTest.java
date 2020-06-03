@@ -110,9 +110,9 @@ public class OpenViduLoadTest {
 	public static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
-	public static String OPENVIDU_URL = "https://localhost:4443/";
-	public static String APP_URL = "http://localhost:8080/";
-	public static int SESSIONS = 10;
+	public static String OPENVIDU_URL = "https://openvidu-url/";
+	public static String APP_URL = "http://your-app-url:your-port";
+	public static int SESSIONS = 7;
 	public static int USERS_SESSION = 7;
 	public static int SECONDS_OF_WAIT = 40;
 	public static int NUMBER_OF_POLLS = 8;
@@ -121,7 +121,7 @@ public class OpenViduLoadTest {
 	public static String SERVER_SSH_USER = "ubuntu";
 	public static String SERVER_SSH_HOSTNAME;
 	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
-	public static boolean REMOTE = true;
+	public static boolean REMOTE = false;
 	public static boolean BROWSER_INIT_AT_ONCE = false;
 	public static String RESULTS_PATH = "/opt/openvidu/testload";
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
@@ -129,10 +129,11 @@ public class OpenViduLoadTest {
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
+
 	public static int SESSION_AFTER_FULL_CPU = 0;
-	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 60;
+	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 0;
 	public static double CPU_USAGE_LIMIT = 100.0;
-	public static int MS_WAIT_BETWEEN_BROWSER = 10000;
+	public static int SECONDS_WAIT_BETWEEN_BROWSER = 0;
 
 	static BrowserProvider browserProvider;
 	public static Long timeTestStarted;
@@ -170,6 +171,9 @@ public class OpenViduLoadTest {
 		String tcpdumpCaptureTime = System.getProperty("TCPDUMP_CAPTURE_TIME");
 		String sessionAfterFullCpu = System.getProperty("SESSION_AFTER_FULL_CPU");
 		String secondsWithAllSessionsActive = System.getProperty("SECONDS_WITH_ALL_SESSIONS_ACTIVE");
+		String cpuUsageLimit = System.getProperty("CPU_USAGE_LIMIT");
+		String secondsWaitBetweenBrowsers = System.getProperty("SECONDS_WAIT_BETWEEN_BROWSER");
+
 
 
 		if (openviduUrl != null) {
@@ -228,6 +232,12 @@ public class OpenViduLoadTest {
 		}
 		if (secondsWithAllSessionsActive != null) {
 			SECONDS_WITH_ALL_SESSIONS_ACTIVE = Integer.parseInt(secondsWithAllSessionsActive);
+		}
+		if (cpuUsageLimit != null) {
+			CPU_USAGE_LIMIT = Double.parseDouble(cpuUsageLimit);
+		}
+		if (secondsWaitBetweenBrowsers != null) {
+			SECONDS_WAIT_BETWEEN_BROWSER = Integer.parseInt(secondsWaitBetweenBrowsers);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -452,9 +462,9 @@ public class OpenViduLoadTest {
 		for (Runnable r : threads) {
 			browserInitializationTaskExecutor.execute(r);
 			try {
-				Thread.sleep(MS_WAIT_BETWEEN_BROWSER);
+				Thread.sleep(SECONDS_WAIT_BETWEEN_BROWSER * 1000);
 			} catch (InterruptedException e) {
-				log.info("Waiting {} miliseconds between browsers", MS_WAIT_BETWEEN_BROWSER);
+				log.info("Waiting {} seconds between browsers", SECONDS_WAIT_BETWEEN_BROWSER);
 				e.printStackTrace();
 			}
 		}
