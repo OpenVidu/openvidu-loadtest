@@ -11,12 +11,10 @@ Parameters:
   InstanceType:
     Description: "EC2 Instance type"
     Type: String
-    Default: c5.xlarge
+    Default: c5.large
     AllowedValues:
     - c5.large
     - c5.xlarge
-    - c5.2xlarge
-    - c5.4xlarge
     - t3.large
     - t3.xlarge
     ConstraintDescription: "Must be a valid EC2 instance type."
