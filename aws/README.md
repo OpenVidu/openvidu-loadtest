@@ -6,15 +6,13 @@ In this folder we provide the files for deploying and provisioning infraestructu
 
 `EC2Instance-ElastestBrowsers.yaml`: Cloudformation template will launch and configure an AWS EC2 instance ready to launch an Internet Browser (Google Chrome).
 
-`Cloudformation-sut.yaml`: Cloudformation template to deploy the _Subject under test_.
-
 `createAMI.sh`: Script to deploy the CloudFormation and building an Amazon Machine Image (AMI). You can use the AMI to launch several browsers.
 
 `browserProvider.sh`: Once you have an AMI with the browser you can use this script to provide instances with a browser inside ready to test the app.
 
 `terminateInstances.sh`: Terminate all the instances used by the test.
 
-`Cloudformation-sut-webapp.yaml`: This template is special for using OpenVidu Pro (OpenVidu' paid version).
+`Cloudformation-webapp.yaml`: Cloudformation template will launch and configure an AWS EC2 instance serving our webapp
 
 ## Configuration
 
@@ -170,51 +168,10 @@ The Cloudformation is configured to **not** rollback if it fails, so you could t
 
 which contains the provisioning process and can light the problem.
 
-## The SUT (Subject under Test) Cloudformation template
-
-Template *[Cloudformation-sut.yaml](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/Cloudformation-sut.yaml)* can deploy a full OpenVidu stack with Kurento Media Server, Coturn, Redis and OpenVidu running behind a Nginx reverse proxy with a test app ready to be tested.
-
-You'll need to provide some parameters like:
-
-`OpenViduVersion`: Which OpenVidu version you want to try. Default 2.7.0
-
-`KMSVersion`: Which KMS version you want to try. Set to nightly if you want to try the version which is being developing at the moment: Default 6.9.0
-
-`KeyName`: Your RSA key to access the instance through SSH.
-
-`InstanceType`: Which instance type you want to try. Default c5.xlarge.
-
-To deploy the template login in the Cloudformation dashboard and click **Create Stack**
-
-![Create New Stack](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/CreateNewStack.png)
-
-and then upload the template. 
-
-![Upload the template](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Upload.png)
-
-Choose a name and fill up the parameters
-
-![Fill up the parameters](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Parameters.png)
-
-On the next screen there is no need to made changes
-
-And finally review the stack and click **Create**
-
-After a couple minutes you can see the URLs in the output tab. One for OpenVidu and another one for the TestApp.
-
-![Output](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/images/Output.png)
-
-You can access OpenVidu with this credentials:
-
-| Data         | Value       |
-| -----------: | :---------- |
-| **User**     | OPENVIDUAPP |
-| **Password** | MY_SECRET   |
-
 
 ## The Test Orchestrator Cloudformation template
 
-Template *[Cloudformation-TestOrchestrator.yaml](https://github.com/OpenVidu/openvidu-loadtest/blob/master/aws/Cloudformation-TestOrchestrator.yaml)* will deploy an Ubuntu machine with everything necessary to run the load test and coordinate its execution.
+Template *[Cloudformation-TestOrchestrator.yaml](https://github.com/OpenVidu/openvidu-loadtest/blob/recording_loadtest/aws/Cloudformation-TestOrchestrator.yaml)* will deploy an Ubuntu machine with everything necessary to run the load test and coordinate its execution.
 
 You'll need to provide some parameters:
 
@@ -224,6 +181,6 @@ You'll need to provide some parameters:
 
 `InstanceType`: Which instance type you want for your test orchestrator. Default c5.xlarge.
 
-`KeyName`: Your RSA key to access the instance through SSH. **MUST BE THE SAME USED IN [OPENVIDU SERVER DEPLOYMENT](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template)**
+`KeyName`: Your RSA key to access the instance through SSH. **MUST BE THE SAME USED IN [OPENVIDU SERVER DEPLOYMENT](https://docs.openvidu.io/en/stable/deployment/deploying-aws/#deployment-instructions)**
 
-To deploy the template login in the AWS Cloudformation dashboard and follow the same steps as explained in [OpenVidu Server deployment](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#the-sut-subject-under-test-cloudformation-template)
+To deploy the template login in the AWS Cloudformation dashboard and follow the same steps as explained in [OpenVidu Server deployment](https://docs.openvidu.io/en/stable/deployment/deploying-aws/#deployment-instructions)

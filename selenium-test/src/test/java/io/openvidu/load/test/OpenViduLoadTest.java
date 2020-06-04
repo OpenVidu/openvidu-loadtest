@@ -114,9 +114,9 @@ public class OpenViduLoadTest {
 	public static String APP_URL = "http://localhost:8080/";
 	public static String RECORDING_OUTPUT_MODE = "INDIVIDUAL";
 	public static Boolean IS_FILTER_ENABLED = false;
-	public static int SESSIONS = 100;
-	public static int USERS_SESSION = 2;
-	public static int SECONDS_OF_WAIT = 60;
+	public static int SESSIONS = 7;
+	public static int USERS_SESSION = 7;
+	public static int SECONDS_OF_WAIT = 40;
 	public static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
 	public static int SERVER_POLL_INTERVAL = 5000;
@@ -131,8 +131,8 @@ public class OpenViduLoadTest {
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
-	public static int SESSION_AFTER_FULL_CPU = 4;
-	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 600;
+	public static int SESSION_AFTER_FULL_CPU = 0;
+	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 0;
 	public static double CPU_USAGE_LIMIT = 100.0;
 
 	static BrowserProvider browserProvider;
