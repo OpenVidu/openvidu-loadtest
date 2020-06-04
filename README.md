@@ -1,8 +1,13 @@
 # OpenVidu Load Test
 
+Currently there are multiple versions of this repository.
+
+<details>
+  <summary>OpenVidu Load Test: (father of all versions, used in <a href="https://medium.com/@openvidu/openvidu-load-testing-a-systematic-study-of-openvidu-platform-performance-b1aa3c475ba9">OpenVidu medium post</a>)</summary>
+
 This repository aims to facilitate the definition, execution and review of massive load testing scenarios of an OpenVidu application in a distributed cluster of containerized browsers, located in Amazon Web Services Cloud.
 
-Number of total sessions and participants per session must be customizable. Test will have the following default conditions:
+  Number of total sessions and participants per session must be customizable. Test will have the following default conditions:
 
 - Every participant will be connecting from a single browser. Every browser will be launched in its own Docker container with fixed resource configuration (available RAM, number of cores and bandwidth)
 - Every browser will be a Chrome instance launched with the following options: `allow-file-access-from-files`, `use-file-for-fake-video-capture=fakevideo.y4m`, `use-file-for-fake-audio-capture=fakeaudio.wav`, `window-size=1980,1280`
@@ -146,3 +151,12 @@ Inside folder configured with parameter `RESULTS_PATH` you will find another fol
     - **OpenVidu Server monitoring stats**: the test will gather cpu usage, memory usage and network activity (bytes sent and received) from OpenVidu Server every `SERVER_POLL_INTERVAL` milliseconds.
 
     - **OpenVidu session information**: every browser will perform a GET request to `/api/sessions/{SESSION_ID}` just before `sessionStable` or `sessionUnstable` test event is recorded.
+
+
+</details>
+
+
+[Recording Load Test](https://github.com/OpenVidu/openvidu-loadtest/tree/recording_loadtest): the webapp allows to use recording and OpenVidu filters
+
+[Webcomponent Load Test](https://github.com/OpenVidu/openvidu-loadtest/blob/webcomponent_loadtest): the webapp use OpenVidu Call webcomponent
+
