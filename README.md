@@ -30,11 +30,17 @@ The testing process for every client node will be:
 
 ## Running OpenVidu Load Test
 
-1) First you have to generate an Amazon AMI with the browser (from now on ***Client Instance***), so your test can quickly launch clients to connect to OpenVidu sessions. Perform [this step](https://github.com/OpenVidu/openvidu-loadtest/tree/master/aws#configuration) and the [following one](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws#creating-the-ami).
+1) First you have to generate an Amazon AMI with the browser (from now on ***Client Instance***), so your test can quickly launch clients to connect to OpenVidu sessions. Perform [this step](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws#configuration) and the [following one](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws#creating-the-ami).
 
-2) You will need then to deploy OpenVidu Server in Amazon Web Services (from now on ***OpenVidu Server Instance***). You can do so very easily following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws#the-sut-subject-under-test-cloudformation-template).
+2) You will need then to deploy OpenVidu Server in Amazon Web Services (from now on ***OpenVidu Server Instance***). You can do so very easily following [these instructions](https://docs.openvidu.io/en/stable/deployment/deploying-aws/#deployment-instructions).
 
-3) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws/#the-test-orchestrator-cloudformation-template).
+You can use OpenVidu PRO (paid version) instead CE following [these instructions](https://docs.openvidu.io/en/stable/openvidu-pro/deployment/aws/#deployment-instructions).
+
+3) After that, you need to **deploy a webapp built with OpenVidu** that each browser will use to connect to the OpenVidu session. In this branch it's using OpenVidu Call (webcomponent). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/webapp/#the-test-orchestrator-cloudformation-template).
+
+4) Then you will have to deploy a Test Orchestrator instance in the same Amazon Web Services region (from now on ***Test Orchestrator Instance***). You can do it following [these instructions](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest/aws/#the-test-orchestrator-cloudformation-template).
+
+
 
 After successfully deploying the *Test Orchestrator Instance*, copy your key file to the instance. The test will need it to connect to *OpenVidu Server Instance*.
 
