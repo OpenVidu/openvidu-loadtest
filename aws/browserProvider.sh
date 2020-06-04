@@ -12,7 +12,7 @@ aws ec2 run-instances \
   --image-id ${IMAGE_ID} \
   --instance-type ${INSTANCE_TYPE} \
   --key-name ${KEY_NAME} \
-  --security-groups ${SECURITY_GROUP} \
+  --security-group-ids ${SECURITY_GROUP} \
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Type,Value=OpenViduLoadTest}]' \
   --count 1:$NUM_INSTANCES >/dev/null
 
