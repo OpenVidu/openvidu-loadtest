@@ -158,5 +158,5 @@ Inside folder configured with parameter `RESULTS_PATH` you will find another fol
 
 [Recording Load Test](https://github.com/OpenVidu/openvidu-loadtest/tree/recording_loadtest): the webapp allows to use recording and OpenVidu filters
 
-[Webcomponent Load Test](https://github.com/OpenVidu/openvidu-loadtest/blob/webcomponent_loadtest): the webapp use OpenVidu Call webcomponent
+[Webcomponent Load Test](https://github.com/OpenVidu/openvidu-loadtest/tree/webcomponent_loadtest): the webapp use OpenVidu Call webcomponent
 
