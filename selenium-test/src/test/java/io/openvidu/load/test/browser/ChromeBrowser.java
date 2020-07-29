@@ -32,7 +32,7 @@ public class ChromeBrowser extends Browser {
 	ChromeBrowser(BrowserProperties properties, AmazonInstance instance, WebDriver driver) {
 		super(properties, instance, driver);
 	}
-	
+
 	ChromeBrowser(BrowserProperties properties, WebDriver driver) {
 		super(properties, driver);
 	}
@@ -49,6 +49,8 @@ public class ChromeBrowser extends Browser {
 		options.addArguments("--use-file-for-fake-video-capture=" + videoFileLocation);
 		// This flag sets the audio input
 		options.addArguments("--use-file-for-fake-audio-capture=" + audioFileLocation);
+		// This flag sets autoplay automatically
+		options.addArguments("--autoplay-policy=no-user-gesture-required");
 		return options;
 	}
 
