@@ -283,6 +283,7 @@ function gatherStatsForPeer(rtcPeerConnection, userId, isSubscriber, errorCallba
 }
 
 function startTime() {
-	document.getElementById('time').innerHTML = new Date().toISOString();
-	t = setTimeout(() => startTime(), 10);
+    var date = new Date().toISOString();
+	document.getElementById('time').innerHTML = date.substring(0, date.length - 5);
+	t = setTimeout(() => startTime(), 1000);
 }

@@ -18,6 +18,14 @@ Parameters:
     - t3.large
     - t3.xlarge
     ConstraintDescription: "Must be a valid EC2 instance type."
+  WebApp:
+    Description: "WebApp to deploy"
+    Type: String
+    Default: Call
+    AllowedValues:
+    - Call
+    - Classroom
+    ConstraintDescription: "Must be a valid WebApp (Call or Classroom)"
 
 Resources:
   OpenviduServer:
@@ -57,7 +65,7 @@ Resources:
               owner: "root"
               group: "root"
             "/usr/local/bin/getTestApp.sh":
-              content: |
+              content: !Sub |
                 #!/bin/bash
                 set -eu -o pipefail
                 WORKDIR=$(mktemp -d)
@@ -68,7 +76,14 @@ Resources:
                 git checkout webcomponent_loadtest
                 popd
 
-                cp -rav openvidu-loadtest/webapp/* /var/www/html
+                WEBAPP=${WebApp}
+
+                if [[ $WEBAPP == "Call" ]]; then
+                  cp -rav openvidu-loadtest/webapp-call/* /var/www/html
+                elif [[ $WEBAPP == "Classroom" ]]; then
+                  cp -rav openvidu-loadtest/webapp-classroom/* /var/www/html
+                fi
+
                 popd
               mode: "000755"
               owner: "root"

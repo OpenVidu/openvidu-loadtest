@@ -1,6 +1,6 @@
-# WEBAPP
+# WebApp - Call
 
-In this folder we provide the files for the openvidu webapp to perform the test.
+In this folder we provide the files for the openvidu webapp to perform the test. (OpenVidu Call webcomponent).
 
 ## Files
 
@@ -16,6 +16,12 @@ In this folder we provide the files for the openvidu webapp to perform the test.
 ## Deploy
 
 Using the [CloudFormation-webapp.yml](https://github.com/OpenVidu/openvidu-loadtest/blob/webcomponent_loadtest/aws/Cloudformation-webapp.yaml) this webbapp will be deployed in a EC2 instance.
+
+Parameters used by the webapp are:
+- KeyName: The name of your private key.
+- InstanceType: EC2 Type of instance for your webapp.
+- WebApp: This parameter should be `Call`
+
 
 The instance will serve the webapp and we will use it to provide to the browsers connect to the OpenVidu sessions
 
