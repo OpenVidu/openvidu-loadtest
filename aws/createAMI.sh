@@ -8,7 +8,7 @@ export AWS_DEFAULT_REGION=us-east-1
 
 # Please, refer to https://cloud-images.ubuntu.com/locator/ec2/
 # to find a valid EC2 AMI
-IMAGE_ID=ami-085925f297f89fce1
+IMAGE_ID=ami-0ac80df6eff0e70b5
 
 CF_URL=https://s3-eu-west-1.amazonaws.com/public.openvidu.io/EC2Instance-ElastestBrowsers.yaml
 

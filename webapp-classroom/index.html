@@ -7,10 +7,20 @@
         <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
             crossorigin="anonymous"></script>
         <script src="/app.js"></script>
+        <link rel="stylesheet" type="text/css" href="styles.css">
     </head>
+
+    <script type="text/javascript">
+        window.openviduLoadTest = { sessionId: '', events: [], stats: {} };
+        window.collectEventsAndStats;
+        window.resetEventsAndStats;
+    </script>
 
     <body>
         <div id="time" style="font-size: 20px"></div>
-        <div id="iframes-section"></div>
+
+        <div id="webcomponent-div">
+            <openvidu-webcomponent style="display: none"></openvidu-webcomponent>
+        </div>
     </body>
 </html>
