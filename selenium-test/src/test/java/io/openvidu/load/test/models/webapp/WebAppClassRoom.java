@@ -7,10 +7,11 @@ public class WebAppClassRoom extends WebApp {
         STUDENT
     }
     
-    private int maxNumTeachers;
+    private int maxNumTeachers = 0;
     
-    public WebAppClassRoom(String appUrl, String openviduUrl) {
+    public WebAppClassRoom(String appUrl, String openviduUrl, int maxNumTeachers) {
         super(appUrl, openviduUrl);
+        this.maxNumTeachers = maxNumTeachers;
     }
 
     @Override

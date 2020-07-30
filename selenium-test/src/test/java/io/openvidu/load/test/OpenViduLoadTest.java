@@ -116,8 +116,8 @@ public class OpenViduLoadTest {
 	public static String OPENVIDU_SECRET = "MY_SECRET";
 	public static String OPENVIDU_URL = "https://openvidu-url/";
 	public static String APP_URL = "http://your-app-url:your-port";
-	public static int SESSIONS = 7;
-	public static int USERS_SESSION = 7;
+	public static int SESSIONS = 1;
+	public static int USERS_SESSION = 2;
 	public static int SECONDS_OF_WAIT = 40;
 	public static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
@@ -125,11 +125,11 @@ public class OpenViduLoadTest {
 	public static String SERVER_SSH_USER = "ubuntu";
 	public static String SERVER_SSH_HOSTNAME;
 	public static String PRIVATE_KEY_PATH = "/opt/openvidu/testload/key.pem";
-	public static boolean REMOTE = false;
+	public static boolean REMOTE = true;
 	public static boolean BROWSER_INIT_AT_ONCE = false;
 	public static String RESULTS_PATH = "/opt/openvidu/testload";
 	public static boolean DOWNLOAD_OPENVIDU_LOGS = true;
-	public static int[] RECORD_BROWSERS;
+	public static int[] RECORD_BROWSERS = new int[]{1, 1, 0, 0, 1, 0, 0, 1, 0, 1};
 	public static JsonObject[] NETWORK_RESTRICTIONS_BROWSERS;
 	public static boolean TCPDUMP_CAPTURE_BEFORE_CONNECT;
 	public static int TCPDUMP_CAPTURE_TIME = 0;
@@ -261,7 +261,7 @@ public class OpenViduLoadTest {
 		if(DEPLOYED_WEB_APP == WebAppType.CALL) {
 			webApp = new WebAppCall(APP_URL, OPENVIDU_URL, OPENVIDU_SECRET);
 		} else if (DEPLOYED_WEB_APP == WebAppType.CLASSROOM) {
-			webApp = new WebAppClassRoom(APP_URL, OPENVIDU_URL);
+			webApp = new WebAppClassRoom(APP_URL, OPENVIDU_URL, MAX_NUM_TEACHERS);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -704,10 +704,15 @@ public class OpenViduLoadTest {
 		}
 
 		// Wait until session is stable
-		browser.getManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
-		browser.getManager().waitUntilEventReaches("accessAllowed", 1);
-		browser.getManager().waitUntilEventReaches("streamCreated", USERS_SESSION);
-
+		if(DEPLOYED_WEB_APP == WebAppType.CLASSROOM) {
+			browser.getManager().waitUntilEventReaches("connectionCreated", 1);
+			browser.getManager().waitUntilEventReaches("accessAllowed", 1);
+		} else if (DEPLOYED_WEB_APP == WebAppType.CALL) {
+			browser.getManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
+			browser.getManager().waitUntilEventReaches("accessAllowed", 1);
+			browser.getManager().waitUntilEventReaches("streamCreated", USERS_SESSION);
+		}
+		
 		try {
 			browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
 		} catch (TimeoutException e) {
@@ -742,10 +747,12 @@ public class OpenViduLoadTest {
 					browser.getUserId(), browser.getSessionId());
 			startStatsGathering(browser);
 		}
-
-		browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
-		Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
-				true, true));
+		
+		if(DEPLOYED_WEB_APP == WebAppType.CALL) {
+			browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
+			Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
+					true, true));
+		}
 
 		// Start tcpdump process if option TCPDUMP_CAPTURE_BEFORE_CONNECT is false
 		if (OpenViduLoadTest.TCPDUMP_CAPTURE_TIME > 0 && !OpenViduLoadTest.TCPDUMP_CAPTURE_BEFORE_CONNECT) {
