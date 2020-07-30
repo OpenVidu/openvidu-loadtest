@@ -83,6 +83,10 @@ import io.openvidu.load.test.browser.BrowserProvider;
 import io.openvidu.load.test.browser.LocalBrowserProvider;
 import io.openvidu.load.test.browser.NetworkRestriction;
 import io.openvidu.load.test.browser.RemoteBrowserProvider;
+import io.openvidu.load.test.models.webapp.WebApp;
+import io.openvidu.load.test.models.webapp.WebApp.WebAppType;
+import io.openvidu.load.test.models.webapp.WebAppCall;
+import io.openvidu.load.test.models.webapp.WebAppClassRoom;
 import io.openvidu.load.test.utils.BrowserSshManager;
 import io.openvidu.load.test.utils.CustomLatch;
 import io.openvidu.load.test.utils.CustomLatch.AbortedException;
@@ -145,6 +149,11 @@ public class OpenViduLoadTest {
 	static final CustomLatch[] lastRoundCount = new CustomLatch[1];
 	static AtomicBoolean lastBrowserRound = new AtomicBoolean(false);
 	static String lastSession;
+	
+	// ClassRoom properties
+	static WebAppType DEPLOYED_WEB_APP = WebAppType.CALL;
+	static int MAX_NUM_TEACHERS = 1;
+	static WebApp webApp;
 
 	@BeforeAll()
 	static void setup() {
@@ -173,8 +182,8 @@ public class OpenViduLoadTest {
 		String secondsWithAllSessionsActive = System.getProperty("SECONDS_WITH_ALL_SESSIONS_ACTIVE");
 		String cpuUsageLimit = System.getProperty("CPU_USAGE_LIMIT");
 		String secondsWaitBetweenBrowsers = System.getProperty("SECONDS_WAIT_BETWEEN_BROWSER");
-
-
+		String maxNumTeachers = System.getProperty("MAX_NUM_TEACHERS");
+		String deployedWebApp = System.getProperty("DEPLOYED_WEB_APP");
 
 		if (openviduUrl != null) {
 			OPENVIDU_URL = openviduUrl;
@@ -238,6 +247,21 @@ public class OpenViduLoadTest {
 		}
 		if (secondsWaitBetweenBrowsers != null) {
 			SECONDS_WAIT_BETWEEN_BROWSER = Integer.parseInt(secondsWaitBetweenBrowsers);
+		}
+		
+		if (deployedWebApp != null) {
+			DEPLOYED_WEB_APP = WebAppType.valueOf(deployedWebApp);
+		}
+		
+		if (maxNumTeachers != null) {
+			MAX_NUM_TEACHERS = Integer.parseInt(maxNumTeachers);
+		}
+		
+		// Initialize webApp object to generate urls
+		if(DEPLOYED_WEB_APP == WebAppType.CALL) {
+			webApp = new WebAppCall(APP_URL, OPENVIDU_URL, OPENVIDU_SECRET);
+		} else if (DEPLOYED_WEB_APP == WebAppType.CLASSROOM) {
+			webApp = new WebAppClassRoom(APP_URL, OPENVIDU_URL);
 		}
 
 		initializeRecordBrowsersProperty(recordBrowsers);
@@ -534,10 +558,10 @@ public class OpenViduLoadTest {
 				.userId(userId).timeOfWaitInSeconds(SECONDS_OF_WAIT)
 				.isRecorded(isBrowserRecorded(sessionIndex, userIndex))
 				.networkRestriction(getNetworkRestriction(sessionIndex, userIndex)).build();
-
+		
+		String url = webApp.generateUrl(sessionId, userId, userIndex);
 		Browser browser = browserProvider.getBrowser(properties);
-		browser.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
-				+ sessionId + "&userId=" + userId);
+		browser.getDriver().get(url);
 		browser.getManager().startEventPolling(userId, sessionId);
 
 		Collection<Browser> browsers = sessionIdsBrowsers.putIfAbsent(sessionId, new ArrayList<>());
@@ -656,8 +680,8 @@ public class OpenViduLoadTest {
 
 		for (Browser b : listOfBrowsers) {
 			log.info("Browser {} connecting now to {}", b.getUserId(), APP_URL);
-			b.getDriver().get(APP_URL + "?publicurl=" + OPENVIDU_URL + "&secret=" + OPENVIDU_SECRET + "&sessionId="
-					+ sessionId + "&userId=" + propertiesList.get(i).userId());
+			String url = webApp.generateUrl(sessionId, propertiesList.get(i).userId(), i);
+			b.getDriver().get(url);
 			log.info("Browser {} is now connected to to {}", b.getUserId(), APP_URL);
 			b.getManager().startEventPolling(propertiesList.get(i).userId(), sessionId);
 			sessionIdsBrowsers.get(sessionId).add(b);
