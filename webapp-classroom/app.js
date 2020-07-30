@@ -20,12 +20,14 @@ window.onload = async () => {
     SESSION_ID = url.searchParams.get("sessionId");
     PATH_API = `/classroom/api/sessions/${SESSION_ID}/participants`;
     USER_ID = url.searchParams.get("userId");
-    ROLE = url.searchParams.get("role") || "TEACHER";
+	ROLE = url.searchParams.get("role") || "TEACHER";
 
     console.log(`Request token url: ${OPENVIDU_SERVER_URL}${PATH_API}`);
     console.log(`Session id: + ${SESSION_ID}`);
     console.log(`Role: ${ROLE}`);
-    console.log(`userId: ${USER_ID}`);
+	console.log(`userId: ${USER_ID}`);
+
+	document.getElementById("user-id").innerHTML += USER_ID;
 
     var participant = {
         name: USER_ID,
