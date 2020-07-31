@@ -16,7 +16,7 @@ window.onload = async () => {
 	console.log("URL", url)
     startTime();
 
-	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl");
+	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl").replace(/\/$/, "");
     SESSION_ID = url.searchParams.get("sessionId");
     PATH_API = `/classroom/api/sessions/${SESSION_ID}/participants`;
     USER_ID = url.searchParams.get("userId");
@@ -88,10 +88,19 @@ async function getClassroomWeb(url) {
 }
 
 function appendEvent(newEvent) {
+	console.warn("==== APPENDING EVENTS!!! ====");
+	console.warn(newEvent.event);
 	window.openviduLoadTest.events.push(newEvent);
+	console.warn("==== APPENDING EVENTS!!! ====");
 }
 
-function appendStats(userId, stat) {
+function appendStats(data, stat) {
+	console.warn("==== Appending stats ====");
+	var userId = JSON.parse(data).clientData;
+	console.warn(userId);
+	console.warn(stat);
+	console.warn(window.openviduLoadTest.stats)
+	console.warn("==== Appending stats ====");
 	window.openviduLoadTest.stats[userId].push(stat);
 }
 
@@ -224,8 +233,13 @@ async function loadClassRoomWebComponent(htmlClassRoom) {
 				event.stream.streamManager.on("streamPlaying", e => {
 					console.warn("SESSION streamPlaying");
 					appendEvent({ event: "streamPlaying", content: event.stream.streamId });
-					var userId = event.stream.connection.data;
+					var userId = JSON.parse(event.stream.connection.data).clientData;
+					console.log("======== Before Add it =======");
+					console.warn(window.openviduLoadTest.stats);
+					console.warn(userId);
 					window.openviduLoadTest.stats[userId] = [];
+					console.log("======== After Add it =======");
+					console.warn(window.openviduLoadTest.stats);
 					lastStatGatheringTime[userId] = Date.now();
 				})
 			}, 100);

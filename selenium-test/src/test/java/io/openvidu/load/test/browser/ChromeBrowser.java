@@ -51,6 +51,8 @@ public class ChromeBrowser extends Browser {
 		options.addArguments("--use-file-for-fake-audio-capture=" + audioFileLocation);
 		// This flag sets autoplay automatically
 		options.addArguments("--autoplay-policy=no-user-gesture-required");
+
+		options.addArguments("--ignore-certificate-errors");
 		return options;
 	}
 

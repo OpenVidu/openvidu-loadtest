@@ -57,7 +57,7 @@ public class LocalBrowserProvider implements BrowserProvider {
 			break;
 		/*
 		 * case "firefox": break;
-		 * 
+		 *
 		 * case "opera": break;
 		 */
 		}

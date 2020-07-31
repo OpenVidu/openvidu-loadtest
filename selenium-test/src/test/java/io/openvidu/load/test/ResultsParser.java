@@ -33,8 +33,6 @@ import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import com.google.gson.JsonArray;
@@ -42,6 +40,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+
+import org.slf4j.Logger;
 
 import io.openvidu.load.test.utils.CommandExecutor;
 import io.openvidu.load.test.utils.LogHelper;

@@ -114,10 +114,10 @@ public class OpenViduLoadTest {
 	public static LogHelper logHelper;
 
 	public static String OPENVIDU_SECRET = "MY_SECRET";
-	public static String OPENVIDU_URL = "https://openvidu-url/";
-	public static String APP_URL = "http://your-app-url:your-port";
+	public static String OPENVIDU_URL = "https://OPENVIDU_DOMAIN/";
+	public static String APP_URL = "http://APP_DOMAIN";
 	public static int SESSIONS = 1;
-	public static int USERS_SESSION = 2;
+	public static int USERS_SESSION = 5;
 	public static int SECONDS_OF_WAIT = 40;
 	public static int NUMBER_OF_POLLS = 8;
 	static int BROWSER_POLL_INTERVAL = 1000;
@@ -135,7 +135,7 @@ public class OpenViduLoadTest {
 	public static int TCPDUMP_CAPTURE_TIME = 0;
 
 	public static int SESSION_AFTER_FULL_CPU = 0;
-	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 0;
+	public static long SECONDS_WITH_ALL_SESSIONS_ACTIVE = 60;
 	public static double CPU_USAGE_LIMIT = 100.0;
 	public static int SECONDS_WAIT_BETWEEN_BROWSER = 0;
 
@@ -149,9 +149,9 @@ public class OpenViduLoadTest {
 	static final CustomLatch[] lastRoundCount = new CustomLatch[1];
 	static AtomicBoolean lastBrowserRound = new AtomicBoolean(false);
 	static String lastSession;
-	
+
 	// ClassRoom properties
-	static WebAppType DEPLOYED_WEB_APP = WebAppType.CALL;
+	static WebAppType DEPLOYED_WEB_APP = WebAppType.CLASSROOM;
 	static int MAX_NUM_TEACHERS = 1;
 	static WebApp webApp;
 
@@ -248,15 +248,15 @@ public class OpenViduLoadTest {
 		if (secondsWaitBetweenBrowsers != null) {
 			SECONDS_WAIT_BETWEEN_BROWSER = Integer.parseInt(secondsWaitBetweenBrowsers);
 		}
-		
+
 		if (deployedWebApp != null) {
 			DEPLOYED_WEB_APP = WebAppType.valueOf(deployedWebApp);
 		}
-		
+
 		if (maxNumTeachers != null) {
 			MAX_NUM_TEACHERS = Integer.parseInt(maxNumTeachers);
 		}
-		
+
 		// Initialize webApp object to generate urls
 		if(DEPLOYED_WEB_APP == WebAppType.CALL) {
 			webApp = new WebAppCall(APP_URL, OPENVIDU_URL, OPENVIDU_SECRET);
@@ -378,9 +378,10 @@ public class OpenViduLoadTest {
 
 		// Process test results
 		ResultsParser resultsParser = new ResultsParser(logHelper);
-		resultsParser.processLoadTestStats();
-		resultsParser.processTcpdumps();
-
+		if (DEPLOYED_WEB_APP == WebAppType.CALL) {
+			resultsParser.processLoadTestStats();
+			resultsParser.processTcpdumps();
+		}
 		// Download remote result files from OpenVidu Server instance if configured
 		if (DOWNLOAD_OPENVIDU_LOGS) {
 			log.info("Test configured to download remote result files");
@@ -555,10 +556,10 @@ public class OpenViduLoadTest {
 		String sessionId = "session-" + sessionIndex;
 		String userId = "user-" + sessionIndex + "-" + userIndex;
 		BrowserProperties properties = new BrowserProperties.Builder().type("chrome").sessionId(sessionId)
-				.userId(userId).timeOfWaitInSeconds(SECONDS_OF_WAIT)
+				.userId(userId).userIndex(userIndex).timeOfWaitInSeconds(SECONDS_OF_WAIT)
 				.isRecorded(isBrowserRecorded(sessionIndex, userIndex))
 				.networkRestriction(getNetworkRestriction(sessionIndex, userIndex)).build();
-		
+
 		String url = webApp.generateUrl(sessionId, userId, userIndex);
 		Browser browser = browserProvider.getBrowser(properties);
 		browser.getDriver().get(url);
@@ -668,7 +669,7 @@ public class OpenViduLoadTest {
 		for (int userIndex = 1; userIndex <= numberOfBrowsers; userIndex++) {
 			String userId = "user-" + sessionIndex + "-" + userIndex;
 			BrowserProperties properties = new BrowserProperties.Builder().type("chrome").sessionId(sessionId)
-					.userId(userId).timeOfWaitInSeconds(SECONDS_OF_WAIT)
+					.userId(userId).userIndex(userIndex).timeOfWaitInSeconds(SECONDS_OF_WAIT)
 					.isRecorded(isBrowserRecorded(sessionIndex, userIndex))
 					.networkRestriction(getNetworkRestriction(sessionIndex, userIndex)).build();
 			propertiesList.add(properties);
@@ -705,16 +706,23 @@ public class OpenViduLoadTest {
 
 		// Wait until session is stable
 		if(DEPLOYED_WEB_APP == WebAppType.CLASSROOM) {
-			browser.getManager().waitUntilEventReaches("connectionCreated", 1);
 			browser.getManager().waitUntilEventReaches("accessAllowed", 1);
+			browser.getManager().waitUntilEventReaches("streamCreated", 1);
 		} else if (DEPLOYED_WEB_APP == WebAppType.CALL) {
 			browser.getManager().waitUntilEventReaches("connectionCreated", USERS_SESSION);
 			browser.getManager().waitUntilEventReaches("accessAllowed", 1);
 			browser.getManager().waitUntilEventReaches("streamCreated", USERS_SESSION);
 		}
-		
+
 		try {
-			browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
+			if(DEPLOYED_WEB_APP == WebAppType.CLASSROOM) {
+				if (browser.getUserIndex() > MAX_NUM_TEACHERS) {
+					// If student, wait until streamPlaying event is reached
+					browser.getManager().waitUntilEventReaches("streamPlaying", 1);
+				}
+			} else if (DEPLOYED_WEB_APP == WebAppType.CALL) {
+				browser.getManager().waitUntilEventReaches("streamPlaying", USERS_SESSION);
+			}
 		} catch (TimeoutException e) {
 			log.warn("Some Subscriber has not triggered 'streamPlaying' event for user {}", browser.getUserId());
 
@@ -747,7 +755,7 @@ public class OpenViduLoadTest {
 					browser.getUserId(), browser.getSessionId());
 			startStatsGathering(browser);
 		}
-		
+
 		if(DEPLOYED_WEB_APP == WebAppType.CALL) {
 			browser.getWaiter().until(ExpectedConditions.numberOfElementsToBe(By.tagName("video"), USERS_SESSION));
 			Assert.assertTrue(browser.getManager().assertMediaTracks(browser.getDriver().findElements(By.tagName("video")),
@@ -837,7 +845,7 @@ public class OpenViduLoadTest {
 
 	private String performGetApiSession(String sessionId) {
 		URL url = null;
-		String urlString = OpenViduLoadTest.OPENVIDU_URL + "api/sessions/" + sessionId + "?webRtcStats=true";
+		String 	urlString = OpenViduLoadTest.OPENVIDU_URL + "api/sessions/" + sessionId + "?webRtcStats=true";
 		try {
 			url = new URL(urlString);
 		} catch (MalformedURLException e) {

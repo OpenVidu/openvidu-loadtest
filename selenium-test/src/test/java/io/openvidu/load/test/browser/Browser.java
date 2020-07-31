@@ -89,6 +89,10 @@ public class Browser {
 		return this.properties.userId();
 	}
 
+	public int getUserIndex() {
+		return this.properties.userIndex();
+	}
+
 	public boolean isRecorded() {
 		return this.properties.isRecorded();
 	}

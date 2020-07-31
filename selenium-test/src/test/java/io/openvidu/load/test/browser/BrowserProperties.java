@@ -29,6 +29,7 @@ public class BrowserProperties {
 	private String type;
 	private String sessionId;
 	private String userId;
+	private int userIndex;
 	private int timeOfWaitInSeconds;
 	private boolean isRecorded;
 	private NetworkRestriction networkRestriction;
@@ -38,12 +39,13 @@ public class BrowserProperties {
 		private String type = "chrome";
 		private String sessionId;
 		private String userId;
+		private int userIndex;
 		private int timeOfWaitInSeconds = 40;
 		private boolean isRecorded = false;
 		private NetworkRestriction networkRestriction = NetworkRestriction.ALL_OPEN;
 
 		public BrowserProperties build() {
-			return new BrowserProperties(this.type, this.sessionId, this.userId, this.timeOfWaitInSeconds,
+			return new BrowserProperties(this.type, this.sessionId, this.userId, this.userIndex, this.timeOfWaitInSeconds,
 					this.isRecorded, this.networkRestriction);
 		}
 
@@ -59,6 +61,11 @@ public class BrowserProperties {
 
 		public BrowserProperties.Builder userId(String userId) {
 			this.userId = userId;
+			return this;
+		}
+
+		public BrowserProperties.Builder userIndex(int userIndex) {
+			this.userIndex = userIndex;
 			return this;
 		}
 
@@ -78,12 +85,13 @@ public class BrowserProperties {
 		}
 	}
 
-	public BrowserProperties(String type, String sessionId, String userId, int timeOfWaitInSeconds, boolean isRecorded,
+	public BrowserProperties(String type, String sessionId, String userId, int userIndex, int timeOfWaitInSeconds, boolean isRecorded,
 			NetworkRestriction networkRestriction) {
 		super();
 		this.type = type;
 		this.sessionId = sessionId;
 		this.userId = userId;
+		this.userIndex = userIndex;
 		this.timeOfWaitInSeconds = timeOfWaitInSeconds;
 		this.isRecorded = isRecorded;
 		this.networkRestriction = networkRestriction;
@@ -99,6 +107,10 @@ public class BrowserProperties {
 
 	public String userId() {
 		return this.userId;
+	}
+
+	public int userIndex() {
+		return this.userIndex;
 	}
 
 	public int timeOfWaitInSeconds() {
