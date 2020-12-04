@@ -1,4 +1,0 @@
-docker exec -t -d chrome sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-docker exec -t -d chrome sudo iptables -A INPUT -p udp --sport 53 -j ACCEPT
-docker exec -t -d chrome sudo iptables -A OUTPUT -p udp --dport 0:65535 -j DROP
-docker exec -t -d chrome sudo iptables -A INPUT -p udp --dport 0:65535 -j DROP
