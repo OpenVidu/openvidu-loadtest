@@ -34,3 +34,5 @@ fakevideo.y4m
 
 */pom.xml.versionsBackup
 browserProvider-conf.sh
+
+node_modules

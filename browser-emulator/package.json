@@ -1,0 +1,28 @@
+{
+  "name": "browser-emulator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.ts",
+  "scripts": {
+    "start": "node_modules/nodemon/bin/nodemon.js src/server.ts",
+    "tsc": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Carlos Santos",
+  "license": "Apache 2.0",
+  "dependencies": {
+    "axios": "0.21.0",
+    "body-parser": "1.19.0",
+    "btoa": "1.2.1",
+    "express": "4.17.0",
+    "nodemon": "2.0.6",
+    "openvidu-browser": "2.16.2",
+    "wrtc": "0.4.6",
+    "ws": "7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "14.14.10",
+    "ts-node": "9.1.0",
+    "typescript": "4.1.2"
+  }
+}
