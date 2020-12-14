@@ -26,6 +26,12 @@ app.listen(SERVER_PORT, () => {
 });
 
 app.post("/", async (req, res) => {
-	const ovBrowser = new OpenViduBrowser();
-	await ovBrowser.createPublisher();
+	try {
+		const ovBrowser = new OpenViduBrowser();
+		await ovBrowser.createPublisher();
+		res.status(200).send({});
+	} catch (error) {
+		console.log(error);
+		res.status(500).send(error);
+	}
 });
