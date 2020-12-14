@@ -36,3 +36,5 @@ fakevideo.y4m
 browserProvider-conf.sh
 
 node_modules
+
+browser-emulator/dist/
