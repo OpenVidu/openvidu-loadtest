@@ -10,6 +10,8 @@ const MediaStreamWRTC = require('wrtc').MediaStream;
 const MediaStreamTrackWRTC = require('wrtc').MediaStreamTrack;
 const getUserMediaWRTC = require('wrtc').getUserMedia;
 import {PublisherOverride} from '../openvidu-browser/OpenVidu/Publisher';
+const LocalStorage = require('node-localstorage').LocalStorage;
+
 
 export class Hack {
 	constructor() {
@@ -18,6 +20,8 @@ export class Hack {
 			userAgent: 'NodeJS Testing'
 		};
 		(<any>globalThis.document) = {};
+		globalThis.localStorage = new LocalStorage('./');
+
 	}
 
 	webrtc() {
