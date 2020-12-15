@@ -5,15 +5,13 @@ import { HttpClient } from "../utils/http-client";
 export class OpenViduBrowser {
 	openviduMap: Map<string, OpenVidu> = new Map();
 	sessionMap: Map<string, Session> = new Map();
-	sessionId: string;
 	httpClient: HttpClient;
 
 	constructor() {
 		this.httpClient = new HttpClient();
-		this.sessionId = "FAKEwebrtc";
 	}
 
-	async createPublisher(uid: string): Promise<string> {
+	async createPublisher(uid: string, sessionName: string): Promise<void> {
 		return new Promise(async (resolve, reject) => {
 
 			const ov = this.createAndStoreOVInstance(uid);
@@ -24,11 +22,11 @@ export class OpenViduBrowser {
 			});
 
 			try {
-				const token: string = await this.getToken(OpenViduRole.PUBLISHER);
+				const token: string = await this.getToken(sessionName, OpenViduRole.PUBLISHER);
 				await session.connect(token);
 				const publisher: Publisher = ov.initPublisher(null);
 				await session.publish(publisher);
-				resolve(uid);
+				resolve();
 			} catch (error) {
 				console.log(
 					"There was an error connecting to the session:",
@@ -40,7 +38,7 @@ export class OpenViduBrowser {
 		});
 	}
 
-	async createSubscriber(uid: string): Promise<string> {
+	async createSubscriber(uid: string, sessionName: string): Promise<void> {
 		return new Promise(async (resolve, reject) => {
 
 			const ov = this.createAndStoreOVInstance(uid);
@@ -51,9 +49,9 @@ export class OpenViduBrowser {
 			});
 
 			try {
-				const token: string = await this.getToken(OpenViduRole.SUBSCRIBER);
+				const token: string = await this.getToken(sessionName, OpenViduRole.SUBSCRIBER);
 				await session.connect(token);
-				resolve(uid);
+				resolve();
 			} catch (error) {
 				console.log(
 					"There was an error connecting to the session:",
@@ -80,8 +78,8 @@ export class OpenViduBrowser {
 		});
 	}
 
-	private async getToken(role: OpenViduRole): Promise<string> {
-		return this.httpClient.getToken(this.sessionId, role);
+	private async getToken(sessionName: string, role: OpenViduRole): Promise<string> {
+		return this.httpClient.getToken(sessionName, role);
 	}
 
 	private createAndStoreOVInstance(uid: string): OpenVidu {

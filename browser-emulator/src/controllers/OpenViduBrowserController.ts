@@ -10,10 +10,13 @@ const ovBrowser: OpenViduBrowser = new OpenViduBrowser();
 
 app.post("/publisher", async (req: Request, res: Response) => {
 	try {
-		console.log("UID", req.body);
 		const uid = req.body.uid;
-		await ovBrowser.createPublisher(uid);
-		res.status(200).send({uid});
+		const sessionName = req.body.sessionName;
+		if(!uid || !sessionName){
+			res.status(400).send("Problem with some body parameter");
+		}
+		await ovBrowser.createPublisher(uid, sessionName);
+		res.status(200).send('Created PUBLISHER ' +  uid + ' in session ' + sessionName);
 	} catch (error) {
 		console.log(error);
 		res.status(500).send(error);
@@ -23,9 +26,12 @@ app.post("/publisher", async (req: Request, res: Response) => {
 app.post("/subscriber", async (req: Request, res: Response) => {
 	try {
 		const uid = req.body.uid;
-		console.log("uid", uid)
-		await ovBrowser.createSubscriber(uid);
-		res.status(200).send({uid});
+		const sessionName = req.body.sessionName;
+		if(!uid || !sessionName){
+			res.status(400).send("Problem with some body parameter");
+		}
+		await ovBrowser.createSubscriber(uid, sessionName);
+		res.status(200).send('Created SUBSCRIBER ' +  uid + ' in session ' + sessionName);
 	} catch (error) {
 		console.log(error);
 		res.status(500).send(error);
@@ -36,9 +42,13 @@ app.delete("/stream", (req: Request, res: Response) => {
 	try {
 		const uid = req.query.uid;
 		const role = req.query.role;
+		if(!uid && !role){
+			res.status(400).send("Problem with some query parameter");
+		}
+
 		if(!!uid) {
 			ovBrowser.deleteStreamManagerWithUid(uid);
-		}else {
+		} else {
 			ovBrowser.deleteStreamManagerWithRole(role);
 		}
 		res.status(200).send({});
