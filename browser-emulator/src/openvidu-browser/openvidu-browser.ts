@@ -13,12 +13,6 @@ export class OpenViduBrowser {
 	async createStreamManager(userId: string, sessionName: string, role: OpenViduRole): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 
-			// if(this.sessionMap.has(uid) || this.sessionMap.has(uid)){
-			// 	return reject('Uid is already created. UID MUST BE UNIQUE');
-			// }
-
-			// const ov = this.createAndStoreOVInstance(uid);
-			// const session = this.createAndStoreSessionInstance(uid, ov);
 			const ov: OpenVidu = new OpenVidu();
 			ov.enableProdMode();
 			const session: Session = ov.initSession();
@@ -71,21 +65,6 @@ export class OpenViduBrowser {
 	private async getToken(sessionName: string, role: OpenViduRole): Promise<string> {
 		return this.httpClient.getToken(sessionName, role);
 	}
-
-	// private createAndStoreOVInstance(uid: string): OpenVidu {
-	// 	const ov: OpenVidu = new OpenVidu();
-	// 	ov.enableProdMode();
-	// 	// Store the OV object into a map
-	// 	this.openviduMap.set(uid, ov);
-	// 	return ov;
-	// }
-
-	// private createAndStoreSessionInstance(uid:string, ov: OpenVidu): Session {
-	// 	const session: Session = ov.initSession();
-	// 	// Store the session object into a map
-	// 	this.sessionMap.set(uid, session);
-	// 	return session;
-	// }
 
 	private storeInstances(ov: OpenVidu, session: Session) {
 		// Store the OV and Session objects into a map
