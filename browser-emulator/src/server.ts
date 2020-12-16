@@ -2,11 +2,10 @@ import * as express from "express";
 import { SERVER_PORT, OPENVIDU_URL, OPENVIDU_SECRET } from "./config";
 import { Hack } from "./extra/hack";
 import {app as ovBrowserController} from './controllers/OpenViduBrowserController';
-const bodyParser = require("body-parser");
 const app = express();
 
-app.use(bodyParser.urlencoded({extended: true}));
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/openvidu-browser', ovBrowserController);
 
