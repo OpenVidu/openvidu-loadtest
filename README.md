@@ -12,12 +12,10 @@ This app provides a simple REST API that allows:
 
 ### API REST
 
-Documentación  básica de las operaciones soportadas por la API REST de la **Práctica 1 - Tecnologías de Servicios de Internet**
-
 
 #### CREATE STREAM MANAGER
 
-_Create a new Stream Manager_
+_Create a new Stream Manager with a specified **role** and connect it into a specified **sessionName**_
 
 * #### METHOD: **POST**
 
@@ -39,7 +37,7 @@ _Create a new Stream Manager_
 	}
 	```
 
-#### DELETE STREAM MANAGER (by UID)
+#### DELETE STREAM MANAGER (by connectionId)
 
 _Delete a single Stream Manager by its connectionId_
 
