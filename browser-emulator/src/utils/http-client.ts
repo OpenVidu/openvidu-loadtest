@@ -11,9 +11,9 @@ import { OPENVIDU_URL, OPENVIDU_SECRET } from "../config";
 export class HttpClient {
 	OV: OpenViduNodeClient;
 	// Collection to pair session names with OpenVidu Session objects
-	mapSessions = {};
+	sessionMap: Map<string, Session> = new Map();
 	// Collection to pair session names with tokens
-	mapSessionNamesTokens = {};
+	sessionNamesTokensMap: Map<string, string[]> = new Map();
 
 	constructor() {
 		this.OV = new OpenViduNodeClient(OPENVIDU_URL, OPENVIDU_SECRET);
@@ -25,7 +25,7 @@ export class HttpClient {
 
 	private createSession(sessionId: string): Promise<string> {
 		return new Promise(async (resolve, reject) => {
-			if (this.mapSessions[sessionId]) {
+			if (this.sessionMap.get(sessionId)) {
 				console.log("Session " + sessionId + " already exists");
 				resolve(sessionId);
 			} else {
@@ -39,8 +39,8 @@ export class HttpClient {
 					const session: Session = await this.OV.createSession(
 						sessionProperties
 					);
-					this.mapSessions[sessionId] = session;
-					this.mapSessionNamesTokens[sessionId] = [];
+					this.sessionMap.set(sessionId, session);
+					this.sessionNamesTokensMap.set(sessionId, []);
 					resolve(sessionId);
 				} catch (error) {
 					console.error(error);
@@ -56,13 +56,15 @@ export class HttpClient {
 		};
 
 		return new Promise(async (resolve, reject) => {
-			const mySession = this.mapSessions[sessionId];
+			const mySession = this.sessionMap.get(sessionId);
 			try {
 				// Generate a new token asynchronously with the recently created connectionProperties
 				const connection: Connection = await mySession.createConnection(
 					connectionProperties
 				);
-				this.mapSessionNamesTokens[sessionId].push(connection.token);
+				const tokens = this.sessionNamesTokensMap.get(sessionId);
+				tokens.push(connection.token);
+				this.sessionNamesTokensMap.set(sessionId, tokens);
 				resolve(connection.token);
 			} catch (error) {
 				console.error(error);
