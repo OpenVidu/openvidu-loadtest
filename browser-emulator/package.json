@@ -11,6 +11,7 @@
   "author": "Carlos Santos",
   "license": "Apache 2.0",
   "dependencies": {
+    "canvas": "2.6.1",
     "express": "4.17.0",
     "node-localstorage": "2.1.6",
     "nodemon": "2.0.6",
