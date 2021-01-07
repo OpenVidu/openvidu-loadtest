@@ -3,16 +3,33 @@ import { OpenViduRole } from "openvidu-node-client";
 import { HttpClient } from "../utils/http-client";
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 const { createCanvas, loadImage } = require('canvas');
-const { performance } = require('perf_hooks');
 
 export class OpenViduBrowser {
 	openviduMap: Map<string, OpenVidu> = new Map();
 	sessionMap: Map<string, Session> = new Map();
 	httpClient: HttpClient;
 
+	private width = 640;
+	private height = 480;
+	private source;
+	private track: MediaStreamTrack;
+	private canvas;
+	private context;
+	private myimg;
+	private MIN = 0;
+	private canvasInterval: NodeJS.Timer;
+	private canvasIntervalIterations: number = 0;
+	private MAX_HEIGHT: number;
+	private MAX_WIDTH: number;
+
+	private SLOW_ITERATION_MS = 2000;
+	private SLOW_ITERATIONS_NUMBER_LIMIT = 4;
+
 	constructor() {
 		this.httpClient = new HttpClient();
+		this.initializeVideoCanvas();
 	}
+
 	async createStreamManager(userId: string, sessionName: string, role: OpenViduRole): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 
@@ -28,9 +45,11 @@ export class OpenViduBrowser {
 				const token: string = await this.getToken(sessionName, role);
 				await session.connect(token,  { clientData: userId });
 				if(role === OpenViduRole.PUBLISHER){
+					this.stopVideoCanvasInterval();
 					const publisher: Publisher = ov.initPublisher(null);
 					await session.publish(publisher);
-					await this.createVideoCanvas(publisher);
+					await publisher.replaceTrack(this.track);
+					this.startVideoCanvasInterval();
 				}
 
 				this.storeInstances(ov, session);
@@ -81,40 +100,49 @@ export class OpenViduBrowser {
 		this.openviduMap.delete(connectionId);
 	}
 
-	private async createVideoCanvas(publisher: Publisher){
-		const width = publisher.stream.videoDimensions.width;
-		const height = publisher.stream.videoDimensions.height;
-		const source = new RTCVideoSource();
-		const track = source.createTrack();
-		const canvas = createCanvas(width, height);
-		const context = canvas.getContext('2d');
-		const myimg = await loadImage('src/assets/images/openvidu_logo.png');
-		context.fillStyle = 'black';
-		context.fillRect(0, 0, width, height);
+	private async startVideoCanvasInterval(timeoutMs: number = 800){
 
-		await publisher.replaceTrack(track);
-		const interval = setInterval(() => {
+		this.canvasInterval = setInterval(() => {
+			const x = Math.floor(Math.random() * (this.MAX_WIDTH - this.MIN + 1) + this.MIN);
+			const y = Math.floor(Math.random() * (this.MAX_HEIGHT - this.MIN + 1) + this.MIN);
 
-			const thisTime = performance.now();
+			this.context.save();
+			this.context.fillRect(0, 0, this.width, this.height);
+			this.context.drawImage(this.myimg, x, y);
+			this.context.restore();
 
-			context.save();
-			context.translate(width * 0.5, height * 0.5);
-			context.rotate(thisTime / 1000);
-			context.translate(-myimg.width * 0.5, -myimg.height * 0.5);
-			context.fillStyle = 'black';
-			context.fillRect(0, 0, width, height);
-			context.drawImage(myimg,0,0);
-			context.restore();
-
-			const rgbaFrame = context.getImageData(0, 0, width, height);
+			const rgbaFrame = this.context.getImageData(0, 0, this.width, this.height);
 			const i420Frame = {
-				width,
-				height,
-				data: new Uint8ClampedArray(1.5 * width * height)
+				width: this.width,
+				height: this.height,
+				data: new Uint8ClampedArray(1.5 * this.width * this.height)
 			};
 			rgbaToI420(rgbaFrame, i420Frame);
-			source.onFrame(i420Frame);
-		});
+			this.source.onFrame(i420Frame);
+			this.canvasIntervalIterations++;
 
+			if(this.canvasIntervalIterations > this.SLOW_ITERATIONS_NUMBER_LIMIT && timeoutMs < this.SLOW_ITERATION_MS){
+				// Slowing down canvas interval
+				this.stopVideoCanvasInterval();
+				this.startVideoCanvasInterval(this.SLOW_ITERATION_MS);
+			}
+		}, timeoutMs);
+	}
+
+	private stopVideoCanvasInterval() {
+		this.canvasIntervalIterations = 0;
+		clearInterval(this.canvasInterval);
+	}
+
+	private async initializeVideoCanvas(){
+		this.source = new RTCVideoSource();
+		this.track = this.source.createTrack();
+		this.canvas = createCanvas(this.width, this.height);
+		this.context = this.canvas.getContext('2d');
+		this.myimg = await loadImage('src/assets/images/openvidu_logo.png');
+		this.context.fillStyle = 'black';
+		this.context.fillRect(0, 0, this.width, this.height);
+		this.MAX_WIDTH = this.width - this.myimg.width;
+		this.MAX_HEIGHT = this.height - this.myimg.height;
 	}
 }
