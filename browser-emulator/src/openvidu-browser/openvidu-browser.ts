@@ -1,6 +1,6 @@
 import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
 import { HttpClient } from "../utils/http-client";
-import { OpenViduRole } from './OpenVidu/OpenviduRole';
+import { OpenViduRole, PublisherProperties } from './OpenVidu/OpenviduTypes';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 const { createCanvas, loadImage } = require('canvas');
 
@@ -12,7 +12,7 @@ export class OpenViduBrowser {
 	private width = 640;
 	private height = 480;
 	private source;
-	private track: MediaStreamTrack;
+	private videoTrack: MediaStreamTrack;
 	private canvas;
 	private context;
 	private myimg;
@@ -21,7 +21,6 @@ export class OpenViduBrowser {
 	private canvasIntervalIterations: number = 0;
 	private MAX_HEIGHT: number;
 	private MAX_WIDTH: number;
-
 	private SLOW_ITERATION_MS = 2000;
 	private SLOW_ITERATIONS_NUMBER_LIMIT = 4;
 
@@ -30,7 +29,7 @@ export class OpenViduBrowser {
 		this.initializeVideoCanvas();
 	}
 
-	async createStreamManager(userId: string, sessionName: string, role: OpenViduRole): Promise<string> {
+	async createStreamManager(userId: string, sessionName: string, properties: PublisherProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 
 			const ov: OpenVidu = new OpenVidu();
@@ -42,13 +41,22 @@ export class OpenViduBrowser {
 			});
 
 			try {
-				const token: string = await this.getToken(sessionName, role);
+				const token: string = await this.getToken(sessionName, properties.role);
 				await session.connect(token,  { clientData: userId });
-				if(role === OpenViduRole.PUBLISHER){
+				if(properties.role === OpenViduRole.PUBLISHER){
 					this.stopVideoCanvasInterval();
-					const publisher: Publisher = ov.initPublisher(null);
+					const publisher: Publisher = ov.initPublisher(null, {
+						audioSource: properties.audio,
+						videoSource: properties.video,
+						publishAudio: properties.audio,
+						publishVideo: properties.video,
+						resolution: '640x480',
+						frameRate: 30,
+					});
 					await session.publish(publisher);
-					await publisher.replaceTrack(this.track);
+					if(properties.video){
+						await publisher.replaceTrack(this.videoTrack);
+					}
 					this.startVideoCanvasInterval();
 				}
 
@@ -136,7 +144,7 @@ export class OpenViduBrowser {
 
 	private async initializeVideoCanvas(){
 		this.source = new RTCVideoSource();
-		this.track = this.source.createTrack();
+		this.videoTrack = this.source.createTrack();
 		this.canvas = createCanvas(this.width, this.height);
 		this.context = this.canvas.getContext('2d');
 		this.myimg = await loadImage('src/assets/images/openvidu_logo.png');

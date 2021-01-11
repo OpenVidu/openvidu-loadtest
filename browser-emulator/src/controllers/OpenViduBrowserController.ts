@@ -1,7 +1,7 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
 import { OpenViduBrowser } from '../openvidu-browser/openvidu-browser';
-import { OpenViduRole } from '../openvidu-browser/OpenVidu/OpenviduRole';
+import { OpenViduRole, PublisherProperties } from '../openvidu-browser/OpenVidu/OpenviduTypes';
 
 export const app = express.Router({
     strict: true
@@ -14,18 +14,18 @@ app.post("/streamManager", async (req: Request, res: Response) => {
 	try {
 		const userId: string = req.body.userId;
 		const sessionName: string = req.body.sessionName;
-		const role: string = req.body.role;
+		const properties: PublisherProperties = req.body.properties;
 		let connectionId: string;
 		if(!userId || !sessionName){
 			console.log(req.body);
 			return res.status(400).send("Problem with some body parameter");
 		}
-		if(!!role && (role === OpenViduRole.PUBLISHER || role === OpenViduRole.SUBSCRIBER)) {
-			connectionId = await ovBrowser.createStreamManager(userId, sessionName, role);
+		if(!!properties && (properties.role === OpenViduRole.PUBLISHER || properties.role === OpenViduRole.SUBSCRIBER)) {
+			connectionId = await ovBrowser.createStreamManager(userId, sessionName, properties);
 		} else {
-			return res.status(400).send("Problem with role body parameter. Must be 'PUBLISHER' or 'SUBSCRIBER'");
+			return res.status(400).send("Problem with properties body parameter. Must contain 'PUBLISHER' or 'SUBSCRIBER' role property");
 		}
-		console.log('Created ' + role + ' ' +  userId + ' in session ' + sessionName);
+		console.log('Created ' + properties.role + ' ' +  userId + ' in session ' + sessionName);
 		res.status(200).send({connectionId});
 	} catch (error) {
 		console.log(error);
