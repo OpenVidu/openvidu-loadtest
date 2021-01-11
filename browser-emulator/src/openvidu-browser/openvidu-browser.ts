@@ -1,6 +1,6 @@
 import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
-import { OpenViduRole } from "openvidu-node-client";
 import { HttpClient } from "../utils/http-client";
+import { OpenViduRole } from './OpenVidu/OpenviduRole';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 const { createCanvas, loadImage } = require('canvas');
 

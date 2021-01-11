@@ -11,12 +11,13 @@
   "author": "Carlos Santos",
   "license": "Apache 2.0",
   "dependencies": {
+    "axios": "0.21.1",
+    "btoa": "1.2.1",
     "canvas": "2.6.1",
     "express": "4.17.0",
     "node-localstorage": "2.1.6",
     "nodemon": "2.0.6",
     "openvidu-browser": "2.16.2",
-    "openvidu-node-client": "2.16.0",
     "wrtc": "0.4.6",
     "ws": "7.4.0"
   },

@@ -1,13 +1,14 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
-import { OpenViduRole } from 'openvidu-node-client';
 import { OpenViduBrowser } from '../openvidu-browser/openvidu-browser';
+import { OpenViduRole } from '../openvidu-browser/OpenVidu/OpenviduRole';
 
 export const app = express.Router({
     strict: true
 });
 
 const ovBrowser: OpenViduBrowser = new OpenViduBrowser();
+
 
 app.post("/streamManager", async (req: Request, res: Response) => {
 	try {
