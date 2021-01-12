@@ -11,7 +11,7 @@ export class OpenViduBrowser {
 
 	private width = 640;
 	private height = 480;
-	private source;
+	private videoSource;
 	private videoTrack: MediaStreamTrack;
 	private canvas;
 	private context;
@@ -126,7 +126,7 @@ export class OpenViduBrowser {
 				data: new Uint8ClampedArray(1.5 * this.width * this.height)
 			};
 			rgbaToI420(rgbaFrame, i420Frame);
-			this.source.onFrame(i420Frame);
+			this.videoSource.onFrame(i420Frame);
 			this.canvasIntervalIterations++;
 
 			if(this.canvasIntervalIterations > this.SLOW_ITERATIONS_NUMBER_LIMIT && timeoutMs < this.SLOW_ITERATION_MS){
@@ -143,8 +143,8 @@ export class OpenViduBrowser {
 	}
 
 	private async initializeVideoCanvas(){
-		this.source = new RTCVideoSource();
-		this.videoTrack = this.source.createTrack();
+		this.videoSource = new RTCVideoSource();
+		this.videoTrack = this.videoSource.createTrack();
 		this.canvas = createCanvas(this.width, this.height);
 		this.context = this.canvas.getContext('2d');
 		this.myimg = await loadImage('src/assets/images/openvidu_logo.png');
