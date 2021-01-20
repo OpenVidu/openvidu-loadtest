@@ -26,6 +26,7 @@ public class BrowserEmulatorClient {
 	private static List<String> workerUrlList = new ArrayList<String>();
 	private static AtomicInteger lastWorkerIndex = new AtomicInteger(-1);
 	
+	
 	@Autowired
 	private LoadTestConfig loadTestConfig;
 	
@@ -52,7 +53,7 @@ public class BrowserEmulatorClient {
 		properties.addProperty("video", video);
 		jsonBody.add("properties", properties);
 		try {
-			workerUrl = getWorkerUrl();
+			workerUrl = getNextWorkerUrl();
 			log.info("Worker selected address: {}", workerUrl);
 			log.info("Connecting user: '{}' into session: '{}'", userId, sessionName);
 			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", jsonBody);
@@ -65,6 +66,23 @@ public class BrowserEmulatorClient {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	
+	public void deleteAllStreamManagers(String role) {
+		
+		if(role.equalsIgnoreCase("PUBLISHER") || role.equalsIgnoreCase("SUBSCRIBER")) {
+			for (String workerUrl : workerUrlList) {
+				try {
+					log.info("Deleting all '{}' from worker {}", role.toUpperCase(), workerUrl);
+					this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager/role/" + role.toUpperCase());
+				} catch (IOException | InterruptedException e) {
+					if(e.getMessage().equalsIgnoreCase("Connection refused")) {
+						log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+					}
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 	
 //	public String createSubscriber(String userId, String sessionName) {
@@ -96,7 +114,7 @@ public class BrowserEmulatorClient {
 //		return capacity;
 //	}
 	
-	private String getWorkerUrl() {
+	private String getNextWorkerUrl() {
 		int workerInstances = workerUrlList.size();
 		int nextWorkerIndex = lastWorkerIndex.incrementAndGet();
 		

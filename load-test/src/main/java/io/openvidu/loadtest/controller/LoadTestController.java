@@ -114,6 +114,8 @@ public class LoadTestController {
 	}
 
 	private void getInfoAndClean() {
+		this.browserEmulatorClient.deleteAllStreamManagers("PUBLISHER");
+		this.browserEmulatorClient.deleteAllStreamManagers("SUBSCRIBERS");
 //		this.getAllMetrics();
 //		this.restartOpenVidu();
 //		this.restartCluster();

@@ -34,6 +34,12 @@ public class CustomHttpClient {
 		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 		return response;
 	}
+	
+	public HttpResponse<String> sendDelete(String url) throws IOException, InterruptedException {
+		HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).DELETE().build();
+		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+		return response;
+	}
 
 
 }
