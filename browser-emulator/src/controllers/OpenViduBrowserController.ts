@@ -2,6 +2,7 @@ import * as express from 'express';
 import { Request, Response } from 'express';
 import { OpenViduBrowser } from '../openvidu-browser/openvidu-browser';
 import { OpenViduRole, PublisherProperties } from '../openvidu-browser/OpenVidu/OpenviduTypes';
+var osu = require('node-os-utils');
 
 export const app = express.Router({
     strict: true
@@ -30,7 +31,8 @@ app.post("/streamManager", async (req: Request, res: Response) => {
 			return res.status(400).send("Problem with properties body parameter. Must contain 'PUBLISHER' or 'SUBSCRIBER' role property");
 		}
 		console.log('Created ' + properties.role + ' ' +  userId + ' in session ' + sessionName);
-		res.status(200).send({connectionId});
+		const workerCpuUsage = await getCpuUsage();
+		res.status(200).send({connectionId, workerCpuUsage});
 	} catch (error) {
 		console.log(error);
 		res.status(500).send(error);
@@ -70,3 +72,9 @@ app.delete("/streamManager/role/:role", (req: Request, res: Response) => {
 		res.status(500).send(error);
 	}
 });
+
+// TODO: Choose if BrowserEmulatorController API make sense
+async function getCpuUsage() {
+	const cpuUsage = await osu.cpu.usage();
+	return cpuUsage;
+}

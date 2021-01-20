@@ -1,6 +1,6 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
-var osu = require('node-os-utils')
+var osu = require('node-os-utils');
 export const app = express.Router({
     strict: true
 });
