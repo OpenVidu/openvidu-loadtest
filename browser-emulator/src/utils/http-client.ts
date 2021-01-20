@@ -1,23 +1,28 @@
 var btoa = require("btoa");
 import axios, { AxiosRequestConfig } from "axios";
 import * as https from "https";
-import { OPENVIDU_URL, OPENVIDU_SECRET } from "../config";
+// import { OPENVIDU_URL, OPENVIDU_SECRET } from "../config";
 import { OpenViduRole } from '../openvidu-browser/OpenVidu/OpenviduTypes';
 
 export class HttpClient {
+	private OPENVIDU_URL: string;
+	private OPENVIDU_SECRET: string;
 	constructor() {}
 	async getToken(mySessionId: string, role: OpenViduRole): Promise<string> {
+		this.OPENVIDU_SECRET = process.env.OPENVIDU_SECRET;
+		this.OPENVIDU_URL = process.env.OPENVIDU_URL;
+
 		const sessionId = await this.createSession(mySessionId);
 		return this.createToken(sessionId, role);
 	}
 
 	private createSession(sessionId): Promise<string> {
 		return new Promise((resolve, reject) => {
-			var data = JSON.stringify({ customSessionId: sessionId });
+			const data = JSON.stringify({ customSessionId: sessionId });
 			axios
-				.post(OPENVIDU_URL + "/openvidu/api/sessions", data, {
+				.post(this.OPENVIDU_URL + "/openvidu/api/sessions", data, {
 					headers: {
-						Authorization: "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SECRET),
+						Authorization: "Basic " + btoa("OPENVIDUAPP:" + this.OPENVIDU_SECRET),
 						"Content-Type": "application/json",
 					},
 					httpsAgent: new https.Agent({
@@ -34,7 +39,7 @@ export class HttpClient {
 					} else {
 						console.warn(
 							"No connection to OpenVidu Server. This may be a certificate error at " +
-								OPENVIDU_URL
+								this.OPENVIDU_URL
 						);
 					}
 				});
@@ -43,18 +48,18 @@ export class HttpClient {
 
 	private createToken(sessionId: string, role: OpenViduRole): Promise<string> {
 		return new Promise((resolve, reject) => {
-			var data = {
+			const data = JSON.stringify({
 				type: "WEBRTC",
 				record: false,
 				role: role
-			};
+			});
 			axios
 				.post(
-					OPENVIDU_URL + "/openvidu/api/sessions/" + sessionId + "/connection",
+					this.OPENVIDU_URL + "/openvidu/api/sessions/" + sessionId + "/connection",
 					data,
 					{
 						headers: {
-							Authorization: "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SECRET),
+							Authorization: "Basic " + btoa("OPENVIDUAPP:" + this.OPENVIDU_SECRET),
 							"Content-Type": "application/json",
 						},
 						httpsAgent: new https.Agent({

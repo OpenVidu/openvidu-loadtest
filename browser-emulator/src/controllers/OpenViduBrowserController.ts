@@ -12,11 +12,15 @@ const ovBrowser: OpenViduBrowser = new OpenViduBrowser();
 
 app.post("/streamManager", async (req: Request, res: Response) => {
 	try {
+		const openviduSecret: string = req.body.openviduSecret;
+		const openviduUrl: string = req.body.openviduUrl;
 		const userId: string = req.body.userId;
 		const sessionName: string = req.body.sessionName;
 		const properties: PublisherProperties = req.body.properties;
+		process.env.OPENVIDU_URL = openviduUrl;
+		process.env.OPENVIDU_SECRET = openviduSecret;
 		let connectionId: string;
-		if(!userId || !sessionName){
+		if(!userId || !sessionName || !openviduUrl || !openviduSecret){
 			console.log(req.body);
 			return res.status(400).send("Problem with some body parameter");
 		}
