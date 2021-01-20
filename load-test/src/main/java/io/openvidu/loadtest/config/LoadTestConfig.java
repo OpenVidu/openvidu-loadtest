@@ -3,29 +3,39 @@ package io.openvidu.loadtest.config;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.List;
 
 import javax.annotation.PostConstruct;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
-
 @Component
 public class LoadTestConfig {
-	
-	private static final Logger log = LoggerFactory.getLogger(LoadTestConfig.class);
 
 	@Autowired
 	private Environment env;
+
+	private List<String> workerUrlList;
+
+	private String openviduUrl;
+
+	private String openviduSecret;
 
 	private String elasticsearchUserName;
 
 	private String elasticsearchPassword;
 
 	private String elasticsearchHost;
+
+	public String getOpenViduUrl() {
+		return this.openviduUrl;
+	}
+
+	public String getOpenViduSecret() {
+		return this.openviduSecret;
+	}
 
 	public String getElasticsearchHost() {
 		return this.elasticsearchHost;
@@ -44,23 +54,27 @@ public class LoadTestConfig {
 				&& this.elasticsearchPassword != null && !this.elasticsearchPassword.isEmpty();
 	}
 
+	public List<String> getWorkerUrlList() {
+		return this.workerUrlList;
+	}
+
 	@PostConstruct
 	private void checkConfigurationProperties() {
 
 		try {
-			elasticsearchHost = asURL("ELASTICSEARCH_HOST");
-			elasticsearchUserName = asString("ELASTICSEARCH_USERNAME");
+//			elasticsearchHost = asURL("ELASTICSEARCH_HOST");
+//			elasticsearchUserName = asString("ELASTICSEARCH_USERNAME");
+//			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
+			workerUrlList = asStringList("WORKER_URL_LIST");
+			openviduUrl = asString("OPENVIDU_URL");
+			openviduSecret = asString("OPENVIDU_SECRET");
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(1);
 		}
-		
-		elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 
 	}
-	
-	
 
 	// -------------------------------------------------------
 	// Format Checkers
@@ -73,25 +87,34 @@ public class LoadTestConfig {
 				checkUrl(url);
 				return url;
 			}
-			throw new Exception(property +  " is required.");
+			throw new Exception(property + " is required.");
 		} catch (Exception e) {
 			e.printStackTrace();
-			throw new Exception(property +  " is wrong." + e);
+			throw new Exception(property + " is wrong." + e);
 		}
 	}
-	
+
 	private String asString(String property) throws Exception {
 		String value = env.getProperty(property);
-		if(value == null || value.isEmpty()) {
-			throw new Exception(property +  " is required.");
+		if (value == null || value.isEmpty()) {
+			throw new Exception(property + " is required.");
 		}
 		return value;
 	}
-	
+
+	private List<String> asStringList(String property) throws Exception {
+		List<String> value = env.getProperty(property, List.class);
+		if (value == null || value.isEmpty()) {
+			throw new Exception(property + " is required.");
+		}
+
+		return value;
+	}
+
 	private String asOptionalString(String property) {
 		return env.getProperty(property);
 	}
-	
+
 	private void checkUrl(String url) throws Exception {
 		try {
 			new URL(url).toURI();

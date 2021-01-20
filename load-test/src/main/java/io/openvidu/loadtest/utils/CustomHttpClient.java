@@ -6,8 +6,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
+import org.springframework.stereotype.Service;
+
 import com.google.gson.JsonObject;
 
+@Service
 public class CustomHttpClient {
 
 	private HttpClient client;
@@ -22,18 +25,13 @@ public class CustomHttpClient {
 				.POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
 
 		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-		System.out.println(response.body());
-		System.out.println("Status code response" + response.statusCode());
 		return response;
 	}
 
 	public HttpResponse<String> sendGet(String url) throws IOException, InterruptedException {
 
 		HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();
-
 		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-		System.out.println(response.body());
-		System.out.println("Status code response" + response.statusCode());
 		return response;
 	}
 
