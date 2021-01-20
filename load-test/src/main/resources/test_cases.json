@@ -1,0 +1,10 @@
+{
+	"testcases": [
+		{
+			"typology": "N:N",
+			"participants": [2],
+			"sessions": "infinite",
+			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
+		}
+	]
+}
