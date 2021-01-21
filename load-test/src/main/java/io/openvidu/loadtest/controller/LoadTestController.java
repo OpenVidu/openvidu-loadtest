@@ -45,7 +45,6 @@ public class LoadTestController {
 
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
-					System.out.println(participantsBySession);
 					log.info("Starting test with N:N session typology");
 					log.info("Each session will be composed by {} USERS", participantsBySession);
 

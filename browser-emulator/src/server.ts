@@ -21,8 +21,6 @@ app.listen(SERVER_PORT, () => {
 
 	console.log("---------------------------------------------------------");
 	console.log(" ");
-	console.log(`OPENVIDU URL: ${OPENVIDU_URL}`);
-	console.log(`OPENVIDU SECRET: ${OPENVIDU_SECRET}`);
 	console.log(`Listening in port ${SERVER_PORT}`);
 	console.log(" ");
 	console.log("---------------------------------------------------------");
