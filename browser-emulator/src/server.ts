@@ -1,5 +1,5 @@
 import * as express from "express";
-import { SERVER_PORT, OPENVIDU_URL, OPENVIDU_SECRET } from "./config";
+import { SERVER_PORT } from "./config";
 import { Hack } from "./extra/hack";
 import {app as ovBrowserController} from './controllers/OpenViduBrowserController';
 import {app as browserEmulatorController} from './controllers/BrowserEmulatorController';
