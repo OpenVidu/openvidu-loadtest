@@ -121,7 +121,7 @@ npm install
 npm run start
 ```
 
-This app will run on port `5000` by default. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start` command:
+By default, this app will run on port `5000`. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start` command:
 
 ```bash
 SERVER_PORT=6000 npm run start
