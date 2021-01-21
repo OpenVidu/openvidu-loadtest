@@ -90,7 +90,6 @@ public class LoadTestController {
 						e.printStackTrace();
 					}
 				}
-
 			}
 
 			try {

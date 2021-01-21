@@ -39,7 +39,6 @@ public class LoadTestApplication {
 	public void start() {
 
 		List<TestCase> testCasesList = io.getTestCasesFromJSON();
-		System.out.println(testCasesList);
 		if (testCasesList.size() > 0) {
 			loadTestController.startLoadTests(testCasesList);
 		} else {
