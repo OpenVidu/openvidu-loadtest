@@ -2,7 +2,7 @@
 
 > WARNING: The current tool is under development which means that bugs could be present in the code and you can expect some changes in usage.
 
-This repository contains a distributed tool that allows you to perform a load test against an OpenVidu CE or an OpenVidu PRO deployment. 
+This repository contains a distributed tool that allows you to perform a load test against an OpenVidu CE or an OpenVidu PRO deployment.
 
 Take into account that you must to deploy OpenVidu platform before using this tool.
 
@@ -13,7 +13,7 @@ Take into account that you must to deploy OpenVidu platform before using this to
 2. [Usage instructions](#usage-instructions)
 3. [Sample test execution](#sample-test-execution)
 4. [Analyze test results](#analyze-test-results)
-5. [Browser Emulator documentation)](#browser-emulator-documentation)
+5. [Browser Emulator documentation](#browser-emulator-documentation)
 
 <hr>
 
@@ -30,7 +30,7 @@ These instructions assume that OpenVidu CE or PRO is already deployed. See [how 
 
 To start with the load test you will have to deploy the workers first and the execute the controller.
 
-This instructions assume you are using a linux system. Windows and Mac can require some adaptation. 
+This instructions assume you are using a linux system. Windows and Mac can require some adaptation.
 
 ### 1. Deploy workers
 
@@ -70,9 +70,9 @@ Then follow these steps:
 git clone https://github.com/OpenVidu/openvidu-loadtest.git
 ```
 
-**2. Configure OpenVidu platform and workers
+**2. Configure OpenVidu platform and workers**
 
-Fill `OPENVIDU_URL`, `OPENVIDU_SECRET` and  `WORKER_URL_LIST` parameters in load-test [`load-test/src/main/resources/application.properties`](load-test/src/main/resources/application.properties):**
+Fill `OPENVIDU_URL`, `OPENVIDU_SECRET` and  `WORKER_URL_LIST` parameters in load-test [`load-test/src/main/resources/application.properties`](load-test/src/main/resources/application.properties):
 
 Run this command **under project root directory**:
 
@@ -89,9 +89,9 @@ WORKER_URL_LIST=http://worker_host1:port,http://worker_host2:port
 
 **3. Configure session typology:**
 
-Controller is being developed to allow the configuration of the load test cases: number of participants, typology, number of sessions, etc. 
+Controller is being developed to allow the configuration of the load test cases: number of participants, typology, number of sessions, etc.
 
-Currently, the only available option is the change of the number of participants of the session. 
+Currently, the only available option is the change of the number of participants of the session.
 
 To configure the test cases the file [`load-test/src/main/resources/test_cases.json`](load-test/src/main/resources/test_cases.json) has to be edited:
 
@@ -137,9 +137,11 @@ Which it means that, for this sample with sessions of 2 participans, each partic
 Thus achieving more capacity in the load test and less resource consumption.
 
 **Worker 1 logs**
+
 ![Worker 1 Logs](resources/worker1.png)
 
 **Worker 2 logs**
+
 ![Worker 2 Logs](resources/worker2.png)
 
 ## **Analyze test results**
