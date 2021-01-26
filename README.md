@@ -170,20 +170,24 @@ _Create a new Stream Manager with a specified **role** and connect it into a spe
 * #### URL:  http://localhost:5000/openvidu-browser/streamManager
 
 * #### BODY
-	```
+	```json
 	{
 		"openviduUrl": "http://localhost:4443",
 		"openviduSecret": "MY_SECRET",
 		"userId": "User1",
 		"sessionName": "LoadTestSession",
-		"role": "PUBLISHER"
+		"properties": {
+			"role": "PUBLISHER",
+			"audio": true,
+			"video": true
+		}
 	}
 	```
 
 * #### RESPONSE
-	```
+	```json
 	{
-		"connectionId": "con_FmtswrvbkT"
+		"connectionId": "con_FmtswrvbkT",
 		"workerCpuUsage": 10.00
 	}
 	```
