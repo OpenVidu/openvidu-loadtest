@@ -1,13 +1,16 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
-var osu = require('node-os-utils');
+import { InstanceService } from '../utils/instance-service';
 export const app = express.Router({
     strict: true
 });
 
+const instanceService: InstanceService = new InstanceService();
+
+
 app.get("/cpu", async (req: Request, res: Response) => {
 	try {
-		const cpuUsage = await osu.cpu.usage();
+		const cpuUsage = await instanceService.getCpuUsage();
 		console.log('CPU usage: ' + cpuUsage + '%');
 		res.status(200).send({cpuUsage});
 	} catch (error) {
