@@ -9,8 +9,8 @@ export class OpenViduBrowser {
 	sessionMap: Map<string, Session> = new Map();
 	httpClient: HttpClient;
 
-	private width = 640;
-	private height = 480;
+	private readonly WIDTH = 640;
+	private readonly HEIGHT = 480;
 	private videoSource;
 	private videoTrack: MediaStreamTrack;
 	private canvas;
@@ -19,10 +19,10 @@ export class OpenViduBrowser {
 	private MIN = 0;
 	private canvasInterval: NodeJS.Timer;
 	private canvasIntervalIterations: number = 0;
-	private MAX_HEIGHT: number;
-	private MAX_WIDTH: number;
-	private SLOW_ITERATION_MS = 2000;
-	private SLOW_ITERATIONS_NUMBER_LIMIT = 4;
+	private CANVAS_MAX_HEIGHT: number;
+	private CANVAS_MAX_WIDTH: number;
+	private readonly CANVAS_SLOW_ITERATION_MS = 2000;
+	private readonly CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT = 4;
 
 	constructor() {
 		this.httpClient = new HttpClient();
@@ -54,7 +54,7 @@ export class OpenViduBrowser {
 						videoSource: properties.video,
 						publishAudio: properties.audio,
 						publishVideo: properties.video,
-						resolution: '640x480',
+						resolution: this.WIDTH + 'x' + this.HEIGHT,
 						frameRate: 30,
 					});
 					await session.publish(publisher);
@@ -114,28 +114,28 @@ export class OpenViduBrowser {
 	private async startVideoCanvasInterval(timeoutMs: number = 800){
 
 		this.canvasInterval = setInterval(() => {
-			const x = Math.floor(Math.random() * (this.MAX_WIDTH - this.MIN + 1) + this.MIN);
-			const y = Math.floor(Math.random() * (this.MAX_HEIGHT - this.MIN + 1) + this.MIN);
+			const x = Math.floor(Math.random() * (this.CANVAS_MAX_WIDTH - this.MIN + 1) + this.MIN);
+			const y = Math.floor(Math.random() * (this.CANVAS_MAX_HEIGHT - this.MIN + 1) + this.MIN);
 
 			this.context.save();
-			this.context.fillRect(0, 0, this.width, this.height);
+			this.context.fillRect(0, 0, this.WIDTH, this.HEIGHT);
 			this.context.drawImage(this.myimg, x, y);
 			this.context.restore();
 
-			const rgbaFrame = this.context.getImageData(0, 0, this.width, this.height);
+			const rgbaFrame = this.context.getImageData(0, 0, this.WIDTH, this.HEIGHT);
 			const i420Frame = {
-				width: this.width,
-				height: this.height,
-				data: new Uint8ClampedArray(1.5 * this.width * this.height)
+				width: this.WIDTH,
+				height: this.HEIGHT,
+				data: new Uint8ClampedArray(1.5 * this.WIDTH * this.HEIGHT)
 			};
 			rgbaToI420(rgbaFrame, i420Frame);
 			this.videoSource.onFrame(i420Frame);
 			this.canvasIntervalIterations++;
 
-			if(this.canvasIntervalIterations > this.SLOW_ITERATIONS_NUMBER_LIMIT && timeoutMs < this.SLOW_ITERATION_MS){
+			if(this.canvasIntervalIterations > this.CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT && timeoutMs < this.CANVAS_SLOW_ITERATION_MS){
 				// Slowing down canvas interval
 				this.stopVideoCanvasInterval();
-				this.startVideoCanvasInterval(this.SLOW_ITERATION_MS);
+				this.startVideoCanvasInterval(this.CANVAS_SLOW_ITERATION_MS);
 			}
 		}, timeoutMs);
 	}
@@ -148,12 +148,12 @@ export class OpenViduBrowser {
 	private async initializeVideoCanvas(){
 		this.videoSource = new RTCVideoSource();
 		this.videoTrack = this.videoSource.createTrack();
-		this.canvas = createCanvas(this.width, this.height);
+		this.canvas = createCanvas(this.WIDTH, this.HEIGHT);
 		this.context = this.canvas.getContext('2d');
 		this.myimg = await loadImage('src/assets/images/openvidu_logo.png');
 		this.context.fillStyle = 'black';
-		this.context.fillRect(0, 0, this.width, this.height);
-		this.MAX_WIDTH = this.width - this.myimg.width;
-		this.MAX_HEIGHT = this.height - this.myimg.height;
+		this.context.fillRect(0, 0, this.WIDTH, this.HEIGHT);
+		this.CANVAS_MAX_WIDTH = this.WIDTH - this.myimg.width;
+		this.CANVAS_MAX_HEIGHT = this.HEIGHT - this.myimg.height;
 	}
 }
