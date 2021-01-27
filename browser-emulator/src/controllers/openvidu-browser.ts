@@ -11,7 +11,6 @@ export const app = express.Router({
 const ovBrowser: OpenViduBrowser = new OpenViduBrowser();
 const instanceService: InstanceService = new InstanceService();
 
-
 app.post("/streamManager", async (req: Request, res: Response) => {
 	try {
 		const openviduSecret: string = req.body.openviduSecret;
@@ -39,6 +38,8 @@ app.post("/streamManager", async (req: Request, res: Response) => {
 		res.status(500).send(error);
 	}
 });
+
+
 
 app.delete("/streamManager/connection/:connectionId", (req: Request, res: Response) => {
 	try {
