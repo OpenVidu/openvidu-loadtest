@@ -155,13 +155,43 @@ If you have deployed OpenVidu PRO you can [create your own visualizations in Kib
 Service with the aim of emulating a standard browser using [OpenVidu Browser library](https://github.com/OpenVidu/openvidu#readme) and overriding WebRTC API with [node-webrtc library](https://github.com/node-webrtc/node-webrtc).
 
 This app provides a simple REST API that will be used by **Load Test application** and it allows:
-* Create a [Stream Manager](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/classes/streammanager.html) (`PUBLISHER` or `SUBSCRIBER`)
+* Create a [Stream Manager](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/classes/streammanager.html) (`PUBLISHER` or `SUBSCRIBER`) retrieving the custom token created by you.
+* Create a [Stream Manager](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/classes/streammanager.html) (`PUBLISHER` or `SUBSCRIBER`) creating a token by its own.
 * Delete a Stream Manager by its connectionId
 * Delete all Stream Manager with a specific role (`PUBLISHER` or `SUBSCRIBER`).
 
 ### API REST
 
-#### CREATE STREAM MANAGER
+#### CREATE STREAM MANAGER _(retrieving your custom token)_
+
+_Create a new Stream Manager with a specified **token**_
+
+* #### METHOD: **POST**
+
+* #### URL:  http://localhost:5000/openvidu-browser/streamManager
+
+* #### BODY
+	```json
+	{
+		"token": "*****",
+		"userId": "User1",
+		"properties": {
+			"role": "PUBLISHER",
+			"audio": true,
+			"video": true
+		}
+	}
+	```
+
+* #### RESPONSE
+	```json
+	{
+		"connectionId": "con_FmtswrvbkT",
+		"workerCpuUsage": 10.00
+	}
+	```
+
+#### **CREATE STREAM MANAGER** _(Creating a token)_
 
 _Create a new Stream Manager with a specified **role** and connect it into a specified **sessionName**_
 
@@ -192,7 +222,8 @@ _Create a new Stream Manager with a specified **role** and connect it into a spe
 	}
 	```
 
-#### DELETE STREAM MANAGER (by connectionId)
+
+#### **DELETE STREAM MANAGER** _(by connectionId)_
 
 _Delete a single Stream Manager by its connectionId_
 
@@ -201,7 +232,7 @@ _Delete a single Stream Manager by its connectionId_
 * #### URL:  http://localhost:5000/openvidu-browser/streamManager/connection/{{CONNECTION_ID}}
 
 
-#### DELETE STREAM MANAGER's (by ROLE: `PUBLISHER` or `SUBSCRIBER`)
+#### **DELETE STREAM MANAGER's** _(by ROLE: `PUBLISHER` or `SUBSCRIBER`)_
 
 _Delete all Stream Manager with the specified ROLE_
 
