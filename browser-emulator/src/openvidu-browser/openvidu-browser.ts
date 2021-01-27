@@ -29,19 +29,23 @@ export class OpenViduBrowser {
 		this.initializeVideoCanvas();
 	}
 
-	async createStreamManager(userId: string, sessionName: string, properties: PublisherProperties): Promise<string> {
+	async createStreamManager(userId: string, properties: PublisherProperties,sessionName: string, token: string): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 
-			const ov: OpenVidu = new OpenVidu();
-			ov.enableProdMode();
-			const session: Session = ov.initSession();
-
-			session.on("streamCreated", (event: StreamEvent) => {
-				session.subscribe(event.stream, null);
-			});
-
 			try {
-				const token: string = await this.getToken(sessionName, properties.role);
+
+				if(!token) {
+					token = await this.getToken(sessionName, properties.role);
+				}
+
+				const ov: OpenVidu = new OpenVidu();
+				ov.enableProdMode();
+				const session: Session = ov.initSession();
+
+				session.on("streamCreated", (event: StreamEvent) => {
+					session.subscribe(event.stream, null);
+				});
+
 				await session.connect(token,  { clientData: userId });
 				if(properties.role === OpenViduRole.PUBLISHER){
 					this.stopVideoCanvasInterval();
