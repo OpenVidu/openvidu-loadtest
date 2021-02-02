@@ -3,6 +3,7 @@ package io.openvidu.loadtest.infrastructure;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -56,8 +57,7 @@ public class BrowserEmulatorClient {
 			workerUrl = getNextWorkerUrl();
 			log.info("Worker selected address: {}", workerUrl);
 			log.info("Connecting user: '{}' into session: '{}'", userId, sessionName);
-			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", jsonBody);
-			return response;
+			return this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", jsonBody, null, new HashMap());
 		} catch (IOException | InterruptedException e) {
 			if(e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
