@@ -27,7 +27,9 @@ public class LoadTestConfig {
 
 	private String elasticsearchPassword;
 
-	private String elasticsearchHost;
+//	private String elasticsearchHost;
+	
+	private String kibanaHost;
 
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -37,8 +39,12 @@ public class LoadTestConfig {
 		return this.openviduSecret;
 	}
 
-	public String getElasticsearchHost() {
-		return this.elasticsearchHost;
+//	public String getElasticsearchHost() {
+//		return this.elasticsearchHost;
+//	}
+	
+	public String getKibanaHost() {
+		return this.kibanaHost;
 	}
 
 	public String getElasticsearchUserName() {
@@ -53,6 +59,10 @@ public class LoadTestConfig {
 		return this.elasticsearchUserName != null && !this.elasticsearchUserName.isEmpty()
 				&& this.elasticsearchPassword != null && !this.elasticsearchPassword.isEmpty();
 	}
+	
+	public boolean isKibanaEstablished() {
+		return this.kibanaHost != null && !this.kibanaHost.isEmpty();
+	}
 
 	public List<String> getWorkerUrlList() {
 		return this.workerUrlList;
@@ -62,9 +72,10 @@ public class LoadTestConfig {
 	private void checkConfigurationProperties() {
 
 		try {
-//			elasticsearchHost = asURL("ELASTICSEARCH_HOST");
-//			elasticsearchUserName = asString("ELASTICSEARCH_USERNAME");
-//			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
+//			elasticsearchHost = asOptionalURL("ELASTICSEARCH_HOST");
+			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
+			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
+			kibanaHost = asOptionalURL("KIBANA_HOST");
 			workerUrlList = asStringList("WORKER_URL_LIST");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
@@ -80,14 +91,14 @@ public class LoadTestConfig {
 	// Format Checkers
 	// -------------------------------------------------------
 
-	private String asURL(String property) throws Exception {
+	private String asOptionalURL(String property) throws Exception {
 		String url = env.getProperty(property);
 		try {
 			if (!url.isEmpty()) {
 				checkUrl(url);
 				return url;
 			}
-			throw new Exception(property + " is required.");
+			return "";
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new Exception(property + " is wrong." + e);

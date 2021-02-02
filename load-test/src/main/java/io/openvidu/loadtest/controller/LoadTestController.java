@@ -13,7 +13,6 @@ import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.LoadTestStats;
 import io.openvidu.loadtest.utils.JsonUtils;
 
