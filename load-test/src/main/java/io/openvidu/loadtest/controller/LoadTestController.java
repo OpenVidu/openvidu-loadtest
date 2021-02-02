@@ -13,6 +13,8 @@ import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.monitoring.ElasticSearchClient;
+import io.openvidu.loadtest.monitoring.LoadTestStats;
 import io.openvidu.loadtest.utils.JsonUtils;
 
 /**
@@ -33,7 +35,7 @@ public class LoadTestController {
 
 	@Autowired
 	private BrowserEmulatorClient browserEmulatorClient;
-
+	
 	@Autowired
 	private JsonUtils jsonUtils;
 
@@ -61,7 +63,6 @@ public class LoadTestController {
 				log.error("Test case has wrong typology, SKIPPED.");
 				return;
 			}
-
 		});
 
 	}
@@ -81,7 +82,7 @@ public class LoadTestController {
 					response = this.browserEmulatorClient.createPublisher(USER_NAME_PREFIX + i,
 							SESSION_NAME_PREFIX + sessionNumber.get(), true, true);
 
-					responseIsOk = checkSuccessResponse(response);
+					responseIsOk = processResponse(response);
 
 					try {
 						Thread.sleep(SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS * 1000);
@@ -119,8 +120,8 @@ public class LoadTestController {
 //		this.restartCluster();
 
 	}
-
-	private boolean checkSuccessResponse(HttpResponse<String> response) {
+	
+	private boolean processResponse(HttpResponse<String> response) {
 
 		if (response.statusCode() == HTTP_STATUS_OK) {
 			JsonObject jsonResponse = jsonUtils.getJson(response.body());
