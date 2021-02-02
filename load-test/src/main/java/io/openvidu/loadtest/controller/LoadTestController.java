@@ -11,6 +11,7 @@ import org.springframework.stereotype.Controller;
 
 import com.google.gson.JsonObject;
 
+import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.LoadTestStats;
@@ -27,13 +28,11 @@ public class LoadTestController {
 	private static final Logger log = LoggerFactory.getLogger(LoadTestController.class);
 	private static final int HTTP_STATUS_OK = 200;
 
-	private static String SESSION_NAME_PREFIX = "LoadTestSession";
-	private static String USER_NAME_PREFIX = "User";
-	private static int SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS = 2;
-	private static int SECONDS_TO_WAIT_BETWEEN_SESSIONS = 2;
-
 	@Autowired
 	private BrowserEmulatorClient browserEmulatorClient;
+	
+	@Autowired
+	private LoadTestConfig loadTestConfig;
 	
 	@Autowired
 	private JsonUtils jsonUtils;
@@ -73,18 +72,19 @@ public class LoadTestController {
 
 		while (responseIsOk) {
 			sessionNumber.getAndIncrement();
-			log.info("Starting session '{}'", SESSION_NAME_PREFIX + sessionNumber.get());
+			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 			for (int i = 0; i < participantsBySession; i++) {
 
 				if (responseIsOk) {
 
-					response = this.browserEmulatorClient.createPublisher(USER_NAME_PREFIX + i,
-							SESSION_NAME_PREFIX + sessionNumber.get(), true, true);
+					response = this.browserEmulatorClient.createPublisher(loadTestConfig.getUserNamePrefix() + i,
+							loadTestConfig.getSessionNamePrefix() + sessionNumber.get(), true, true);
 
 					responseIsOk = processResponse(response);
 
 					try {
-						Thread.sleep(SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS * 1000);
+						log.info("Waiting {} seconds between participants", loadTestConfig.getSecondsToWaitBetweenParticipants());
+						Thread.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants() * 1000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
@@ -92,7 +92,8 @@ public class LoadTestController {
 			}
 
 			try {
-				Thread.sleep(SECONDS_TO_WAIT_BETWEEN_SESSIONS * 1000);
+				log.info("Waiting {} seconds between session", loadTestConfig.getSecondsToWaitBetweenSession());
+				Thread.sleep(loadTestConfig.getSecondsToWaitBetweenSession() * 1000);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}

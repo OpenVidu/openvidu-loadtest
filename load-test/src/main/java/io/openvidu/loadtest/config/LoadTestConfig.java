@@ -22,13 +22,19 @@ public class LoadTestConfig {
 	private String openviduUrl;
 
 	private String openviduSecret;
+	
+	private String sessionNamePrefix;
+	
+	private String userNamePrefix;
 
+	private int secondsToWaitBetweenParticipants;
+	
+	private int secondsToWaitBetweenSession;
+	
 	private String elasticsearchUserName;
 
 	private String elasticsearchPassword;
 
-//	private String elasticsearchHost;
-	
 	private String kibanaHost;
 
 	public String getOpenViduUrl() {
@@ -39,9 +45,21 @@ public class LoadTestConfig {
 		return this.openviduSecret;
 	}
 
-//	public String getElasticsearchHost() {
-//		return this.elasticsearchHost;
-//	}
+	public String getSessionNamePrefix() {
+		return sessionNamePrefix;
+	}
+
+	public String getUserNamePrefix() {
+		return userNamePrefix;
+	}
+
+	public int getSecondsToWaitBetweenParticipants() {
+		return secondsToWaitBetweenParticipants;
+	}
+
+	public int getSecondsToWaitBetweenSession() {
+		return secondsToWaitBetweenSession;
+	}
 	
 	public String getKibanaHost() {
 		return this.kibanaHost;
@@ -72,19 +90,41 @@ public class LoadTestConfig {
 	private void checkConfigurationProperties() {
 
 		try {
-//			elasticsearchHost = asOptionalURL("ELASTICSEARCH_HOST");
+			sessionNamePrefix = asString("SESSION_NAME_PREFIX");
+			userNamePrefix = asString("USER_NAME_PREFIX");
+			secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");
+			secondsToWaitBetweenSession = asInt("SECONDS_TO_WAIT_BETWEEN_SESSIONS");
 			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 			kibanaHost = asOptionalURL("KIBANA_HOST");
 			workerUrlList = asStringList("WORKER_URL_LIST");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
+			
+			this.printInfo();
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(1);
 		}
 
+	}
+	
+	private void printInfo() {
+		String format = "%-25s%3s%n";
+		System.out.println("-------- Load Test Parameters --------");
+		System.out.printf(format, "OpenVidu URL:", openviduUrl);
+		System.out.printf(format, "OpenVidu SECRET:", openviduSecret);
+		System.out.printf(format, "Worker List:", workerUrlList);
+		System.out.printf(format, "Session Name Prefix:", sessionNamePrefix);
+		System.out.printf(format, "Username Prefix:", userNamePrefix);
+		System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);
+		System.out.printf(format, "Seconds between sessions:", secondsToWaitBetweenSession);
+
+		System.out.printf(format, "Kibana Host:", kibanaHost);
+		System.out.printf(format, "ElasticSearch Username:", elasticsearchUserName);
+		System.out.printf(format, "ElasticSearch Password:", elasticsearchPassword);
+		System.out.println("-------- -------------------- --------");
 	}
 
 	// -------------------------------------------------------
@@ -120,6 +160,19 @@ public class LoadTestConfig {
 		}
 
 		return value;
+	}
+	
+	private int asInt(String property) {
+		try {
+			Integer integerValue = Integer.parseInt(env.getProperty(property));
+			if (integerValue < 0) {
+				return 0;
+			}
+			return integerValue;
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+		
 	}
 
 	private String asOptionalString(String property) {
