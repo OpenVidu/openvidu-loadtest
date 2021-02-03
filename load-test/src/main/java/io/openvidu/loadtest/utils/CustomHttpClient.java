@@ -54,9 +54,15 @@ public class CustomHttpClient {
 		return client.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
-	public HttpResponse<String> sendGet(String url) throws IOException, InterruptedException {
+	public HttpResponse<String> sendGet(String url, Map<String, String> headers) throws IOException, InterruptedException {
 
-		HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();
+		Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
+				
+		headers.forEach((k, v) -> {
+			requestBuilder.header(k, v);
+		});
+				
+		HttpRequest request = requestBuilder.GET().build();
 		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 		return response;
 	}

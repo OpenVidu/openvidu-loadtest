@@ -1,7 +1,6 @@
 package io.openvidu.loadtest.monitoring;
 
 import java.io.File;
-
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.util.Base64;
@@ -15,8 +14,11 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
+import com.google.gson.JsonObject;
+
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.utils.CustomHttpClient;
+import io.openvidu.loadtest.utils.JsonUtils;
 
 /**
  * @author Carlos Santos
@@ -27,7 +29,9 @@ import io.openvidu.loadtest.utils.CustomHttpClient;
 public class KibanaClient {
 
 	private final String API_IMPORT_OBJECTS = "/api/saved_objects/_import?overwrite=true";
-//	private final String API_FIND_DASHBOARD = "/api/saved_objects/_find?type=dashboard&search_fields=title&search=";
+	private final String API_FIND_DASHBOARD = "/api/saved_objects/_find?type=dashboard&search_fields=title&search=";
+	private final String KIBANA_DASHBOARD_URL = "/app/kibana#/dashboard/";
+	private final String LOAD_TEST_DASHBOARD = "Load Test";
 
 	private static final int HTTP_STATUS_OK = 200;
 
@@ -41,6 +45,9 @@ public class KibanaClient {
 
 	@Autowired
 	private ResourceLoader resourceLoader;
+
+	@Autowired
+	private JsonUtils jsonUtils;
 
 	private String kibanaHost;
 
@@ -59,6 +66,40 @@ public class KibanaClient {
 			return;
 		}
 		log.warn("Kibana Host parameter is empty. Dashboard won't be imported.");
+	}
+
+	public String getDashboardUrl(String startTime, String endTime) {
+		if (this.loadTestConfig.isKibanaEstablished()) {
+
+			final String URL = this.loadTestConfig.getKibanaHost() + API_FIND_DASHBOARD
+					+ LOAD_TEST_DASHBOARD.replaceAll("\\s+", "%20");
+			Map<String, String> headers = new HashMap<String, String>();
+
+			String esUserName = loadTestConfig.getElasticsearchUserName();
+			String esPassword = loadTestConfig.getElasticsearchPassword();
+			boolean securityEnabled = loadTestConfig.isElasticSearchSecured();
+			if (securityEnabled) {
+				headers.put("Authorization", getBasicAuth(esUserName, esPassword));
+			}
+
+			try {
+				HttpResponse<String> response = this.httpClient.sendGet(URL, headers);
+
+				if (response.statusCode() == HTTP_STATUS_OK) {
+
+					JsonObject jsonResponse = this.jsonUtils.getJson(response.body());
+					JsonObject dashboard = jsonResponse.get("saved_objects").getAsJsonArray().get(0).getAsJsonObject();
+					String dashboardId = dashboard.get("id").getAsString();
+
+					return this.loadTestConfig.getKibanaHost() + KIBANA_DASHBOARD_URL + dashboardId
+							+ "?_g=(time:(from:'" + startTime + "',to:'" + endTime + "'))";
+				}
+			} catch (Exception e) {
+			}
+		}
+
+		return "Kibana Load Test Dashboard is not found. You can import it manually to see the results.";
+
 	}
 
 	private void importSavedObjects(File file) throws IOException {
