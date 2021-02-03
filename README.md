@@ -146,9 +146,23 @@ Thus achieving more capacity in the load test and less resource consumption.
 
 ## **Analyze test results**
 
-With the current version the tools doesn't generate any test results by itself. It just generate load into OpenVidu.
+If you're testing **OpenVidu PRO**, the Load Test App **will import a Kibana Dashboard automatically** at the beginning of the test. This dashboard will include Kibana Visualizations with all metrics retrieved from OpenVidu.
 
-If you have deployed OpenVidu PRO you can [create your own visualizations in Kibana](https://docs.openvidu.io/en/2.16.0/openvidu-pro/monitoring-elastic-stack/#creating-your-own-visualizations-and-dashboards) or you can export the raw data and use another tool. Remember that ELK stack has monitoring information about the platform (CPU, memory usage, bandwidth, etc) and also high level information (sessions, participants, etc.)
+![Load Test Dashboard](resources/kibana.png)
+
+To allow that the Load Test App import it, **you must fill the ElasticSearch and Kibana parameters** declared in the [application.properties](load-test/src/main/resources/application.properties#L15-L17) file.
+
+**What happen if the dashboard have not been imported automatically?**
+
+An alternative if the dashboard is not imported automatically is **import it manually**. You just to follow these steps:
+
+1. Go to your Kibana Home
+2. Open the toggle menu and go to `Management > Stack Management`.
+3. Once inside of Stack Management, you must click on `Saved Objects` option, under Kibana section.
+4. Here, you can find an import button. You have to clik on it and import the [loadtest.ndjson](load-test/src/main/resources/loadtest.ndjson) file.
+
+
+Besides, if you have deployed OpenVidu PRO you can [create your own visualizations in Kibana](https://docs.openvidu.io/en/2.16.0/openvidu-pro/monitoring-elastic-stack/#creating-your-own-visualizations-and-dashboards) or you can export the raw data and use another tool. Remember that ELK stack has monitoring information about the platform (CPU, memory usage, bandwidth, etc) and also high level information (sessions, participants, etc.)
 
 ## **Browser Emulator documentation**
 
