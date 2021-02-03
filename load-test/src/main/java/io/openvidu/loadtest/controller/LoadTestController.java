@@ -1,6 +1,8 @@
 package io.openvidu.loadtest.controller;
 
 import java.net.http.HttpResponse;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -14,7 +16,7 @@ import com.google.gson.JsonObject;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.monitoring.LoadTestStats;
+import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
 /**
@@ -35,9 +37,21 @@ public class LoadTestController {
 	private LoadTestConfig loadTestConfig;
 	
 	@Autowired
+	private KibanaClient kibanaClient;
+	
+	@Autowired
 	private JsonUtils jsonUtils;
+	
+	private Calendar startTime;
+	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	private static final int TEN_MINUTES = 10;
+
 
 	public void startLoadTests(List<TestCase> testCasesList) {
+		this.kibanaClient.importDashboards();
+		this.startTime = Calendar.getInstance();
+		// Subtract ten minutes because of Kibana time filter
+		this.startTime.add(Calendar.MINUTE, -TEN_MINUTES);
 
 		testCasesList.forEach(testCase -> {
 
@@ -49,7 +63,7 @@ public class LoadTestController {
 					log.info("Each session will be composed by {} USERS", participantsBySession);
 
 					this.startNxNTest(participantsBySession);
-					this.getInfoAndClean();
+					this.cleanEnvironment();
 				}
 			} else if (testCase.is_1xN()) {
 				this.start1xNTest(testCase.getParticipants());
@@ -62,6 +76,8 @@ public class LoadTestController {
 				return;
 			}
 		});
+		
+		this.showLoadTestReport();
 
 	}
 
@@ -112,13 +128,22 @@ public class LoadTestController {
 
 	}
 
-	private void getInfoAndClean() {
+	public void cleanEnvironment() {
 		this.browserEmulatorClient.deleteAllStreamManagers("PUBLISHER");
 		this.browserEmulatorClient.deleteAllStreamManagers("SUBSCRIBERS");
-//		this.getAllMetrics();
-//		this.restartOpenVidu();
-//		this.restartCluster();
 
+	}
+	
+	private void showLoadTestReport() {
+		Calendar endCalendarTime = Calendar.getInstance();
+		endCalendarTime.add(Calendar.MINUTE, TEN_MINUTES);
+
+		String startTime = formatter.format(this.startTime.getTime()).replace(" ", "T");
+		String endTime = formatter.format(endCalendarTime.getTime()).replace(" ", "T");
+		
+		String url = this.kibanaClient.getDashboardUrl(startTime, endTime);
+		log.info("Load Test finished.");
+		log.info("Kibana Dashboard Report: {} ", url);
 	}
 	
 	private boolean processResponse(HttpResponse<String> response) {
