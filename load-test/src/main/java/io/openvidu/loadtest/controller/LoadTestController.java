@@ -63,6 +63,7 @@ public class LoadTestController {
 					log.info("Each session will be composed by {} USERS", participantsBySession);
 
 					this.startNxNTest(participantsBySession);
+					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished());
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_1xN()) {

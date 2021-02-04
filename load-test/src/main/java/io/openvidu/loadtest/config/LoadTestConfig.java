@@ -31,6 +31,8 @@ public class LoadTestConfig {
 	
 	private int secondsToWaitBetweenSession;
 	
+	private int secondsToWaitAfterTestFinished;
+	
 	private String elasticsearchUserName;
 
 	private String elasticsearchPassword;
@@ -59,6 +61,10 @@ public class LoadTestConfig {
 
 	public int getSecondsToWaitBetweenSession() {
 		return secondsToWaitBetweenSession;
+	}
+	
+	public int getSecondsToWaitAfterTestFinished() {
+		return secondsToWaitAfterTestFinished;
 	}
 	
 	public String getKibanaHost() {
@@ -94,6 +100,7 @@ public class LoadTestConfig {
 			userNamePrefix = asString("USER_NAME_PREFIX");
 			secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");
 			secondsToWaitBetweenSession = asInt("SECONDS_TO_WAIT_BETWEEN_SESSIONS");
+			secondsToWaitAfterTestFinished = asInt("SECONDS_TO_WAIT_AFTER_TEST_FINISHED");
 			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 			kibanaHost = asOptionalURL("KIBANA_HOST");
