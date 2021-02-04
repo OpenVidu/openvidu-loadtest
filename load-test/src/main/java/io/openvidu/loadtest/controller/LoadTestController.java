@@ -44,14 +44,14 @@ public class LoadTestController {
 	
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	private static final int TEN_MINUTES = 10;
+	private static final int FIVE_MINUTES = 5;
 
 
 	public void startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
 		this.startTime = Calendar.getInstance();
 		// Subtract ten minutes because of Kibana time filter
-		this.startTime.add(Calendar.MINUTE, -TEN_MINUTES);
+		this.startTime.add(Calendar.MINUTE, -FIVE_MINUTES);
 
 		testCasesList.forEach(testCase -> {
 
@@ -90,29 +90,23 @@ public class LoadTestController {
 			sessionNumber.getAndIncrement();
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 			for (int i = 0; i < participantsBySession; i++) {
-
-				if (responseIsOk) {
-
-					response = this.browserEmulatorClient.createPublisher(loadTestConfig.getUserNamePrefix() + i,
-							loadTestConfig.getSessionNamePrefix() + sessionNumber.get(), true, true);
-
-					responseIsOk = processResponse(response);
-
-					try {
-						log.info("Waiting {} seconds between participants", loadTestConfig.getSecondsToWaitBetweenParticipants());
-						Thread.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants() * 1000);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+				
+				if(!responseIsOk) {
+					return;
 				}
+
+				this.showIterationReport(sessionNumber.get(), i + 1, participantsBySession);
+				response = this.browserEmulatorClient.createPublisher(loadTestConfig.getUserNamePrefix() + i,
+						loadTestConfig.getSessionNamePrefix() + sessionNumber.get(), true, true);
+
+				responseIsOk = processResponse(response);
+
+				log.info("Waiting {} seconds between participants", loadTestConfig.getSecondsToWaitBetweenParticipants());
+				sleep(loadTestConfig.getSecondsToWaitBetweenParticipants());
 			}
 
-			try {
-				log.info("Waiting {} seconds between session", loadTestConfig.getSecondsToWaitBetweenSession());
-				Thread.sleep(loadTestConfig.getSecondsToWaitBetweenSession() * 1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+			log.info("Waiting {} seconds between session", loadTestConfig.getSecondsToWaitBetweenSession());
+			sleep(loadTestConfig.getSecondsToWaitBetweenSession());
 		}
 	}
 
@@ -135,8 +129,9 @@ public class LoadTestController {
 	}
 	
 	private void showLoadTestReport() {
+		
 		Calendar endCalendarTime = Calendar.getInstance();
-		endCalendarTime.add(Calendar.MINUTE, TEN_MINUTES);
+		endCalendarTime.add(Calendar.MINUTE, FIVE_MINUTES);
 
 		String startTime = formatter.format(this.startTime.getTime()).replace(" ", "T");
 		String endTime = formatter.format(endCalendarTime.getTime()).replace(" ", "T");
@@ -144,6 +139,23 @@ public class LoadTestController {
 		String url = this.kibanaClient.getDashboardUrl(startTime, endTime);
 		log.info("Load Test finished.");
 		log.info("Kibana Dashboard Report: {} ", url);
+		
+	}
+	
+	private void showIterationReport(int sessionsCreated, int currentUserNumber, int participantsBySession) {
+		int sessionsCompleted = 0;
+		if(sessionsCreated > 1) {
+			sessionsCompleted = sessionsCreated - 1;
+		}
+		
+		int totalPublishers = (participantsBySession * sessionsCompleted) + currentUserNumber;
+		int totalSubscribers = (participantsBySession * (participantsBySession - 1) * sessionsCompleted) + currentUserNumber * (currentUserNumber - 1);
+		
+		log.info("-- Iteration report ---");
+		log.info("Total sessions created: {}", sessionsCreated);
+		log.info("Total publishers created: {}", totalPublishers);
+		log.info("Total subscribers created: {}", totalSubscribers);
+		log.info("-- ----------------- ---");
 	}
 	
 	private boolean processResponse(HttpResponse<String> response) {
@@ -160,6 +172,14 @@ public class LoadTestController {
 		log.error("Http Status Response {} ", response.statusCode());
 		log.error("Response message {} ", response.body());
 		return false;
+	}
+	
+	private void sleep(int seconds) {
+		try {
+			Thread.sleep(seconds * 1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 }
