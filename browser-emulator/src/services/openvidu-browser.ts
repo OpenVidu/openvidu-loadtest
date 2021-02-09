@@ -1,6 +1,6 @@
 import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
 import { HttpClient } from "../utils/http-client";
-import { OpenViduRole, PublisherProperties } from './OpenVidu/OpenviduTypes';
+import { OpenViduRole, PublisherProperties } from '../extra/openvidu-browser/OpenVidu/OpenviduTypes';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 const { createCanvas, loadImage } = require('canvas');
 
@@ -29,13 +29,13 @@ export class OpenViduBrowser {
 		this.initializeVideoCanvas();
 	}
 
-	async createStreamManager(userId: string, properties: PublisherProperties,sessionName: string, token: string): Promise<string> {
+	async createStreamManager(properties: PublisherProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 
 			try {
 
-				if(!token) {
-					token = await this.getToken(sessionName, properties.role);
+				if(!properties.token) {
+					properties.token = await this.getToken(properties.sessionName, properties.role);
 				}
 
 				const ov: OpenVidu = new OpenVidu();
@@ -46,7 +46,7 @@ export class OpenViduBrowser {
 					session.subscribe(event.stream, null);
 				});
 
-				await session.connect(token,  { clientData: userId });
+				await session.connect(properties.token,  { clientData: properties.userId });
 				if(properties.role === OpenViduRole.PUBLISHER){
 					this.stopVideoCanvasInterval();
 					const publisher: Publisher = ov.initPublisher(null, {
@@ -111,7 +111,7 @@ export class OpenViduBrowser {
 		this.openviduMap.delete(connectionId);
 	}
 
-	private async startVideoCanvasInterval(timeoutMs: number = 800){
+	private async startVideoCanvasInterval(timeoutMs: number = 35){
 
 		this.canvasInterval = setInterval(() => {
 			const x = Math.floor(Math.random() * (this.CANVAS_MAX_WIDTH - this.MIN + 1) + this.MIN);
@@ -132,11 +132,11 @@ export class OpenViduBrowser {
 			this.videoSource.onFrame(i420Frame);
 			this.canvasIntervalIterations++;
 
-			if(this.canvasIntervalIterations > this.CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT && timeoutMs < this.CANVAS_SLOW_ITERATION_MS){
-				// Slowing down canvas interval
-				this.stopVideoCanvasInterval();
-				this.startVideoCanvasInterval(this.CANVAS_SLOW_ITERATION_MS);
-			}
+			// if(this.canvasIntervalIterations > this.CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT && timeoutMs < this.CANVAS_SLOW_ITERATION_MS){
+			// 	// Slowing down canvas interval
+			// 	this.stopVideoCanvasInterval();
+			// 	this.startVideoCanvasInterval(this.CANVAS_SLOW_ITERATION_MS);
+			// }
 		}, timeoutMs);
 	}
 

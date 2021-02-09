@@ -2,7 +2,7 @@ import * as express from 'express';
 import { Request, Response } from 'express';
 import { OpenViduBrowser } from '../openvidu-browser/openvidu-browser';
 import { OpenViduRole, PublisherProperties } from '../openvidu-browser/OpenVidu/OpenviduTypes';
-import { InstanceService } from '../utils/instance-service';
+import { InstanceService } from '../services/instance-service';
 
 export const app = express.Router({
     strict: true

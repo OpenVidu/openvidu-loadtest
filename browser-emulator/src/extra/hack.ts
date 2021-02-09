@@ -9,7 +9,7 @@ const mediaDevicesWRTC = require('wrtc').mediaDevices;
 const MediaStreamWRTC = require('wrtc').MediaStream;
 const MediaStreamTrackWRTC = require('wrtc').MediaStreamTrack;
 const getUserMediaWRTC = require('wrtc').getUserMedia;
-import {PublisherOverride} from '../openvidu-browser/OpenVidu/Publisher';
+import {PublisherOverride} from './openvidu-browser/OpenVidu/Publisher';
 const LocalStorage = require('node-localstorage').LocalStorage;
 
 
