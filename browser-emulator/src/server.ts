@@ -3,6 +3,7 @@ import { SERVER_PORT } from "./config";
 import { Hack } from "./extra/hack";
 import {app as ovBrowserController} from './controllers/openvidu-browser';
 import {app as browserEmulatorController} from './controllers/browser-emulator';
+import fs = require('fs');
 
 const app = express();
 
@@ -19,9 +20,18 @@ app.listen(SERVER_PORT, () => {
 	hack.webrtc();
 	hack.websocket();
 
+	createRecordingsDirectory();
+
 	console.log("---------------------------------------------------------");
 	console.log(" ");
 	console.log(`Listening in port ${SERVER_PORT}`);
 	console.log(" ");
 	console.log("---------------------------------------------------------");
 });
+
+function createRecordingsDirectory() {
+	var dir = `${process.env.PWD}/recordings`;
+	if (!fs.existsSync(dir)){
+		fs.mkdirSync(dir);
+	}
+}

@@ -38,3 +38,5 @@ browserProvider-conf.sh
 node_modules
 
 browser-emulator/dist/
+
+browser-emulator/recordings/
