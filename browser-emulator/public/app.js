@@ -2,7 +2,8 @@ var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
 var SESSION_ID;
 var USER_ID;
-var SHOW_VIDEOS;
+var VIDEO_ELEMENTS;
+var RESOLUTION;
 
 var OV;
 var session;
@@ -16,7 +17,8 @@ window.onload = () => {
 	OPENVIDU_SERVER_SECRET = url.searchParams.get("secret");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
-	SHOW_VIDEOS = url.searchParams.get("showVideos") === 'true';
+	RESOLUTION = url.searchParams.get("resolution");
+	VIDEO_ELEMENTS = url.searchParams.get("videoElements") === 'true';
 	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID) {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
@@ -50,7 +52,7 @@ function joinSession() {
 
 		var subscriberContainer = insertSubscriberContainer(event);
 
-		if(!SHOW_VIDEOS){
+		if(!VIDEO_ELEMENTS){
 			subscriberContainer = null;
 		}
 		var subscriber = session.subscribe(event.stream, subscriberContainer);
@@ -80,7 +82,7 @@ function joinSession() {
 			.then(() => {
 
 				var videoContainer = null;
-				if(SHOW_VIDEOS){
+				if(VIDEO_ELEMENTS){
 					videoContainer = 'video-publisher';
 				}
 
@@ -89,7 +91,7 @@ function joinSession() {
 					videoSource: undefined, // The source of video. If undefined default webcam
 					publishAudio: true,  	// Whether you want to start publishing with your audio unmuted or not
 					publishVideo: true,
-					resolution:  "640x480",
+					resolution:  RESOLUTION,
 					frameRate: 30,
 					mirror: false
 				});
@@ -128,11 +130,11 @@ function setPublisherButtonsActions(publisher) {
 			elem.parentNode.removeChild(elem);
 
 			var videoContainer = null;
-			if(SHOW_VIDEOS){
+			if(VIDEO_ELEMENTS){
 				videoContainer = 'video-publisher';
 			}
 			var publisher2 = OV.initPublisher(videoContainer, {
-				 resolution: "640x480",
+				 resolution: RESOLUTION,
 				 frameRate: 30,
 				 mirror: false
 			});
@@ -210,7 +212,8 @@ function initFormValues() {
 	document.getElementById("form-secret").value = OPENVIDU_SERVER_SECRET;
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
-	document.getElementById("form-showVideos").checked = SHOW_VIDEOS;
+	document.getElementById("form-videoElements").checked = VIDEO_ELEMENTS;
+	document.getElementById("form-resolution").value = RESOLUTION;
 }
 
 function joinWithForm() {
@@ -218,7 +221,8 @@ function joinWithForm() {
 	OPENVIDU_SERVER_SECRET = document.getElementById("form-secret").value;
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
-	SHOW_VIDEOS = document.getElementById("form-showVideos").checked;
+	RESOLUTION = document.getElementById("form-resolution").value;
+	VIDEO_ELEMENTS = document.getElementById("form-videoElements").checked;
 
 	document.getElementById('join-form').style.display = 'none';
 	joinSession();

@@ -6,6 +6,9 @@ import chrome = require('selenium-webdriver/chrome');
 
 export class BrowserManager {
 
+	private chromeOptions = new chrome.Options();
+	private chromeCapabilities = Capabilities.chrome();
+
 	private readonly BROWSER_CONTAINER_HOSTPORT = 4000;
 
 	private containerMap: Map<string, number> = new Map();
@@ -15,6 +18,13 @@ export class BrowserManager {
 	constructor(){
 		 this.ovBrowserService = new OpenViduBrowser();
 		 this.dockerService = new DockerService();
+		 this.chromeOptions.addArguments(
+			'--disable-dev-shm-usage',
+			'--window-size=1440,1080',
+			'--use-fake-ui-for-media-stream',
+			'--use-fake-device-for-media-stream'
+		);
+		this.chromeCapabilities.setAcceptInsecureCerts(true);
 	}
 
 	async createStreamManager(browserMode: BrowserMode, properties: PublisherProperties): Promise<string> {
@@ -26,7 +36,6 @@ export class BrowserManager {
 
 		// Create new stream manager using node-webrtc library, emulating a normal browser.
 		console.log(`Creating ${properties.role} ${properties.userId} in session ${properties.sessionName} using emulate browser`);
-
 		return await this.ovBrowserService.createStreamManager(properties);
 
 	}
@@ -45,16 +54,16 @@ export class BrowserManager {
 
 		try {
 			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
-			const containerId = await this.dockerService.startBrowserContainer(containerName, portBinding, properties);
+			const containerId = await this.dockerService.startBrowserContainer(containerName, portBinding);
 			this.containerMap.set(containerId, portBinding);
 
 			if(!!properties.recording) {
-				console.log("Starting browser recording ");
+				console.log("Starting browser recording");
 				await this.dockerService.startBrowserRecording(containerId, containerName);
-				await this.launchBrowser(containerId);
+				await this.launchBrowser(containerId, properties);
 				return containerId;
 			}else {
-				await this.launchBrowser(containerId);
+				await this.launchBrowser(containerId,properties);
 				return containerId;
 			}
 
@@ -65,20 +74,27 @@ export class BrowserManager {
 
 	}
 
-	private async launchBrowser(containerId: string, timeout: number = 1000): Promise<void> {
+	private async launchBrowser(containerId: string, properties: PublisherProperties, timeout: number = 1000): Promise<void> {
 
 		setTimeout(async () => {
 			try {
-				const chromeOptions = new chrome.Options();
-				const chromeCapabilities = Capabilities.chrome();
-				chromeOptions.addArguments('--disable-dev-shm-usage','--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream');
-				chromeCapabilities.setAcceptInsecureCerts(true);
+				const url = `https://${process.env.LOCATION_HOSTNAME}/` +
+							`?publicurl=${process.env.OPENVIDU_URL}` +
+							`&secret=${process.env.OPENVIDU_SECRET}` +
+							`&sessionId=${properties.sessionName}` +
+							`&userId=${properties.userId}` +
+							`&resolution=${properties.resolution || '640x480'}` +
+							`&videoElements=${properties.videoElements}`;
 
-				let driver = await new Builder().forBrowser('chrome').withCapabilities(chromeCapabilities).setChromeOptions(chromeOptions).build();
+				console.log(url);
 
-				await driver.get('https://demos.openvidu.io/basic-videoconference/');
-				const joinButton = await driver.findElement(By.name("commit"));
-				await joinButton.click();
+				let driver = await new Builder()
+							.forBrowser('chrome')
+							.withCapabilities(this.chromeCapabilities)
+							.setChromeOptions(this.chromeOptions)
+							.build();
+
+				await driver.get(url);
 				console.log("Browser works as expected");
 
 			} catch(error){
@@ -88,11 +104,12 @@ export class BrowserManager {
 				return Promise.reject(new Error(error));
 			} finally {
 				// await driver.quit();
+
+				setTimeout(() => {
+					this.dockerService.stopContainer(containerId);
+				}, 10000);
 			}
 		}, timeout);
-
-
-
 	}
 
 }

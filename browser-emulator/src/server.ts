@@ -4,17 +4,25 @@ import { Hack } from "./extra/hack";
 import {app as ovBrowserController} from './controllers/openvidu-browser';
 import {app as browserEmulatorController} from './controllers/browser-emulator';
 import fs = require('fs');
-
+import https = require('https');
 const app = express();
 
 app.use(express.static('public'));
+
+const options = {
+	key: fs.readFileSync('public/key.pem', 'utf8'),
+	cert: fs.readFileSync('public/cert.pem', 'utf8'),
+};
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/browser-emulator', browserEmulatorController);
 app.use('/openvidu-browser', ovBrowserController);
 
-app.listen(SERVER_PORT, () => {
+const server = https.createServer(options, app);
+
+server.listen(SERVER_PORT, () => {
 	const hack = new Hack();
 
 	hack.openviduBrowser();

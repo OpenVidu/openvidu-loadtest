@@ -13,9 +13,14 @@ export enum BrowserMode {
 export interface PublisherProperties {
 	userId: string,
 	sessionName: string,
-	token?: string,
 	role: OpenViduRole,
 	audio: boolean,
 	video: boolean,
-	recording: boolean
+	resolution?: string,
+	token?: string,
+
+
+	// Only with BrowserMode=REAL
+	recording?: boolean
+	videoElements?: boolean
 }

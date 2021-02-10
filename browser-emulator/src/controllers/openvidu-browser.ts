@@ -20,6 +20,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			// Setting default role for publisher properties
 			properties.role = properties.role || OpenViduRole.PUBLISHER
 
+			process.env.LOCATION_HOSTNAME = req.headers.host;
 			process.env.OPENVIDU_SECRET = req.body.openviduSecret;
 			process.env.OPENVIDU_URL = req.body.openviduUrl;
 

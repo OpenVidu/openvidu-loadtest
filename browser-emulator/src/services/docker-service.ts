@@ -10,7 +10,7 @@ export class DockerService {
 		this.docker = new Docker();
 	}
 
-	public async startBrowserContainer(name: string, hostPort: number, properties: PublisherProperties): Promise<string> {
+	public async startBrowserContainer(name: string, hostPort: number): Promise<string> {
 		const options: Docker.ContainerCreateOptions = {
 			Image: this.CHROME_BROWSER_IMAGE,
 			name: name,
