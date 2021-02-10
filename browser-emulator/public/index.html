@@ -3,7 +3,7 @@
 <head>
 	<title>OpenVidu Load Test</title>
 	<link rel="shortcut icon" href="resources/images/favicon.ico" type="image/x-icon">
-	<script src="openvidu-browser-2.6.0.js"></script>
+	<script src="openvidu-browser-2.16.0.min.js"></script>
 	<script src="app.js"></script>
 	<link rel="stylesheet" type="text/css" href="styles.css">
 </head>
@@ -17,7 +17,7 @@
 <body>
 	<div id="join-form" style="display: none">
 		<form onsubmit="return joinWithForm()">
-			<input id="form-publicurl" type="text" name="publicurl" placeholder="OpenVidu ip" required>
+			<input id="form-publicurl" type="text" name="publicurl" placeholder="OpenVidu url" required>
 			<input id="form-secret" type="text" name="secret" placeholder="OpenVidu secret" required>
 			<input id="form-sessionId" type="text" name="sessionId" placeholder="sessionId" required>
 			<input id="form-userId" type="text" name="userId" placeholder="userId" required>
