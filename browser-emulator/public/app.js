@@ -2,6 +2,7 @@ var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
 var SESSION_ID;
 var USER_ID;
+var SHOW_VIDEOS;
 
 var OV;
 var session;
@@ -15,6 +16,7 @@ window.onload = () => {
 	OPENVIDU_SERVER_SECRET = url.searchParams.get("secret");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
+	SHOW_VIDEOS = url.searchParams.get("showVideos") === 'true';
 	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID) {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
@@ -36,6 +38,7 @@ function appendStats(userId, stat) {
 
 function joinSession() {
 	OV = new OpenVidu();
+	OV.enableProdMode();
 	session = OV.initSession();
 
 	session.on("connectionCreated", event => {
@@ -44,7 +47,13 @@ function joinSession() {
 
 	session.on("streamCreated", event => {
 		appendEvent({ event: "streamCreated", content: event.stream.streamId });
-		var subscriber = session.subscribe(event.stream, insertSubscriberContainer(event));
+
+		var subscriberContainer = insertSubscriberContainer(event);
+
+		if(!SHOW_VIDEOS){
+			subscriberContainer = null;
+		}
+		var subscriber = session.subscribe(event.stream, subscriberContainer);
 		subscriber.on("streamPlaying", e => {
 			appendEvent({ event: "streamPlaying", content: event.stream.streamId });
 			var userId = event.stream.connection.data;
@@ -69,9 +78,25 @@ function joinSession() {
 	getToken().then(token => {
 		session.connect(token, USER_ID)
 			.then(() => {
-				var publisher = OV.initPublisher(insertPublisherContainer(), { resolution: "540x360", frameRate: 30, mirror: false });
+
+				var videoContainer = null;
+				if(SHOW_VIDEOS){
+					videoContainer = 'video-publisher';
+				}
+
+				var publisher = OV.initPublisher(videoContainer, {
+					audioSource: undefined, // The source of audio. If undefined default microphone
+					videoSource: undefined, // The source of video. If undefined default webcam
+					publishAudio: true,  	// Whether you want to start publishing with your audio unmuted or not
+					publishVideo: true,
+					resolution:  "640x480",
+					frameRate: 30,
+					mirror: false
+				});
 				setPublisherButtonsActions(publisher);
+
 				session.publish(publisher);
+
 			})
 			.catch(error => {
 				console.log("There was an error connecting to the session:", error.code, error.message);
@@ -88,50 +113,6 @@ window.onbeforeunload = () => {
 	if (session) leaveSession();
 };
 
-function insertPublisherContainer() {
-	var commonTagStyle = "display: inline-block; cursor: pointer; background-color: #daae00; color: white; font-size: 13px; font-weight: bold; padding: 1px 3px; border-radius: 3px; font-family: 'Arial';";
-	var videoContainer = document.createElement('div');
-	videoContainer.id = 'video-publisher';
-	videoContainer.className = 'video-container';
-	videoContainer.setAttribute("style", "display: inline-block; margin: 5px 5px 0 0");
-	var infoContainer = document.createElement('div');
-	infoContainer.setAttribute("style", "display: flex; justify-content: space-between; margin-bottom: 3px");
-	var userId = document.createElement('div');
-	userId.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	userId.innerText = session.connection.data;
-	var rtt = document.createElement('div');
-	rtt.id = 'rtt';
-	rtt.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	var sendBandwidth = document.createElement('div');
-	sendBandwidth.id = 'send-bandwidth';
-	sendBandwidth.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	var bitrate = document.createElement('div');
-	bitrate.id = 'bitrate';
-	bitrate.setAttribute("style", commonTagStyle + "cursor: initial; background-color: #0088aa;");
-	var mute = document.createElement('div');
-	mute.id = 'mute';
-	mute.setAttribute("style", commonTagStyle);
-	mute.innerText = 'Mute';
-	var unpublish = document.createElement('div');
-	unpublish.id = 'unpublish';
-	unpublish.setAttribute("style", commonTagStyle);
-	unpublish.innerText = 'Unpublish';
-	var leave = document.createElement('div');
-	leave.id = 'leave';
-	leave.setAttribute("style", commonTagStyle);
-	leave.innerText = 'Leave';
-	infoContainer.appendChild(userId);
-	infoContainer.appendChild(rtt);
-	infoContainer.appendChild(sendBandwidth);
-	infoContainer.appendChild(bitrate);
-	infoContainer.appendChild(mute);
-	infoContainer.appendChild(unpublish);
-	infoContainer.appendChild(leave);
-	videoContainer.appendChild(infoContainer);
-	document.getElementById('local').appendChild(videoContainer);
-	return videoContainer;
-}
-
 function setPublisherButtonsActions(publisher) {
 	document.getElementById('mute').onclick = (e) => {
 		event.target.innerText = event.target.innerText === 'Mute' ? 'Unmute' : 'Mute';
@@ -145,7 +126,16 @@ function setPublisherButtonsActions(publisher) {
 		} else {
 			var elem = document.getElementById('video-publisher');
 			elem.parentNode.removeChild(elem);
-			var publisher2 = OV.initPublisher(insertPublisherContainer(), { resolution: "540x360", frameRate: 30, mirror: false });
+
+			var videoContainer = null;
+			if(SHOW_VIDEOS){
+				videoContainer = 'video-publisher';
+			}
+			var publisher2 = OV.initPublisher(videoContainer, {
+				 resolution: "640x480",
+				 frameRate: 30,
+				 mirror: false
+			});
 			setPublisherButtonsActions(publisher2);
 			session.publish(publisher2);
 			event.target.innerText = 'Unpublish';
@@ -179,7 +169,7 @@ function insertSubscriberContainer(event) {
 	videoContainer.className = 'video-container';
 	videoContainer.setAttribute("style", "display: inline-block; margin: 5px 5px 0 0");
 	var infoContainer = document.createElement('div');
-	infoContainer.setAttribute("style", "display: flex; justify-content: space-between; margin-bottom: 3px");
+	infoContainer.setAttribute("style", "display: flex; justify-content: space-between; margin-bottom: 3px; border: 2px solid;");
 	var userId = document.createElement('div');
 	userId.setAttribute("style", commonTagStyle);
 	userId.innerText = event.stream.connection.data;
@@ -220,6 +210,7 @@ function initFormValues() {
 	document.getElementById("form-secret").value = OPENVIDU_SERVER_SECRET;
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
+	document.getElementById("form-showVideos").checked = SHOW_VIDEOS;
 }
 
 function joinWithForm() {
@@ -227,25 +218,31 @@ function joinWithForm() {
 	OPENVIDU_SERVER_SECRET = document.getElementById("form-secret").value;
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
+	SHOW_VIDEOS = document.getElementById("form-showVideos").checked;
+
 	document.getElementById('join-form').style.display = 'none';
 	joinSession();
 	return false;
 }
 
 function getToken() {
-	return createSession().then(sessionId => createToken(sessionId));
+	return createSession(SESSION_ID).then(sessionId => createToken(sessionId));
 }
 
-function createSession() { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-apisessions
+function createSession(sessionId) { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-openviduapisessions
 	return new Promise((resolve, reject) => {
-		var request = new XMLHttpRequest();
-		request.open("POST", OPENVIDU_SERVER_URL + "api/sessions", true);
-		request.setRequestHeader('Content-Type', 'application/json');
-		request.setRequestHeader('Authorization', "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET));
-		request.onreadystatechange = () => {
-			if (request.readyState === 4) {
-				if (request.status === 200 || request.status === 409) {
-					resolve(SESSION_ID);
+		$.ajax({
+			type: "POST",
+			url: OPENVIDU_SERVER_URL + "/openvidu/api/sessions",
+			data: JSON.stringify({ customSessionId: sessionId }),
+			headers: {
+				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
+				"Content-Type": "application/json"
+			},
+			success: response => resolve(response.id),
+			error: (error) => {
+				if (error.status === 409) {
+					resolve(sessionId);
 				} else {
 					console.warn('No connection to OpenVidu Server. This may be a certificate error at ' + OPENVIDU_SERVER_URL);
 					if (window.confirm('No connection to OpenVidu Server. This may be a certificate error at \"' + OPENVIDU_SERVER_URL + '\"\n\nClick OK to navigate and accept it. ' +
@@ -253,29 +250,25 @@ function createSession() { // See https://docs.openvidu.io/en/stable/reference-d
 						location.assign(OPENVIDU_SERVER_URL + '/accept-certificate');
 					}
 				}
-			};
-		}
-		request.send(JSON.stringify({ customSessionId: SESSION_ID }));
+			}
+		});
 	});
 }
 
-function createToken() { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-apitokens
-	return new Promise((resolve, reject) => {
-		var request = new XMLHttpRequest();
-		request.open("POST", OPENVIDU_SERVER_URL + "api/tokens", true);
-		request.setRequestHeader('Content-Type', 'application/json');
-		request.setRequestHeader('Authorization', "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET));
-		request.onreadystatechange = () => {
-			if (request.readyState === 4) {
-				if (request.status == 200) {
-					resolve(JSON.parse(request.response).token);
-				} else {
-					reject(new Error(request.responseText))
-				}
-			};
-		}
-		request.send(JSON.stringify({ session: SESSION_ID }));
-	});
+function createToken(sessionId) { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-openviduapisessionsltsession_idgtconnection
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            type: 'POST',
+            url: OPENVIDU_SERVER_URL + '/openvidu/api/sessions/' + sessionId + '/connection',
+            data: JSON.stringify({}),
+            headers: {
+                'Authorization': 'Basic ' + btoa('OPENVIDUAPP:' + OPENVIDU_SERVER_SECRET),
+                'Content-Type': 'application/json',
+            },
+            success: (response) => resolve(response.token),
+            error: (error) => reject(error)
+        });
+    });
 }
 
 function collectEventsAndStats() {
