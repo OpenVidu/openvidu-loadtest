@@ -2,7 +2,7 @@ var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
 var SESSION_ID;
 var USER_ID;
-var VIDEO_ELEMENTS;
+var SHOW_VIDEO_ELEMENTS;
 var RESOLUTION;
 
 var OV;
@@ -18,7 +18,7 @@ window.onload = () => {
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
 	RESOLUTION = url.searchParams.get("resolution");
-	VIDEO_ELEMENTS = url.searchParams.get("videoElements") === 'true';
+	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID) {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
@@ -29,6 +29,14 @@ window.onload = () => {
 		joinSession();
 	}
 };
+
+function appendElement(id) {
+    var eventsDiv = document.getElementById('openvidu-events');
+    var element = document.createElement('div');
+    element.setAttribute("id", id);
+    // element.setAttribute("style", "height: 200px;");
+    eventsDiv.appendChild(element);
+}
 
 function appendEvent(newEvent) {
 	window.openviduLoadTest.events.push(newEvent);
@@ -52,7 +60,7 @@ function joinSession() {
 
 		var subscriberContainer = insertSubscriberContainer(event);
 
-		if(!VIDEO_ELEMENTS){
+		if(!SHOW_VIDEO_ELEMENTS){
 			subscriberContainer = null;
 		}
 		var subscriber = session.subscribe(event.stream, subscriberContainer);
@@ -82,7 +90,7 @@ function joinSession() {
 			.then(() => {
 
 				var videoContainer = null;
-				if(VIDEO_ELEMENTS){
+				if(SHOW_VIDEO_ELEMENTS){
 					videoContainer = 'video-publisher';
 				}
 
@@ -95,6 +103,11 @@ function joinSession() {
 					frameRate: 30,
 					mirror: false
 				});
+
+				publisher.on('streamCreated', event => {
+					appendElement('local-stream-created');
+				});
+
 				setPublisherButtonsActions(publisher);
 
 				session.publish(publisher);
@@ -130,7 +143,7 @@ function setPublisherButtonsActions(publisher) {
 			elem.parentNode.removeChild(elem);
 
 			var videoContainer = null;
-			if(VIDEO_ELEMENTS){
+			if(SHOW_VIDEO_ELEMENTS){
 				videoContainer = 'video-publisher';
 			}
 			var publisher2 = OV.initPublisher(videoContainer, {
@@ -212,7 +225,7 @@ function initFormValues() {
 	document.getElementById("form-secret").value = OPENVIDU_SERVER_SECRET;
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
-	document.getElementById("form-videoElements").checked = VIDEO_ELEMENTS;
+	document.getElementById("form-videoElements").checked = SHOW_VIDEO_ELEMENTS;
 	document.getElementById("form-resolution").value = RESOLUTION;
 }
 
@@ -222,7 +235,7 @@ function joinWithForm() {
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
 	RESOLUTION = document.getElementById("form-resolution").value;
-	VIDEO_ELEMENTS = document.getElementById("form-videoElements").checked;
+	SHOW_VIDEO_ELEMENTS = document.getElementById("form-videoElements").checked;
 
 	document.getElementById('join-form').style.display = 'none';
 	joinSession();
