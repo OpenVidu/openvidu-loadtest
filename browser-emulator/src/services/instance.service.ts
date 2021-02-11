@@ -1,11 +1,11 @@
-var osu = require('node-os-utils');
+import * as os  from 'node-os-utils';
 
 export class InstanceService {
 
 	constructor() {}
 
 	async getCpuUsage(): Promise<number> {
-		const cpuUsage: number = await osu.cpu.usage();
+		const cpuUsage: number = await os.cpu.usage();
 		return cpuUsage;
 	}
 

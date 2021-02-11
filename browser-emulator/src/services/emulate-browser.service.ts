@@ -5,10 +5,9 @@ import { TestProperties } from '../types/api-rest-types';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 const { createCanvas, loadImage } = require('canvas');
 
-export class OpenViduBrowser {
+export class EmulateBrowserService {
 	openviduMap: Map<string, OpenVidu> = new Map();
 	sessionMap: Map<string, Session> = new Map();
-	httpClient: HttpClient;
 
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
@@ -25,8 +24,7 @@ export class OpenViduBrowser {
 	private readonly CANVAS_SLOW_ITERATION_MS = 2000;
 	private readonly CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT = 4;
 
-	constructor() {
-		this.httpClient = new HttpClient();
+	constructor(private httpClient: HttpClient = new HttpClient()) {
 		this.initializeVideoCanvas();
 	}
 
