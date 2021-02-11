@@ -1,8 +1,7 @@
 var btoa = require("btoa");
 import axios, { AxiosRequestConfig } from "axios";
 import * as https from "https";
-// import { OPENVIDU_URL, OPENVIDU_SECRET } from "../config";
-import { OpenViduRole } from '../extra/openvidu-browser/OpenVidu/OpenviduTypes';
+import { OpenViduRole } from '../types/openvidu-types';
 
 export class HttpClient {
 	private OPENVIDU_URL: string;
@@ -16,7 +15,7 @@ export class HttpClient {
 		return this.createToken(sessionId, role);
 	}
 
-	private createSession(sessionId): Promise<string> {
+	private createSession(sessionId: string): Promise<string> {
 		return new Promise((resolve, reject) => {
 			const data = JSON.stringify({ customSessionId: sessionId });
 			axios

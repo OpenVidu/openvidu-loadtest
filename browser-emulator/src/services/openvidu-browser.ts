@@ -1,6 +1,7 @@
 import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
 import { HttpClient } from "../utils/http-client";
-import { OpenViduRole, PublisherProperties } from '../extra/openvidu-browser/OpenVidu/OpenviduTypes';
+import { OpenViduRole } from '../types/openvidu-types';
+import { TestProperties } from '../types/api-rest-types';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 const { createCanvas, loadImage } = require('canvas');
 
@@ -29,7 +30,7 @@ export class OpenViduBrowser {
 		this.initializeVideoCanvas();
 	}
 
-	async createStreamManager(properties: PublisherProperties): Promise<string> {
+	async createStreamManager(properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 
 			try {

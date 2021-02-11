@@ -1,8 +1,8 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
 import { BrowserManager } from '../infrastructure/browser-manager';
-import { BrowserMode, OpenViduRole, PublisherProperties } from '../extra/openvidu-browser/OpenVidu/OpenviduTypes';
-import { InstanceService } from '../services/instance-service';
+import { OpenViduRole } from '../types/openvidu-types';
+import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest-types';
 
 export const app = express.Router({
     strict: true
@@ -14,9 +14,9 @@ const browserManager: BrowserManager = new BrowserManager();
 app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
 
-		if(areStreamManagerParamsCorrect(req)) {
+		if(areStreamManagerParamsCorrect(req.body)) {
 			let browserMode: BrowserMode = req.body.browserMode || BrowserMode.EMULATE;
-			let properties: PublisherProperties = req.body.properties;
+			let properties: TestProperties = req.body.properties;
 			// Setting default role for publisher properties
 			properties.role = properties.role || OpenViduRole.PUBLISHER
 
@@ -73,10 +73,10 @@ app.delete('/streamManager/role/:role', (req: Request, res: Response) => {
 	}
 });
 
-function areStreamManagerParamsCorrect(req: Request): boolean {
-	const openviduSecret: string = req.body.openviduSecret;
-	const openviduUrl: string = req.body.openviduUrl;
-	let properties: PublisherProperties = req.body.properties;
+function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
+	const openviduSecret: string = request.openviduSecret;
+	const openviduUrl: string = request.openviduUrl;
+	let properties: TestProperties = request.properties;
 
 	const tokenCanBeCreated = !!properties?.userId && !!properties?.sessionName && !!openviduUrl && !!openviduSecret;
 	const tokenHasBeenReceived = !!properties?.userId && !!properties?.token;

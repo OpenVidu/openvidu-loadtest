@@ -1,5 +1,5 @@
 import { OpenViduBrowser } from '../services/openvidu-browser';
-import { BrowserMode, PublisherProperties } from '../extra/openvidu-browser/OpenVidu/OpenviduTypes';
+import { BrowserMode, TestProperties } from '../types/request-types';
 import { DockerService } from '../services/docker-service';
 import { Builder, By, Capabilities } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
@@ -27,7 +27,7 @@ export class BrowserManager {
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
 	}
 
-	async createStreamManager(browserMode: BrowserMode, properties: PublisherProperties): Promise<string> {
+	async createStreamManager(browserMode: BrowserMode, properties: TestProperties): Promise<string> {
 
 		if(browserMode === BrowserMode.REAL){
 			// Create new stream manager using launching a normal Chrome browser
@@ -47,7 +47,7 @@ export class BrowserManager {
 		throw new Error('Method not implemented.');
 	}
 
-	private async createStreamManagerFromRealBrowser(properties: PublisherProperties): Promise<string>{
+	private async createStreamManagerFromRealBrowser(properties: TestProperties): Promise<string>{
 
 		const portBinding = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
 		process.env['SELENIUM_REMOTE_URL'] = 'http://localhost:' + portBinding + '/wd/hub';
@@ -74,7 +74,7 @@ export class BrowserManager {
 
 	}
 
-	private async launchBrowser(containerId: string, properties: PublisherProperties, timeout: number = 1000): Promise<void> {
+	private async launchBrowser(containerId: string, properties: TestProperties, timeout: number = 1000): Promise<void> {
 
 		setTimeout(async () => {
 			try {

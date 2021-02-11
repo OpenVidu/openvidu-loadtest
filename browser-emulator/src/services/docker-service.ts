@@ -1,5 +1,4 @@
 import * as Docker from "dockerode";
-import { PublisherProperties } from "../extra/openvidu-browser/OpenVidu/OpenviduTypes";
 
 export class DockerService {
 	private docker: Docker;
