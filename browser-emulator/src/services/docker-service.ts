@@ -66,9 +66,10 @@ export class DockerService {
 			await this.stopBrowserRecording(container.id);
 	        await container.stop();
 	        console.log('Container ' + containerId + ' stopped');
-	    } else {
-	        throw 'Container ' + containerId + ' does not exist'
-	    }
+		}
+		// else {
+	    //     throw 'Container ' + containerId + ' does not exist'
+	    // }
 	}
 
 	private getContainerById(containerId: string): Docker.Container {

@@ -1,6 +1,6 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
-import { BrowserManager } from '../infrastructure/browser-manager';
+import { BrowserManagerService } from '../services/browser-manager-service';
 import { OpenViduRole } from '../types/openvidu-types';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest-types';
 
@@ -8,8 +8,7 @@ export const app = express.Router({
     strict: true
 });
 
-const instanceService: InstanceService = new InstanceService();
-const browserManager: BrowserManager = new BrowserManager();
+const browserManagerService: BrowserManagerService = new BrowserManagerService();
 
 app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
@@ -24,9 +23,9 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			process.env.OPENVIDU_SECRET = req.body.openviduSecret;
 			process.env.OPENVIDU_URL = req.body.openviduUrl;
 
-			const connectionId = await browserManager.createStreamManager(browserMode, properties);
-			const workerCpuUsage = await instanceService.getCpuUsage();
-			return res.status(200).send({connectionId, workerCpuUsage});
+			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(browserMode, properties);
+
+			return res.status(200).send(response);
 		}
 
 		console.log('Problem with some body parameter' + req.body);
@@ -47,7 +46,7 @@ app.delete('/streamManager/connection/:connectionId', (req: Request, res: Respon
 			return res.status(400).send('Problem with connectionId parameter. IT DOES NOT EXIST');
 		}
 		console.log('Deleting streams with connectionId: ' + connectionId);
-		browserManager.deleteStreamManagerWithConnectionId(connectionId);
+		browserManagerService.deleteStreamManagerWithConnectionId(connectionId);
 		res.status(200).send({});
 	} catch (error) {
 		console.log(error);
@@ -65,7 +64,7 @@ app.delete('/streamManager/role/:role', (req: Request, res: Response) => {
 		}
 
 		console.log('Deleting streams with ROLE:' + role);
-		browserManager.deleteStreamManagerWithRole(role);
+		browserManagerService.deleteStreamManagerWithRole(role);
 		res.status(200).send({});
 	} catch (error) {
 		console.log(error);
