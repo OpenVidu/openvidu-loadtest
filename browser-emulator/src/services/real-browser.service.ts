@@ -1,6 +1,7 @@
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
 import { TestProperties } from '../types/api-rest.type';
+import { BrowserContainerInfo } from '../types/container-info.type';
 import { ErrorGenerator } from '../utils/error-generator';
 import { DockerService } from './docker.service';
 
@@ -9,7 +10,7 @@ export class RealBrowserService {
 	private readonly BROWSER_CONTAINER_HOSTPORT = 4000;
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
-	private containerMap: Map<string, number> = new Map();
+	private containerMap: Map<string, BrowserContainerInfo> = new Map();
 
 	constructor(
 		private dockerService: DockerService = new DockerService(),
@@ -26,12 +27,12 @@ export class RealBrowserService {
 	}
 
 	public async createStreamManager(properties: TestProperties): Promise<string> {
-		const portBinding = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
-		// Set the SELENIUM_REMOTE_URL to the ip where the selenium webdriver will be deployed
-		process.env['SELENIUM_REMOTE_URL'] = 'http://localhost:' + portBinding + '/wd/hub';
+		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
+		this.setSeleniumRemoteURL(bindedPort);
 		const webappUrl = `https://${process.env.LOCATION_HOSTNAME}/` +
 						`?publicurl=${process.env.OPENVIDU_URL}` +
 						`&secret=${process.env.OPENVIDU_SECRET}` +
+						`&role=${properties.role}` +
 						`&sessionId=${properties.sessionName}` +
 						`&userId=${properties.userId}` +
 						`&resolution=${properties.resolution || '640x480'}` +
@@ -40,12 +41,12 @@ export class RealBrowserService {
 		console.log(webappUrl);
 		try {
 			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
-			const containerId = await this.dockerService.startBrowserContainer(containerName, portBinding);
-			this.containerMap.set(containerId, portBinding);
+			const containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort);
+			this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort});
 
 			if(!!properties.recording) {
 				console.log("Starting browser recording");
-				await this.dockerService.startBrowserRecording(containerId, containerName);
+				await this.dockerService.startRecordingInContainer(containerId, containerName);
 				await this.launchBrowser(containerId, webappUrl);
 				return containerId;
 			}else {
@@ -59,12 +60,42 @@ export class RealBrowserService {
 		}
 	}
 
+	async deleteStreamManagerWithConnectionId(containerId: string): Promise<void> {
+		await this.dockerService.stopContainer(containerId);
+		this.containerMap.delete(containerId);
+	}
+
+	deleteStreamManagerWithRole(role: any): Promise<void> {
+		return new Promise(async (resolve, reject) => {
+			const containersToDelete: string[] = [];
+			const promisesToResolve: Promise<void>[] = [];
+			this.containerMap.forEach((info: BrowserContainerInfo, containerId: string) => {
+				if(info.connectionRole === role) {
+					containersToDelete.push(containerId);
+				}
+			});
+
+			containersToDelete.forEach( (containerId: string) => {
+				promisesToResolve.push(this.dockerService.stopContainer(containerId));
+				this.containerMap.delete(containerId);
+			});
+
+			try {
+				await Promise.all(promisesToResolve);
+				resolve();
+			} catch (error) {
+				reject(error);
+			}
+		});
+
+	}
+
 	private async launchBrowser(containerId: string, webappUrl: string, timeout: number = 1000): Promise<void> {
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
 				try {
 
-					let chrome = await this.startChrome();
+					let chrome = await this.getChromeDriver();
 					await chrome.get(webappUrl);
 
 					// Wait until publisher has been created and published regardless of whether the videos are shown or not
@@ -80,20 +111,25 @@ export class RealBrowserService {
 				} finally {
 					// await driver.quit();
 
-					setTimeout(() => {
-						this.dockerService.stopContainer(containerId);
-					}, 10000);
+					// setTimeout(() => {
+					// 	this.dockerService.stopContainer(containerId);
+					// }, 10000);
 				}
 			}, timeout);
 		});
 	}
 
-	private async startChrome(): Promise<WebDriver> {
+	private async getChromeDriver(): Promise<WebDriver> {
 		return await new Builder()
 						.forBrowser('chrome')
 						.withCapabilities(this.chromeCapabilities)
 						.setChromeOptions(this.chromeOptions)
 						.build();
+	}
+
+	private setSeleniumRemoteURL(bindedPort: number): void {
+		// Set the SELENIUM_REMOTE_URL to the ip where the selenium webdriver will be deployed
+		process.env['SELENIUM_REMOTE_URL'] = 'http://localhost:' + bindedPort + '/wd/hub';
 	}
 
 }

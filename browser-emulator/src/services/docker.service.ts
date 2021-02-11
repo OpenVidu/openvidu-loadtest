@@ -37,7 +37,25 @@ export class DockerService {
 		return container.id;
 	}
 
-	public async runCommandInContainer(containerId: string, command: string): Promise<void> {
+	public async startRecordingInContainer(containerId: string, videoName: string): Promise<void> {
+		const startRecordingCommand = "start-video-recording.sh -n " + videoName;
+		await this.runCommandInContainer(containerId, startRecordingCommand);
+	}
+
+	public async stopContainer(containerId: string): Promise<void> {
+	    const container = this.getContainerById(containerId);
+	    if (!!container) {
+			await this.stopBrowserRecording(container.id);
+	        await container.stop();
+	        console.log('Container ' + containerId + ' stopped');
+		}
+		// else {
+	    //     throw 'Container ' + containerId + ' does not exist'
+	    // }
+	}
+
+
+	private async runCommandInContainer(containerId: string, command: string): Promise<void> {
         const container = this.getContainerById(containerId);
         if (!!container) {
 
@@ -58,18 +76,6 @@ export class DockerService {
         } else {
             console.error('Container ' + containerId + ' does not exist');
         }
-	}
-
-	public async stopContainer(containerId: string): Promise<void> {
-	    const container = this.getContainerById(containerId);
-	    if (!!container) {
-			await this.stopBrowserRecording(container.id);
-	        await container.stop();
-	        console.log('Container ' + containerId + ' stopped');
-		}
-		// else {
-	    //     throw 'Container ' + containerId + ' does not exist'
-	    // }
 	}
 
 	private getContainerById(containerId: string): Docker.Container {
@@ -112,11 +118,6 @@ export class DockerService {
 				}
 			});
 		});
-	}
-
-	async startBrowserRecording(containerId: string, videoName: string): Promise<void> {
-		const startRecordingCommand = "start-video-recording.sh -n " + videoName;
-		await this.runCommandInContainer(containerId, startRecordingCommand);
 	}
 
 	private async stopBrowserRecording(containerId: string): Promise<void> {

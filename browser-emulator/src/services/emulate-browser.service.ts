@@ -6,9 +6,7 @@ const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 const { createCanvas, loadImage } = require('canvas');
 
 export class EmulateBrowserService {
-	openviduMap: Map<string, OpenVidu> = new Map();
-	sessionMap: Map<string, Session> = new Map();
-
+	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
 	private videoSource;
@@ -76,16 +74,16 @@ export class EmulateBrowserService {
 	}
 
 	deleteStreamManagerWithConnectionId(connectionId: string) {
-		const session = this.sessionMap.get(connectionId);
+		const {session} = this.openviduMap.get(connectionId);
 		session?.disconnect();
 		this.deleteInstancesFromId(connectionId);
 	}
 
 	deleteStreamManagerWithRole(role: OpenViduRole) {
 		const connectionsToDelete = [];
-		this.sessionMap.forEach((session: Session, connectionId: string) => {
-			if (session.connection.role === role) {
-				session.disconnect();
+		this.openviduMap.forEach((value: {session: Session, openvidu: OpenVidu}, connectionId: string) => {
+			if (value.session.connection.role === role) {
+				value.session.disconnect();
 				connectionsToDelete.push(connectionId);
 			}
 		});
@@ -99,14 +97,14 @@ export class EmulateBrowserService {
 		return this.httpClient.getToken(sessionName, role);
 	}
 
-	private storeInstances(ov: OpenVidu, session: Session) {
+	private storeInstances(openvidu: OpenVidu, session: Session) {
 		// Store the OV and Session objects into a map
-		this.openviduMap.set(session.connection.connectionId, ov);
-		this.sessionMap.set(session.connection.connectionId, session);
+		this.openviduMap.set(session.connection.connectionId, {openvidu, session});
+		// this.sessionMap.set(session.connection.connectionId, session);
 	}
 
 	private deleteInstancesFromId(connectionId: string) {
-		this.sessionMap.delete(connectionId);
+		// this.sessionMap.delete(connectionId);
 		this.openviduMap.delete(connectionId);
 	}
 

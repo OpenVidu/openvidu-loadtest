@@ -29,16 +29,18 @@ export class BrowserManagerService {
 
 	}
 
-	deleteStreamManagerWithRole(role: any) {
+	async deleteStreamManagerWithRole(role: any): Promise<void> {
 		this.emulateBrowserService.deleteStreamManagerWithRole(role);
-		//TODO: Implement method for real browsers
-		// throw new Error('Method not implemented.');
-	}
-	deleteStreamManagerWithConnectionId(connectionId: string) {
-		this.emulateBrowserService.deleteStreamManagerWithConnectionId(connectionId);
-		//TODO: Implement method for real browsers
-		// throw new Error('Method not implemented.');
+		return await this.realBrowserService.deleteStreamManagerWithRole(role);
 	}
 
+	async deleteStreamManagerWithConnectionId(connectionId: string): Promise<void> {
+		const isConnectionFromEmulatedBrowser = connectionId.includes('con_');
+		if(isConnectionFromEmulatedBrowser){
+			return this.emulateBrowserService.deleteStreamManagerWithConnectionId(connectionId);
+		}
+
+		return await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
+	}
 
 }

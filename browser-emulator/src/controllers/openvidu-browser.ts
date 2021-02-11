@@ -38,7 +38,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 });
 
 
-app.delete('/streamManager/connection/:connectionId', (req: Request, res: Response) => {
+app.delete('/streamManager/connection/:connectionId', async (req: Request, res: Response) => {
 	try {
 		const connectionId: string = req.params.connectionId;
 
@@ -46,7 +46,7 @@ app.delete('/streamManager/connection/:connectionId', (req: Request, res: Respon
 			return res.status(400).send('Problem with connectionId parameter. IT DOES NOT EXIST');
 		}
 		console.log('Deleting streams with connectionId: ' + connectionId);
-		browserManagerService.deleteStreamManagerWithConnectionId(connectionId);
+		await browserManagerService.deleteStreamManagerWithConnectionId(connectionId);
 		res.status(200).send({});
 	} catch (error) {
 		console.log(error);
@@ -54,7 +54,7 @@ app.delete('/streamManager/connection/:connectionId', (req: Request, res: Respon
 	}
 });
 
-app.delete('/streamManager/role/:role', (req: Request, res: Response) => {
+app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	try {
 		const role: any = req.params.role;
 		if(!role){
@@ -64,7 +64,7 @@ app.delete('/streamManager/role/:role', (req: Request, res: Response) => {
 		}
 
 		console.log('Deleting streams with ROLE:' + role);
-		browserManagerService.deleteStreamManagerWithRole(role);
+		await browserManagerService.deleteStreamManagerWithRole(role);
 		res.status(200).send({});
 	} catch (error) {
 		console.log(error);
