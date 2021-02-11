@@ -1,6 +1,6 @@
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
-import { TestProperties } from '../types/api-rest-types';
+import { TestProperties } from '../types/api-rest.type';
 import { ErrorGenerator } from '../utils/error-generator';
 import { DockerService } from './docker.service';
 

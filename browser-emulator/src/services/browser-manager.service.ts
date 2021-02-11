@@ -1,5 +1,5 @@
 import { EmulateBrowserService } from './emulate-browser.service';
-import { BrowserMode, LoadTestPostResponse, TestProperties } from '../types/api-rest-types';
+import { BrowserMode, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
 import { InstanceService } from './instance.service';
 import { RealBrowserService } from './real-browser.service';
 

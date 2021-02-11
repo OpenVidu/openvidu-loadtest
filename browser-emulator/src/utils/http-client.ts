@@ -1,7 +1,7 @@
 var btoa = require("btoa");
 import axios, { AxiosRequestConfig } from "axios";
 import * as https from "https";
-import { OpenViduRole } from '../types/openvidu-types';
+import { OpenViduRole } from '../types/openvidu.type';
 
 export class HttpClient {
 	private OPENVIDU_URL: string;

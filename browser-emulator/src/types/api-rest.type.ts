@@ -1,4 +1,4 @@
-import { OpenViduRole } from './openvidu-types';
+import { OpenViduRole } from './openvidu.type';
 
 export interface LoadTestPostRequest {
 	openviduUrl: string,

@@ -1,8 +1,8 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service';
-import { OpenViduRole } from '../types/openvidu-types';
-import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest-types';
+import { OpenViduRole } from '../types/openvidu.type';
+import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
 
 export const app = express.Router({
     strict: true
