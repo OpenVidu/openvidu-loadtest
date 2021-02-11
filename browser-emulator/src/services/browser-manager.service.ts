@@ -1,9 +1,9 @@
-import { OpenViduBrowser } from './openvidu-browser';
+import { OpenViduBrowser } from './openvidu-browser.service';
 import { BrowserMode, LoadTestPostResponse, TestProperties } from '../types/api-rest-types';
-import { DockerService } from './docker-service';
+import { DockerService } from './docker.service';
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
-import { InstanceService } from './instance-service';
+import { InstanceService } from './instance.service';
 import { ErrorGenerator } from '../utils/error-generator';
 
 export class BrowserManagerService {
@@ -88,7 +88,6 @@ export class BrowserManagerService {
 			console.error(error);
 			return Promise.reject(new Error(error));
 		}
-
 	}
 
 	private async launchBrowser(containerId: string, webappUrl: string, timeout: number = 1000): Promise<void> {
@@ -112,9 +111,9 @@ export class BrowserManagerService {
 				} finally {
 					// await driver.quit();
 
-					// setTimeout(() => {
-					// 	this.dockerService.stopContainer(containerId);
-					// }, 10000);
+					setTimeout(() => {
+						this.dockerService.stopContainer(containerId);
+					}, 10000);
 				}
 			}, timeout);
 		});

@@ -1,6 +1,6 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
-import { BrowserManagerService } from '../services/browser-manager-service';
+import { BrowserManagerService } from '../services/browser-manager.service';
 import { OpenViduRole } from '../types/openvidu-types';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest-types';
 

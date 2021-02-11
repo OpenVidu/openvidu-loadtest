@@ -1,6 +1,6 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
-import { InstanceService } from '../services/instance-service';
+import { InstanceService } from '../services/instance.service';
 export const app = express.Router({
     strict: true
 });
