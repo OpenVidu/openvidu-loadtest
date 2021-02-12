@@ -2,7 +2,8 @@ import { OpenViduRole } from './openvidu.type';
 
 export interface LoadTestPostRequest {
 	openviduUrl: string,
- 	openviduSecret: string,
+	openviduSecret: string,
+	token?: string,
     browserMode: BrowserMode,
     properties: TestProperties
 }
@@ -20,7 +21,6 @@ export interface TestProperties {
 	audio: boolean,
 	video: boolean,
 	resolution?: string,
-	token?: string,
 
 	// Only with BrowserMode=REAL
 	recording?: boolean

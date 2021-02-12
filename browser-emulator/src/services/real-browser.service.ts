@@ -26,19 +26,12 @@ export class RealBrowserService {
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
 	}
 
-	public async createStreamManager(properties: TestProperties): Promise<string> {
+	public async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
 		this.setSeleniumRemoteURL(bindedPort);
-		const webappUrl = `https://${process.env.LOCATION_HOSTNAME}/` +
-						`?publicurl=${process.env.OPENVIDU_URL}` +
-						`&secret=${process.env.OPENVIDU_SECRET}` +
-						`&role=${properties.role}` +
-						`&sessionId=${properties.sessionName}` +
-						`&userId=${properties.userId}` +
-						`&resolution=${properties.resolution || '640x480'}` +
-						`&showVideoElements=${properties.showVideoElements}`;
-
+		const webappUrl = this.generateWebappUrl(token, properties);
 		console.log(webappUrl);
+		return;
 		try {
 			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
 			const containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort);
@@ -130,6 +123,19 @@ export class RealBrowserService {
 	private setSeleniumRemoteURL(bindedPort: number): void {
 		// Set the SELENIUM_REMOTE_URL to the ip where the selenium webdriver will be deployed
 		process.env['SELENIUM_REMOTE_URL'] = 'http://localhost:' + bindedPort + '/wd/hub';
+	}
+
+	private generateWebappUrl(token: string, properties: TestProperties): string {
+		const tokenParam = !!token ? `&token=${token}` : '';
+		return `https://${process.env.LOCATION_HOSTNAME}/` +
+			`?publicurl=${process.env.OPENVIDU_URL}` +
+			`&secret=${process.env.OPENVIDU_SECRET}` +
+			tokenParam +
+			`&role=${properties.role}` +
+			`&sessionId=${properties.sessionName}` +
+			`&userId=${properties.userId}` +
+			`&resolution=${properties.resolution || '640x480'}` +
+			`&showVideoElements=${properties.showVideoElements || true}`;
 	}
 
 }

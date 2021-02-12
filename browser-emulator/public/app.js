@@ -1,5 +1,6 @@
 var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
+var OPENVIDU_TOKEN;
 var SESSION_ID;
 var USER_ID;
 var SHOW_VIDEO_ELEMENTS;
@@ -15,18 +16,28 @@ window.onload = () => {
 	var url = new URL(window.location.href);
 	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl");
 	OPENVIDU_SERVER_SECRET = url.searchParams.get("secret");
+	OPENVIDU_TOKEN = url.searchParams.get("token");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
 	RESOLUTION = url.searchParams.get("resolution");
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
-	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID) {
-		initFormValues();
-		document.getElementById('join-form').style.display = 'block';
-	} else {
+
+	const tokenCanBeCreated = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL && !!OPENVIDU_SERVER_SECRET;
+	const tokenHasBeenReceived = !!USER_ID && !!OPENVIDU_TOKEN;
+
+	if(tokenCanBeCreated || tokenHasBeenReceived){
 		window.openviduLoadTest.sessionId = SESSION_ID;
 		window.collectEventsAndStats = this.collectEventsAndStats;
 		window.resetEventsAndStats = this.resetEventsAndStats;
 		joinSession();
+	} else {
+		initFormValues();
+		document.getElementById('join-form').style.display = 'block';
+	}
+	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID) {
+
+	} else {
+
 	}
 };
 
@@ -46,7 +57,7 @@ function appendStats(userId, stat) {
 	window.openviduLoadTest.stats[userId].push(stat);
 }
 
-function joinSession() {
+async function joinSession() {
 	OV = new OpenVidu();
 	OV.enableProdMode();
 	session = OV.initSession();
@@ -85,38 +96,40 @@ function joinSession() {
 		})
 	});
 
-	getToken().then(token => {
-		session.connect(token, USER_ID)
-			.then(() => {
+	if (!!OPENVIDU_TOKEN) {
+		OPENVIDU_TOKEN = await getToken();
+	}
 
-				var videoContainer = null;
-				if(SHOW_VIDEO_ELEMENTS){
-					videoContainer = 'video-publisher';
-				}
+	session.connect(OPENVIDU_TOKEN, USER_ID)
+		.then(() => {
 
-				var publisher = OV.initPublisher(videoContainer, {
-					audioSource: undefined, // The source of audio. If undefined default microphone
-					videoSource: undefined, // The source of video. If undefined default webcam
-					publishAudio: true,  	// Whether you want to start publishing with your audio unmuted or not
-					publishVideo: true,
-					resolution:  RESOLUTION,
-					frameRate: 30,
-					mirror: false
-				});
+			var videoContainer = null;
+			if(SHOW_VIDEO_ELEMENTS){
+				videoContainer = 'video-publisher';
+			}
 
-				publisher.on('streamCreated', event => {
-					appendElement('local-stream-created');
-				});
-
-				setPublisherButtonsActions(publisher);
-
-				session.publish(publisher);
-
-			})
-			.catch(error => {
-				console.log("There was an error connecting to the session:", error.code, error.message);
+			var publisher = OV.initPublisher(videoContainer, {
+				audioSource: undefined, // The source of audio. If undefined default microphone
+				videoSource: undefined, // The source of video. If undefined default webcam
+				publishAudio: true,  	// Whether you want to start publishing with your audio unmuted or not
+				publishVideo: true,
+				resolution:  RESOLUTION,
+				frameRate: 30,
+				mirror: false
 			});
-	});
+
+			publisher.on('streamCreated', event => {
+				appendElement('local-stream-created');
+			});
+
+			setPublisherButtonsActions(publisher);
+
+			session.publish(publisher);
+
+		})
+		.catch(error => {
+			console.log("There was an error connecting to the session:", error.code, error.message);
+		});
 
 }
 
@@ -227,6 +240,7 @@ function initFormValues() {
 	document.getElementById("form-userId").value = USER_ID;
 	document.getElementById("form-videoElements").checked = SHOW_VIDEO_ELEMENTS;
 	document.getElementById("form-resolution").value = RESOLUTION;
+	// document.getElementById("form-token").value = OPENVIDU_TOKEN
 }
 
 function joinWithForm() {

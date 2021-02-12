@@ -3,7 +3,7 @@ import { HttpClient } from "../utils/http-client";
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
-const { createCanvas, loadImage } = require('canvas');
+import { Canvas, createCanvas, Image, loadImage } from 'canvas';
 
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
@@ -11,9 +11,9 @@ export class EmulateBrowserService {
 	private readonly HEIGHT = 480;
 	private videoSource;
 	private videoTrack: MediaStreamTrack;
-	private canvas;
+	private canvas: Canvas;
 	private context;
-	private myimg;
+	private myimg: Image;
 	private MIN = 0;
 	private canvasInterval: NodeJS.Timer;
 	private canvasIntervalIterations: number = 0;
@@ -26,13 +26,11 @@ export class EmulateBrowserService {
 		this.initializeVideoCanvas();
 	}
 
-	async createStreamManager(properties: TestProperties): Promise<string> {
+	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
-
 			try {
-
-				if(!properties.token) {
-					properties.token = await this.getToken(properties.sessionName, properties.role);
+				if(!token) {
+					token = await this.getToken(properties.sessionName, properties.role);
 				}
 
 				const ov: OpenVidu = new OpenVidu();
@@ -43,7 +41,7 @@ export class EmulateBrowserService {
 					session.subscribe(event.stream, null);
 				});
 
-				await session.connect(properties.token,  { clientData: properties.userId });
+				await session.connect(token,  { clientData: properties.userId });
 				if(properties.role === OpenViduRole.PUBLISHER){
 					this.stopVideoCanvasInterval();
 					const publisher: Publisher = ov.initPublisher(null, {

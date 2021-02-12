@@ -14,16 +14,18 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
 
 		if(areStreamManagerParamsCorrect(req.body)) {
-			let browserMode: BrowserMode = req.body.browserMode || BrowserMode.EMULATE;
-			let properties: TestProperties = req.body.properties;
+			const request: LoadTestPostRequest = req.body;
+			let browserMode: BrowserMode = request.browserMode || BrowserMode.EMULATE;
+			let properties: TestProperties = request.properties;
+			const token = request.token;
 			// Setting default role for publisher properties
 			properties.role = properties.role || OpenViduRole.PUBLISHER
 
 			process.env.LOCATION_HOSTNAME = req.headers.host;
-			process.env.OPENVIDU_SECRET = req.body.openviduSecret;
-			process.env.OPENVIDU_URL = req.body.openviduUrl;
+			process.env.OPENVIDU_SECRET = request.openviduSecret;
+			process.env.OPENVIDU_URL = request.openviduUrl;
 
-			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(browserMode, properties);
+			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(browserMode, token, properties);
 
 			return res.status(200).send(response);
 		}
@@ -75,10 +77,11 @@ app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
 	const openviduSecret: string = request.openviduSecret;
 	const openviduUrl: string = request.openviduUrl;
+	const token: string = request.token;
 	let properties: TestProperties = request.properties;
 
 	const tokenCanBeCreated = !!properties?.userId && !!properties?.sessionName && !!openviduUrl && !!openviduSecret;
-	const tokenHasBeenReceived = !!properties?.userId && !!properties?.token;
+	const tokenHasBeenReceived = !!properties?.userId && !!token;
 
 	return tokenCanBeCreated || tokenHasBeenReceived;
 }

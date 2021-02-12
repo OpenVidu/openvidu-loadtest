@@ -12,16 +12,16 @@ export class BrowserManagerService {
 		){
 	}
 
-	async createStreamManager(browserMode: BrowserMode, properties: TestProperties): Promise<LoadTestPostResponse> {
+	async createStreamManager(browserMode: BrowserMode, token: string, properties: TestProperties): Promise<LoadTestPostResponse> {
 
 		let connectionId: string;
 		if(browserMode === BrowserMode.REAL){
 			// Create new stream manager using launching a normal Chrome browser
-			connectionId = await this.realBrowserService.createStreamManager(properties);
+			connectionId = await this.realBrowserService.createStreamManager(token, properties);
 		} else {
 			// Create new stream manager using node-webrtc library, emulating a normal browser.
 			console.log(`Creating ${properties.role} ${properties.userId} in session ${properties.sessionName} using emulate browser`);
-			connectionId = await this.emulateBrowserService.createStreamManager(properties);
+			connectionId = await this.emulateBrowserService.createStreamManager(token, properties);
 		}
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
