@@ -5,7 +5,7 @@ var SESSION_ID;
 var USER_ID;
 var SHOW_VIDEO_ELEMENTS;
 var RESOLUTION;
-
+var ROLE;
 var OV;
 var session;
 
@@ -20,6 +20,7 @@ window.onload = () => {
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
 	RESOLUTION = url.searchParams.get("resolution");
+	ROLE = url.searchParams.get("role");
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 
 	const tokenCanBeCreated = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL && !!OPENVIDU_SERVER_SECRET;
@@ -33,11 +34,6 @@ window.onload = () => {
 	} else {
 		initFormValues();
 		document.getElementById('join-form').style.display = 'block';
-	}
-	if (!OPENVIDU_SERVER_URL || !OPENVIDU_SERVER_SECRET || !SESSION_ID || !USER_ID) {
-
-	} else {
-
 	}
 };
 
@@ -96,36 +92,36 @@ async function joinSession() {
 		})
 	});
 
-	if (!!OPENVIDU_TOKEN) {
+	if (!OPENVIDU_TOKEN) {
 		OPENVIDU_TOKEN = await getToken();
 	}
 
 	session.connect(OPENVIDU_TOKEN, USER_ID)
 		.then(() => {
 
-			var videoContainer = null;
-			if(SHOW_VIDEO_ELEMENTS){
-				videoContainer = 'video-publisher';
+			if(ROLE === 'PUBLISHER') {
+				var videoContainer = null;
+				if(SHOW_VIDEO_ELEMENTS){
+					videoContainer = 'video-publisher';
+				}
+
+				var publisher = OV.initPublisher(videoContainer, {
+					audioSource: undefined,
+					videoSource: undefined,
+					publishAudio: true,
+					publishVideo: true,
+					resolution:  RESOLUTION,
+					frameRate: 30,
+					mirror: false
+				});
+
+				publisher.on('streamCreated', event => {
+					appendElement('local-stream-created');
+				});
+
+				setPublisherButtonsActions(publisher);
+				session.publish(publisher);
 			}
-
-			var publisher = OV.initPublisher(videoContainer, {
-				audioSource: undefined, // The source of audio. If undefined default microphone
-				videoSource: undefined, // The source of video. If undefined default webcam
-				publishAudio: true,  	// Whether you want to start publishing with your audio unmuted or not
-				publishVideo: true,
-				resolution:  RESOLUTION,
-				frameRate: 30,
-				mirror: false
-			});
-
-			publisher.on('streamCreated', event => {
-				appendElement('local-stream-created');
-			});
-
-			setPublisherButtonsActions(publisher);
-
-			session.publish(publisher);
-
 		})
 		.catch(error => {
 			console.log("There was an error connecting to the session:", error.code, error.message);
@@ -238,9 +234,8 @@ function initFormValues() {
 	document.getElementById("form-secret").value = OPENVIDU_SERVER_SECRET;
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
-	document.getElementById("form-videoElements").checked = SHOW_VIDEO_ELEMENTS;
+	document.getElementById("form-showVideoElements").checked = SHOW_VIDEO_ELEMENTS;
 	document.getElementById("form-resolution").value = RESOLUTION;
-	// document.getElementById("form-token").value = OPENVIDU_TOKEN
 }
 
 function joinWithForm() {
@@ -249,7 +244,8 @@ function joinWithForm() {
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
 	RESOLUTION = document.getElementById("form-resolution").value;
-	SHOW_VIDEO_ELEMENTS = document.getElementById("form-videoElements").checked;
+	SHOW_VIDEO_ELEMENTS = document.getElementById("form-showVideoElements").checked;
+	ROLE = document.getElementById("form-role-publisher").checked ? 'PUBLISHER' : 'SUBSCRIBER';
 
 	document.getElementById('join-form').style.display = 'none';
 	joinSession();
@@ -291,7 +287,7 @@ function createToken(sessionId) { // See https://docs.openvidu.io/en/stable/refe
         $.ajax({
             type: 'POST',
             url: OPENVIDU_SERVER_URL + '/openvidu/api/sessions/' + sessionId + '/connection',
-            data: JSON.stringify({}),
+            data: JSON.stringify({role: ROLE}),
             headers: {
                 'Authorization': 'Basic ' + btoa('OPENVIDUAPP:' + OPENVIDU_SERVER_SECRET),
                 'Content-Type': 'application/json',
