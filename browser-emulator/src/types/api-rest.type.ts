@@ -24,7 +24,8 @@ export interface TestProperties {
 
 	// Only with BrowserMode=REAL
 	recording?: boolean
-	showVideoElements?: boolean
+	showVideoElements?: boolean,
+	headless?: boolean
 }
 
 export interface LoadTestPostResponse {

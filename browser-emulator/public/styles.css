@@ -22,3 +22,7 @@ video {
 .info-header {
     cursor: initial; background-color: #0088aa;
 }
+
+#remote-video-publisher {
+    border: 1px, solid;
+}

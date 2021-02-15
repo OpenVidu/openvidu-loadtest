@@ -42,16 +42,20 @@ export class DockerService {
 		await this.runCommandInContainer(containerId, startRecordingCommand);
 	}
 
+	public async stopRecordingInContainer(containerId: string): Promise<void> {
+		const stopRecordingCommand = 'stop-video-recording.sh';
+		await this.runCommandInContainer(containerId, stopRecordingCommand);
+	}
+
 	public async stopContainer(containerId: string): Promise<void> {
 	    const container = this.getContainerById(containerId);
 	    if (!!container) {
-			await this.stopBrowserRecording(container.id);
 	        await container.stop();
 	        console.log('Container ' + containerId + ' stopped');
 		}
-		// else {
-	    //     throw 'Container ' + containerId + ' does not exist'
-	    // }
+		else {
+	        console.error('Container ' + containerId + ' does not exist');
+	    }
 	}
 
 
@@ -79,7 +83,10 @@ export class DockerService {
 	}
 
 	private getContainerById(containerId: string): Docker.Container {
-		return this.docker.getContainer(containerId);
+		if(!!containerId){
+			return this.docker.getContainer(containerId);
+		}
+		return;
 	}
 
 	private async imageExists(image: string): Promise<boolean> {
@@ -118,11 +125,6 @@ export class DockerService {
 				}
 			});
 		});
-	}
-
-	private async stopBrowserRecording(containerId: string): Promise<void> {
-		const stopRecordingCommand = 'stop-video-recording.sh';
-		await this.runCommandInContainer(containerId, stopRecordingCommand);
 	}
 
 

@@ -1,7 +1,9 @@
+import { OpenVidu } from 'openvidu-browser';
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
 import { TestProperties } from '../types/api-rest.type';
 import { BrowserContainerInfo } from '../types/container-info.type';
+import { OpenViduRole } from '../types/openvidu.type';
 import { ErrorGenerator } from '../utils/error-generator';
 import { DockerService } from './docker.service';
 
@@ -27,29 +29,44 @@ export class RealBrowserService {
 	}
 
 	public async createStreamManager(token: string, properties: TestProperties): Promise<string> {
+
+		let containerId: string;
+		if(!!properties.headless) {
+			this.chromeOptions.addArguments('--headless');
+		}
+
 		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
 		this.setSeleniumRemoteURL(bindedPort);
 		const webappUrl = this.generateWebappUrl(token, properties);
 		console.log(webappUrl);
-		return;
 		try {
 			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
-			const containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort);
+			containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort);
 			this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort});
 
-			if(!!properties.recording) {
+			if(!!properties.recording && !properties.headless) {
 				console.log("Starting browser recording");
 				await this.dockerService.startRecordingInContainer(containerId, containerName);
-				await this.launchBrowser(containerId, webappUrl);
-				return containerId;
-			}else {
-				await this.launchBrowser(containerId, webappUrl);
-				return containerId;
 			}
-
+			await this.launchBrowser(webappUrl, properties.role);
+			return containerId;
 		} catch (error) {
 			console.error(error);
+			if(!!properties.recording && !properties.headless) {
+				await this.dockerService.stopRecordingInContainer(containerId);
+			}
+			await this.dockerService.stopContainer(containerId);
+			this.containerMap.delete(containerId);
 			return Promise.reject(new Error(error));
+		}finally {
+			// await driver.quit();
+			//TODO: Just for test, remove it
+			setTimeout(async () => {
+				if(!!properties.recording && !properties.headless) {
+					await this.dockerService.stopRecordingInContainer(containerId);
+				}
+				await this.dockerService.stopContainer(containerId);
+			}, 15000);
 		}
 	}
 
@@ -80,10 +97,9 @@ export class RealBrowserService {
 				reject(error);
 			}
 		});
-
 	}
 
-	private async launchBrowser(containerId: string, webappUrl: string, timeout: number = 1000): Promise<void> {
+	private async launchBrowser(webappUrl: string, role: OpenViduRole, timeout: number = 1000): Promise<void> {
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
 				try {
@@ -91,22 +107,18 @@ export class RealBrowserService {
 					let chrome = await this.getChromeDriver();
 					await chrome.get(webappUrl);
 
-					// Wait until publisher has been created and published regardless of whether the videos are shown or not
-					await chrome.wait(until.elementsLocated(By.id('local-stream-created')), 10000);
+					// Wait until connection has been created
+					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), 10000);
+					if(role === OpenViduRole.PUBLISHER){
+						// Wait until publisher has been published regardless of whether the videos are shown or not
+						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), 10000);
+					}
 					console.log("Browser works as expected");
 					resolve();
 
 				} catch(error){
 					console.log(error);
 					reject(this.errorGenerator.generateError(error));
-					await this.dockerService.stopContainer(containerId);
-					this.containerMap.delete(containerId);
-				} finally {
-					// await driver.quit();
-
-					// setTimeout(() => {
-					// 	this.dockerService.stopContainer(containerId);
-					// }, 10000);
 				}
 			}, timeout);
 		});
