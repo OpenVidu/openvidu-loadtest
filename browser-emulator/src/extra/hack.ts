@@ -2,6 +2,7 @@
 import OpenVidu = require('openvidu-browser/lib/OpenVidu/OpenVidu');
 import Publisher = require('openvidu-browser/lib/OpenVidu/Publisher');
 import {PublisherOverride} from './openvidu-browser/OpenVidu/Publisher';
+import { WebrtcStatsStorage } from './wertc-stats-storage';
 
 const WebSocket = require("ws");
 const fetch = require("node-fetch");
@@ -23,9 +24,6 @@ export class Hack {
 		};
 		(<any>globalThis.document) = {};
 		globalThis.localStorage = new LocalStorage('./');
-		const jsonStats = {'interval':10, 'httpEndpoint': `https://${process.env.LOCATION_HOSTNAME}/openvidu-browser/webrtcStats`};
-		globalThis.localStorage.setItem('webrtc-stats-config', JSON.stringify(jsonStats));
-
 		globalThis.fetch = fetch;
 	}
 

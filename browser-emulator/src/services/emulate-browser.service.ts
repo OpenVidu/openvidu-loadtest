@@ -4,6 +4,7 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 import { Canvas, createCanvas, Image, loadImage } from 'canvas';
+import { WebrtcStatsStorage } from '../extra/wertc-stats-storage';
 
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
@@ -29,6 +30,10 @@ export class EmulateBrowserService {
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 			try {
+				// Create webrtc stats item in localStorage
+				const webrtcStatsStorage = new WebrtcStatsStorage();
+				globalThis.localStorage.setItem(webrtcStatsStorage.getItemName(), webrtcStatsStorage.getConfig());
+
 				if(!token) {
 					token = await this.getToken(properties.sessionName, properties.role);
 				}
@@ -98,12 +103,11 @@ export class EmulateBrowserService {
 	private storeInstances(openvidu: OpenVidu, session: Session) {
 		// Store the OV and Session objects into a map
 		this.openviduMap.set(session.connection.connectionId, {openvidu, session});
-		// this.sessionMap.set(session.connection.connectionId, session);
 	}
 
 	private deleteInstancesFromId(connectionId: string) {
-		// this.sessionMap.delete(connectionId);
 		this.openviduMap.delete(connectionId);
+
 	}
 
 	private async startVideoCanvasInterval(timeoutMs: number = 35){

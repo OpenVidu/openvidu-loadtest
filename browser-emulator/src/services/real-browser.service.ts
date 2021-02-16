@@ -1,5 +1,6 @@
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
+import { WebrtcStatsStorage } from '../extra/wertc-stats-storage';
 import { TestProperties } from '../types/api-rest.type';
 import { BrowserContainerInfo } from '../types/container-info.type';
 import { OpenViduRole } from '../types/openvidu.type';
@@ -105,6 +106,13 @@ export class RealBrowserService {
 
 					let chrome = await this.getChromeDriver();
 					await chrome.get(webappUrl);
+
+
+					// Add webrtc stats config to LocalStorage
+					const webrtcStatsStorage = new WebrtcStatsStorage();
+					await chrome.executeScript(() => {
+						localStorage.setItem(arguments[0], arguments[1]);
+					},  webrtcStatsStorage.getItemName(), webrtcStatsStorage.getConfig());
 
 					// Wait until connection has been created
 					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), 10000);
