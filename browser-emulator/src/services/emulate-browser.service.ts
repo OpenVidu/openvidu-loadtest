@@ -23,16 +23,21 @@ export class EmulateBrowserService {
 	private readonly CANVAS_SLOW_ITERATION_MS = 2000;
 	private readonly CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT = 4;
 
+	private webrtcStatsStorage: WebrtcStatsStorage;
+
 	constructor(private httpClient: HttpClient = new HttpClient()) {
 		this.initializeVideoCanvas();
+		this.webrtcStatsStorage = new WebrtcStatsStorage();
 	}
 
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 			try {
-				// Create webrtc stats item in localStorage
-				const webrtcStatsStorage = new WebrtcStatsStorage();
-				globalThis.localStorage.setItem(webrtcStatsStorage.getItemName(), webrtcStatsStorage.getConfig());
+
+				if(!globalThis.localStorage.getItem(this.webrtcStatsStorage.getItemName())){
+					// Create webrtc stats item in localStorage
+					globalThis.localStorage.setItem(this.webrtcStatsStorage.getItemName(), this.webrtcStatsStorage.getConfig());
+				}
 
 				if(!token) {
 					token = await this.getToken(properties.sessionName, properties.role);
