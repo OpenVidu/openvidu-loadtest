@@ -1,4 +1,3 @@
-import { OpenVidu } from 'openvidu-browser';
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
 import { TestProperties } from '../types/api-rest.type';

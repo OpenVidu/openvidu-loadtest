@@ -74,6 +74,20 @@ app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	}
 });
 
+app.post('/webrtcStats', async (req: Request, res: Response) => {
+	try {
+
+		console.log("Client Stats received: ", req.body);
+		// TODO: Send them to ES
+
+		return res.status(200).send();
+	} catch (error) {
+		console.log("ERROR ", error);
+		res.status(500).send(error);
+
+	}
+});
+
 function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
 	const openviduSecret: string = request.openviduSecret;
 	const openviduUrl: string = request.openviduUrl;

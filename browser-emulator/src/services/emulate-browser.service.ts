@@ -41,7 +41,7 @@ export class EmulateBrowserService {
 					session.subscribe(event.stream, null);
 				});
 
-				await session.connect(token,  { clientData: properties.userId });
+				await session.connect(token,  properties.userId);
 				if(properties.role === OpenViduRole.PUBLISHER){
 					this.stopVideoCanvasInterval();
 					const publisher: Publisher = ov.initPublisher(null, {
