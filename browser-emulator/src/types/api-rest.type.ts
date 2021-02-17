@@ -14,6 +14,21 @@ export enum BrowserMode {
 	REAL = 'real'
 }
 
+export enum RecordingMode {
+	ALWAYS = 'ALWAYS',
+	// MANUAL = 'MANUAL'
+}
+
+export enum RecordingOutputMode {
+	COMPOSED = 'COMPOSED',
+	INDIVIDUAL = 'INDIVIDUAL'
+}
+
+export enum RecordingLayoutMode {
+	BEST_FIT = 'BEST_FIT'
+}
+
+
 export interface TestProperties {
 	userId: string,
 	sessionName: string,
@@ -21,6 +36,7 @@ export interface TestProperties {
 	audio: boolean,
 	video: boolean,
 	resolution?: string,
+	recordingOutputMode?: RecordingOutputMode,
 
 	// Only with BrowserMode=REAL
 	recording?: boolean

@@ -40,7 +40,7 @@ export class EmulateBrowserService {
 				}
 
 				if(!token) {
-					token = await this.getToken(properties.sessionName, properties.role);
+					token = await this.getToken(properties);
 				}
 
 				const ov: OpenVidu = new OpenVidu();
@@ -101,8 +101,8 @@ export class EmulateBrowserService {
 		});
 	}
 
-	private async getToken(sessionName: string, role: OpenViduRole): Promise<string> {
-		return this.httpClient.getToken(sessionName, role);
+	private async getToken(properties: TestProperties): Promise<string> {
+		return this.httpClient.getToken(properties);
 	}
 
 	private storeInstances(openvidu: OpenVidu, session: Session) {
@@ -112,7 +112,6 @@ export class EmulateBrowserService {
 
 	private deleteInstancesFromId(connectionId: string) {
 		this.openviduMap.delete(connectionId);
-
 	}
 
 	private async startVideoCanvasInterval(timeoutMs: number = 35){

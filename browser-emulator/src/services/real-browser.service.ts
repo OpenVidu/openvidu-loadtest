@@ -58,8 +58,7 @@ export class RealBrowserService {
 			await this.dockerService.stopContainer(containerId);
 			this.containerMap.delete(containerId);
 			return Promise.reject(new Error(error));
-		}finally {
-			// await driver.quit();
+		} finally {
 			//TODO: Just for test, remove it
 			setTimeout(async () => {
 				if(!!properties.recording && !properties.headless) {
@@ -107,7 +106,6 @@ export class RealBrowserService {
 					let chrome = await this.getChromeDriver();
 					await chrome.get(webappUrl);
 
-
 					// Add webrtc stats config to LocalStorage
 					const webrtcStatsStorage = new WebrtcStatsStorage();
 					await chrome.executeScript(() => {
@@ -154,6 +152,7 @@ export class RealBrowserService {
 			`&sessionId=${properties.sessionName}` +
 			`&userId=${properties.userId}` +
 			`&resolution=${properties.resolution || '640x480'}` +
+			`&recordingmode=${properties.recordingOutputMode}` +
 			`&showVideoElements=${properties.showVideoElements || true}`;
 	}
 

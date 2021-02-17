@@ -1,3 +1,8 @@
+const RECORDING_MODE = Object.freeze({ALWAYS:'ALWAYS', MANUAL: 'MANUAL' });
+const OUTPUT_MODE = Object.freeze({COMPOSED:'COMPOSED', INDIVIDUAL: 'INDIVIDUAL' });
+const RECORDING_LAYOUT = Object.freeze({BEST_FIT:'BEST_FIT', CUSTOM: 'CUSTOM' });
+
+
 var OPENVIDU_SERVER_URL;
 var OPENVIDU_SERVER_SECRET;
 var OPENVIDU_TOKEN;
@@ -6,6 +11,8 @@ var USER_ID;
 var SHOW_VIDEO_ELEMENTS;
 var RESOLUTION;
 var ROLE;
+var RECORDING_OUTPUT_MODE;
+
 var OV;
 var session;
 
@@ -21,6 +28,8 @@ window.onload = () => {
 	USER_ID = url.searchParams.get("userId");
 	RESOLUTION = url.searchParams.get("resolution");
 	ROLE = url.searchParams.get("role");
+	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
+
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 
 	const tokenCanBeCreated = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL && !!OPENVIDU_SERVER_SECRET;
@@ -203,10 +212,19 @@ function getToken() {
 
 function createSession(sessionId) { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-openviduapisessions
 	return new Promise((resolve, reject) => {
+
+		var properties = { customSessionId: sessionId };
+
+		const recording = RECORDING_OUTPUT_MODE === OUTPUT_MODE.COMPOSED || RECORDING_OUTPUT_MODE === OUTPUT_MODE.INDIVIDUAL;
+		if(recording){
+			properties.defaultOutputMode = RECORDING_OUTPUT_MODE;
+			properties.defaultRecordingLayout = RECORDING_LAYOUT.BEST_FIT;
+			properties.recordingMode = RECORDING_MODE.ALWAYS;
+		}
 		$.ajax({
 			type: "POST",
 			url: OPENVIDU_SERVER_URL + "/openvidu/api/sessions",
-			data: JSON.stringify({ customSessionId: sessionId }),
+			data: JSON.stringify(properties),
 			headers: {
 				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
 				"Content-Type": "application/json"
