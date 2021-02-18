@@ -21,7 +21,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 
 			setEnvironmentParams(req);
 			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
-			return res.status(200).send('response');
+			return res.status(200).send(response);
 		}
 
 		console.log('Problem with some body parameter' + req.body);
