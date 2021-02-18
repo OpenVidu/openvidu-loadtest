@@ -6,9 +6,9 @@ public class TestCase {
 
 	private String typology;
 	private List<String> participants;
-	private String sessions;
+	private int sessions;
 
-	public TestCase(String typology, List<String> participants, String sessions) {
+	public TestCase(String typology, List<String> participants, int sessions) {
 		this.typology = typology;
 		this.participants = participants;
 		this.sessions = sessions;
@@ -42,11 +42,11 @@ public class TestCase {
 		this.participants = participants;
 	}
 
-	public String getSessions() {
+	public int getSessions() {
 		return sessions;
 	}
 
-	public void setSessions(String sessions) {
+	public void setSessions(int sessions) {
 		this.sessions = sessions;
 	}
 

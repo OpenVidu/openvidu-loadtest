@@ -61,7 +61,7 @@ public class LoadTestController {
 					log.info("Starting test with N:N session typology");
 					log.info("Each session will be composed by {} USERS", participantsBySession);
 
-					this.startNxNTest(participantsBySession);
+					this.startNxNTest(participantsBySession, testCase.getSessions());
 					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished());
 					this.cleanEnvironment();
 				}
@@ -81,22 +81,24 @@ public class LoadTestController {
 
 	}
 
-	private void startNxNTest(int participantsBySession) {
+	private void startNxNTest(int participantsBySession, int sessionsLimit) {
 		AtomicInteger sessionNumber = new AtomicInteger(0);
 		HttpResponse<String> response;
 		boolean responseIsOk = true;
 
-		while (responseIsOk) {
+		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
 			sessionNumber.getAndIncrement();
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 			for (int i = 0; i < participantsBySession; i++) {
+				// Start with positive number instead 0
+				int userNumber = i + 1;
 
 				if (!responseIsOk) {
 					return;
 				}
 
-				this.showIterationReport(sessionNumber.get(), i + 1, participantsBySession);
-				response = this.browserEmulatorClient.createPublisher(loadTestConfig.getUserNamePrefix() + i,
+				this.showIterationReport(sessionNumber.get(), userNumber, participantsBySession);
+				response = this.browserEmulatorClient.createPublisher(loadTestConfig.getUserNamePrefix() + userNumber,
 						loadTestConfig.getSessionNamePrefix() + sessionNumber.get(), true, true);
 
 				responseIsOk = processResponse(response);
@@ -111,6 +113,8 @@ public class LoadTestController {
 		}
 	}
 
+
+
 	private void start1xNTest(List<String> participants) {
 
 	}
@@ -121,6 +125,11 @@ public class LoadTestController {
 
 	private void startTeachingTest(List<String> participants) {
 
+	}
+	
+	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
+		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionsLimit < sessionNumber.get());
+		
 	}
 
 	public void cleanEnvironment() {

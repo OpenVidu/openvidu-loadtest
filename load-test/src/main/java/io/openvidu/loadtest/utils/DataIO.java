@@ -46,10 +46,11 @@ public class DataIO {
 
 		for (int i = 0; i < array.size(); i++) {
 			String typology = array.get(i).getAsJsonObject().get("typology").getAsString();
-			String sessions = array.get(i).getAsJsonObject().get("sessions").getAsString();
+			String sessionsStr = array.get(i).getAsJsonObject().get("sessions").getAsString();
 			JsonArray participantsArray = (JsonArray) array.get(i).getAsJsonObject().get("participants");
 			List<String> participants = jsonUtils.getStringList(participantsArray);
 
+			int sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
 			testCaseList.add(new TestCase(typology, participants, sessions));
 		}
 
