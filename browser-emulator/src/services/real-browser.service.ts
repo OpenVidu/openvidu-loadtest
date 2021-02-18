@@ -1,7 +1,6 @@
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
-import { WebrtcStatsStorage } from '../extra/wertc-stats-storage';
-import { TestProperties } from '../types/api-rest.type';
+import { LoadTestPostRequest, TestProperties } from '../types/api-rest.type';
 import { BrowserContainerInfo } from '../types/container-info.type';
 import { OpenViduRole } from '../types/openvidu.type';
 import { ErrorGenerator } from '../utils/error-generator';
@@ -28,7 +27,7 @@ export class RealBrowserService {
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
 	}
 
-	public async createStreamManager(token: string, properties: TestProperties): Promise<string> {
+	public async startBrowserContainer(properties: TestProperties): Promise<string> {
 
 		let containerId: string;
 		if(!!properties.headless) {
@@ -37,8 +36,6 @@ export class RealBrowserService {
 
 		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
 		this.setSeleniumRemoteURL(bindedPort);
-		const webappUrl = this.generateWebappUrl(token, properties);
-		console.log(webappUrl);
 		try {
 			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
 			containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort);
@@ -48,7 +45,6 @@ export class RealBrowserService {
 				console.log("Starting browser recording");
 				await this.dockerService.startRecordingInContainer(containerId, containerName);
 			}
-			await this.launchBrowser(webappUrl, properties.role);
 			return containerId;
 		} catch (error) {
 			console.error(error);
@@ -59,13 +55,13 @@ export class RealBrowserService {
 			this.containerMap.delete(containerId);
 			return Promise.reject(new Error(error));
 		} finally {
-			//TODO: Just for test, remove it
+			//TODO: Just for development, remove it
 			setTimeout(async () => {
 				if(!!properties.recording && !properties.headless) {
 					await this.dockerService.stopRecordingInContainer(containerId);
 				}
 				await this.dockerService.stopContainer(containerId);
-			}, 15000);
+			}, 10000);
 		}
 	}
 
@@ -98,23 +94,26 @@ export class RealBrowserService {
 		});
 	}
 
-	private async launchBrowser(webappUrl: string, role: OpenViduRole, timeout: number = 1000): Promise<void> {
+	async launchBrowser(request: LoadTestPostRequest, storageName?: string, storageValue?: string, timeout: number = 1000): Promise<void> {
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
 				try {
+					const webappUrl = this.generateWebappUrl(request.token, request.properties);
+					console.log(webappUrl);
 
 					let chrome = await this.getChromeDriver();
 					await chrome.get(webappUrl);
 
-					// Add webrtc stats config to LocalStorage
-					const webrtcStatsStorage = new WebrtcStatsStorage();
-					await chrome.executeScript(() => {
-						localStorage.setItem(arguments[0], arguments[1]);
-					},  webrtcStatsStorage.getItemName(), webrtcStatsStorage.getConfig());
+					if(!!storageName && !!storageValue) {
+						// Add webrtc stats config to LocalStorage
+						await chrome.executeScript(() => {
+							localStorage.setItem(arguments[0], arguments[1]);
+						},  storageName, storageValue);
+					}
 
 					// Wait until connection has been created
 					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), 10000);
-					if(role === OpenViduRole.PUBLISHER){
+					if(request.properties.role === OpenViduRole.PUBLISHER){
 						// Wait until publisher has been published regardless of whether the videos are shown or not
 						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), 10000);
 					}
@@ -144,16 +143,16 @@ export class RealBrowserService {
 
 	private generateWebappUrl(token: string, properties: TestProperties): string {
 		const tokenParam = !!token ? `&token=${token}` : '';
+		const recordingMode = !!properties.recordingOutputMode ? `&recordingmode=${properties.recordingOutputMode}` : '';
 		return `https://${process.env.LOCATION_HOSTNAME}/` +
 			`?publicurl=${process.env.OPENVIDU_URL}` +
 			`&secret=${process.env.OPENVIDU_SECRET}` +
-			tokenParam +
 			`&role=${properties.role}` +
 			`&sessionId=${properties.sessionName}` +
 			`&userId=${properties.userId}` +
 			`&resolution=${properties.resolution || '640x480'}` +
-			`&recordingmode=${properties.recordingOutputMode}` +
-			`&showVideoElements=${properties.showVideoElements || true}`;
+			`&showVideoElements=${properties.showVideoElements || true}` +
+			recordingMode + tokenParam;
 	}
 
 }

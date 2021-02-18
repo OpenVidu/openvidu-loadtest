@@ -12,22 +12,16 @@ const browserManagerService: BrowserManagerService = new BrowserManagerService()
 
 app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
+		const request: LoadTestPostRequest = req.body;
 
-		if(areStreamManagerParamsCorrect(req.body)) {
-			const request: LoadTestPostRequest = req.body;
-			let browserMode: BrowserMode = request.browserMode || BrowserMode.EMULATE;
-			let properties: TestProperties = request.properties;
-			const token = request.token;
+		if(areStreamManagerParamsCorrect(request)) {
+			request.browserMode = request.browserMode || BrowserMode.EMULATE;
 			// Setting default role for publisher properties
-			properties.role = properties.role || OpenViduRole.PUBLISHER
+			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
 
-			process.env.LOCATION_HOSTNAME = req.headers.host;
-			process.env.OPENVIDU_SECRET = request.openviduSecret;
-			process.env.OPENVIDU_URL = request.openviduUrl;
-
-			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(browserMode, token, properties);
-
-			return res.status(200).send(response);
+			setEnvironmentParams(req);
+			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
+			return res.status(200).send('response');
 		}
 
 		console.log('Problem with some body parameter' + req.body);
@@ -35,7 +29,6 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 	} catch (error) {
 		console.log("ERROR ", error);
 		res.status(500).send(error);
-
 	}
 });
 
@@ -74,20 +67,6 @@ app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	}
 });
 
-app.post('/webrtcStats', async (req: Request, res: Response) => {
-	try {
-
-		console.log("Client Stats received: ", req.body);
-		// TODO: Send them to ES
-
-		return res.status(200).send();
-	} catch (error) {
-		console.log("ERROR ", error);
-		res.status(500).send(error);
-
-	}
-});
-
 function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
 	const openviduSecret: string = request.openviduSecret;
 	const openviduUrl: string = request.openviduUrl;
@@ -98,4 +77,13 @@ function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
 	const tokenHasBeenReceived = !!properties?.userId && !!token;
 
 	return tokenCanBeCreated || tokenHasBeenReceived;
+}
+
+function setEnvironmentParams(request: Request): void {
+	process.env.LOCATION_HOSTNAME = request.headers.host;
+	process.env.OPENVIDU_SECRET = request.body.openviduSecret;
+	process.env.OPENVIDU_URL = request.body.openviduUrl;
+	process.env.ELASTICSEARCH_HOSTNAME = request.body.elasticSearchHost;
+	process.env.ELASTICSEARCH_USERNAME = request.body.elasticSearchUserName;
+	process.env.ELASTICSEARCH_PASSWORD = request.body.elasticSearchPassword;
 }

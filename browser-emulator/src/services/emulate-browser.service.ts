@@ -4,7 +4,6 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 import { Canvas, createCanvas, Image, loadImage } from 'canvas';
-import { WebrtcStatsStorage } from '../extra/wertc-stats-storage';
 
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
@@ -23,21 +22,14 @@ export class EmulateBrowserService {
 	private readonly CANVAS_SLOW_ITERATION_MS = 2000;
 	private readonly CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT = 4;
 
-	private webrtcStatsStorage: WebrtcStatsStorage;
-
 	constructor(private httpClient: HttpClient = new HttpClient()) {
 		this.initializeVideoCanvas();
-		this.webrtcStatsStorage = new WebrtcStatsStorage();
 	}
 
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 			try {
 
-				if(!globalThis.localStorage.getItem(this.webrtcStatsStorage.getItemName())){
-					// Create webrtc stats item in localStorage
-					globalThis.localStorage.setItem(this.webrtcStatsStorage.getItemName(), this.webrtcStatsStorage.getConfig());
-				}
 
 				if(!token) {
 					token = await this.getToken(properties);

@@ -1,27 +1,48 @@
 import { EmulateBrowserService } from './emulate-browser.service';
-import { BrowserMode, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
+import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
 import { InstanceService } from './instance.service';
 import { RealBrowserService } from './real-browser.service';
+import { ElasticSearchService } from './elasticsearch.service';
+import { LocalStorageService } from './local-storage.service';
+import { WebrtcStatsService } from './wertc-stats-storage.service';
 
 export class BrowserManagerService {
 
 	constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
-		private instanceService: InstanceService = new InstanceService()
+		private instanceService: InstanceService = new InstanceService(),
+		private elasticSearchService: ElasticSearchService = new ElasticSearchService(),
+		private localStorage: LocalStorageService = new LocalStorageService(),
+		private webrtcStorageService = new WebrtcStatsService()
 		){
 	}
 
-	async createStreamManager(browserMode: BrowserMode, token: string, properties: TestProperties): Promise<LoadTestPostResponse> {
+	async createStreamManager(request: LoadTestPostRequest): Promise<LoadTestPostResponse> {
 
 		let connectionId: string;
-		if(browserMode === BrowserMode.REAL){
+		let webrtcStorageName: string;
+		let webrtcStorageValue: string;
+		await this.elasticSearchService.initialize();
+
+		if(this.elasticSearchService.isElasticSearchAvailable()){
+			webrtcStorageName = this.webrtcStorageService.getItemName();
+			webrtcStorageValue = this.webrtcStorageService.getConfig();
+		}
+
+		if(request.browserMode === BrowserMode.REAL){
 			// Create new stream manager using launching a normal Chrome browser
-			connectionId = await this.realBrowserService.createStreamManager(token, properties);
+			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
+			await this.realBrowserService.launchBrowser(request, webrtcStorageName, webrtcStorageValue);
 		} else {
+
+			if(this.elasticSearchService.isElasticSearchAvailable() && this.localStorage.exist(webrtcStorageName)){
+				// Create webrtc stats item in localStorage
+				this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
+			}
 			// Create new stream manager using node-webrtc library, emulating a normal browser.
-			console.log(`Creating ${properties.role} ${properties.userId} in session ${properties.sessionName} using emulate browser`);
-			connectionId = await this.emulateBrowserService.createStreamManager(token, properties);
+			console.log(`Creating ${request.properties.role} ${request.properties.userId} in session ${request.properties.sessionName} using emulate browser`);
+			connectionId = await this.emulateBrowserService.createStreamManager(request.token, request.properties);
 		}
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();

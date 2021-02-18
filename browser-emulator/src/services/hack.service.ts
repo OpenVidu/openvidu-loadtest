@@ -1,8 +1,7 @@
 (<any>globalThis.window) = {console: console};
 import OpenVidu = require('openvidu-browser/lib/OpenVidu/OpenVidu');
 import Publisher = require('openvidu-browser/lib/OpenVidu/Publisher');
-import {PublisherOverride} from './openvidu-browser/OpenVidu/Publisher';
-import { WebrtcStatsStorage } from './wertc-stats-storage';
+import {PublisherOverride} from '../extra/openvidu-browser/OpenVidu/Publisher';
 
 const WebSocket = require("ws");
 const fetch = require("node-fetch");
@@ -16,7 +15,7 @@ const MediaStreamWRTC = require('wrtc').MediaStream;
 const MediaStreamTrackWRTC = require('wrtc').MediaStreamTrack;
 const getUserMediaWRTC = require('wrtc').getUserMedia;
 
-export class Hack {
+export class HackService {
 	constructor() {
 
 		(<any>globalThis.navigator) = {
