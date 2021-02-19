@@ -13,9 +13,17 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.springframework.stereotype.Service;
 
@@ -27,8 +35,16 @@ public class CustomHttpClient {
 	private HttpClient client;
 
 	public CustomHttpClient() {
-		this.client = HttpClient.newHttpClient();
+		
+		try {
+			this.client = this.createClientAllowingInsecureCert();
+		} catch (KeyManagementException | NoSuchAlgorithmException e) {
+			System.out.println("Error creating httpClient allowing insecure cert. Creating a secured one");
+			this.client = HttpClient.newHttpClient();
+		}
+
 	}
+
 
 	public HttpResponse<String> sendPost(String url, JsonObject body, File file, Map<String, String> headers)
 			throws IOException, InterruptedException {
@@ -63,14 +79,16 @@ public class CustomHttpClient {
 		});
 				
 		HttpRequest request = requestBuilder.GET().build();
-		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-		return response;
+		return client.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
-	public HttpResponse<String> sendDelete(String url) throws IOException, InterruptedException {
-		HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).DELETE().build();
-		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-		return response;
+	public HttpResponse<String> sendDelete(String url, Map<String, String> headers) throws IOException, InterruptedException {
+		Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
+		headers.forEach((k, v) -> {
+			requestBuilder.header(k, v);
+		});
+		HttpRequest request = requestBuilder.DELETE().build();
+		return client.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
 	private BodyPublisher ofMimeMultipartData(Map<Object, Object> data, String boundary) throws IOException {
@@ -94,6 +112,32 @@ public class CustomHttpClient {
 		}
 		byteArrays.add(("--" + boundary + "--").getBytes(StandardCharsets.UTF_8));
 		return BodyPublishers.ofByteArrays(byteArrays);
+	}
+	
+	private HttpClient createClientAllowingInsecureCert() throws NoSuchAlgorithmException, KeyManagementException {
+		final Properties props = System.getProperties(); 
+		props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
+		
+		// Create a trust manager that does not validate certificate chains
+		TrustManager[] trustAllCerts = new TrustManager[]{
+		    new X509TrustManager() {
+		        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+		            return null;
+		        }
+		        public void checkClientTrusted(
+		            java.security.cert.X509Certificate[] certs, String authType) {
+		        }
+		        public void checkServerTrusted(
+		            java.security.cert.X509Certificate[] certs, String authType) {
+		        }
+		    }
+		};
+		
+		// Install the all-trusting trust manager
+		SSLContext sc = SSLContext.getInstance("SSL");
+	    sc.init(null, trustAllCerts, new java.security.SecureRandom());
+	    HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+		return HttpClient.newBuilder().sslContext(sc).build();
 	}
 
 }
