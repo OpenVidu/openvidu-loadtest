@@ -60,6 +60,7 @@ public class LoadTestController {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					log.info("Starting test with N:N session typology");
 					log.info("Each session will be composed by {} USERS", participantsBySession);
+					log.info("The number of session that will be created are {}", testCase.getSessions());
 
 					this.startNxNTest(participantsBySession, testCase.getSessions());
 					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished());
@@ -128,7 +129,7 @@ public class LoadTestController {
 	}
 	
 	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
-		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionsLimit < sessionNumber.get());
+		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionNumber.get() < sessionsLimit);
 		
 	}
 
