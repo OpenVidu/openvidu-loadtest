@@ -12,6 +12,7 @@ var SHOW_VIDEO_ELEMENTS;
 var RESOLUTION;
 var ROLE;
 var RECORDING_OUTPUT_MODE;
+var FRAME_RATE;
 
 var OV;
 var session;
@@ -29,7 +30,7 @@ window.onload = () => {
 	RESOLUTION = url.searchParams.get("resolution");
 	ROLE = url.searchParams.get("role");
 	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
-
+	FRAME_RATE = url.searchParams.get("frameRate");
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 
 	const tokenCanBeCreated = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL && !!OPENVIDU_SERVER_SECRET;
@@ -107,7 +108,7 @@ async function joinSession() {
 					publishAudio: true,
 					publishVideo: true,
 					resolution:  RESOLUTION,
-					frameRate: 30,
+					frameRate: FRAME_RATE,
 					mirror: false
 				});
 
@@ -190,6 +191,7 @@ function initFormValues() {
 	document.getElementById("form-userId").value = USER_ID;
 	document.getElementById("form-showVideoElements").checked = SHOW_VIDEO_ELEMENTS;
 	document.getElementById("form-resolution").value = RESOLUTION;
+	document.getElementById("form-frameRate").value = FRAME_RATE;
 }
 
 function joinWithForm() {
@@ -198,6 +200,7 @@ function joinWithForm() {
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
 	RESOLUTION = document.getElementById("form-resolution").value;
+	FRAME_RATE = document.getElementById("form-frameRate").value;
 	SHOW_VIDEO_ELEMENTS = document.getElementById("form-showVideoElements").checked;
 	ROLE = document.getElementById("form-role-publisher").checked ? 'PUBLISHER' : 'SUBSCRIBER';
 

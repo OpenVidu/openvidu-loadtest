@@ -52,13 +52,14 @@ export class EmulateBrowserService {
 						publishAudio: properties.audio,
 						publishVideo: properties.video,
 						resolution: this.WIDTH + 'x' + this.HEIGHT,
-						frameRate: 30,
+						frameRate: properties.frameRate,
 					});
 					await session.publish(publisher);
 					if(properties.video){
 						await publisher.replaceTrack(this.videoTrack);
 					}
-					this.startVideoCanvasInterval();
+					const frameRateEstimation = 1000 / properties.frameRate;
+					this.startVideoCanvasInterval(frameRateEstimation);
 				}
 
 				this.storeInstances(ov, session);
@@ -106,7 +107,9 @@ export class EmulateBrowserService {
 		this.openviduMap.delete(connectionId);
 	}
 
-	private async startVideoCanvasInterval(timeoutMs: number = 35){
+	private async startVideoCanvasInterval(timeoutMs: number = 30) {
+		// Max 30 fps
+		timeoutMs =  timeoutMs < 30 ? 30 : timeoutMs;
 
 		this.canvasInterval = setInterval(() => {
 			const x = Math.floor(Math.random() * (this.CANVAS_MAX_WIDTH - this.MIN + 1) + this.MIN);

@@ -16,6 +16,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 
 		if(areStreamManagerParamsCorrect(request)) {
 			request.browserMode = request.browserMode || BrowserMode.EMULATE;
+			request.properties.frameRate = request.properties.frameRate || 30;
 			// Setting default role for publisher properties
 			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
 
