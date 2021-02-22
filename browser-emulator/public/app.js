@@ -8,6 +8,8 @@ var OPENVIDU_SERVER_SECRET;
 var OPENVIDU_TOKEN;
 var SESSION_ID;
 var USER_ID;
+var AUDIO;
+var VIDEO;
 var SHOW_VIDEO_ELEMENTS;
 var RESOLUTION;
 var ROLE;
@@ -27,6 +29,8 @@ window.onload = () => {
 	OPENVIDU_TOKEN = url.searchParams.get("token");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
+	AUDIO = url.searchParams.get("audio");
+	VIDEO = url.searchParams.get("video");
 	RESOLUTION = url.searchParams.get("resolution");
 	ROLE = url.searchParams.get("role");
 	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
@@ -105,11 +109,10 @@ async function joinSession() {
 				var publisher = OV.initPublisher(videoContainer, {
 					audioSource: undefined,
 					videoSource: undefined,
-					publishAudio: true,
-					publishVideo: true,
+					publishAudio: AUDIO,
+					publishVideo: VIDEO,
 					resolution:  RESOLUTION,
-					frameRate: FRAME_RATE,
-					mirror: false
+					frameRate: FRAME_RATE
 				});
 
 				setPublisherButtonsActions(publisher);

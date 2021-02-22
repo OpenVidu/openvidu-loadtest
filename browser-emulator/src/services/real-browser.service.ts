@@ -150,6 +150,8 @@ export class RealBrowserService {
 			`&role=${properties.role}` +
 			`&sessionId=${properties.sessionName}` +
 			`&userId=${properties.userId}` +
+			`&audio=${properties.audio}` +
+			`&video=${properties.video}` +
 			`&resolution=${properties.resolution || '640x480'}` +
 			`&showVideoElements=${properties.showVideoElements || true}` +
 			`&frameRate=${properties.frameRate}` +
