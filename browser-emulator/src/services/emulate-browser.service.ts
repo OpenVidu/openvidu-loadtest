@@ -16,11 +16,8 @@ export class EmulateBrowserService {
 	private myimg: Image;
 	private MIN = 0;
 	private canvasInterval: NodeJS.Timer;
-	private canvasIntervalIterations: number = 0;
 	private CANVAS_MAX_HEIGHT: number;
 	private CANVAS_MAX_WIDTH: number;
-	private readonly CANVAS_SLOW_ITERATION_MS = 2000;
-	private readonly CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT = 4;
 
 	constructor(private httpClient: HttpClient = new HttpClient()) {
 		this.initializeVideoCanvas();
@@ -29,7 +26,6 @@ export class EmulateBrowserService {
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 			try {
-
 
 				if(!token) {
 					token = await this.getToken(properties);
@@ -110,6 +106,7 @@ export class EmulateBrowserService {
 	private async startVideoCanvasInterval(timeoutMs: number = 30) {
 		// Max 30 fps
 		timeoutMs =  timeoutMs < 30 ? 30 : timeoutMs;
+		this.context.fillStyle = '#' + Math.floor(Math.random()*16777215).toString(16);
 
 		this.canvasInterval = setInterval(() => {
 			const x = Math.floor(Math.random() * (this.CANVAS_MAX_WIDTH - this.MIN + 1) + this.MIN);
@@ -118,6 +115,9 @@ export class EmulateBrowserService {
 			this.context.save();
 			this.context.fillRect(0, 0, this.WIDTH, this.HEIGHT);
 			this.context.drawImage(this.myimg, x, y);
+			// this.context.font = "50px Verdana";
+			// this.context.strokeText("Hello World!", 100, 100);
+
 			this.context.restore();
 
 			const rgbaFrame = this.context.getImageData(0, 0, this.WIDTH, this.HEIGHT);
@@ -128,18 +128,10 @@ export class EmulateBrowserService {
 			};
 			rgbaToI420(rgbaFrame, i420Frame);
 			this.videoSource.onFrame(i420Frame);
-			this.canvasIntervalIterations++;
-
-			// if(this.canvasIntervalIterations > this.CANVAS_SLOW_ITERATIONS_NUMBER_LIMIT && timeoutMs < this.CANVAS_SLOW_ITERATION_MS){
-			// 	// Slowing down canvas interval
-			// 	this.stopVideoCanvasInterval();
-			// 	this.startVideoCanvasInterval(this.CANVAS_SLOW_ITERATION_MS);
-			// }
 		}, timeoutMs);
 	}
 
 	private stopVideoCanvasInterval() {
-		this.canvasIntervalIterations = 0;
 		clearInterval(this.canvasInterval);
 	}
 
