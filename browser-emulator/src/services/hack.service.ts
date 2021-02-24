@@ -6,6 +6,7 @@ import {PublisherOverride} from '../extra/openvidu-browser/OpenVidu/Publisher';
 const WebSocket = require("ws");
 const fetch = require("node-fetch");
 const LocalStorage = require('node-localstorage').LocalStorage;
+import platform = require('platform');
 
 const RTCPeerConnectionWRTC = require('wrtc').RTCPeerConnection;
 const RTCIceCandidateWRTC = require('wrtc').RTCIceCandidate;
@@ -37,6 +38,10 @@ export class HackService {
 		window['MediaStreamTrack'] = MediaStreamTrackWRTC;
 		(<any>globalThis.navigator)['mediaDevices'] = mediaDevicesWRTC;
 
+	}
+
+	platform() {
+		platform.name = 'Chrome';
 	}
 
 	websocket() {

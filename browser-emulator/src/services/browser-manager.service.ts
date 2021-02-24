@@ -12,7 +12,7 @@ export class BrowserManagerService {
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
 		private instanceService: InstanceService = new InstanceService(),
-		private elasticSearchService: ElasticSearchService = new ElasticSearchService(),
+		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
 		){
@@ -36,8 +36,8 @@ export class BrowserManagerService {
 			await this.realBrowserService.launchBrowser(request, webrtcStorageName, webrtcStorageValue);
 		} else {
 
-			if(this.elasticSearchService.isElasticSearchAvailable() && this.localStorage.exist(webrtcStorageName)){
-				// Create webrtc stats item in localStorage
+			if(this.elasticSearchService.isElasticSearchAvailable() && !this.localStorage.exist(webrtcStorageName)){
+				// Create webrtc stats item in virtual localStorage
 				this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
 			}
 			// Create new stream manager using node-webrtc library, emulating a normal browser.

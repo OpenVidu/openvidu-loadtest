@@ -1,17 +1,23 @@
 
 import { ApiResponse, Client, ClientOptions } from '@elastic/elasticsearch';
 import { Index } from '@elastic/elasticsearch/api/requestParams';
-import { JSONStats } from '../types/stats-config.type';
+import { JSONStatsResponse } from '../types/api-rest.type';
 
 export class ElasticSearchService {
 
 	private client: Client;
 	private pingSuccess: boolean = false;
 	private readonly LOAD_TEST_INDEX = 'loadtest';
-	private readonly ELASTICSEARCH_CUSTOM_TYPE_FIELD = 'elastic_type';
-	private readonly ELASTICSEARCH_TIMESTAMP_FIELD = 'timestamp';
+	protected static instance: ElasticSearchService;
 
-	constructor() {	}
+	private constructor() {	}
+
+	static getInstance(): ElasticSearchService {
+		if (!ElasticSearchService.instance) {
+			ElasticSearchService.instance = new ElasticSearchService();
+		}
+		return ElasticSearchService.instance;
+	}
 
 	async initialize(){
 		if(this.isHostnameAvailable() && !this.client) {
@@ -43,8 +49,9 @@ export class ElasticSearchService {
 		}
 	}
 
-	async sendJson(json: JSONStats){
-		if(this.isHostnameAvailable()){
+	async sendJson(json: JSONStatsResponse) {
+		if(this.isElasticSearchAvailable()) {
+			console.log(`Sending webrtc stats JSON to ElasticSearch ${process.env.ELASTICSEARCH_HOSTNAME}`);
 			let indexData: Index<Record<string, any>> = {
 				index: this.LOAD_TEST_INDEX,
 				body: {}
@@ -74,17 +81,6 @@ export class ElasticSearchService {
 	private async createIndex(index: string) {
 		await this.deleteIndexIfExist(index);
 		await this.client.indices.create({ index });
-		// await this.client.indices.putMapping({
-		// 	index: index,
-		// 	body: {
-		// 		properties: {
-		// 			timestamp: {
-		// 				type: 'date',
-		// 				format: 'epoch_millis',
-		// 			}
-		// 		}
-		// 	}
-		// });
 	}
 
 	private async deleteIndexIfExist(index: string): Promise<void> {

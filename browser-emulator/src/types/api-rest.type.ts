@@ -49,3 +49,42 @@ export interface LoadTestPostResponse {
 	connectionId: string,
  	workerCpuUsage: number
 }
+
+export interface JSONStatsResponse {
+    '@timestamp': string,
+    participant_id: string,
+    session_id: string,
+    platform: string,
+    platform_description: string,
+    stream: string,
+    webrtc_stats: IWebrtcStats
+}
+
+interface IWebrtcStats {
+    inbound: {
+        audio: {
+            bytesReceived: number,
+            packetsReceived: number,
+            packetsLost: number
+        } | {},
+        video: {
+            bytesReceived: number,
+            packetsReceived: number,
+            packetsLost: number,
+            framesDecoded: number,
+            nackCount: number
+        } | {}
+    } | {},
+    outbound: {
+        audio: {
+            bytesSent: number,
+            packetsSent: number,
+        } | {},
+        video: {
+            bytesSent: number,
+            packetsSent: number,
+            framesEncoded: number,
+            nackCount: number
+        } | {}
+    } | {}
+};

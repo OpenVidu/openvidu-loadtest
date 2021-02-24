@@ -30,6 +30,7 @@ server.listen(SERVER_PORT, () => {
 	hack.openviduBrowser();
 	hack.webrtc();
 	hack.websocket();
+	hack.platform();
 	hack.allowSelfSignedCertificate();
 
 	createRecordingsDirectory();
