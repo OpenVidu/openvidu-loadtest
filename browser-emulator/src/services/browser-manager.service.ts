@@ -7,8 +7,9 @@ import { LocalStorageService } from './local-storage.service';
 import { WebrtcStatsService } from './wertc-stats-storage.service';
 
 export class BrowserManagerService {
+	protected static instance: BrowserManagerService;
 
-	constructor(
+	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
 		private instanceService: InstanceService = new InstanceService(),
@@ -16,6 +17,13 @@ export class BrowserManagerService {
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
 		){
+	}
+
+	static getInstance() {
+		if (!BrowserManagerService.instance) {
+			BrowserManagerService.instance = new BrowserManagerService();
+		}
+		return BrowserManagerService.instance;
 	}
 
 	async createStreamManager(request: LoadTestPostRequest): Promise<LoadTestPostResponse> {

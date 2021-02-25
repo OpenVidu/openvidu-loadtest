@@ -14,7 +14,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 		const request: LoadTestPostRequest = req.body;
 
 		if(areStreamManagerParamsCorrect(request)) {
-			const browserManagerService: BrowserManagerService = new BrowserManagerService();
+			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 
 			request.browserMode = request.browserMode || BrowserMode.EMULATE;
 			request.properties.frameRate = request.properties.frameRate || 30;
@@ -38,6 +38,16 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 	}
 });
 
+app.delete('/streamManager', async (req: Request, res: Response) => {
+
+	const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
+	console.log('Deleting all participants');
+	await browserManagerService.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
+	await browserManagerService.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
+	res.status(200).send({});
+
+});
+
 
 app.delete('/streamManager/connection/:connectionId', async (req: Request, res: Response) => {
 	try {
@@ -46,7 +56,7 @@ app.delete('/streamManager/connection/:connectionId', async (req: Request, res: 
 		if(!connectionId){
 			return res.status(400).send('Problem with connectionId parameter. IT DOES NOT EXIST');
 		}
-		const browserManagerService: BrowserManagerService = new BrowserManagerService();
+		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 		console.log('Deleting streams with connectionId: ' + connectionId);
 		await browserManagerService.deleteStreamManagerWithConnectionId(connectionId);
 		res.status(200).send({});
@@ -64,7 +74,7 @@ app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 		}else if(role !== OpenViduRole.PUBLISHER && role !== OpenViduRole.SUBSCRIBER ){
 			return res.status(400).send(`Problem with ROLE parameter. IT MUST BE ${OpenViduRole.PUBLISHER} or ${OpenViduRole.SUBSCRIBER}`);
 		}
-		const browserManagerService: BrowserManagerService = new BrowserManagerService();
+		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 		console.log('Deleting streams with ROLE:' + role);
 		await browserManagerService.deleteStreamManagerWithRole(role);
 		res.status(200).send({});
