@@ -62,6 +62,22 @@ public class BrowserEmulatorClient {
 		return null;
 	}
 	
+	public void disconnectAll() {
+		for (String workerUrl : workerUrlList) {
+			try {
+				log.info("Deleting all participants from worker {}", workerUrl);
+				Map<String, String> headers = new HashMap<String, String>();
+				headers.put("Content-Type", "application/json");
+				this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager", headers);
+			} catch (IOException | InterruptedException e) {
+				if(e.getMessage().equalsIgnoreCase("Connection refused")) {
+					log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+				}
+				e.printStackTrace();
+			}
+		}
+	}
+	
 	public void deleteAllStreamManagers(String role) {
 		
 		if(role.equalsIgnoreCase("PUBLISHER") || role.equalsIgnoreCase("SUBSCRIBER")) {

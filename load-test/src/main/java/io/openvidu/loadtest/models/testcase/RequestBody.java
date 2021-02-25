@@ -4,14 +4,14 @@ import com.google.gson.JsonObject;
 
 public class RequestBody {
 
-	private String openviduUrl;
-	private String openviduSecret;
-	private String elasticSearchHost;
-	private String elasticSearchUserName;
-	private String elasticSearchPassword;
+	private String openviduUrl = "";
+	private String openviduSecret = "";
+	private String elasticSearchHost = "";
+	private String elasticSearchUserName = "";
+	private String elasticSearchPassword = "";
 	private BrowserMode browserMode = BrowserMode.EMULATE;
-	private String userId;
-	private String sessionName;
+	private String userId  = "";
+	private String sessionName = "";
 	private String token = "";
 	private OpenViduRole role = OpenViduRole.PUBLISHER;
 	private boolean audio = true;

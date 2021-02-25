@@ -151,8 +151,7 @@ public class LoadTestController {
 	}
 
 	public void cleanEnvironment() {
-		this.browserEmulatorClient.deleteAllStreamManagers("PUBLISHER");
-		this.browserEmulatorClient.deleteAllStreamManagers("SUBSCRIBERS");
+		this.browserEmulatorClient.disconnectAll();
 	}
 
 	private void showLoadTestReport() {
