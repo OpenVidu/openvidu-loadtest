@@ -20,6 +20,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			request.properties.frameRate = request.properties.frameRate || 30;
 			// Setting default role for publisher properties
 			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
+			request.properties.resolution = request.properties.resolution || '640x480';
 
 			setEnvironmentParams(req);
 			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);

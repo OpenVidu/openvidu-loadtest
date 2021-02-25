@@ -152,7 +152,7 @@ export class RealBrowserService {
 			`&userId=${properties.userId}` +
 			`&audio=${properties.audio}` +
 			`&video=${properties.video}` +
-			`&resolution=${properties.resolution || '640x480'}` +
+			`&resolution=${properties.resolution}` +
 			`&showVideoElements=${properties.showVideoElements || true}` +
 			`&frameRate=${properties.frameRate}` +
 			recordingMode + tokenParam;
