@@ -15,6 +15,8 @@ import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
+import io.openvidu.loadtest.models.testcase.OpenViduRole;
+import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.utils.JsonUtils;
@@ -49,7 +51,7 @@ public class LoadTestController {
 	public void startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
 		this.startTime = Calendar.getInstance();
-		// Subtract ten minutes because of Kibana time filter
+		// Subtract five minutes because of Kibana time filter
 		this.startTime.add(Calendar.MINUTE, -FIVE_MINUTES);
 
 		testCasesList.forEach(testCase -> {
@@ -99,8 +101,8 @@ public class LoadTestController {
 				}
 
 				this.showIterationReport(sessionNumber.get(), userNumber, participantsBySession);
-				response = this.browserEmulatorClient.createPublisher(loadTestConfig.getUserNamePrefix() + userNumber,
-						loadTestConfig.getSessionNamePrefix() + sessionNumber.get(), true, true);
+				RequestBody body = generateRequestBody(userNumber, sessionNumber.get());
+				response = this.browserEmulatorClient.createPublisher(body);
 
 				responseIsOk = processResponse(response);
 
@@ -115,7 +117,6 @@ public class LoadTestController {
 	}
 
 
-
 	private void start1xNTest(List<String> participants) {
 
 	}
@@ -128,9 +129,25 @@ public class LoadTestController {
 
 	}
 	
+	private RequestBody generateRequestBody(int userNumber, int sessionNumber) {
+
+		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
+				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
+				.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
+				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
+				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
+				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
+				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber)
+				.audio(true)
+				.video(true)
+				.role(OpenViduRole.PUBLISHER)
+				.build();
+
+	}
+
 	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
 		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionNumber.get() < sessionsLimit);
-		
+
 	}
 
 	public void cleanEnvironment() {

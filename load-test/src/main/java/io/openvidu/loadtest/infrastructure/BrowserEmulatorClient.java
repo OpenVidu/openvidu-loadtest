@@ -5,6 +5,7 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.PostConstruct;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 
 @Service
@@ -39,25 +41,17 @@ public class BrowserEmulatorClient {
 	public void init() {
 		workerUrlList = this.loadTestConfig.getWorkerUrlList();
 	}
-
 	
-	public HttpResponse<String> createPublisher(String userId, String sessionName, boolean audio, boolean video) {
+	public HttpResponse<String> createPublisher(RequestBody body) {
 		String workerUrl = "";
-		JsonObject jsonBody = new JsonObject();
-		JsonObject properties = new JsonObject();
-		jsonBody.addProperty("openviduUrl", this.loadTestConfig.getOpenViduUrl());
-		jsonBody.addProperty("openviduSecret", this.loadTestConfig.getOpenViduSecret());
-		jsonBody.addProperty("userId", userId);
-		jsonBody.addProperty("sessionName", sessionName);
-		properties.addProperty("role", "PUBLISHER");
-		properties.addProperty("audio", audio);
-		properties.addProperty("video", video);
-		jsonBody.add("properties", properties);
+
 		try {
 			workerUrl = getNextWorkerUrl();
 			log.info("Worker selected address: {}", workerUrl);
-			log.info("Connecting user: '{}' into session: '{}'", userId, sessionName);
-			return this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", jsonBody, null, new HashMap());
+			log.info("Connecting user: '{}' into session: '{}'", body.getUserId(), body.getSessionName());
+			Map<String, String> headers = new HashMap<String, String>();
+			headers.put("Content-Type", "application/json");
+			return this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", body.toJson(), null, headers);
 		} catch (IOException | InterruptedException e) {
 			if(e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
@@ -74,7 +68,9 @@ public class BrowserEmulatorClient {
 			for (String workerUrl : workerUrlList) {
 				try {
 					log.info("Deleting all '{}' from worker {}", role.toUpperCase(), workerUrl);
-					this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager/role/" + role.toUpperCase());
+					Map<String, String> headers = new HashMap<String, String>();
+					headers.put("Content-Type", "application/json");
+					this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager/role/" + role.toUpperCase(), headers);
 				} catch (IOException | InterruptedException e) {
 					if(e.getMessage().equalsIgnoreCase("Connection refused")) {
 						log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());

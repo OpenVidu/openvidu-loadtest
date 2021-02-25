@@ -42,9 +42,7 @@ public class CustomHttpClient {
 			System.out.println("Error creating httpClient allowing insecure cert. Creating a secured one");
 			this.client = HttpClient.newHttpClient();
 		}
-
 	}
-
 
 	public HttpResponse<String> sendPost(String url, JsonObject body, File file, Map<String, String> headers)
 			throws IOException, InterruptedException {

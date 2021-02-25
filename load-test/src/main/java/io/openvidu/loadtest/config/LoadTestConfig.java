@@ -33,6 +33,8 @@ public class LoadTestConfig {
 	
 	private int secondsToWaitAfterTestFinished;
 	
+	private String elasticsearchHost;
+	
 	private String elasticsearchUserName;
 
 	private String elasticsearchPassword;
@@ -71,6 +73,9 @@ public class LoadTestConfig {
 		return this.kibanaHost;
 	}
 
+	public String getElasticsearchHost() {
+		return this.elasticsearchHost;
+	}
 	public String getElasticsearchUserName() {
 		return this.elasticsearchUserName;
 	}
@@ -101,6 +106,7 @@ public class LoadTestConfig {
 			secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");
 			secondsToWaitBetweenSession = asInt("SECONDS_TO_WAIT_BETWEEN_SESSIONS");
 			secondsToWaitAfterTestFinished = asInt("SECONDS_TO_WAIT_AFTER_TEST_FINISHED");
+			elasticsearchHost = asOptionalString("ELASTICSEARCH_HOST");
 			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 			kibanaHost = asOptionalURL("KIBANA_HOST");
@@ -129,6 +135,7 @@ public class LoadTestConfig {
 		System.out.printf(format, "Seconds between sessions:", secondsToWaitBetweenSession);
 
 		System.out.printf(format, "Kibana Host:", kibanaHost);
+		System.out.printf(format, "ElasticSearch Host:", elasticsearchHost);
 		System.out.printf(format, "ElasticSearch Username:", elasticsearchUserName);
 		System.out.printf(format, "ElasticSearch Password:", elasticsearchPassword);
 		System.out.println("-------- -------------------- --------");

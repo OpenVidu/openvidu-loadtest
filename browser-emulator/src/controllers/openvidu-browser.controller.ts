@@ -21,13 +21,16 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			// Setting default role for publisher properties
 			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
 			request.properties.resolution = request.properties.resolution || '640x480';
+			if(request.browserMode === BrowserMode.REAL){
+				request.properties.showVideoElements = request.properties.showVideoElements || true;
+			}
 
 			setEnvironmentParams(req);
 			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
 			return res.status(200).send(response);
 		}
 
-		console.log('Problem with some body parameter' + req.body);
+		console.log('Problem with some body parameter' + JSON.stringify(request));
 		return res.status(400).send('Problem with some body parameter');
 	} catch (error) {
 		console.log("ERROR ", error);
