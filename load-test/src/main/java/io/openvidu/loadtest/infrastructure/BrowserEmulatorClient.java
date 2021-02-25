@@ -18,8 +18,10 @@ import org.springframework.stereotype.Service;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.utils.CustomHttpClient;
+import io.openvidu.loadtest.utils.JsonUtils;
 
 @Service
 public class BrowserEmulatorClient {
@@ -28,13 +30,17 @@ public class BrowserEmulatorClient {
 	
 	private static List<String> workerUrlList = new ArrayList<String>();
 	private static AtomicInteger lastWorkerIndex = new AtomicInteger(-1);
-	
+	private static final int HTTP_STATUS_OK = 200;
+
 	
 	@Autowired
 	private LoadTestConfig loadTestConfig;
 	
 	@Autowired
 	private CustomHttpClient httpClient;
+	
+	@Autowired
+	private JsonUtils jsonUtils;
 
 	
 	@PostConstruct
@@ -42,16 +48,16 @@ public class BrowserEmulatorClient {
 		workerUrlList = this.loadTestConfig.getWorkerUrlList();
 	}
 	
-	public HttpResponse<String> createPublisher(RequestBody body) {
+	public boolean createPublisher(int userNumber, int sessionNumber) {
 		String workerUrl = "";
+		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER);
 
 		try {
 			workerUrl = getNextWorkerUrl();
 			log.info("Worker selected address: {}", workerUrl);
 			log.info("Connecting user: '{}' into session: '{}'", body.getUserId(), body.getSessionName());
-			Map<String, String> headers = new HashMap<String, String>();
-			headers.put("Content-Type", "application/json");
-			return this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", body.toJson(), null, headers);
+			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
+			return processResponse(response);
 		} catch (IOException | InterruptedException e) {
 			if(e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
@@ -59,7 +65,25 @@ public class BrowserEmulatorClient {
 			}
 			e.printStackTrace();
 		}
-		return null;
+		return false;
+	}
+	
+	public boolean createSubscriber(int userNumber, int sessionNumber) {
+		String workerUrl = "";
+		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.SUBSCRIBER);
+
+		try {
+			workerUrl = getNextWorkerUrl();
+			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
+			return processResponse(response);
+		} catch (IOException | InterruptedException e) {
+			if(e.getMessage().equalsIgnoreCase("Connection refused")) {
+				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+				System.exit(1);
+			}
+			e.printStackTrace();
+		}
+		return false;
 	}
 	
 	public void disconnectAll() {
@@ -69,50 +93,57 @@ public class BrowserEmulatorClient {
 				Map<String, String> headers = new HashMap<String, String>();
 				headers.put("Content-Type", "application/json");
 				this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager", headers);
-			} catch (IOException | InterruptedException e) {
+			} catch (Exception e) {
 				if(e.getMessage().equalsIgnoreCase("Connection refused")) {
 					log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+					System.exit(1);
 				}
 				e.printStackTrace();
 			}
 		}
 	}
 	
-	public void deleteAllStreamManagers(String role) {
+private boolean processResponse(HttpResponse<String> response) {
 		
-		if(role.equalsIgnoreCase("PUBLISHER") || role.equalsIgnoreCase("SUBSCRIBER")) {
-			for (String workerUrl : workerUrlList) {
-				try {
-					log.info("Deleting all '{}' from worker {}", role.toUpperCase(), workerUrl);
-					Map<String, String> headers = new HashMap<String, String>();
-					headers.put("Content-Type", "application/json");
-					this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager/role/" + role.toUpperCase(), headers);
-				} catch (IOException | InterruptedException e) {
-					if(e.getMessage().equalsIgnoreCase("Connection refused")) {
-						log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
-					}
-					e.printStackTrace();
-				}
-			}
+		if(response == null) {
+			log.error("Http Status Response {} ", response);
+			return false;
 		}
+
+		if (response.statusCode() == HTTP_STATUS_OK) {
+			JsonObject jsonResponse = jsonUtils.getJson(response.body());
+			String connectionId = jsonResponse.get("connectionId").getAsString();
+			String workerCpu = jsonResponse.get("workerCpuUsage").getAsString();
+			log.info("Connection {} created", connectionId);
+			log.info("Worker CPU USAGE: {}% ", workerCpu);
+			System.out.print("\n");
+			return true;
+		}
+		log.error("Http Status Response {} ", response.statusCode());
+		log.error("Response message {} ", response.body());
+		return false;
 	}
 	
-//	public String createSubscriber(String userId, String sessionName) {
+//	public void deleteAllStreamManagers(String role) {
 //		
-//		JsonObject jsonBody = new JsonObject();
-//		JsonObject properties = new JsonObject();
-//		jsonBody.addProperty("userId", userId);
-//		jsonBody.addProperty("sessionName", sessionName);
-//		properties.addProperty("role", "SUBSCRIBER");
-//		jsonBody.add("properties", new JsonObject());
-//		try {
-//			this.httpClient.sendPost(getWorkerUrl() + "/openvidu-browser/streamManager", jsonBody);
-//		} catch (IOException | InterruptedException e) {
-//			e.printStackTrace();
+//		if(role.equalsIgnoreCase("PUBLISHER") || role.equalsIgnoreCase("SUBSCRIBER")) {
+//			for (String workerUrl : workerUrlList) {
+//				try {
+//					log.info("Deleting all '{}' from worker {}", role.toUpperCase(), workerUrl);
+//					Map<String, String> headers = new HashMap<String, String>();
+//					headers.put("Content-Type", "application/json");
+//					this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager/role/" + role.toUpperCase(), headers);
+//				} catch (IOException | InterruptedException e) {
+//					if(e.getMessage().equalsIgnoreCase("Connection refused")) {
+//						log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+//					}
+//					e.printStackTrace();
+//				}
+//			}
 //		}
-//
-//		return "";
 //	}
+	
+
 	
 //	public int getCapacity(String typology, int participantsPerSession) {
 //		int capacity = 0;
@@ -137,6 +168,24 @@ public class BrowserEmulatorClient {
 		return workerUrlList.get(nextWorkerIndex);
 		
 	}
+	
+	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role) {
 
+		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
+				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
+//				.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
+//				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
+//				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
+				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
+				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber).audio(true).video(true)
+				.role(role).build();
+
+	}
+	
+	private Map<String, String> getHeaders() {
+		Map<String, String> headers = new HashMap<String, String>();
+		headers.put("Content-Type", "application/json");
+		return headers;
+	}
 
 }

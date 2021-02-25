@@ -1,6 +1,5 @@
 package io.openvidu.loadtest.controller;
 
-import java.net.http.HttpResponse;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
@@ -11,15 +10,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
-import com.google.gson.JsonObject;
-
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
-import io.openvidu.loadtest.models.testcase.OpenViduRole;
-import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.KibanaClient;
-import io.openvidu.loadtest.utils.JsonUtils;
 
 /**
  * @author Carlos Santos
@@ -30,7 +24,7 @@ import io.openvidu.loadtest.utils.JsonUtils;
 public class LoadTestController {
 
 	private static final Logger log = LoggerFactory.getLogger(LoadTestController.class);
-	private static final int HTTP_STATUS_OK = 200;
+//	private static final int HTTP_STATUS_OK = 200;
 
 	@Autowired
 	private BrowserEmulatorClient browserEmulatorClient;
@@ -41,8 +35,8 @@ public class LoadTestController {
 	@Autowired
 	private KibanaClient kibanaClient;
 
-	@Autowired
-	private JsonUtils jsonUtils;
+//	@Autowired
+//	private JsonUtils jsonUtils;
 
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -61,12 +55,11 @@ public class LoadTestController {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					log.info("Starting test with N:N session typology");
-					log.info("Each session will be composed by {} USERS", participantsBySession);
+					log.info("Each session will be composed by {} USERS. All of them will be Publishers",
+							participantsBySession);
 					log.info("The number of session that will be created are {}", testCase.getSessions());
 
 					this.startNxNTest(participantsBySession, testCase.getSessions());
-					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished());
-					this.cleanEnvironment();
 				}
 			} else if (testCase.is_1xN()) {
 				this.start1xNTest(testCase.getParticipants());
@@ -78,6 +71,10 @@ public class LoadTestController {
 				log.error("Test case has wrong typology, SKIPPED.");
 				return;
 			}
+			
+			sleep(loadTestConfig.getSecondsToWaitAfterTestFinished(), "time after test finished");
+			this.cleanEnvironment();
+
 		});
 
 		this.showLoadTestReport();
@@ -86,39 +83,40 @@ public class LoadTestController {
 
 	private void startNxNTest(int participantsBySession, int sessionsLimit) {
 		AtomicInteger sessionNumber = new AtomicInteger(0);
-		HttpResponse<String> response;
+		AtomicInteger userNumber = new AtomicInteger(1);
 		boolean responseIsOk = true;
 
 		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
+			
+			if(responseIsOk && sessionNumber.get() > 0) {
+				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+			}
+			
 			sessionNumber.getAndIncrement();
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
+			
 			for (int i = 0; i < participantsBySession; i++) {
-				// Start with positive number instead 0
-				int userNumber = i + 1;
-
-				if (!responseIsOk) {
+				
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get());
+				log.info("Participant number {} added in Session number {}", userNumber.get(), sessionNumber.get());
+				this.showIterationReport(sessionNumber.get(), userNumber.get(), participantsBySession);
+				
+				
+				if (responseIsOk && userNumber.get() < participantsBySession) {
+					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					userNumber.getAndIncrement();
+				} else if (!responseIsOk) {
+					log.error("Response status is not 200 OK. Exit");
 					return;
 				}
-
-				this.showIterationReport(sessionNumber.get(), userNumber, participantsBySession);
-				RequestBody body = generateRequestBody(userNumber, sessionNumber.get());
-				response = this.browserEmulatorClient.createPublisher(body);
-
-				responseIsOk = processResponse(response);
-
-				log.info("Waiting {} seconds between participants",
-						loadTestConfig.getSecondsToWaitBetweenParticipants());
-				sleep(loadTestConfig.getSecondsToWaitBetweenParticipants());
 			}
-
-			log.info("Waiting {} seconds between session", loadTestConfig.getSecondsToWaitBetweenSession());
-			sleep(loadTestConfig.getSecondsToWaitBetweenSession());
+			userNumber.set(1);
+			log.info("Session number {} has been succesfully created ", sessionNumber.get());
+			
 		}
 	}
 
-
-	private void start1xNTest(List<String> participants) {
-
+	private void start1xNTest(int participantsBySession, int sessionsLimit) {
 	}
 
 	private void startNxMTest(List<String> participants) {
@@ -128,22 +126,7 @@ public class LoadTestController {
 	private void startTeachingTest(List<String> participants) {
 
 	}
-	
-	private RequestBody generateRequestBody(int userNumber, int sessionNumber) {
 
-		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
-				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
-				.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
-				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
-				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
-				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
-				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber)
-				.audio(true)
-				.video(true)
-				.role(OpenViduRole.PUBLISHER)
-				.build();
-
-	}
 
 	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
 		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionNumber.get() < sessionsLimit);
@@ -186,24 +169,9 @@ public class LoadTestController {
 		log.info("-- ----------------- ---");
 	}
 
-	private boolean processResponse(HttpResponse<String> response) {
-
-		if (response.statusCode() == HTTP_STATUS_OK) {
-			JsonObject jsonResponse = jsonUtils.getJson(response.body());
-			String connectionId = jsonResponse.get("connectionId").getAsString();
-			String workerCpu = jsonResponse.get("workerCpuUsage").getAsString();
-			log.info("Connection {} created", connectionId);
-			log.info("Worker CPU USAGE: {}% ", workerCpu);
-			System.out.print("\n");
-			return true;
-		}
-		log.error("Http Status Response {} ", response.statusCode());
-		log.error("Response message {} ", response.body());
-		return false;
-	}
-
-	private void sleep(int seconds) {
+	private void sleep(int seconds, String reason) {
 		try {
+			log.info("Waiting {} seconds because of {}", seconds, reason);
 			Thread.sleep(seconds * 1000);
 		} catch (InterruptedException e) {
 			e.printStackTrace();

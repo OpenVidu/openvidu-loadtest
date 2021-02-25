@@ -3,6 +3,7 @@ package io.openvidu.loadtest.utils;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -80,7 +81,7 @@ public class CustomHttpClient {
 		return client.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
-	public HttpResponse<String> sendDelete(String url, Map<String, String> headers) throws IOException, InterruptedException {
+	public HttpResponse<String> sendDelete(String url, Map<String, String> headers) throws IOException, InterruptedException, ConnectException {
 		Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
 		headers.forEach((k, v) -> {
 			requestBuilder.header(k, v);
