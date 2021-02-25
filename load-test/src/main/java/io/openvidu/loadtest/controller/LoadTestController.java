@@ -62,7 +62,17 @@ public class LoadTestController {
 					this.startNxNTest(participantsBySession, testCase.getSessions());
 				}
 			} else if (testCase.is_1xN()) {
-				this.start1xNTest(testCase.getParticipants());
+				// 1 Publisher and N Subscribers
+				for (int i = 0; i < testCase.getParticipants().size(); i++) {
+					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
+					log.info("Starting test with 1:N session typology");
+					log.info("Each session will be composed by {} USERS. 1 Publisher and {} Subscribers",
+							participantsBySession + 1, participantsBySession);
+					log.info("The number of session that will be created are {}", testCase.getSessions());
+
+					this.start1xNTest(participantsBySession, testCase.getSessions());
+				}
+
 			} else if (testCase.is_NxM()) {
 				this.startNxMTest(testCase.getParticipants());
 			} else if (testCase.is_TEACHING()) {
@@ -117,6 +127,48 @@ public class LoadTestController {
 	}
 
 	private void start1xNTest(int participantsBySession, int sessionsLimit) {
+		AtomicInteger sessionNumber = new AtomicInteger(0);
+		AtomicInteger userNumber = new AtomicInteger(1);
+		boolean responseIsOk = true;
+
+		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
+			
+			if(responseIsOk && sessionNumber.get() > 0) {
+				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+			}
+			
+			sessionNumber.getAndIncrement();
+			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
+			
+			
+			
+			for (int i = 0; i < participantsBySession; i++) {
+				
+				if(i == 0) {
+					// Create publisher
+					responseIsOk = this.browserEmulatorClient.createPublisher(i, sessionNumber.get());
+					if(!responseIsOk) {
+						log.error("Response status is not 200 OK. Exit");
+						return;
+					}
+				}
+				responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get());
+				log.info("Participant number {} added in Session number {}", userNumber.get(), sessionNumber.get());
+				this.showIterationReport(sessionNumber.get(), userNumber.get(), participantsBySession);
+				
+				
+				if (responseIsOk && userNumber.get() < participantsBySession) {
+					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					userNumber.getAndIncrement();
+				} else if (!responseIsOk) {
+					log.error("Response status is not 200 OK. Exit");
+					return;
+				}
+			}
+			userNumber.set(1);
+			log.info("Session number {} has been succesfully created ", sessionNumber.get());
+			
+		}
 	}
 
 	private void startNxMTest(List<String> participants) {
