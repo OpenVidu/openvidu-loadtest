@@ -21,8 +21,8 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 ![Load test architecture](resources/diagram.png)
 
-* [**Browser-emulator**](#browser-emulator): Worker service that emulates a browser capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library. It is implemented in NodeJS and controlled with a REST protocol. WebRTC stack is provided by [node-webrtc library](https://github.com/node-webrtc/node-webrtc).
-* [**Load Test**](#load-test): Controller service in charge of the coordination of the browser-emulator workers. It read the load test scenario from a file and control the browser-emulator workers to simulate participants loading OpenVidu platform.
+* [**Browser-emulator**](#browser-emulator): Worker service that **is able to start and launch real containerized Chrome browsers** using Docker and Selenium and **emulate browsers** capable of connecting to an OpenVidu session and sending and receiving WebRTC media provided by [node-webrtc library](https://github.com/node-webrtc/node-webrtc) using openvidu-browser library. It is implemented in NodeJS and controlled with a REST protocol.
+* [**Load Test**](#load-test): Controller service in charge of the coordination of the browser-emulator workers. It read the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
 
 ## **Usage Instructions**
 
@@ -30,7 +30,7 @@ These instructions assume that OpenVidu CE or PRO is already deployed. See [how 
 
 To start with the load test you will have to deploy the workers first and the execute the controller.
 
-This instructions assume you are using a linux system. Windows and Mac can require some adaptation.
+>This instructions assume you are using a linux system. Windows and Mac can require some adaptation.
 
 ### 1. Deploy workers
 
@@ -82,9 +82,21 @@ nano load-test/src/main/resources/application.properties
 After these three parameters are being filled, save changes and go to the next step.
 
 ```properties
+# Load Test Parameters (Required)
 OPENVIDU_URL=https://openvidu_pro_url
 OPENVIDU_SECRET=openvidu_pro_secret
 WORKER_URL_LIST=http://worker_host1:port,http://worker_host2:port
+SESSION_NAME_PREFIX =LoadTestSession
+USER_NAME_PREFIX =User
+SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS=1
+SECONDS_TO_WAIT_BETWEEN_SESSIONS=2
+SECONDS_TO_WAIT_AFTER_TEST_FINISHED=30
+
+
+# Monitoring Parameters (Optional)
+ELASTICSEARCH_USERNAME=elasticusername
+ELASTICSEARCH_PASSWORD=password
+KIBANA_HOST=https://kibanahost
 ```
 
 **3. Configure session typology:**
@@ -101,7 +113,7 @@ To configure the test cases the file [`load-test/src/main/resources/test_cases.j
 		{
 			"typology": "N:N", // All users will be PUBLISHERS and SUBSCRIBERS
 			"participants": [2], // Sessions with 2 users
-			"sessions": "infinite", // Test will create infinite sessions
+			"sessions": "infinite", // Session limit. Test will create infinite sessions
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
 		}
 	]
@@ -166,33 +178,39 @@ Besides, if you have deployed OpenVidu PRO you can [create your own visualizatio
 
 ## **Browser Emulator documentation**
 
-Service with the aim of emulating a standard browser using [OpenVidu Browser library](https://github.com/OpenVidu/openvidu#readme) and overriding WebRTC API with [node-webrtc library](https://github.com/node-webrtc/node-webrtc).
+Service with the aim of emulating a standard browser using [OpenVidu Browser library](https://github.com/OpenVidu/openvidu#readme) and overriding WebRTC API with [node-webrtc library](https://github.com/node-webrtc/node-webrtc). This service is also **capable to launch Chrome containerized browsers** and connect them to Openvidu emulating a fully real user.
 
 This app provides a simple REST API that will be used by **Load Test application** and it allows:
-* Create a [Stream Manager](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/classes/streammanager.html) (`PUBLISHER` or `SUBSCRIBER`) retrieving the custom token created by you.
-* Create a [Stream Manager](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/classes/streammanager.html) (`PUBLISHER` or `SUBSCRIBER`) creating a token by its own.
-* Delete a Stream Manager by its connectionId
-* Delete all Stream Manager with a specific role (`PUBLISHER` or `SUBSCRIBER`).
+* [Create a Stream Manager](#create-stream-manager) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
+
+* [Delete a specific Stream Manager](#delete-stream-manager-by-connectionId) by its connectionId
+* [Delete all Stream Manager](#delete-stream-managers-by-role-publisher-or-subscriber) with a specific role (`PUBLISHER` or `SUBSCRIBER`).
 
 ### API REST
 
-#### CREATE STREAM MANAGER _(retrieving your custom token)_
+#### CREATE STREAM MANAGER
+
+This endpoint provides a lot of configuration that you should take into account. As said before, you can make a request to **create a new Stream Manger using your own token** or make a request **letting the browser-emulator create a new one**.
+
+
+#### CREATE STREAM MANAGER _(using your custom token)_
 
 _Create a new Stream Manager with a specified **token**_
 
 * #### METHOD: **POST**
 
-* #### URL:  http://localhost:5000/openvidu-browser/streamManager
+* #### URL:  https://localhost:5000/openvidu-browser/streamManager
 
 * #### BODY
 	```json
 	{
-		"token": "*****",
-		"userId": "User1",
+		"browserMode": "emulate",
 		"properties": {
+			"token": "*****",
+			"userId": "User1",
 			"role": "PUBLISHER",
 			"audio": true,
-			"video": true
+			"video": true,
 		}
 	}
 	```
@@ -211,19 +229,20 @@ _Create a new Stream Manager with a specified **role** and connect it into a spe
 
 * #### METHOD: **POST**
 
-* #### URL:  http://localhost:5000/openvidu-browser/streamManager
+* #### URL:  https://localhost:5000/openvidu-browser/streamManager
 
 * #### BODY
 	```json
 	{
-		"openviduUrl": "http://localhost:4443",
+		"openviduUrl": "https://localhost:4443",
 		"openviduSecret": "MY_SECRET",
-		"userId": "User1",
-		"sessionName": "LoadTestSession",
+		"browserMode": "emulate",
 		"properties": {
+			"userId": "User1",
+			"sessionName": "LoadTestSession",
 			"role": "PUBLISHER",
 			"audio": true,
-			"video": true
+			"video": true,
 		}
 	}
 	```
@@ -235,6 +254,56 @@ _Create a new Stream Manager with a specified **role** and connect it into a spe
 		"workerCpuUsage": 10.00
 	}
 	```
+
+Moreover, you can customize the request with many of the parameters that we can found in OpenVidu Browser library.
+
+
+#### Create Stream Manager: Body Parameters
+
+To make the load test completely functional, the browser-emulator service also accept others extra body parameters.
+
+```json
+{
+	"openviduUrl": "your OpenVidu hostname",
+ 	"openviduSecret": "your OpenVidu Secret",
+    "elasticSearchHost": "your ElasticSearch hostname",
+    "elasticSearchUserName": "your ElasticSearch usename",
+    "elasticSearchPassword": "your ElasticSearch password",
+    "browserMode": "'emulate' or 'real'",
+	"properties": Properties JSON object << See properties list >>
+}
+```
+
+##### Body parameters
+
+|Properties|Type|Description|
+|---|---|---|---|---|
+|  **openviduUrl** |  String |OpenVidu URL.  |
+|  **openviduSecret** |  String | OpenVidu secret.|
+|  **elasticSearchHost** |  String | ElasticSearch hostname.|
+|  **elasticSearchUserName** | String  | ElasticSearch username.  |
+|  **elasticSearchPassword** | String  | ElasticSearch password.  |
+|  **browserMode** | String  | If `emulate` the service will emulate a browser. If  `real`, the service will launch a Chrome browser docker container. Default `emulate` |
+|  **properties** | JSON Object   | [See properties object](#properties-json-object) |
+
+
+
+##### Properties JSON object
+
+|Properties|Type|Description|
+|---|---|---|---|---|
+|  **userId** * |  String | Participant name   |
+|  **sessionName** * |  String | Session name  |
+|  **audio** * | Boolean  | If `role` is `PUBLISHER` and you want to initially publish to the session with the audio unmuted or muted [See publisher property](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/interfaces/publisherproperties.html#publishAudio)  |
+|  **video** * | Boolean  | If `role` is `PUBLISHER` and you want to initially publish to the session with the video enabled or disabled. [See publisher property](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/interfaces/publisherproperties.html#publishVideo)  |
+|  **token** |  String | Your custom token. If it is empty the service will create one.|
+|  **role** | String  | Stream Manager role: `PUBLISHER` or `SUBSCRIBER`. Default `PUBLISHER` |
+|  **resolution** | String   |Resolution of the video. Default `640x480`. [See publisher property](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/interfaces/publisherproperties.html#resolution) |
+|  **recordingOutputMode** | String   | `COMPOSED` or `INDIVIDUAL`|
+|**frameRate**| Number (0-30)  | Desired framerate of the video in frames per second. Default `30`|
+|  **recording** | Boolean  |  If `browserMode` is `real` and you want record the Chrome browser using ffmpeg. Default `false`.  |
+|  **showVideoElements** | Boolean  | If `browserMode` is `real` and you want show videos elements into the app running in Chrome. Default `true`|
+|  **headless** | Boolean  | If `browserMode` is `real` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |
 
 
 #### **DELETE STREAM MANAGER** _(by connectionId)_
