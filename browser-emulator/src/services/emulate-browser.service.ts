@@ -65,7 +65,7 @@ export class EmulateBrowserService {
 					"There was an error connecting to the session:",
 					error
 				);
-				reject(error);
+				reject({status:error.status, message: error.statusText || error.message});
 			}
 		});
 	}

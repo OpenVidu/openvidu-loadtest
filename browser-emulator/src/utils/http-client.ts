@@ -48,6 +48,7 @@ export class HttpClient {
 							"No connection to OpenVidu Server. This may be a certificate error at " +
 								this.OPENVIDU_URL
 						);
+						reject(error.response);
 					}
 				});
 		});
@@ -77,7 +78,7 @@ export class HttpClient {
 				.then((response) => {
 					resolve(response.data.token);
 				})
-				.catch((error) => reject(error));
+				.catch((error) => reject(error.response));
 		});
 	}
 }
