@@ -52,8 +52,7 @@ public class BrowserEmulatorClient {
 
 		try {
 			workerUrl = getNextWorkerUrl();
-			log.info("Worker selected address: {}", workerUrl);
-			log.info("Connecting user: '{}' into session: '{}'", body.getUserId(), body.getSessionName());
+			log.info("Selected worker: {}", workerUrl);
 			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager",
 					body.toJson(), null, getHeaders());
 			return processResponse(response);
@@ -75,6 +74,7 @@ public class BrowserEmulatorClient {
 
 		try {
 			workerUrl = getNextWorkerUrl();
+			log.info("Selected worker: {}", workerUrl);
 			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager",
 					body.toJson(), null, getHeaders());
 			return processResponse(response);
@@ -107,21 +107,15 @@ public class BrowserEmulatorClient {
 
 	private boolean processResponse(HttpResponse<String> response) {
 
-		if (response == null) {
-			log.error("Http Status Response {} ", response);
-			return false;
-		}
-
-		if (response.statusCode() == HTTP_STATUS_OK) {
+		if (response != null && response.statusCode() == HTTP_STATUS_OK) {
 			JsonObject jsonResponse = jsonUtils.getJson(response.body());
 			String connectionId = jsonResponse.get("connectionId").getAsString();
 			String workerCpu = jsonResponse.get("workerCpuUsage").getAsString();
 			log.info("Connection {} created", connectionId);
 			log.info("Worker CPU USAGE: {}% ", workerCpu);
-			System.out.print("\n");
 			return true;
 		}
-		log.error("Http Status Response {} ", response.statusCode());
+		log.error("Error. Http Status Response {} ", response.statusCode());
 		log.error("Response message {} ", response.body());
 		return false;
 	}
