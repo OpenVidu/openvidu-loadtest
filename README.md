@@ -289,7 +289,7 @@ To make the load test completely functional, the browser-emulator service also a
 ##### Body parameters
 
 |Properties|Type|Description|
-|---|---|---|---|---|
+|---|---|---|
 |  **openviduUrl** |  String |OpenVidu URL.  |
 |  **openviduSecret** |  String | OpenVidu secret.|
 |  **elasticSearchHost** |  String | ElasticSearch hostname.|
@@ -303,7 +303,7 @@ To make the load test completely functional, the browser-emulator service also a
 ##### Properties JSON object
 
 |Properties|Type|Description|
-|---|---|---|---|---|
+|---|---|---|
 |  **userId** * |  String | Participant name   |
 |  **sessionName** * |  String | Session name  |
 |  **audio** * | Boolean  | If `role` is `PUBLISHER` and you want to initially publish to the session with the audio unmuted or muted [See publisher property](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/interfaces/publisherproperties.html#publishAudio)  |
