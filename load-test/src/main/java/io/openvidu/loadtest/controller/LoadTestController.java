@@ -24,7 +24,6 @@ import io.openvidu.loadtest.monitoring.KibanaClient;
 public class LoadTestController {
 
 	private static final Logger log = LoggerFactory.getLogger(LoadTestController.class);
-//	private static final int HTTP_STATUS_OK = 200;
 
 	@Autowired
 	private BrowserEmulatorClient browserEmulatorClient;
@@ -34,9 +33,6 @@ public class LoadTestController {
 
 	@Autowired
 	private KibanaClient kibanaClient;
-
-//	@Autowired
-//	private JsonUtils jsonUtils;
 
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
