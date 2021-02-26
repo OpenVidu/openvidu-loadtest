@@ -85,7 +85,7 @@ After these three parameters are being filled, save changes and go to the next s
 # Load Test Parameters (Required)
 OPENVIDU_URL=https://openvidu_pro_url
 OPENVIDU_SECRET=openvidu_pro_secret
-WORKER_URL_LIST=http://worker_host1:port,http://worker_host2:port
+WORKER_URL_LIST=https://worker_host1:port,https://worker_host2:port
 SESSION_NAME_PREFIX =LoadTestSession
 USER_NAME_PREFIX =User
 SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS=1
@@ -115,6 +115,18 @@ To configure the test cases the file [`load-test/src/main/resources/test_cases.j
 			"participants": [2], // Sessions with 2 users
 			"sessions": "infinite", // Session limit. Test will create infinite sessions
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
+		},
+		{
+			"typology": "N:M", // N number will be PUBLISHERS and M number will be SUBSCRIBERS
+			"participants": ["1:10", "1:100", "2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
+			"sessions": "infinite",
+			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS and SUBSCRIBERS as the participants array indicates."
+		},
+		{
+			"typology": "TEACHING",
+			"participants": ["2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
+			"sessions": "infinite",
+			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers:students) as the participants array indicates. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio"
 		}
 	]
 }
@@ -312,7 +324,7 @@ _Delete a single Stream Manager by its connectionId_
 
 * #### METHOD: **DELETE**
 
-* #### URL:  http://localhost:5000/openvidu-browser/streamManager/connection/{{CONNECTION_ID}}
+* #### URL:  https://localhost:5000/openvidu-browser/streamManager/connection/{{CONNECTION_ID}}
 
 
 #### **DELETE STREAM MANAGER's** _(by ROLE: `PUBLISHER` or `SUBSCRIBER`)_
@@ -321,5 +333,5 @@ _Delete all Stream Manager with the specified ROLE_
 
 * #### METHOD: **DELETE**
 
-* #### URL:  http://localhost:5000/openvidu-browser/streamManager/role/{{ROLE}}
+* #### URL:  https://localhost:5000/openvidu-browser/streamManager/role/{{ROLE}}
 
