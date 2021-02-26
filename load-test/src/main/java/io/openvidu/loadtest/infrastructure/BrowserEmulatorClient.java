@@ -48,7 +48,7 @@ public class BrowserEmulatorClient {
 
 	public boolean createPublisher(int userNumber, int sessionNumber) {
 		String workerUrl = "";
-		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER);
+		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, false);
 
 		try {
 			workerUrl = getNextWorkerUrl();
@@ -67,9 +67,11 @@ public class BrowserEmulatorClient {
 		return false;
 	}
 
-	public boolean createSubscriber(int userNumber, int sessionNumber) {
+	public boolean createSubscriber(int userNumber, int sessionNumber, boolean isTeaching) {
 		String workerUrl = "";
-		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.SUBSCRIBER);
+		OpenViduRole role = isTeaching ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
+
+		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, isTeaching);
 
 		try {
 			workerUrl = getNextWorkerUrl();
@@ -167,15 +169,18 @@ public class BrowserEmulatorClient {
 
 	}
 
-	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role) {
-
+	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role, boolean isTeaching) {
+		
+		boolean video = !(isTeaching && role.equals(OpenViduRole.SUBSCRIBER));
+		
 		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
 				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
+				// Adding these parameters, the client send the webrtc stats to ElasticSearch
 //				.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
 //				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
 //				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
 				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
-				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber).audio(true).video(true)
+				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber).audio(true).video(video)
 				.role(role).build();
 
 	}

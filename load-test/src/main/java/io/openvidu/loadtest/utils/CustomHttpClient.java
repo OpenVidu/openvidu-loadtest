@@ -42,6 +42,7 @@ public class CustomHttpClient {
 		} catch (KeyManagementException | NoSuchAlgorithmException e) {
 			System.out.println("Error creating httpClient allowing insecure cert. Creating a secured one");
 			this.client = HttpClient.newHttpClient();
+			
 		}
 	}
 
@@ -116,7 +117,10 @@ public class CustomHttpClient {
 	private HttpClient createClientAllowingInsecureCert() throws NoSuchAlgorithmException, KeyManagementException {
 		final Properties props = System.getProperties(); 
 		props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
-		
+		props.setProperty("jdk.httpclient.allowRestrictedHeaders", Boolean.TRUE.toString());
+		props.setProperty("jdk.httpclient.keepalive.timeout", "0");
+
+
 		// Create a trust manager that does not validate certificate chains
 		TrustManager[] trustAllCerts = new TrustManager[]{
 		    new X509TrustManager() {

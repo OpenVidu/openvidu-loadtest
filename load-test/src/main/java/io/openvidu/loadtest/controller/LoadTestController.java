@@ -56,30 +56,29 @@ public class LoadTestController {
 					log.info("The number of session that will be created are {}", testCase.getSessions());
 
 					this.startNxNTest(participantsBySession, testCase.getSessions());
+					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished(), "time after test finished");
+					this.cleanEnvironment();
 				}
-			} else if (testCase.is_1xN()) {
-				// 1 Publisher and N Subscribers
+			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
-					log.info("Starting test with 1:N session typology");
-					log.info("Each session will be composed by {} USERS. 1 Publisher and {} Subscribers",
-							participantsBySession + 1, participantsBySession);
-					log.info("The number of session that will be created are {}", testCase.getSessions());
+					String participants = testCase.getParticipants().get(i);
+					int publishers = Integer.parseInt(participants.split(":")[0]);
+					int subscribers = Integer.parseInt(participants.split(":")[1]);
+					log.info("Starting test with N:M session typology");
+					log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",
+							publishers + subscribers, publishers, subscribers);
 
-					this.start1xNTest(participantsBySession, testCase.getSessions());
+					this.startNxMTest(publishers, subscribers, testCase.getSessions(), testCase.is_TEACHING());
+					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished(), "time after test finished");
+					this.cleanEnvironment();
 				}
 
-			} else if (testCase.is_NxM()) {
-				this.startNxMTest(testCase.getParticipants());
 			} else if (testCase.is_TEACHING()) {
 				this.startTeachingTest(testCase.getParticipants());
 			} else {
 				log.error("Test case has wrong typology, SKIPPED.");
 				return;
 			}
-			
-			sleep(loadTestConfig.getSecondsToWaitAfterTestFinished(), "time after test finished");
-			this.cleanEnvironment();
 
 		});
 
@@ -93,21 +92,20 @@ public class LoadTestController {
 		boolean responseIsOk = true;
 
 		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
-			
-			if(responseIsOk && sessionNumber.get() > 0) {
+
+			if (responseIsOk && sessionNumber.get() > 0) {
 				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
 			}
-			
+
 			sessionNumber.getAndIncrement();
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
-			
+
 			for (int i = 0; i < participantsBySession; i++) {
-				
+
 				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get());
 				log.info("Participant number {} added in Session number {}", userNumber.get(), sessionNumber.get());
 				this.showIterationReport(sessionNumber.get(), userNumber.get(), participantsBySession);
-				
-				
+
 				if (responseIsOk && userNumber.get() < participantsBySession) {
 					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 					userNumber.getAndIncrement();
@@ -116,65 +114,73 @@ public class LoadTestController {
 					return;
 				}
 			}
-			userNumber.set(1);
-			log.info("Session number {} has been succesfully created ", sessionNumber.get());
-			
+
+			if (responseIsOk) {
+				userNumber.set(1);
+				log.info("Session number {} has been succesfully created ", sessionNumber.get());
+			}
+
 		}
 	}
 
-	private void start1xNTest(int participantsBySession, int sessionsLimit) {
+	private void startNxMTest(int publishers, int subscribers, int sessionsLimit, boolean isTeaching) {
 		AtomicInteger sessionNumber = new AtomicInteger(0);
 		AtomicInteger userNumber = new AtomicInteger(1);
 		boolean responseIsOk = true;
+		int totalParticipants = subscribers + publishers;
 
 		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
-			
-			if(responseIsOk && sessionNumber.get() > 0) {
+
+			if (responseIsOk && sessionNumber.get() > 0) {
+				// Waiting time between sessions
 				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
 			}
-			
+
 			sessionNumber.getAndIncrement();
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
-			
-			
-			
-			for (int i = 0; i < participantsBySession; i++) {
-				
-				if(i == 0) {
-					// Create publisher
-					responseIsOk = this.browserEmulatorClient.createPublisher(i, sessionNumber.get());
-					if(!responseIsOk) {
+
+			// Adding all publishers
+			for (int i = 0; i < publishers; i++) {
+				log.info("Creating PUBLISHERS {} in session", userNumber.get());
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get());
+				if (!responseIsOk) {
+					log.error("Response status is not 200 OK. Exit");
+					return;
+				}
+				userNumber.getAndIncrement();
+			}
+
+			if (responseIsOk) {
+				// Adding all subscribers
+				for (int i = 0; i < subscribers; i++) {
+					log.info("Creating SUBSCRIBER {} in session", userNumber.get());
+
+					responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get(),
+							isTeaching);
+					log.info("Participant number {} added in Session number {}", userNumber.get(), sessionNumber.get());
+					this.showIterationReport(sessionNumber.get(), userNumber.get(), totalParticipants);
+
+					if (responseIsOk && userNumber.get() < totalParticipants) {
+						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+						userNumber.getAndIncrement();
+					} else if (!responseIsOk) {
 						log.error("Response status is not 200 OK. Exit");
 						return;
 					}
 				}
-				responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get());
-				log.info("Participant number {} added in Session number {}", userNumber.get(), sessionNumber.get());
-				this.showIterationReport(sessionNumber.get(), userNumber.get(), participantsBySession);
-				
-				
-				if (responseIsOk && userNumber.get() < participantsBySession) {
-					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
-					userNumber.getAndIncrement();
-				} else if (!responseIsOk) {
-					log.error("Response status is not 200 OK. Exit");
-					return;
+
+				if (responseIsOk) {
+					userNumber.set(1);
+					log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				}
+
 			}
-			userNumber.set(1);
-			log.info("Session number {} has been succesfully created ", sessionNumber.get());
-			
 		}
-	}
-
-	private void startNxMTest(List<String> participants) {
-
 	}
 
 	private void startTeachingTest(List<String> participants) {
 
 	}
-
 
 	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
 		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionNumber.get() < sessionsLimit);
@@ -183,6 +189,7 @@ public class LoadTestController {
 
 	public void cleanEnvironment() {
 		this.browserEmulatorClient.disconnectAll();
+		sleep(5, "time cleaning environment");
 	}
 
 	private void showLoadTestReport() {
@@ -218,12 +225,15 @@ public class LoadTestController {
 	}
 
 	private void sleep(int seconds, String reason) {
-		try {
-			log.info("Waiting {} seconds because of {}", seconds, reason);
-			Thread.sleep(seconds * 1000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		if (seconds > 0) {
+			try {
+				log.info("Waiting {} seconds because of {}", seconds, reason);
+				Thread.sleep(seconds * 1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
+
 	}
 
 }
