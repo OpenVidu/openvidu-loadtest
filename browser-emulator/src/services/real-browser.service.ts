@@ -142,13 +142,15 @@ export class RealBrowserService {
 	}
 
 	private generateWebappUrl(token: string, properties: TestProperties): string {
-		const publicUrl = !!process.env.OPENVIDU_URL ? `?publicurl=${process.env.OPENVIDU_URL}&` : '';
-		const secret = !!process.env.OPENVIDU_SECRET ? `&secret=${process.env.OPENVIDU_SECRET}&` : '';
-		const recordingMode = !!properties.recordingOutputMode ? `&recordingmode=${properties.recordingOutputMode}&` : '';
-		const tokenParam = !!token ? `&token=${token}` : '';
+		const publicUrl = !!process.env.OPENVIDU_URL ? `publicurl=${process.env.OPENVIDU_URL}&` : '';
+		const secret = !!process.env.OPENVIDU_SECRET ? `secret=${process.env.OPENVIDU_SECRET}&` : '';
+		const recordingMode = !!properties.recordingOutputMode ? `recordingmode=${properties.recordingOutputMode}&` : '';
+		const tokenParam = !!token ? `token=${token}` : '';
 		return `https://${process.env.LOCATION_HOSTNAME}/?` +
 			publicUrl +
 			secret +
+			recordingMode +
+			tokenParam +
 			`role=${properties.role}&` +
 			`sessionId=${properties.sessionName}&` +
 			`userId=${properties.userId}&` +
@@ -156,9 +158,7 @@ export class RealBrowserService {
 			`video=${properties.video}&` +
 			`resolution=${properties.resolution}&` +
 			`showVideoElements=${properties.showVideoElements}&` +
-			`frameRate=${properties.frameRate}&` +
-			recordingMode +
-			tokenParam;
+			`frameRate=${properties.frameRate}&`;
 	}
 
 }
