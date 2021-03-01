@@ -34,7 +34,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 		return res.status(400).send('Problem with some body parameter');
 	} catch (error) {
 		console.log("ERROR ", error);
-		res.status(error.status || 500).send({message: error.statusText, error: error});
+		res.status(error?.status || 500).send({message: error?.statusText, error: error});
 	}
 });
 
