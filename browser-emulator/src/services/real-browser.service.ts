@@ -56,12 +56,12 @@ export class RealBrowserService {
 			return Promise.reject(new Error(error));
 		} finally {
 			//TODO: Just for development, remove it
-			setTimeout(async () => {
-				if(!!properties.recording && !properties.headless) {
-					await this.dockerService.stopRecordingInContainer(containerId);
-				}
-				await this.dockerService.stopContainer(containerId);
-			}, 10000);
+			// setTimeout(async () => {
+			// 	if(!!properties.recording && !properties.headless) {
+			// 		await this.dockerService.stopRecordingInContainer(containerId);
+			// 	}
+			// 	await this.dockerService.stopContainer(containerId);
+			// }, 10000);
 		}
 	}
 
