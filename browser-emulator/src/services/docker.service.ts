@@ -9,7 +9,7 @@ export class DockerService {
 		this.docker = new Docker();
 	}
 
-	public async startBrowserContainer(name: string, hostPort: number): Promise<string> {
+	public async startBrowserContainer(name: string, hostPort: number, recording: boolean): Promise<string> {
 		const options: Docker.ContainerCreateOptions = {
 			Image: this.CHROME_BROWSER_IMAGE,
 			name: name,
@@ -32,24 +32,20 @@ export class DockerService {
 		}
 		const container: Docker.Container = await this.docker.createContainer(options);
 		await container.start();
+		if (recording) {
+			console.log("Starting browser recording");
+			await this.startRecordingInContainer(container.id, name);
+		}
 		console.log("Container running: " + container.id);
-
 		return container.id;
 	}
 
-	public async startRecordingInContainer(containerId: string, videoName: string): Promise<void> {
-		const startRecordingCommand = "start-video-recording.sh -n " + videoName;
-		await this.runCommandInContainer(containerId, startRecordingCommand);
-	}
-
-	public async stopRecordingInContainer(containerId: string): Promise<void> {
-		const stopRecordingCommand = 'stop-video-recording.sh';
-		await this.runCommandInContainer(containerId, stopRecordingCommand);
-	}
-
-	public async stopContainer(containerId: string): Promise<void> {
-	    const container = this.getContainerById(containerId);
+	public async stopContainer(containerId: string, recording: boolean): Promise<void> {
+		const container = this.getContainerById(containerId);
 	    if (!!container) {
+			if(recording) {
+				await this.stopRecordingInContainer(containerId);
+			}
 			await container.stop();
 			await this.removeContainer(containerId);
 	        console.log('Container ' + containerId + ' stopped');
@@ -57,6 +53,16 @@ export class DockerService {
 		else {
 	        console.error('Container ' + containerId + ' does not exist');
 	    }
+	}
+
+	private async startRecordingInContainer(containerId: string, videoName: string): Promise<void> {
+		const startRecordingCommand = "start-video-recording.sh -n " + videoName;
+		await this.runCommandInContainer(containerId, startRecordingCommand);
+	}
+
+	private async stopRecordingInContainer(containerId: string): Promise<void> {
+		const stopRecordingCommand = 'stop-video-recording.sh';
+		await this.runCommandInContainer(containerId, stopRecordingCommand);
 	}
 
 	private async removeContainer(containerId: string) {

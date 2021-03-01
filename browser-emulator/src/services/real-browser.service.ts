@@ -30,6 +30,8 @@ export class RealBrowserService {
 	public async startBrowserContainer(properties: TestProperties): Promise<string> {
 
 		let containerId: string;
+		const isRecording = !!properties.recording && !properties.headless;
+
 		if(!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 		}
@@ -38,20 +40,12 @@ export class RealBrowserService {
 		this.setSeleniumRemoteURL(bindedPort);
 		try {
 			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
-			containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort);
-			this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort});
-
-			if(!!properties.recording && !properties.headless) {
-				console.log("Starting browser recording");
-				await this.dockerService.startRecordingInContainer(containerId, containerName);
-			}
+			containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort, isRecording);
+			this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort, isRecording});
 			return containerId;
 		} catch (error) {
 			console.error(error);
-			if(!!properties.recording && !properties.headless) {
-				await this.dockerService.stopRecordingInContainer(containerId);
-			}
-			await this.dockerService.stopContainer(containerId);
+			await this.dockerService.stopContainer(containerId, isRecording);
 			this.containerMap.delete(containerId);
 			return Promise.reject(new Error(error));
 		} finally {
@@ -67,23 +61,24 @@ export class RealBrowserService {
 
 	async deleteStreamManagerWithConnectionId(containerId: string): Promise<void> {
 		console.log("Removing and stopping container ", containerId);
-		await this.dockerService.stopContainer(containerId);
+		const isRecording = this.containerMap.get(containerId)?.isRecording;
+		await this.dockerService.stopContainer(containerId, isRecording);
 		this.containerMap.delete(containerId);
 	}
 
 	deleteStreamManagerWithRole(role: any): Promise<void> {
 		return new Promise(async (resolve, reject) => {
-			const containersToDelete: string[] = [];
+			const containersToDelete: {containerId:string, isRecording: boolean}[] = [];
 			const promisesToResolve: Promise<void>[] = [];
 			this.containerMap.forEach((info: BrowserContainerInfo, containerId: string) => {
 				if(info.connectionRole === role) {
-					containersToDelete.push(containerId);
+					containersToDelete.push({containerId, isRecording: info.isRecording});
 				}
 			});
 
-			containersToDelete.forEach( (containerId: string) => {
-				promisesToResolve.push(this.dockerService.stopContainer(containerId));
-				this.containerMap.delete(containerId);
+			containersToDelete.forEach( (value: {containerId:string, isRecording: boolean}) => {
+				promisesToResolve.push(this.dockerService.stopContainer(value.containerId, value.isRecording));
+				this.containerMap.delete(value.containerId);
 			});
 
 			try {
@@ -113,10 +108,10 @@ export class RealBrowserService {
 					}
 
 					// Wait until connection has been created
-					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), 10000);
+					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), 30000);
 					if(request.properties.role === OpenViduRole.PUBLISHER){
 						// Wait until publisher has been published regardless of whether the videos are shown or not
-						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), 10000);
+						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), 30000);
 					}
 					console.log("Browser works as expected");
 					resolve();
