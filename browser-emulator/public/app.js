@@ -77,7 +77,7 @@ async function joinSession() {
 
 		var videoContainer = null;
 		if(SHOW_VIDEO_ELEMENTS){
-			videoContainer = 'video-publisher';
+			videoContainer = 'remote-video-publisher';
 		}
 		var subscriber = session.subscribe(event.stream, videoContainer);
 		subscriber.on("streamPlaying", e => {
