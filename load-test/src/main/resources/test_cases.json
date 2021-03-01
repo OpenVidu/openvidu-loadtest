@@ -16,7 +16,7 @@
 			"typology": "TEACHING",
 			"participants": ["2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
 			"sessions": "infinite",
-			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers:students) as the participants array indicates. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio"
+			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers and students) as the participants array indicates. The students will be PUBLISHERS but they will only publish theirs audio"
 		}
 	]
 }
