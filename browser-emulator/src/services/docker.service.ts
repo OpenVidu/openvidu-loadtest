@@ -50,13 +50,24 @@ export class DockerService {
 	public async stopContainer(containerId: string): Promise<void> {
 	    const container = this.getContainerById(containerId);
 	    if (!!container) {
-	        await container.stop();
+			await container.stop();
+			await this.removeContainer(containerId);
 	        console.log('Container ' + containerId + ' stopped');
 		}
 		else {
 	        console.error('Container ' + containerId + ' does not exist');
 	    }
 	}
+
+	private async removeContainer(containerId: string) {
+        const container = this.getContainerById(containerId);
+        if (!!container) {
+            await container.remove({ force: true });
+            console.log('Container ' + containerId + ' removed');
+        } else {
+            console.warn('Container ' + containerId + ' does not exist');
+        }
+    }
 
 
 	private async runCommandInContainer(containerId: string, command: string): Promise<void> {
@@ -79,7 +90,7 @@ export class DockerService {
 
         } else {
             console.error('Container ' + containerId + ' does not exist');
-        }
+		}
 	}
 
 	private getContainerById(containerId: string): Docker.Container {

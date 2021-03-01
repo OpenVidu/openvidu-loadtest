@@ -41,7 +41,13 @@ export class BrowserManagerService {
 		if(request.browserMode === BrowserMode.REAL){
 			// Create new stream manager using launching a normal Chrome browser
 			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
-			await this.realBrowserService.launchBrowser(request, webrtcStorageName, webrtcStorageValue);
+			try {
+				await this.realBrowserService.launchBrowser(request, webrtcStorageName, webrtcStorageValue);
+			} catch (error) {
+				console.log("ERROR BROWSER MANAGER", error);
+				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
+				throw error;
+			}
 		} else {
 
 			if(this.elasticSearchService.isElasticSearchAvailable() && !this.localStorage.exist(webrtcStorageName)){

@@ -66,6 +66,7 @@ export class RealBrowserService {
 	}
 
 	async deleteStreamManagerWithConnectionId(containerId: string): Promise<void> {
+		console.log("Removing and stopping container ", containerId);
 		await this.dockerService.stopContainer(containerId);
 		this.containerMap.delete(containerId);
 	}
