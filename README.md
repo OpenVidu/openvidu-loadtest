@@ -48,7 +48,7 @@ git clone https://github.com/OpenVidu/openvidu-loadtest.git
 
 ```bash
 cd openvidu-loadtest/browser-emulator/
-npm install
+./prepare.sh # The script will install Node, Docker and project dependencies
 npm run start
 ```
 
