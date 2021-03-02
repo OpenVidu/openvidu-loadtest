@@ -156,7 +156,7 @@ export class RealBrowserService {
 			`video=${properties.video}&` +
 			`resolution=${properties.resolution}&` +
 			`showVideoElements=${properties.showVideoElements}&` +
-			`frameRate=${properties.frameRate}&`;
+			`frameRate=${properties.frameRate}`;
 	}
 
 }

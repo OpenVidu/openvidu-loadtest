@@ -5,6 +5,9 @@ export class DockerService {
 
 	private readonly CHROME_BROWSER_IMAGE = "elastestbrowsers/chrome";
 
+	private readonly RECORDINGS_PATH = '/home/ubuntu/recordings';
+	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
+
 	constructor() {
 		this.docker = new Docker();
 	}
@@ -18,8 +21,8 @@ export class DockerService {
 			},
 			HostConfig:  {
 				Binds: [
-					`${process.env.PWD}/recordings:/home/ubuntu/recordings`,
-					`${process.env.PWD}/src/assets/mediafiles:/home/ubuntu/mediafiles`,
+					`${process.env.PWD}/recordings:${this.RECORDINGS_PATH}`,
+					`${process.env.PWD}/src/assets/mediafiles:${this.MEDIA_FILES_PATH}`,
 				],
 				PortBindings: { "4444/tcp": [{ "HostPort": hostPort.toString(), "HostIp": "0.0.0.0" }] },
 				CapAdd: [
@@ -31,8 +34,10 @@ export class DockerService {
 		if (!(await this.imageExists(options.Image))) {
 			await this.pullImage(options.Image);
 		}
+		console.log("Volumes ", options.HostConfig.Binds);
 		const container: Docker.Container = await this.docker.createContainer(options);
 		await container.start();
+		await this.enableMediaFileAccess(container.id);
 		if (recording) {
 			console.log("Starting browser recording");
 			await this.startRecordingInContainer(container.id, name);
@@ -54,6 +59,11 @@ export class DockerService {
 		else {
 	        console.error('Container ' + containerId + ' does not exist');
 	    }
+	}
+
+	private async enableMediaFileAccess(containerId: any) {
+		const command = `sudo chmod 777 ${this.MEDIA_FILES_PATH}`;
+		await this.runCommandInContainer(containerId, command);
 	}
 
 	private async startRecordingInContainer(containerId: string, videoName: string): Promise<void> {
