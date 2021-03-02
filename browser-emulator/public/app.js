@@ -112,7 +112,8 @@ async function joinSession() {
 					publishAudio: AUDIO,
 					publishVideo: VIDEO,
 					resolution:  RESOLUTION,
-					frameRate: FRAME_RATE
+					frameRate: FRAME_RATE,
+					mirror: false
 				});
 
 				setPublisherButtonsActions(publisher);

@@ -12,6 +12,8 @@ export class RealBrowserService {
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
 	private containerMap: Map<string, BrowserContainerInfo> = new Map();
+	private readonly VIDEO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakevideo.y4m';
+	private readonly AUDIO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakeaudio.wav';
 
 	constructor(
 		private dockerService: DockerService = new DockerService(),
@@ -22,7 +24,10 @@ export class RealBrowserService {
 			'--disable-dev-shm-usage',
 			'--window-size=1440,1080',
 			'--use-fake-ui-for-media-stream',
-			'--use-fake-device-for-media-stream'
+			'--use-fake-device-for-media-stream',
+			'--allow-file-access-from-files',
+			`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}`,
+			`--use-file-for-fake-audio-capture=${this.AUDIO_FILE_LOCATION}`
 		);
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
 	}
@@ -51,11 +56,8 @@ export class RealBrowserService {
 		} finally {
 			//TODO: Just for development, remove it
 			// setTimeout(async () => {
-			// 	if(!!properties.recording && !properties.headless) {
-			// 		await this.dockerService.stopRecordingInContainer(containerId);
-			// 	}
-			// 	await this.dockerService.stopContainer(containerId);
-			// }, 10000);
+			// 	await this.dockerService.stopContainer(containerId, isRecording);
+			// }, 20000);
 		}
 	}
 

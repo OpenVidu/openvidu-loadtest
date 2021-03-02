@@ -15,10 +15,11 @@ export class DockerService {
 			name: name,
 			ExposedPorts: {
 				"4444/tcp": {},
-			  },
+			},
 			HostConfig:  {
 				Binds: [
-					`${process.env.PWD}/recordings:/home/ubuntu/recordings`
+					`${process.env.PWD}/recordings:/home/ubuntu/recordings`,
+					`${process.env.PWD}/src/assets/mediafiles:/home/ubuntu/mediafiles`,
 				],
 				PortBindings: { "4444/tcp": [{ "HostPort": hostPort.toString(), "HostIp": "0.0.0.0" }] },
 				CapAdd: [
