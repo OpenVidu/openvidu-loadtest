@@ -4,7 +4,7 @@ import { InstanceService } from './instance.service';
 import { RealBrowserService } from './real-browser.service';
 import { ElasticSearchService } from './elasticsearch.service';
 import { LocalStorageService } from './local-storage.service';
-import { WebrtcStatsService } from './wertc-stats-storage.service';
+import { WebrtcStatsService } from './webrtc-stats-storage.service';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
