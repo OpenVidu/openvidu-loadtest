@@ -44,7 +44,6 @@ export class BrowserManagerService {
 			try {
 				await this.realBrowserService.launchBrowser(request, webrtcStorageName, webrtcStorageValue);
 			} catch (error) {
-				console.log("ERROR BROWSER MANAGER", error);
 				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 				throw error;
 			}

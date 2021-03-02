@@ -1,3 +1,4 @@
+import fs = require('fs');
 import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
 import { LoadTestPostRequest, TestProperties } from '../types/api-rest.type';
@@ -34,31 +35,36 @@ export class RealBrowserService {
 
 	public async startBrowserContainer(properties: TestProperties): Promise<string> {
 
-		let containerId: string;
-		const isRecording = !!properties.recording && !properties.headless;
+		if(this.existMediaFiles()) {
+			let containerId: string;
+			const isRecording = !!properties.recording && !properties.headless;
 
-		if(!!properties.headless) {
-			this.chromeOptions.addArguments('--headless');
+			if(!!properties.headless) {
+				this.chromeOptions.addArguments('--headless');
+			}
+
+			const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
+			this.setSeleniumRemoteURL(bindedPort);
+			try {
+				const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
+				containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort, isRecording);
+				this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort, isRecording});
+				return containerId;
+			} catch (error) {
+				console.error(error);
+				await this.dockerService.stopContainer(containerId, isRecording);
+				this.containerMap.delete(containerId);
+				return Promise.reject(new Error(error));
+			} finally {
+				//TODO: Just for development, remove it
+				// setTimeout(async () => {
+				// 	await this.dockerService.stopContainer(containerId, isRecording);
+				// }, 20000);
+			}
+		} else {
+			return Promise.reject({message:"Media files not found. fakevideo.y4m and fakeaudio.wav don't exist"});
 		}
 
-		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
-		this.setSeleniumRemoteURL(bindedPort);
-		try {
-			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
-			containerId = await this.dockerService.startBrowserContainer(containerName, bindedPort, isRecording);
-			this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort, isRecording});
-			return containerId;
-		} catch (error) {
-			console.error(error);
-			await this.dockerService.stopContainer(containerId, isRecording);
-			this.containerMap.delete(containerId);
-			return Promise.reject(new Error(error));
-		} finally {
-			//TODO: Just for development, remove it
-			// setTimeout(async () => {
-			// 	await this.dockerService.stopContainer(containerId, isRecording);
-			// }, 20000);
-		}
 	}
 
 	async deleteStreamManagerWithConnectionId(containerId: string): Promise<void> {
@@ -157,6 +163,17 @@ export class RealBrowserService {
 			`resolution=${properties.resolution}&` +
 			`showVideoElements=${properties.showVideoElements}&` +
 			`frameRate=${properties.frameRate}`;
+	}
+
+	private existMediaFiles(): boolean {
+		const videoFile = `${process.env.PWD}/src/assets/mediafiles/fakevideo.y4m`;
+		const audioFile = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
+		try {
+			return fs.existsSync(videoFile) && fs.existsSync(audioFile);
+		} catch (error) {
+			return false;
+		}
+
 	}
 
 }
