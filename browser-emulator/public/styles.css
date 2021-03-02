@@ -25,4 +25,5 @@ video {
 
 #remote-video-publisher {
     border: 1px, solid;
+    display: flex;
 }
