@@ -26,7 +26,8 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 ## **Usage Instructions**
 
-These instructions assume that OpenVidu CE or PRO is already deployed. See [how deploy OpenVidu PRO](https://docs.openvidu.io/en/2.16.0/openvidu-pro/#how).
+These instructions assume that OpenVidu CE or PRO is already deployed. See [how deploy OpenVidu PRO](https://docs.openvidu.io/en/stable/openvidu-pro/#how).
+
 
 To start with the load test you will have to deploy the workers first and the execute the controller.
 
@@ -295,7 +296,7 @@ To make the load test completely functional, the browser-emulator service also a
 |  **elasticSearchHost** |  String | ElasticSearch hostname.|
 |  **elasticSearchUserName** | String  | ElasticSearch username.  |
 |  **elasticSearchPassword** | String  | ElasticSearch password.  |
-|  **browserMode** | String  | If `emulate` the service will emulate a browser. If  `real`, the service will launch a Chrome browser docker container. Default `emulate` |
+|  **browserMode** | String  | If `emulate` the service will emulate a browser. If  `real`, the service will launch a Chrome browser docker container. Default `emulate` Choosing `emulate`, **you must ensure that OpenVidu aren't forcing H264 coded**|
 |  **properties** | JSON Object   | [See properties object](#properties-json-object) |
 
 
