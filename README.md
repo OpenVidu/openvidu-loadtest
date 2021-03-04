@@ -49,7 +49,9 @@ git clone https://github.com/OpenVidu/openvidu-loadtest.git
 
 ```bash
 cd openvidu-loadtest/browser-emulator/
-./prepare.sh # The script will install Node, Docker and project dependencies
+# Assuming that you're in a clean environment, the script will install Node, Docker and it will download te required media files for executing the containerized Chrome Browsers
+./prepare.sh
+npm install
 npm run start
 ```
 
