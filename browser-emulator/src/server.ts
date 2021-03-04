@@ -1,12 +1,16 @@
-import * as express from "express";
-import { SERVER_PORT } from "./config";
-import { HackService } from "./services/hack.service";
-import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
-import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
 import fs = require('fs');
 import https = require('https');
+import * as express from "express";
+
+import { SERVER_PORT } from "./config";
+import { HackService } from "./services/hack.service";
+
+import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
+import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
+
 import { DockerService } from './services/docker.service';
 import { InstanceService } from './services/instance.service';
+
 
 const app = express();
 

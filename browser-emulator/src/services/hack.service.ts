@@ -7,6 +7,8 @@ const WebSocket = require("ws");
 const fetch = require("node-fetch");
 const LocalStorage = require('node-localstorage').LocalStorage;
 import platform = require('platform');
+import { EMULATED_USER_TYPE } from '../config';
+import { EmulatedUserType } from '../types/emulated-user.type';
 
 const RTCPeerConnectionWRTC = require('wrtc').RTCPeerConnection;
 const RTCIceCandidateWRTC = require('wrtc').RTCIceCandidate;
@@ -28,15 +30,20 @@ export class HackService {
 	}
 
 	webrtc() {
+		if(EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC) {
+			// Overriding WebRTC API using node-wrtc library with the aim of provide it to openvidu-browser
+			// For EmulatedUserType.KMS, this is not necessary due to KMS will implement the WebRTC API itself.
+			globalThis.RTCPeerConnection = RTCPeerConnectionWRTC;
+			globalThis.RTCIceCandidate = RTCIceCandidateWRTC;
+			globalThis.RTCSessionDescription = RTCSessionDescriptionWRTC;
+			globalThis.getUserMedia = getUserMediaWRTC;
+			globalThis.MediaStream = MediaStreamWRTC;
+			globalThis.MediaStreamTrack = MediaStreamTrackWRTC;
+			(<any>globalThis.navigator)['mediaDevices'] = mediaDevicesWRTC;
+		} else {
+			// Overriding peerConnection methods for getting media from KMS
 
-		globalThis.RTCPeerConnection = RTCPeerConnectionWRTC;
-		globalThis.RTCIceCandidate = RTCIceCandidateWRTC;
-		globalThis.RTCSessionDescription = RTCSessionDescriptionWRTC;
-		globalThis.getUserMedia = getUserMediaWRTC;
-		globalThis.MediaStream = MediaStreamWRTC;
-		globalThis.MediaStreamTrack = MediaStreamTrackWRTC;
-		(<any>globalThis.navigator)['mediaDevices'] = mediaDevicesWRTC;
-
+		}
 	}
 
 	platform() {
