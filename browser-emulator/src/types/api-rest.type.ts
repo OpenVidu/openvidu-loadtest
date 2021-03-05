@@ -66,6 +66,8 @@ interface IWebrtcStats {
             bytesReceived: number,
             packetsReceived: number,
             packetsLost: number
+            jitter: number,
+            delayMs: number
         } | {},
         video: {
             bytesReceived: number,
