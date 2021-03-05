@@ -2,7 +2,7 @@
 
 # Install Node.js
 if [ ! -x "$(command -v node)" ]; then
-    # echo "Installing NodeJS"
+    echo "Installing NodeJS"
 	sudo curl -sL https://deb.nodesource.com/setup_14.x | sudo bash -
 	sudo apt-get install -y nodejs
 fi
