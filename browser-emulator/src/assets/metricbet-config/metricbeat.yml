@@ -1,0 +1,36 @@
+metricbeat.modules:
+  - module: system
+    metricsets:
+      - cpu
+      - diskio
+      - memory
+      - network
+      - filesystem
+      - fsstat
+      - process_summary
+      - uptime
+    filesystem.ignore_types: [nfs, smbfs, autofs, devtmpfs, devpts, hugetlbfs, tmpfs, sysfs, securityfs, cgroup2, cgroup, pstore, debugfs, configfs, fusectl, proc, fuse.lxcfs, squashfs]
+    processes: ['.*']
+    processors:
+      - drop_event:
+            when:
+              or:
+                - regexp:
+                      system.network.name: '^(veth|lo|docker|br-)($|)'
+                - regexp:
+                      system.filesystem.mount_point: '^/(sys|cgroup|proc|dev|etc|host)($|/)'
+                - regexp:
+                      system.filesystem.mount_point: '^/hostfs/(sys|cgroup|proc|dev|etc|host)($|/)'
+    enabled: true
+    period: ${METRICBEAT_MONITORING_INTERVAL}s
+    cpu.metrics: [normalized_percentages]
+fields:
+    worker_name: worker_${WORKER_PORT}
+    worker_port: ${WORKER_PORT}
+    node_role: browseremulator
+output:
+  elasticsearch:
+    hosts: ["${ELASTICSEARCH_HOSTNAME}"]
+    username: ${ELASTICSEARCH_USERNAME}
+    password: ${ELASTICSEARCH_PASSWORD}
+setup.ilm.enabled: false

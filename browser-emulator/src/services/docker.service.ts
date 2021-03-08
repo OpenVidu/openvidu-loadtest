@@ -1,15 +1,51 @@
 import * as Docker from "dockerode";
+import { SERVER_PORT } from '../config';
 
 export class DockerService {
 	private docker: Docker;
-
 	private readonly CHROME_BROWSER_IMAGE = "elastestbrowsers/chrome";
-
+	private readonly METRICBEAT_IMAGE = "docker.elastic.co/beats/metricbeat-oss:7.8.0";
+	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbet-config/metricbeat.yml`;
+	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
 
 	constructor() {
 		this.docker = new Docker();
+	}
+
+	async startMetricBeat(name: string) {
+		console.log("Starting metricbeat");
+		const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
+		const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
+		const options: Docker.ContainerCreateOptions = {
+			Image: this.METRICBEAT_IMAGE,
+			name: name,
+			User: 'root',
+			Env: [
+				`ELASTICSEARCH_HOSTNAME=${process.env.ELASTICSEARCH_HOSTNAME}`,
+				`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
+				`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
+				`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
+				`WORKER_PORT=${SERVER_PORT}`,
+			],
+			Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
+			HostConfig:  {
+				Binds: [
+					`/var/run/docker.sock:/var/run/docker.sock`,
+					`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
+					'/proc:/hostfs/proc:ro',
+					'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
+					'/:/hostfs:ro'
+				],
+				NetworkMode: 'host'
+			},
+		};
+
+		const container: Docker.Container = await this.docker.createContainer(options);
+		await container.start();
+		console.log("Metricbeat started: ", container.id);
+		return container.id;
 	}
 
 	public async startBrowserContainer(name: string, hostPort: number, recording: boolean): Promise<string> {
@@ -31,10 +67,6 @@ export class DockerService {
 			}
 		};
 
-		if (!(await this.imageExists(options.Image))) {
-			await this.pullImage(options.Image);
-		}
-		console.log("Volumes ", options.HostConfig.Binds);
 		const container: Docker.Container = await this.docker.createContainer(options);
 		await container.start();
 		await this.enableMediaFileAccess(container.id);
@@ -46,19 +78,33 @@ export class DockerService {
 		return container.id;
 	}
 
-	public async stopContainer(containerId: string, recording: boolean): Promise<void> {
-		const container = this.getContainerById(containerId);
+	public async stopContainer(nameOrId: string, recording?: boolean): Promise<void> {
+		const container = await this.getContainerByIdOrName(nameOrId);
 	    if (!!container) {
 			if(recording) {
-				await this.stopRecordingInContainer(containerId);
+				await this.stopRecordingInContainer(container.id);
 			}
-			await container.stop();
-			await this.removeContainer(containerId);
-	        console.log('Container ' + containerId + ' stopped');
+			try {
+				await container.stop();
+			} catch (error) {
+
+			}
+			// await this.removeContainer(container.id);
+			await container.remove({ force: true });
+	        console.log('Container ' + container.id + ' stopped');
 		}
 		else {
-	        console.error('Container ' + containerId + ' does not exist');
+	        console.error('Container ' + nameOrId + ' does not exist');
 	    }
+	}
+
+	async pullImagesNeeded() {
+		if (!(await this.imageExists(this.METRICBEAT_IMAGE))) {
+			await this.pullImage(this.METRICBEAT_IMAGE);
+		}
+		if (!(await this.imageExists(this.CHROME_BROWSER_IMAGE))) {
+			await this.pullImage(this.CHROME_BROWSER_IMAGE);
+		}
 	}
 
 	private async enableMediaFileAccess(containerId: any) {
@@ -76,19 +122,8 @@ export class DockerService {
 		await this.runCommandInContainer(containerId, stopRecordingCommand);
 	}
 
-	private async removeContainer(containerId: string) {
-        const container = this.getContainerById(containerId);
-        if (!!container) {
-            await container.remove({ force: true });
-            console.log('Container ' + containerId + ' removed');
-        } else {
-            console.warn('Container ' + containerId + ' does not exist');
-        }
-    }
-
-
-	private async runCommandInContainer(containerId: string, command: string): Promise<void> {
-        const container = this.getContainerById(containerId);
+	async runCommandInContainer(containerId: string, command: string): Promise<void> {
+        const container = this.docker.getContainer(containerId);
         if (!!container) {
 
 			try {
@@ -110,11 +145,15 @@ export class DockerService {
 		}
 	}
 
-	private getContainerById(containerId: string): Docker.Container {
-		if(!!containerId){
-			return this.docker.getContainer(containerId);
+	private async getContainerByIdOrName(nameOrId: string): Promise<Docker.Container> {
+		const containers: Docker.ContainerInfo[] = await this.docker.listContainers({ all: true });
+		const containerInfo = containers.find((containerInfo: Docker.ContainerInfo) => {
+			return containerInfo.Names.indexOf("/" + nameOrId) >= 0 || containerInfo.Id === nameOrId;
+		});
+
+		if(!!containerInfo && containerInfo?.Id) {
+			return this.docker.getContainer(containerInfo.Id);
 		}
-		return;
 	}
 
 	private async imageExists(image: string): Promise<boolean> {

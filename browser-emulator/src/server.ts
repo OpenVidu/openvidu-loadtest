@@ -6,6 +6,8 @@ import {app as browserEmulatorController} from './controllers/browser-emulator.c
 import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
 import fs = require('fs');
 import https = require('https');
+import { DockerService } from './services/docker.service';
+import { InstanceService } from './services/instance.service';
 
 const app = express();
 
@@ -25,7 +27,7 @@ app.use('/openvidu-browser', ovBrowserController);
 
 const server = https.createServer(options, app);
 
-server.listen(SERVER_PORT, () => {
+server.listen(SERVER_PORT, async () => {
 	const hack = new HackService();
 	hack.openviduBrowser();
 	hack.webrtc();
@@ -34,6 +36,11 @@ server.listen(SERVER_PORT, () => {
 	hack.allowSelfSignedCertificate();
 
 	createRecordingsDirectory();
+
+	console.log("Pulling Docker images needed...");
+	await new DockerService().pullImagesNeeded();
+
+	await InstanceService.getInstance().cleanEnvironment();
 
 	console.log("---------------------------------------------------------");
 	console.log(" ");

@@ -20,33 +20,34 @@ export class ElasticSearchService {
 	}
 
 	async initialize(){
-		if(this.isHostnameAvailable() && !this.client) {
-			const clientOptions: ClientOptions = {
-				node: process.env.ELASTICSEARCH_HOSTNAME,
-				maxRetries: 5,
-  				requestTimeout: 10000,
-				ssl: {
-					rejectUnauthorized: false
-				}
-			};
+		const clientOptions: ClientOptions = {
+			node: process.env.ELASTICSEARCH_HOSTNAME,
+			maxRetries: 5,
+			requestTimeout: 10000,
+			ssl: {
+				rejectUnauthorized: false
+			}
+		};
 
-			if(this.isSecured()) {
-				clientOptions.auth = {
-					username: process.env.ELASTICSEARCH_USERNAME,
-					password: process.env.ELASTICSEARCH_PASSWORD
-				};
-			}
-			try {
-				this.client = new Client(clientOptions);
-				const pingSuccess = await this.client.ping();
-				this.pingSuccess = pingSuccess.body;
-				if(this.pingSuccess) {
-					await this.createIndex(this.LOAD_TEST_INDEX);
-				}
-			} catch (error) {
-				console.error(error);
-			}
+		if(this.isSecured()) {
+			clientOptions.auth = {
+				username: process.env.ELASTICSEARCH_USERNAME,
+				password: process.env.ELASTICSEARCH_PASSWORD
+			};
 		}
+		try {
+			console.log("Connecting with ElasticSearch ...");
+			this.client = new Client(clientOptions);
+			const pingSuccess = await this.client.ping();
+			this.pingSuccess = pingSuccess.body;
+			if(this.pingSuccess) {
+				await this.createIndex(this.LOAD_TEST_INDEX);
+			}
+		} catch (error) {
+			console.error("Error connecting with ElasticSearch: ", error);
+			throw error;
+		}
+
 	}
 
 	async sendJson(json: JSONStatsResponse) {
@@ -65,6 +66,10 @@ export class ElasticSearchService {
 
 	isElasticSearchAvailable(): boolean {
 		return this.pingSuccess;
+	}
+
+	needToBeConfigured(): boolean {
+ 		return this.isHostnameAvailable() && !this.client;
 	}
 
 	private isHostnameAvailable(): boolean {

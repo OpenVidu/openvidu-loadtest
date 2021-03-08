@@ -5,7 +5,7 @@ export const app = express.Router({
     strict: true
 });
 
-const instanceService: InstanceService = new InstanceService();
+const instanceService: InstanceService = InstanceService.getInstance();
 
 
 app.get("/cpu", async (req: Request, res: Response) => {

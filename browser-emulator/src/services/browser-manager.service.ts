@@ -12,7 +12,7 @@ export class BrowserManagerService {
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
-		private instanceService: InstanceService = new InstanceService(),
+		private instanceService: InstanceService = InstanceService.getInstance(),
 		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
@@ -31,7 +31,10 @@ export class BrowserManagerService {
 		let connectionId: string;
 		let webrtcStorageName: string;
 		let webrtcStorageValue: string;
-		await this.elasticSearchService.initialize();
+		if(this.elasticSearchService.needToBeConfigured()) {
+			await this.elasticSearchService.initialize();
+			await this.instanceService.launchMetricBeat();
+		}
 
 		if(this.elasticSearchService.isElasticSearchAvailable()){
 			webrtcStorageName = this.webrtcStorageService.getItemName();
