@@ -29,8 +29,8 @@ window.onload = () => {
 	OPENVIDU_TOKEN = url.searchParams.get("token");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
-	AUDIO = url.searchParams.get("audio");
-	VIDEO = url.searchParams.get("video");
+	AUDIO = url.searchParams.get("audio") === 'true';
+	VIDEO = url.searchParams.get("video") === 'true';
 	RESOLUTION = url.searchParams.get("resolution");
 	ROLE = url.searchParams.get("role");
 	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
@@ -41,9 +41,6 @@ window.onload = () => {
 	const tokenHasBeenReceived = !!USER_ID && !!OPENVIDU_TOKEN;
 
 	if(tokenCanBeCreated || tokenHasBeenReceived){
-		window.openviduLoadTest.sessionId = SESSION_ID;
-		window.collectEventsAndStats = this.collectEventsAndStats;
-		window.resetEventsAndStats = this.resetEventsAndStats;
 		joinSession();
 	} else {
 		initFormValues();
