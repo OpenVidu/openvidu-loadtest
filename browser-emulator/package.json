@@ -18,6 +18,7 @@
     "canvas": "2.7.0",
     "dockerode": "3.2.1",
     "express": "4.17.1",
+    "kurento-client": "^6.16.0",
     "node-fetch": "2.6.1",
     "node-localstorage": "2.1.6",
     "node-os-utils": "1.3.5",
