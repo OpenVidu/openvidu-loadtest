@@ -44,16 +44,13 @@ export class EmulateBrowserService {
 					this.stopVideoCanvasInterval();
 					const publisher: Publisher = ov.initPublisher(null, {
 						audioSource: properties.audio,
-						videoSource: properties.video,
+						videoSource: properties.video ? this.videoTrack : null,
 						publishAudio: properties.audio,
 						publishVideo: properties.video,
 						resolution: this.WIDTH + 'x' + this.HEIGHT,
 						frameRate: properties.frameRate,
 					});
 					await session.publish(publisher);
-					if(properties.video){
-						await publisher.replaceTrack(this.videoTrack);
-					}
 					const frameRateEstimation = 1000 / properties.frameRate;
 					this.startVideoCanvasInterval(frameRateEstimation);
 				}

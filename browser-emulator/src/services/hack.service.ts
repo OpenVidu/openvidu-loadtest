@@ -30,12 +30,11 @@ export class HackService {
 	webrtc() {
 
 		globalThis.RTCPeerConnection = RTCPeerConnectionWRTC;
-		// window['RTCPeerConnection'] = RTCPeerConnection;
-		window['RTCIceCandidate'] = RTCIceCandidateWRTC;
-		window['RTCSessionDescription'] = RTCSessionDescriptionWRTC;
-		window['getUserMedia'] = getUserMediaWRTC;
-		window['MediaStream'] = MediaStreamWRTC;
-		window['MediaStreamTrack'] = MediaStreamTrackWRTC;
+		globalThis.RTCIceCandidate = RTCIceCandidateWRTC;
+		globalThis.RTCSessionDescription = RTCSessionDescriptionWRTC;
+		globalThis.getUserMedia = getUserMediaWRTC;
+		globalThis.MediaStream = MediaStreamWRTC;
+		globalThis.MediaStreamTrack = MediaStreamTrackWRTC;
 		(<any>globalThis.navigator)['mediaDevices'] = mediaDevicesWRTC;
 
 	}
