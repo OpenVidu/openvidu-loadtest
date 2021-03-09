@@ -93,9 +93,6 @@ export class DockerService {
 			await container.remove({ force: true });
 	        console.log('Container ' + container.id + ' stopped');
 		}
-		else {
-	        console.error('Container ' + nameOrId + ' does not exist');
-	    }
 	}
 
 	async pullImagesNeeded() {
