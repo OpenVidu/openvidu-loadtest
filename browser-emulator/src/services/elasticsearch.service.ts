@@ -9,7 +9,7 @@ export class ElasticSearchService {
 
 	private client: Client;
 	private pingSuccess: boolean = false;
-	private readonly LOAD_TEST_INDEX = 'loadtest';
+	private readonly LOAD_TEST_INDEX = 'loadtest-webrtc-stats';
 	protected static instance: ElasticSearchService;
 
 	private constructor() {	}
