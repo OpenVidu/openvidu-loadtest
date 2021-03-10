@@ -61,6 +61,13 @@ By default, this worker is listening on port `5000` that you have to specify lat
 SERVER_PORT=6000 npm run start
 ```
 
+Moreover, the worker will assign `NODE_WEBRTC` for emulated users. You can set `KMS` type adding `EMULATED_USER_TYPE=KMS`
+
+```bash
+EMULATED_USER_TYPE=KMS npm run start
+```
+See [emulated user types](browser-emulator/src/types/config.type.ts).
+
 ### 2. Execute controller
 
 In the machine you want to execute the controller you need to have Java 11 platform installed.
@@ -219,7 +226,7 @@ _Create a new Stream Manager with a specified **token**_
 * #### BODY
 	```json
 	{
-		"browserMode": "emulate",
+		"browserMode": "EMULATE",
 		"properties": {
 			"token": "*****",
 			"userId": "User1",
@@ -251,7 +258,7 @@ _Create a new Stream Manager with a specified **role** and connect it into a spe
 	{
 		"openviduUrl": "https://localhost:4443",
 		"openviduSecret": "MY_SECRET",
-		"browserMode": "emulate",
+		"browserMode": "EMULATE",
 		"properties": {
 			"userId": "User1",
 			"sessionName": "LoadTestSession",
@@ -284,7 +291,7 @@ To make the load test completely functional, the browser-emulator service also a
     "elasticSearchHost": "your ElasticSearch hostname",
     "elasticSearchUserName": "your ElasticSearch usename",
     "elasticSearchPassword": "your ElasticSearch password",
-    "browserMode": "'emulate' or 'real'",
+    "browserMode": "'EMULATE' or 'REAL'",
 	"properties": Properties JSON object << See properties list >>
 }
 ```
@@ -298,7 +305,7 @@ To make the load test completely functional, the browser-emulator service also a
 |  **elasticSearchHost** |  String | ElasticSearch hostname.|
 |  **elasticSearchUserName** | String  | ElasticSearch username.  |
 |  **elasticSearchPassword** | String  | ElasticSearch password.  |
-|  **browserMode** | String  | If `emulate` the service will emulate a browser. If  `real`, the service will launch a Chrome browser docker container. Default `emulate` Choosing `emulate`, **you must ensure that OpenVidu aren't forcing H264 coded**|
+|  **browserMode** | String  | If `EMULATE` the service will emulate a browser. If  `REAL`, the service will launch a Chrome browser docker container. Default `EMULATE` Choosing `EMULATE`, **you must ensure that OpenVidu aren't forcing H264 coded**|
 |  **properties** | JSON Object   | [See properties object](#properties-json-object) |
 
 
@@ -316,9 +323,9 @@ To make the load test completely functional, the browser-emulator service also a
 |  **resolution** | String   |Resolution of the video. Default `640x480`. [See publisher property](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/interfaces/publisherproperties.html#resolution) |
 |  **recordingOutputMode** | String   | `COMPOSED` or `INDIVIDUAL`|
 |**frameRate**| Number (0-30)  | Desired framerate of the video in frames per second. Default `30`|
-|  **recording** | Boolean  |  If `browserMode` is `real` and you want record the Chrome browser using ffmpeg. Default `false`.  |
-|  **showVideoElements** | Boolean  | If `browserMode` is `real` and you want show videos elements into the app running in Chrome. Default `true`|
-|  **headless** | Boolean  | If `browserMode` is `real` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |
+|  **recording** | Boolean  |  If `browserMode` is `REAL` and you want record the Chrome browser using ffmpeg. Default `false`.  |
+|  **showVideoElements** | Boolean  | If `browserMode` is `REAL` and you want show videos elements into the app running in Chrome. Default `true`|
+|  **headless** | Boolean  | If `browserMode` is `REAL` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |
 
 
 #### **DELETE STREAM MANAGER** _(by connectionId)_

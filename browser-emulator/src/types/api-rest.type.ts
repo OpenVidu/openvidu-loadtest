@@ -10,8 +10,8 @@ export interface LoadTestPostRequest {
 
 
 export enum BrowserMode {
-	EMULATE = 'emulate',
-	REAL = 'real'
+	EMULATE = 'EMULATE',
+	REAL = 'REAL'
 }
 
 export enum RecordingMode {
