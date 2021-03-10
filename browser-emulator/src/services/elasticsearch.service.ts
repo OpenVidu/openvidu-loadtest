@@ -1,7 +1,9 @@
 
 import { ApiResponse, Client, ClientOptions } from '@elastic/elasticsearch';
 import { Index } from '@elastic/elasticsearch/api/requestParams';
+import { APPLICATION_MODE } from '../config';
 import { JSONStatsResponse } from '../types/api-rest.type';
+import { ApplicationMode } from '../types/config.type';
 
 export class ElasticSearchService {
 
@@ -51,7 +53,7 @@ export class ElasticSearchService {
 	}
 
 	async sendJson(json: JSONStatsResponse) {
-		if(this.isElasticSearchAvailable()) {
+		if(this.isElasticSearchAvailable() && APPLICATION_MODE === ApplicationMode.PROD) {
 			console.log(`Sending webrtc stats JSON to ElasticSearch ${process.env.ELASTICSEARCH_HOSTNAME}`);
 			let indexData: Index<Record<string, any>> = {
 				index: this.LOAD_TEST_INDEX,

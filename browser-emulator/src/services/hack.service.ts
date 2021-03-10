@@ -8,7 +8,7 @@ const fetch = require("node-fetch");
 const LocalStorage = require('node-localstorage').LocalStorage;
 import platform = require('platform');
 import { EMULATED_USER_TYPE } from '../config';
-import { EmulatedUserType } from '../types/emulated-user.type';
+import { EmulatedUserType } from '../types/config.type';
 
 const RTCPeerConnectionWRTC = require('wrtc').RTCPeerConnection;
 const RTCIceCandidateWRTC = require('wrtc').RTCIceCandidate;

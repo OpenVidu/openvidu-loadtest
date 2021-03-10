@@ -1,4 +1,6 @@
 import * as os  from 'node-os-utils';
+import { APPLICATION_MODE } from '../config';
+import { ApplicationMode } from '../types/config.type';
 import { DockerService } from './docker.service';
 
 export class InstanceService {
@@ -30,7 +32,7 @@ export class InstanceService {
 	}
 
 	async launchMetricBeat() {
-		if(!this.isMetricbeatStarted()){
+		if(!this.isMetricbeatStarted() && APPLICATION_MODE === ApplicationMode.PROD) {
 			try {
 				this.containerId = await this.dockerService.startMetricBeat(this.METRICBEAT_CONTAINER_NAME);
 			} catch (error) {

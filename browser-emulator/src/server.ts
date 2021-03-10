@@ -2,7 +2,7 @@ import fs = require('fs');
 import https = require('https');
 import * as express from "express";
 
-import { SERVER_PORT } from "./config";
+import { APPLICATION_MODE, SERVER_PORT } from "./config";
 import { HackService } from "./services/hack.service";
 
 import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
@@ -10,6 +10,7 @@ import {app as webrtcStatsController} from './controllers/webrtc-stats.controlle
 
 import { DockerService } from './services/docker.service';
 import { InstanceService } from './services/instance.service';
+import { ApplicationMode } from './types/config.type';
 
 
 const app = express();
@@ -39,8 +40,10 @@ server.listen(SERVER_PORT, async () => {
 
 	createRecordingsDirectory();
 
-	console.log("Pulling Docker images needed...");
-	await new DockerService().pullImagesNeeded();
+	if(APPLICATION_MODE === ApplicationMode.PROD) {
+		console.log("Pulling Docker images needed...");
+		await new DockerService().pullImagesNeeded();
+	}
 
 	await InstanceService.getInstance().cleanEnvironment();
 

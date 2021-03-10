@@ -13,3 +13,8 @@ export enum EmulatedUserType {
 	KMS = 'KMS',
 	NODE_WEBRTC = 'NODE_WEBRTC'
 }
+
+export enum ApplicationMode {
+	PROD = 'PRODUCTION',
+	DEV = 'DEVELOPMENT'
+}
