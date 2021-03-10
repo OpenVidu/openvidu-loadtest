@@ -2,7 +2,7 @@ import fs = require('fs');
 import https = require('https');
 import * as express from "express";
 
-import { APPLICATION_MODE, SERVER_PORT } from "./config";
+import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT } from "./config";
 import { HackService } from "./services/hack.service";
 
 import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
@@ -49,6 +49,8 @@ server.listen(SERVER_PORT, async () => {
 
 	console.log("---------------------------------------------------------");
 	console.log(" ");
+	console.log(`App started in ${APPLICATION_MODE} mode`);
+	console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
 	console.log(`Listening in port ${SERVER_PORT}`);
 	console.log(" ");
 	console.log("---------------------------------------------------------");
