@@ -184,6 +184,7 @@ public class LoadTestController {
 
 	public void cleanEnvironment() {
 		this.browserEmulatorClient.disconnectAll();
+		sessionNumber.set(0);
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 	}
 
