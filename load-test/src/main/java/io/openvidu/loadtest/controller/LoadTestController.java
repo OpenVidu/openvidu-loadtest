@@ -44,14 +44,11 @@ public class LoadTestController {
 
 	public void startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
-		this.startTime = Calendar.getInstance();
-		// Subtract five minutes because of Kibana time filter
-		this.startTime.add(Calendar.MINUTE, -ONE_MINUTE);
-
+		
 		testCasesList.forEach(testCase -> {
 
 			if (testCase.is_NxN()) {
-
+				this.initCalendarTime();
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					System.out.print("\n");
@@ -64,6 +61,8 @@ public class LoadTestController {
 					this.startNxNTest(participantsBySession, testCase.getSessions());
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
+					this.showLoadTestReport();
+
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
@@ -78,6 +77,7 @@ public class LoadTestController {
 					this.startNxMTest(publishers, subscribers, testCase.getSessions(), testCase.is_TEACHING());
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
+					this.showLoadTestReport();
 				}
 
 			} else {
@@ -86,8 +86,6 @@ public class LoadTestController {
 			}
 
 		});
-
-		this.showLoadTestReport();
 
 	}
 
@@ -182,10 +180,16 @@ public class LoadTestController {
 
 	}
 
-	public void cleanEnvironment() {
+	private void cleanEnvironment() {
 		this.browserEmulatorClient.disconnectAll();
 		sessionNumber.set(0);
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
+	}
+	
+	private void initCalendarTime() {
+		this.startTime = Calendar.getInstance();
+		// Subtract five minutes because of Kibana time filter
+		this.startTime.add(Calendar.MINUTE, -ONE_MINUTE);
 	}
 
 	private void showLoadTestReport() {
