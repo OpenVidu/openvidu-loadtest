@@ -36,7 +36,7 @@ public class LoadTestController {
 
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	private static final int FIVE_MINUTES = 5;
+	private static final int ONE_MINUTE = 1;
 
 	private static AtomicInteger sessionNumber = new AtomicInteger(0);
 	private static AtomicInteger userNumber = new AtomicInteger(1);
@@ -46,7 +46,7 @@ public class LoadTestController {
 		this.kibanaClient.importDashboards();
 		this.startTime = Calendar.getInstance();
 		// Subtract five minutes because of Kibana time filter
-		this.startTime.add(Calendar.MINUTE, -FIVE_MINUTES);
+		this.startTime.add(Calendar.MINUTE, -ONE_MINUTE);
 
 		testCasesList.forEach(testCase -> {
 
@@ -62,7 +62,7 @@ public class LoadTestController {
 							participantsBySession);
 
 					this.startNxNTest(participantsBySession, testCase.getSessions());
-					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished(), "time after test finished");
+					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
@@ -76,7 +76,7 @@ public class LoadTestController {
 							publishers + subscribers, publishers, subscribers);
 
 					this.startNxMTest(publishers, subscribers, testCase.getSessions(), testCase.is_TEACHING());
-					sleep(loadTestConfig.getSecondsToWaitAfterTestFinished(), "time after test finished");
+					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
 				}
 
@@ -184,13 +184,13 @@ public class LoadTestController {
 
 	public void cleanEnvironment() {
 		this.browserEmulatorClient.disconnectAll();
-		sleep(5, "time cleaning environment");
+		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 	}
 
 	private void showLoadTestReport() {
 
 		Calendar endCalendarTime = Calendar.getInstance();
-		endCalendarTime.add(Calendar.MINUTE, FIVE_MINUTES);
+		endCalendarTime.add(Calendar.MINUTE, ONE_MINUTE);
 
 		// Parse date to match with Kibana time filter
 		String startTime = formatter.format(this.startTime.getTime()).replace(" ", "T");
