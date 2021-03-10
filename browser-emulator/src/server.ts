@@ -40,12 +40,14 @@ server.listen(SERVER_PORT, async () => {
 
 	createRecordingsDirectory();
 
+	const instanceService = InstanceService.getInstance();
+	await instanceService.cleanEnvironment();
+
 	if(APPLICATION_MODE === ApplicationMode.PROD) {
 		console.log("Pulling Docker images needed...");
 		await new DockerService().pullImagesNeeded();
+		await instanceService.launchMetricBeat();
 	}
-
-	await InstanceService.getInstance().cleanEnvironment();
 
 	console.log("---------------------------------------------------------");
 	console.log(" ");

@@ -33,7 +33,6 @@ export class BrowserManagerService {
 		let webrtcStorageValue: string;
 		if(this.elasticSearchService.needToBeConfigured()) {
 			await this.elasticSearchService.initialize();
-			await this.instanceService.launchMetricBeat();
 		}
 
 		if(this.elasticSearchService.isElasticSearchAvailable()){
