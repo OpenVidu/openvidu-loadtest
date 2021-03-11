@@ -7,11 +7,17 @@ public class TestCase {
 	private String typology;
 	private List<String> participants;
 	private int sessions;
+	private BrowserMode browserMode;
+	private boolean recording = false;
+	private boolean headless = false;
 
-	public TestCase(String typology, List<String> participants, int sessions) {
+	public TestCase(String typology, List<String> participants, int sessions, BrowserMode browserMode, boolean headless, boolean recording) {
 		this.typology = typology;
 		this.participants = participants;
 		this.sessions = sessions;
+		this.browserMode = browserMode;
+		this.recording = recording;
+		this.headless = headless;
 	}
 
 	public boolean is_NxN() {
@@ -49,13 +55,40 @@ public class TestCase {
 	public void setSessions(int sessions) {
 		this.sessions = sessions;
 	}
+	
+	public BrowserMode getBrowserMode() {
+		return browserMode;
+	}
+
+	public void setBrowserMode(BrowserMode browserMode) {
+		this.browserMode = browserMode;
+	}
+
+	public boolean isRecording() {
+		return recording && this.browserMode.equals(BrowserMode.REAL);
+	}
+
+	public void setRecording(boolean recording) {
+		this.recording = recording;
+	}
+
+	public boolean isHeadless() {
+		return headless && this.browserMode.equals(BrowserMode.REAL);
+	}
+
+	public void setHeadless(boolean headless) {
+		this.headless = headless;
+	}
 
 	@Override
 	public String toString() {
 		String sessionLimit = sessions == -1 ? "No limit" : Integer.toString(sessions);
 		return "Session typology: " + typology + 
-				"Participants in session: " + participants +
-				"Sessions limit: " + sessionLimit;
+				" | Participants in session: " + participants +
+				" | Sessions limit: " + sessionLimit + 
+				" | Browser mode: " + browserMode.getValue() +
+				" | Headless: " + isHeadless() +
+				" | Recording: " + isRecording();
 	}
 
 }

@@ -61,7 +61,7 @@ public class LoadTestController {
 					log.info("Each session will be composed by {} USERS. All of them will be PUBLISHERS",
 							participantsBySession);
 
-					this.startNxNTest(participantsBySession, testCase.getSessions());
+					this.startNxNTest(participantsBySession, testCase);
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
 					this.saveReportLink();
@@ -77,7 +77,7 @@ public class LoadTestController {
 					log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",
 							publishers + subscribers, publishers, subscribers);
 
-					this.startNxMTest(publishers, subscribers, testCase.getSessions(), testCase.is_TEACHING());
+					this.startNxMTest(publishers, subscribers, testCase);
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
 					this.saveReportLink();
@@ -91,11 +91,10 @@ public class LoadTestController {
 		});
 		
 		this.showLoadTestReport(testCasesList);
-
-
 	}
 
-	private void startNxNTest(int participantsBySession, int sessionsLimit) {
+	private void startNxNTest(int participantsBySession, TestCase testCase) {
+		int sessionsLimit = testCase.getSessions();
 
 		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
 
@@ -110,7 +109,7 @@ public class LoadTestController {
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get());
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), testCase);
 
 				if (responseIsOk && userNumber.get() < participantsBySession) {
 					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
@@ -129,9 +128,9 @@ public class LoadTestController {
 		}
 	}
 
-	private void startNxMTest(int publishers, int subscribers, int sessionsLimit, boolean isTeaching) {
+	private void startNxMTest(int publishers, int subscribers, TestCase testCase) {
 		int totalParticipants = subscribers + publishers;
-
+		int sessionsLimit = testCase.getSessions();
 		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
 
 			if (responseIsOk && sessionNumber.get() > 0) {
@@ -147,7 +146,7 @@ public class LoadTestController {
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get());
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), testCase);
 				if (!responseIsOk) {
 					log.error("Response status is not 200 OK. Exit");
 					return;
@@ -161,7 +160,7 @@ public class LoadTestController {
 					log.info("Creating SUBSCRIBER '{}' in session",
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 					responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get(),
-							isTeaching);
+							testCase);
 
 					if (responseIsOk && userNumber.get() < totalParticipants) {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");

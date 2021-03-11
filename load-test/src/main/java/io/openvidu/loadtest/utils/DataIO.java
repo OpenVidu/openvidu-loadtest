@@ -12,6 +12,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
 
+import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.TestCase;
 
 @Service
@@ -41,17 +42,25 @@ public class DataIO {
 
 	private List<TestCase> convertJsonArrayToTestCasesList(JsonArray array) {
 
-		
 		List<TestCase> testCaseList = new ArrayList<TestCase>();
 
 		for (int i = 0; i < array.size(); i++) {
-			String typology = array.get(i).getAsJsonObject().get("typology").getAsString();
-			String sessionsStr = array.get(i).getAsJsonObject().get("sessions").getAsString();
-			JsonArray participantsArray = (JsonArray) array.get(i).getAsJsonObject().get("participants");
+			JsonObject element = array.get(i).getAsJsonObject();
+			boolean headless = false;
+			boolean recording = false;
+			String typology = element.get("typology").getAsString();
+			String sessionsStr = element.get("sessions").getAsString();
+			JsonArray participantsArray = (JsonArray) element.get("participants");
 			List<String> participants = jsonUtils.getStringList(participantsArray);
-
+			String browserModeStr = element.get("browserMode").getAsString();
+			BrowserMode browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
 			int sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
-			testCaseList.add(new TestCase(typology, participants, sessions));
+
+			if(browserMode.equals(BrowserMode.REAL)) {
+				recording = element.get("recording").getAsBoolean();
+				headless = element.get("headless").getAsBoolean();
+			}
+			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, headless, recording));
 		}
 
 		return testCaseList;

@@ -20,6 +20,7 @@ import com.google.gson.JsonObject;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.RequestBody;
+import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -46,10 +47,10 @@ public class BrowserEmulatorClient {
 		workerUrlList = this.loadTestConfig.getWorkerUrlList();
 	}
 
-	public boolean createPublisher(int userNumber, int sessionNumber) {
+	public boolean createPublisher(int userNumber, int sessionNumber, TestCase testCase) {
 		String workerUrl = "";
-		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, false);
-
+		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
+		
 		try {
 			workerUrl = getNextWorkerUrl();
 			log.info("Selected worker: {}", workerUrl);
@@ -66,11 +67,11 @@ public class BrowserEmulatorClient {
 		return false;
 	}
 
-	public boolean createSubscriber(int userNumber, int sessionNumber, boolean isTeaching) {
+	public boolean createSubscriber(int userNumber, int sessionNumber, TestCase testCase) {
 		String workerUrl = "";
-		OpenViduRole role = isTeaching ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
+		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
 
-		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, isTeaching);
+		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
 
 		try {
 			workerUrl = getNextWorkerUrl();
@@ -163,19 +164,24 @@ public class BrowserEmulatorClient {
 
 	}
 
-	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role, boolean isTeaching) {
+	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role, TestCase testCase ) {
 		
-		boolean video = !(isTeaching && role.equals(OpenViduRole.SUBSCRIBER));
+		boolean video = testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER);
 		
 		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
 				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
-				// Adding these parameters, the client send the webrtc stats to ElasticSearch
-//				.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
-//				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
-//				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
+				.browserMode(testCase.getBrowserMode())
+				.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
+				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
+				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
 				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
-				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber).audio(true).video(video)
-				.role(role).build();
+				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber)
+				.audio(true).video(video)
+				.role(role)
+				.recording(testCase.isRecording())
+				.showVideoElements(!testCase.isHeadless())// TODO: new param in testCase.json?
+				.headless(testCase.isHeadless())
+				.build();
 
 	}
 
