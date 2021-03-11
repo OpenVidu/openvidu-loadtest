@@ -1,14 +1,46 @@
 {
-    "compilerOptions": {
-        "target": "es6",
-        "module": "commonjs",
-        "outDir": "dist",
-        "sourceMap": true
-    },
-    "include": [
-        "src/**/*.ts"
-    ],
-    "exclude": [
-        "node_modules"
-    ]
+  // TSConfig Base (https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#tsconfig-bases)
+  // Use recommended base settings for the Node.js runtime.
+  "extends": "@tsconfig/node14/tsconfig.json",
+
+  // Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
+  "compilerOptions": {
+    // Type Declarations (https://www.typescriptlang.org/tsconfig#declaration)
+    // Generate type files (*.d.ts) for both TypeScript and JavaScript.
+    // This helps with type-checking the Kurento JS client files.
+    "declaration": true,
+    "declarationMap": true,
+
+    // Linter Checks (https://www.typescriptlang.org/tsconfig#Additional_Checks_6176)
+    // These help with writing better code. Enable as many as possible.
+    //"noFallthroughCasesInSwitch": true,
+    //"noImplicitReturns": true,
+    //"noPropertyAccessFromIndexSignature": true,
+    //"noUncheckedIndexedAccess": true,
+    //"noUnusedLocals": true,
+    //"noUnusedParameters": true,
+
+    // Output Dir (https://www.typescriptlang.org/tsconfig#outDir)
+    // Put all compilation artifacts into a separate directory.
+    "outDir": "./dist",
+
+    // Source Map (https://www.typescriptlang.org/tsconfig#sourceMap)
+    // Generate sourcemap files (*.js.map), for debugging.
+    "sourceMap": true,
+
+    // DEBUG - Uncomment when needed.
+    // "explainFiles": true,
+
+    // FIXME - Code needs to be fixed, then these should be removed.
+    "strict": false,
+    "esModuleInterop": false,
+  },
+
+  // Included Files (https://www.typescriptlang.org/tsconfig#include)
+  "include": ["./src/**/*.ts"],
+
+  // Excluded Files (https://www.typescriptlang.org/tsconfig#exclude)
+  // Filters out stuff that has been previously included in "include".
+  // Note the default value already has the most typical exclusions.
+  //"exclude": ["..."],
 }
