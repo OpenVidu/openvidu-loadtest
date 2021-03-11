@@ -33,7 +33,7 @@ const server = https.createServer(options, app);
 server.listen(SERVER_PORT, async () => {
 	const hack = new HackService();
 	hack.openviduBrowser();
-	hack.webrtc();
+	await hack.webrtc();
 	hack.websocket();
 	hack.platform();
 	hack.allowSelfSignedCertificate();
