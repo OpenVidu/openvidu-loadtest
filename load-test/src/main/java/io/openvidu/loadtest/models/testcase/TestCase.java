@@ -52,7 +52,10 @@ public class TestCase {
 
 	@Override
 	public String toString() {
-		return "TestCase [typology=" + typology + ", participants=" + participants + ", sessions=" + sessions + "]";
+		String sessionLimit = sessions == -1 ? "No limit" : Integer.toString(sessions);
+		return "Session typology: " + typology + 
+				"Participants in session: " + participants +
+				"Sessions limit: " + sessionLimit;
 	}
 
 }

@@ -1,6 +1,7 @@
 package io.openvidu.loadtest.controller;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,6 +42,8 @@ public class LoadTestController {
 	private static AtomicInteger sessionNumber = new AtomicInteger(0);
 	private static AtomicInteger userNumber = new AtomicInteger(1);
 	private static boolean responseIsOk = true;
+	
+	private static List<String> resultsReportList = new ArrayList<String>();
 
 	public void startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
@@ -61,7 +64,7 @@ public class LoadTestController {
 					this.startNxNTest(participantsBySession, testCase.getSessions());
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
-					this.showLoadTestReport();
+					this.saveReportLink();
 
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
@@ -77,7 +80,7 @@ public class LoadTestController {
 					this.startNxMTest(publishers, subscribers, testCase.getSessions(), testCase.is_TEACHING());
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
 					this.cleanEnvironment();
-					this.showLoadTestReport();
+					this.saveReportLink();
 				}
 
 			} else {
@@ -86,6 +89,9 @@ public class LoadTestController {
 			}
 
 		});
+		
+		this.showLoadTestReport(testCasesList);
+
 
 	}
 
@@ -192,7 +198,7 @@ public class LoadTestController {
 		this.startTime.add(Calendar.MINUTE, -ONE_MINUTE);
 	}
 
-	private void showLoadTestReport() {
+	private void saveReportLink() {
 
 		Calendar endCalendarTime = Calendar.getInstance();
 		endCalendarTime.add(Calendar.MINUTE, ONE_MINUTE);
@@ -202,9 +208,23 @@ public class LoadTestController {
 		String endTime = formatter.format(endCalendarTime.getTime()).replace(" ", "T");
 
 		String url = this.kibanaClient.getDashboardUrl(startTime, endTime);
-		log.info("Load Test finished.");
-		log.info("Kibana Dashboard Report: {} ", url);
+		
+		resultsReportList.add(url);
+//		log.info("Load Test finished.");
+//		log.info("Kibana Dashboard Report: {} ", url);
 
+	}
+	
+	private void showLoadTestReport(List<TestCase> testCasesList) {
+
+		log.info("Load Test finished.");
+		for(int i = 0; i < testCasesList.size(); i++) {
+			log.info("--- Load Test Report --- ");
+			log.info("Test Case Number : {} ", i + 1);
+			log.info("{}", testCasesList.get(i).toString());
+			log.info("Kibana Dashboard Report : {} ", resultsReportList.get(i));
+			System.out.print("\n");
+		}		
 	}
 
 //	private void showIterationReport(int sessionsCreated, int currentUserNumber, int participantsBySession) {
