@@ -40,6 +40,7 @@ export class BrowserManagerService {
 			webrtcStorageName = this.webrtcStorageService.getItemName();
 			webrtcStorageValue = this.webrtcStorageService.getConfig();
 		}
+		this.printRequestInfo(request);
 
 		if(request.browserMode === BrowserMode.REAL){
 			// Create new stream manager using launching a normal Chrome browser
@@ -57,7 +58,6 @@ export class BrowserManagerService {
 				this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
 			}
 			// Create new stream manager using node-webrtc library, emulating a normal browser.
-			console.log(`Creating ${request.properties.role} ${request.properties.userId} in session ${request.properties.sessionName} using emulate browser`);
 			connectionId = await this.emulateBrowserService.createStreamManager(request.token, request.properties);
 		}
 
@@ -78,6 +78,21 @@ export class BrowserManagerService {
 		}
 
 		return await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
+	}
+
+
+	private printRequestInfo(req: LoadTestPostRequest): void {
+
+		const info = `Starting a ${req.properties.role} participant in a ${req.browserMode} with: \n` +
+					`Audio: ${req.properties.audio} \n` +
+					`Video: ${req.properties.video} \n` +
+					`Frame Rate: ${req.properties.frameRate} \n` +
+					`Resolution: ${req.properties.resolution} \n` +
+					`OpenVidu Recording: ${req.properties.recordingOutputMode} \n` +
+					`Recording Browser: ${req.properties.recording} \n` +
+					`Headless Browser: ${req.properties.headless} \n`;
+		console.log(info);
+
 	}
 
 }
