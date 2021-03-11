@@ -83,7 +83,7 @@ export class BrowserManagerService {
 
 	private printRequestInfo(req: LoadTestPostRequest): void {
 
-		const info = `Starting a ${req.properties.role} participant in a ${req.browserMode} with: \n` +
+		const info = `Starting a ${req.properties.role} participant in a ${req.browserMode} browser with: \n` +
 					`Audio: ${req.properties.audio} \n` +
 					`Video: ${req.properties.video} \n` +
 					`Frame Rate: ${req.properties.frameRate} \n` +
