@@ -54,7 +54,7 @@ export class ElasticSearchService {
 
 	async sendJson(json: JSONStatsResponse) {
 		if(this.isElasticSearchAvailable() && APPLICATION_MODE === ApplicationMode.PROD) {
-			console.log(`Sending webrtc stats JSON to ElasticSearch ${process.env.ELASTICSEARCH_HOSTNAME}`);
+			// console.log(`Sending webrtc stats JSON to ElasticSearch ${process.env.ELASTICSEARCH_HOSTNAME}`);
 			let indexData: Index<Record<string, any>> = {
 				index: this.LOAD_TEST_INDEX,
 				body: {}
