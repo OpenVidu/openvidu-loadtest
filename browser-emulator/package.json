@@ -4,10 +4,13 @@
   "description": "",
   "main": "server.ts",
   "scripts": {
-    "start": "node_modules/nodemon/bin/nodemon.js src/server.ts",
-    "start:dev": "APPLICATION_MODE=DEVELOPMENT node_modules/nodemon/bin/nodemon.js src/server.ts",
+    "// FIXME Canvas forces importing the DOM module:": "",
+    "// https://github.com/Automattic/node-canvas/issues/1656": "",
+    "//postinstall": "rm -f ./node_modules/typescript/lib/lib.dom.d.ts",
+    "start": "nodemon ./src/server.ts",
+    "start:dev": "APPLICATION_MODE=DEVELOPMENT nodemon ./src/server.ts",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo 'Error: no test specified' && exit 1"
   },
   "author": "Carlos Santos",
   "license": "Apache 2.0",
