@@ -37,7 +37,7 @@ public class LoadTestController {
 
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	private static final int ONE_MINUTE = 1;
+	private static final int THIRTY_SECONDS = 30;
 
 	private static AtomicInteger sessionNumber = new AtomicInteger(0);
 	private static AtomicInteger userNumber = new AtomicInteger(1);
@@ -196,13 +196,13 @@ public class LoadTestController {
 	private void initCalendarTime() {
 		this.startTime = Calendar.getInstance();
 		// Subtract five minutes because of Kibana time filter
-		this.startTime.add(Calendar.MINUTE, -ONE_MINUTE);
+		this.startTime.add(Calendar.SECOND, -THIRTY_SECONDS);
 	}
 
 	private void saveReportLink() {
 
 		Calendar endCalendarTime = Calendar.getInstance();
-		endCalendarTime.add(Calendar.MINUTE, ONE_MINUTE);
+		endCalendarTime.add(Calendar.SECOND, THIRTY_SECONDS);
 
 		// Parse date to match with Kibana time filter
 		String startTime = formatter.format(this.startTime.getTime()).replace(" ", "T");
