@@ -15,10 +15,7 @@ export async function init(
         kurentoUrl
     );
 
-    // DOESN'T WORK?
     kurentoClient = await KurentoClient.getSingleton(kurentoUrl);
-    // kurentoClient is still undefined
-    // kurentoClient = new KurentoClient(kurentoUrl);
     console.log("[KurentoClient] Kurento client connected");
 
     kurentoPipeline = await kurentoClient.create("MediaPipeline");
@@ -26,6 +23,9 @@ export async function init(
 
     kurentoPlayerEp = await kurentoPipeline.create("PlayerEndpoint", {
         uri: `file://${filePath}`,
+
+        useEncodedMedia: false,
+        // useEncodedMedia: true,
     });
     console.log(
         "[KurentoClient] Kurento PlayerEndpoint created, uri:",
@@ -34,17 +34,21 @@ export async function init(
 }
 
 export async function makeWebRtcEndpoint(
-    recvonly: boolean,
-    sendonly: boolean
+    recvonly: boolean = false,
+    sendonly: boolean = false
 ): Promise<any> {
     const kurentoWebRtcEp = await kurentoPipeline.create("WebRtcEndpoint", {
         recvonly,
         sendonly,
     });
-    console.log("[KurentoClient] Kurento WebRtcEndpoint created");
+    console.log(
+        `[KurentoClient] Kurento WebRtcEndpoint created, recvonly: ${recvonly}, sendonly: ${sendonly}`
+    );
 
     await kurentoPlayerEp.connect(kurentoWebRtcEp);
     console.log("[KurentoClient] PlayerEndpoint connected to WebRtcEndpoint");
+
+    await kurentoPlayerEp.play();
 
     return kurentoWebRtcEp;
 }

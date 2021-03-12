@@ -16,17 +16,28 @@ export interface RTCIceCandidateInit {
 }
 
 export class RTCIceCandidate {
-    readonly candidate: string;
-    readonly component: RTCIceComponent | null;
-    readonly foundation: string | null;
-    readonly port: number | null;
-    readonly priority: number | null;
-    readonly protocol: RTCIceProtocol | null;
-    readonly relatedAddress: string | null;
-    readonly relatedPort: number | null;
-    readonly sdpMLineIndex: number | null;
-    readonly sdpMid: string | null;
-    readonly tcpType: RTCIceTcpCandidateType | null;
-    readonly type: RTCIceCandidateType | null;
-    readonly usernameFragment: string | null;
+    readonly candidate: string; // Empty string == end-of-candidates indication.
+    readonly component: RTCIceComponent | null = null;
+    readonly foundation: string | null = null;
+    readonly port: number | null = null;
+    readonly priority: number | null = null;
+    readonly protocol: RTCIceProtocol | null = null;
+    readonly relatedAddress: string | null = null;
+    readonly relatedPort: number | null = null;
+    readonly sdpMLineIndex: number | null = null;
+    readonly sdpMid: string | null = null;
+    readonly tcpType: RTCIceTcpCandidateType | null = null;
+    readonly type: RTCIceCandidateType | null = null;
+    readonly usernameFragment: string | null = null;
+
+    //https://www.w3.org/TR/webrtc/#dom-rtcicecandidate-constructor
+    constructor(candidateInitDict: RTCIceCandidateInit = {}) {
+        if (!candidateInitDict.sdpMid && !candidateInitDict.sdpMLineIndex) {
+            throw new TypeError();
+        }
+
+        Object.assign(this, candidateInitDict);
+
+        // TODO: this.candidate should now be parsed into separate properties.
+    }
 }

@@ -6,6 +6,34 @@
 import { MediaStream } from "./MediaStream";
 import { MediaStreamTrack } from "./MediaStreamTrack";
 
+// interface MediaTrackConstraintSet {
+//     aspectRatio?: ConstrainDouble;
+//     autoGainControl?: ConstrainBoolean;
+//     channelCount?: ConstrainULong;
+//     deviceId?: ConstrainDOMString;
+//     echoCancellation?: ConstrainBoolean;
+//     facingMode?: ConstrainDOMString;
+//     frameRate?: ConstrainDouble;
+//     groupId?: ConstrainDOMString;
+//     height?: ConstrainULong;
+//     latency?: ConstrainDouble;
+//     noiseSuppression?: ConstrainBoolean;
+//     resizeMode?: ConstrainDOMString;
+//     sampleRate?: ConstrainULong;
+//     sampleSize?: ConstrainULong;
+//     width?: ConstrainULong;
+// }
+
+// interface MediaTrackConstraints extends MediaTrackConstraintSet {
+//     advanced?: MediaTrackConstraintSet[];
+// }
+
+interface MediaStreamConstraints {
+    audio?: boolean; // | MediaTrackConstraints;
+    peerIdentity?: string;
+    video?: boolean; // | MediaTrackConstraints;
+}
+
 export class MediaDevices {
     public async getUserMedia(
         constraints?: MediaStreamConstraints
@@ -14,14 +42,14 @@ export class MediaDevices {
 
         if (constraints) {
             if (constraints.audio) {
-                tracks.push({ kind: "audio" });
+                tracks.push(new MediaStreamTrack({ kind: "audio" }));
             }
             if (constraints.video) {
-                tracks.push({ kind: "video" });
+                tracks.push(new MediaStreamTrack({ kind: "video" }));
             }
         } else {
-            tracks.push({ kind: "audio" });
-            tracks.push({ kind: "video" });
+            tracks.push(new MediaStreamTrack({ kind: "audio" }));
+            tracks.push(new MediaStreamTrack({ kind: "video" }));
         }
 
         const stream = new MediaStream(tracks);

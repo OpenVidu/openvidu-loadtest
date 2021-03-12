@@ -13,7 +13,11 @@ export class MediaStream {
     // constructor(stream: MediaStream);
     // constructor(tracks: MediaStreamTrack[]);
 
-    constructor(private tracks: MediaStreamTrack[]) {}
+    private tracks: MediaStreamTrack[] = [];
+
+    constructor(tracks: MediaStreamTrack[]) {
+        this.tracks = Array.from(tracks);
+    }
 
     public getAudioTracks(): MediaStreamTrack[] {
         return this.tracks.filter((track) => track.kind === "audio");
