@@ -6,7 +6,7 @@ export class DockerService {
 	private readonly CHROME_BROWSER_IMAGE = "elastestbrowsers/chrome";
 	private readonly METRICBEAT_IMAGE = "docker.elastic.co/beats/metricbeat-oss:7.8.0";
 	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbet-config/metricbeat.yml`;
-	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
+	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
 	private readonly RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
 
