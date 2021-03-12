@@ -69,13 +69,11 @@ export class BrowserManagerService {
 
 	async deleteStreamManagerWithRoles(roles: OpenViduRole[]): Promise<void> {
 
-		const promisesToResolve: Promise<void>[] = [];
-		roles.forEach((role: OpenViduRole) => {
+		roles.forEach(async(role: OpenViduRole) => {
 			this.emulateBrowserService.deleteStreamManagerWithRole(role);
-			promisesToResolve.push(this.realBrowserService.deleteStreamManagerWithRole(role));
+			await this.realBrowserService.deleteStreamManagerWithRole(role);
 		});
 		await this.elasticSearchService.clean();
-		await Promise.all(promisesToResolve);
 	}
 
 	async deleteStreamManagerWithConnectionId(connectionId: string): Promise<void> {
