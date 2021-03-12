@@ -42,8 +42,7 @@ app.delete('/streamManager', async (req: Request, res: Response) => {
 
 	const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 	console.log('Deleting all participants');
-	await browserManagerService.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
-	await browserManagerService.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
+	await browserManagerService.deleteStreamManagerWithRoles([OpenViduRole.PUBLISHER, OpenViduRole.SUBSCRIBER]);
 	res.status(200).send({});
 
 });
@@ -68,15 +67,16 @@ app.delete('/streamManager/connection/:connectionId', async (req: Request, res: 
 
 app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	try {
-		const role: any = req.params.role;
+		let role: any = req.params.role;
 		if(!role){
 			return res.status(400).send('Problem with ROLE parameter. IT DOES NOT EXIST');
 		}else if(role !== OpenViduRole.PUBLISHER && role !== OpenViduRole.SUBSCRIBER ){
 			return res.status(400).send(`Problem with ROLE parameter. IT MUST BE ${OpenViduRole.PUBLISHER} or ${OpenViduRole.SUBSCRIBER}`);
 		}
 		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
+		role = role === OpenViduRole.PUBLISHER ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
 		console.log('Deleting streams with ROLE:' + role);
-		await browserManagerService.deleteStreamManagerWithRole(role);
+		await browserManagerService.deleteStreamManagerWithRoles([role]);
 		res.status(200).send({});
 	} catch (error) {
 		console.log(error);

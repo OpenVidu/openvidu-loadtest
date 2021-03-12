@@ -5,6 +5,7 @@ import { RealBrowserService } from './real-browser.service';
 import { ElasticSearchService } from './elasticsearch.service';
 import { LocalStorageService } from './local-storage.service';
 import { WebrtcStatsService } from './webrtc-stats-storage.service';
+import { OpenViduRole } from '../types/openvidu.type';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
@@ -66,9 +67,15 @@ export class BrowserManagerService {
 
 	}
 
-	async deleteStreamManagerWithRole(role: any): Promise<void> {
-		this.emulateBrowserService.deleteStreamManagerWithRole(role);
-		return await this.realBrowserService.deleteStreamManagerWithRole(role);
+	async deleteStreamManagerWithRoles(roles: OpenViduRole[]): Promise<void> {
+
+		const promisesToResolve: Promise<void>[] = [];
+		roles.forEach((role: OpenViduRole) => {
+			this.emulateBrowserService.deleteStreamManagerWithRole(role);
+			promisesToResolve.push(this.realBrowserService.deleteStreamManagerWithRole(role));
+		});
+		await this.elasticSearchService.clean();
+		await Promise.all(promisesToResolve);
 	}
 
 	async deleteStreamManagerWithConnectionId(connectionId: string): Promise<void> {

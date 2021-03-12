@@ -7,9 +7,11 @@ import { ApplicationMode } from '../types/config.type';
 
 export class ElasticSearchService {
 
+	indexName: string = '';
+
 	private client: Client;
 	private pingSuccess: boolean = false;
-	private readonly LOAD_TEST_INDEX = 'loadtest-webrtc-stats';
+	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
 	protected static instance: ElasticSearchService;
 
 	private constructor() {	}
@@ -43,7 +45,7 @@ export class ElasticSearchService {
 			const pingSuccess = await this.client.ping();
 			this.pingSuccess = pingSuccess.body;
 			if(this.pingSuccess) {
-				await this.createIndex(this.LOAD_TEST_INDEX);
+				await this.createElasticSearchIndex();
 			}
 		} catch (error) {
 			console.error("Error connecting with ElasticSearch: ", error);
@@ -54,15 +56,17 @@ export class ElasticSearchService {
 
 	async sendJson(json: JSONStatsResponse) {
 		if(this.isElasticSearchAvailable() && APPLICATION_MODE === ApplicationMode.PROD) {
-			// console.log(`Sending webrtc stats JSON to ElasticSearch ${process.env.ELASTICSEARCH_HOSTNAME}`);
 			let indexData: Index<Record<string, any>> = {
-				index: this.LOAD_TEST_INDEX,
+				index: this.indexName,
 				body: {}
 			};
 			Object.keys(json).forEach(key => {
 				indexData.body[key] = json[key];
 			});
-			await this.client.index(indexData);
+			if(!!Object.keys(indexData.body).length) {
+				console.log('body ', indexData.body);
+				await this.client.index(indexData);
+			}
 		}
 	}
 
@@ -72,6 +76,10 @@ export class ElasticSearchService {
 
 	needToBeConfigured(): boolean {
  		return this.isHostnameAvailable() && !this.client;
+	}
+
+	async clean() {
+		await this.createElasticSearchIndex();
 	}
 
 	private isHostnameAvailable(): boolean {
@@ -85,23 +93,27 @@ export class ElasticSearchService {
 				process.env.ELASTICSEARCH_PASSWORD !== 'undefined';
 	}
 
-	private async createIndex(index: string) {
-		await this.deleteIndexIfExist(index);
+	private async createElasticSearchIndex(): Promise<void> {
+		// await this.deleteIndexIfExist(index);
+		const index = this.generateNewIndexName();
 		await this.client.indices.create({ index });
 	}
 
 	private async deleteIndexIfExist(index: string): Promise<void> {
 		const exist = await this.indexExists(index);
 		if(exist.body){
-			await this.deleteIndex(index);;
+			await this.client.indices.delete({index});
 		}
-	}
-
-	private async deleteIndex(index: string) {
-		await this.client.indices.delete({index});
 	}
 
 	private async indexExists(index: string): Promise<ApiResponse<boolean, Record<string, unknown>>> {
 		return await this.client.indices.exists({index});
+	}
+
+	private generateNewIndexName(): string {
+		const date = new Date();
+		const timestamp = `${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}-${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`;
+		this.indexName = this.LOADTEST_INDEX + '-' + timestamp;
+		return this.indexName;
 	}
 }
