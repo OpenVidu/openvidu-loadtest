@@ -45,7 +45,7 @@ server.listen(SERVER_PORT, async () => {
 
 	if(APPLICATION_MODE === ApplicationMode.PROD) {
 		console.log("Pulling Docker images needed...");
-		await new DockerService().pullImagesNeeded();
+		await instanceService.pullImagesNeeded();
 	}
 
 	console.log("---------------------------------------------------------");

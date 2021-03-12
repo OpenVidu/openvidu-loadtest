@@ -98,12 +98,12 @@ export class ElasticSearchService {
 		await this.client.indices.create({ index });
 	}
 
-	private async deleteIndexIfExist(index: string): Promise<void> {
-		const exist = await this.indexExists(index);
-		if(exist.body){
-			await this.client.indices.delete({index});
-		}
-	}
+	// private async deleteIndexIfExist(index: string): Promise<void> {
+	// 	const exist = await this.indexExists(index);
+	// 	if(exist.body){
+	// 		await this.client.indices.delete({index});
+	// 	}
+	// }
 
 	private async indexExists(index: string): Promise<ApiResponse<boolean, Record<string, unknown>>> {
 		return await this.client.indices.exists({index});
