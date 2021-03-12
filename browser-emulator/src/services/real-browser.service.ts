@@ -90,7 +90,9 @@ export class RealBrowserService {
 			});
 
 			try {
-				await Promise.all(promisesToResolve);
+				if(promisesToResolve.length > 0){
+					await Promise.all(promisesToResolve);
+				}
 				resolve();
 			} catch (error) {
 				reject(error);

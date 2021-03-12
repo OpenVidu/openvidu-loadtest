@@ -70,7 +70,7 @@ export class EmulateBrowserService {
 	deleteStreamManagerWithConnectionId(connectionId: string) {
 		const {session} = this.openviduMap.get(connectionId);
 		session?.disconnect();
-		this.deleteInstancesFromId(connectionId);
+		this.openviduMap.delete(connectionId);
 	}
 
 	deleteStreamManagerWithRole(role: OpenViduRole) {
@@ -83,7 +83,7 @@ export class EmulateBrowserService {
 		});
 
 		connectionsToDelete.forEach(connectionId => {
-			this.deleteInstancesFromId(connectionId);
+			this.openviduMap.delete(connectionId);
 		});
 	}
 
@@ -94,10 +94,6 @@ export class EmulateBrowserService {
 	private storeInstances(openvidu: OpenVidu, session: Session) {
 		// Store the OV and Session objects into a map
 		this.openviduMap.set(session.connection.connectionId, {openvidu, session});
-	}
-
-	private deleteInstancesFromId(connectionId: string) {
-		this.openviduMap.delete(connectionId);
 	}
 
 	private async startVideoCanvasInterval(timeoutMs: number = 30) {
