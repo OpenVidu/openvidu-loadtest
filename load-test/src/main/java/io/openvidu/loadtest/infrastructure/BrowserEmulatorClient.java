@@ -166,7 +166,7 @@ public class BrowserEmulatorClient {
 
 	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role, TestCase testCase ) {
 		
-		boolean video = testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER);
+		boolean video = (testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.is_TEACHING() ;
 		
 		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
 				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
