@@ -65,19 +65,12 @@ export class RTCPeerConnection extends EventEmitter {
             sendonly
         );
 
-        console.debug("DEBUG [RTCPeerConnection.makeWebRtcEndpoint] NEW EP");
-
         kurentoWebRtcEp.on("IceCandidateFound", this.onKurentoIceCandidate);
 
         return kurentoWebRtcEp;
     }
 
     private onKurentoIceCandidate(event: any): void {
-        console.debug(
-            "DEBUG [RTCPeerConnection.onKurentoIceCandidate] event:",
-            event
-        );
-
         const kurentoCandidate = new KurentoClient.getComplexType(
             "IceCandidate"
         )(event.candidate);
@@ -91,10 +84,7 @@ export class RTCPeerConnection extends EventEmitter {
             }),
         });
 
-        console.debug(
-            "DEBUG [RTCPeerConnection.onKurentoIceCandidate] iceEvent:",
-            iceEvent
-        );
+        // console.debug("DEBUG [RTCPeerConnection.onKurentoIceCandidate] iceEvent:", iceEvent);
 
         this.emit(iceEvent.type, iceEvent);
         if (this.onicecandidate) {
@@ -122,9 +112,7 @@ export class RTCPeerConnection extends EventEmitter {
 
         const event = new Event("signalingstatechange");
 
-        console.debug(
-            `DEBUG [RTCPeerConnection set signalingState] Emit event: ${event}, state: ${this.signalingState}`
-        );
+        // console.debug(`DEBUG [RTCPeerConnection set signalingState] Emit event: ${event}, state: ${this.signalingState}`);
 
         this.emit(event.type, event);
         if (this.onsignalingstatechange) {
@@ -178,7 +166,9 @@ export class RTCPeerConnection extends EventEmitter {
         _options?: RTCOfferOptions
     ): Promise<RTCSessionDescriptionInit> {
         // This should be the first and only WebRtcEndpoint.
-        this.kurentoWebRtcEp = await this.makeWebRtcEndpoint();
+        // Force it to be a recvonly endpoint (because we know that an Answer
+        // will only be requested from one that doesn't need to send).
+        this.kurentoWebRtcEp = await this.makeWebRtcEndpoint(true, false);
 
         // Kurento returns an SDP Answer, based on the remote Offer.
         const sdpAnswer = await this.kurentoWebRtcEp.processOffer(

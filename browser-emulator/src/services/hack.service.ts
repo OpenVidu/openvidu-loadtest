@@ -43,18 +43,22 @@ export class HackService {
 			(<any>globalThis.navigator)['mediaDevices'] = mediaDevicesWRTC;
 			// globalThis.navigator.mediaDevices = mediaDevicesWRTC;
 		} else {
+			// Implement fake RTCPeerConnection methods, to get media from Kurento.
+
+			await KurentoWebRTC.init(
+				"ws://localhost:8888/kurento",
+				"/tmp/video.mp4",
+				"/tmp/recording"
+			);
+
 			const globalObject = globalThis as any;
-
-			// Overriding peerConnection methods for getting media from KMS
-			await KurentoWebRTC.init("ws://localhost:8888/kurento", "/tmp/video.mp4");
-
 			globalObject.navigator = KurentoWebRTC.navigator;
-
 			globalObject.MediaStream = KurentoWebRTC.MediaStream;
 			globalObject.MediaStreamTrack = KurentoWebRTC.MediaStreamTrack;
 			globalObject.RTCIceCandidate = KurentoWebRTC.RTCIceCandidate;
 			globalObject.RTCPeerConnection = KurentoWebRTC.RTCPeerConnection;
-			globalObject.RTCSessionDescription = KurentoWebRTC.RTCSessionDescription;
+			globalObject.RTCSessionDescription =
+				KurentoWebRTC.RTCSessionDescription;
 		}
 	}
 
