@@ -96,12 +96,13 @@ function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
 	return tokenCanBeCreated || tokenHasBeenReceived;
 }
 
-function setEnvironmentParams(request: Request): void {
-	process.env.LOCATION_HOSTNAME = request.headers.host;
-	process.env.OPENVIDU_SECRET = request.body.openviduSecret;
-	process.env.OPENVIDU_URL = request.body.openviduUrl;
-	process.env.ELASTICSEARCH_HOSTNAME = request.body.elasticSearchHost;
-	process.env.ELASTICSEARCH_USERNAME = request.body.elasticSearchUserName;
-	process.env.ELASTICSEARCH_PASSWORD = request.body.elasticSearchPassword;
-	process.env.KURENTO_RECORDING_ENABLED = "false";
+function setEnvironmentParams(req: Request): void {
+	const request: LoadTestPostRequest = req.body;
+	process.env.LOCATION_HOSTNAME = req.headers.host;
+	process.env.OPENVIDU_SECRET = request.openviduSecret;
+	process.env.OPENVIDU_URL = request.openviduUrl;
+	process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
+	process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
+	process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
+	process.env.KURENTO_RECORDING_ENABLED = String(request.properties.recording);
 }

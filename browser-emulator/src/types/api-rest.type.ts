@@ -1,8 +1,12 @@
 import { OpenViduRole } from './openvidu.type';
 
 export interface LoadTestPostRequest {
+
 	openviduUrl: string,
 	openviduSecret: string,
+    elasticSearchPassword?: string;
+	elasticSearchUserName?: string;
+	elasticSearchHost?: string;
 	token?: string,
     browserMode: BrowserMode,
     properties: TestProperties

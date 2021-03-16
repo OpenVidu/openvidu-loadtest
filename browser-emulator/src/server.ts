@@ -10,7 +10,7 @@ import {app as webrtcStatsController} from './controllers/webrtc-stats.controlle
 
 import { DockerService } from './services/docker.service';
 import { InstanceService } from './services/instance.service';
-import { ApplicationMode } from './types/config.type';
+import { ApplicationMode, EmulatedUserType } from './types/config.type';
 
 
 const app = express();
@@ -32,11 +32,6 @@ const server = https.createServer(options, app);
 
 server.listen(SERVER_PORT, async () => {
 	const hack = new HackService();
-	hack.openviduBrowser();
-	await hack.webrtc();
-	hack.websocket();
-	hack.platform();
-	hack.allowSelfSignedCertificate();
 
 	createRecordingsDirectory();
 
@@ -48,9 +43,20 @@ server.listen(SERVER_PORT, async () => {
 		await instanceService.pullImagesNeeded();
 	}
 
+	if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
+		console.log('Starting Kurento Media Server');
+		await instanceService.launchKMS();
+	}
+
+	hack.openviduBrowser();
+	await hack.webrtc();
+	hack.websocket();
+	hack.platform();
+	hack.allowSelfSignedCertificate();
+
 	console.log("---------------------------------------------------------");
 	console.log(" ");
-	console.log(`App started in ${APPLICATION_MODE} mode`);
+	console.log(`Service started in ${APPLICATION_MODE} mode`);
 	console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
 	console.log(`Listening in port ${SERVER_PORT}`);
 	console.log(" ");
@@ -61,5 +67,7 @@ function createRecordingsDirectory() {
 	var dir = `${process.env.PWD}/recordings`;
 	if (!fs.existsSync(dir)){
 		fs.mkdirSync(dir);
+		fs.mkdirSync(dir + '/kms');
+		fs.mkdirSync(dir + '/chrome');
 	}
 }

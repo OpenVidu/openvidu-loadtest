@@ -1,21 +1,26 @@
 import * as os  from 'node-os-utils';
 import { ContainerCreateOptions } from "dockerode";
 
-import { APPLICATION_MODE, SERVER_PORT } from '../config';
-import { ApplicationMode } from '../types/config.type';
+import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT } from '../config';
+import { ApplicationMode, EmulatedUserType } from '../types/config.type';
 import { DockerService } from './docker.service';
 
 export class InstanceService {
 
 	private static instance: InstanceService;
-	private containerId: string;
-	private readonly CHROME_BROWSER_IMAGE = "elastestbrowsers/chrome";
+	private metricbeatContainerId: string;
+	private kmsContainerId: string;
 
+	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
 	private readonly METRICBEAT_CONTAINER_NAME = 'metricbeat';
 	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
-	private readonly METRICBEAT_IMAGE = "docker.elastic.co/beats/metricbeat-oss:7.8.0";
+	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.8.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbet-config/metricbeat.yml`;
 
+	private readonly KMS_CONTAINER_NAME = 'kms';
+	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
+	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
+	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
 
 	private constructor(
 		private dockerService: DockerService = new DockerService()
@@ -31,6 +36,7 @@ export class InstanceService {
 
 	async cleanEnvironment() {
 		await this.dockerService.stopContainer(this.METRICBEAT_CONTAINER_NAME);
+		await this.dockerService.stopContainer(this.KMS_CONTAINER_NAME);
 	}
 
 
@@ -68,29 +74,61 @@ export class InstanceService {
 						NetworkMode: 'host'
 					},
 				};
-				this.containerId = await this.dockerService.startContainer(options);
+				this.metricbeatContainerId = await this.dockerService.startContainer(options);
 			} catch (error) {
 				console.error(error);
-				this.dockerService.stopContainer(this.containerId);
+				this.dockerService.stopContainer(this.metricbeatContainerId);
+				this.metricbeatContainerId = '';
 			}
 		}
 	}
 
-	async stopMetricBeat() {
-		await this.dockerService.stopContainer(this.containerId);
-		this.containerId = '';
+	async launchKMS(): Promise<void> {
+		try {
+			const options: ContainerCreateOptions = {
+				Image: this.KMS_IMAGE,
+				name: this.KMS_CONTAINER_NAME,
+				User: 'root',
+				Env: [
+					'KMS_MIN_PORT=40000',
+     				'KMS_MAX_PORT=65535',
+					`KURENTO_RECORDING_ENABLED=${process.env.KURENTO_RECORDING_ENABLED}`
+				],
+				HostConfig:  {
+					Binds: [
+						`${process.env.PWD}/recordings/kms:${this.KMS_RECORDINGS_PATH}`,
+						`${process.env.PWD}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`
+					],
+					AutoRemove: false,
+					NetworkMode: 'host',
+					RestartPolicy: {
+						"Name": "always"
+					}
+				},
+			};
+
+			console.log(options);
+			this.kmsContainerId = await this.dockerService.startContainer(options);
+		} catch (error) {
+			console.error(error);
+			this.dockerService.stopContainer(this.kmsContainerId);
+			this.kmsContainerId = '';
+		}
 	}
 
 	isMetricbeatStarted(): boolean {
-		return !!this.containerId;
+		return !!this.metricbeatContainerId;
 	}
 
-	async pullImagesNeeded() {
+	async pullImagesNeeded(): Promise<void> {
 		if (!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))) {
 			await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
 		}
 		if (!(await this.dockerService.imageExists(this.CHROME_BROWSER_IMAGE))) {
 			await this.dockerService.pullImage(this.CHROME_BROWSER_IMAGE);
+		}
+		if (!(await this.dockerService.imageExists(this.KMS_IMAGE)) && EMULATED_USER_TYPE === EmulatedUserType.KMS) {
+			await this.dockerService.pullImage(this.KMS_IMAGE);
 		}
 	}
 
