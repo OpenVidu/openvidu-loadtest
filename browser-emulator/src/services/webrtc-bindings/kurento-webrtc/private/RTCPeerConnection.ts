@@ -176,9 +176,7 @@ export class RTCPeerConnection extends EventEmitter {
         );
 
         // Start ICE candidate gathering on Kurento.
-        console.debug(
-            "DEBUG [RTCPeerConnection.createAnswer] Kurento WebRtcEndpoint gatherCandidates()"
-        );
+        // console.debug("DEBUG [RTCPeerConnection.createAnswer] Kurento WebRtcEndpoint gatherCandidates()");
         await this.kurentoWebRtcEp.gatherCandidates();
 
         return {
@@ -233,9 +231,7 @@ export class RTCPeerConnection extends EventEmitter {
         }
 
         // Start ICE candidate gathering on Kurento.
-        console.debug(
-            "DEBUG [RTCPeerConnection.createOffer] Kurento WebRtcEndpoint gatherCandidates()"
-        );
+        // console.debug("DEBUG [RTCPeerConnection.createOffer] Kurento WebRtcEndpoint gatherCandidates()");
         await this.kurentoWebRtcEp.gatherCandidates();
 
         return {
