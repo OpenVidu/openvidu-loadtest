@@ -94,7 +94,7 @@ export async function makeWebRtcEndpoint(
         const kurentoRecorder = await kurento.pipeline.create(
             "RecorderEndpoint",
             {
-                uri: `file://${kurento.recorderPathPrefix}_${kurento.recorders.length}.webm`,
+                uri: `file://${kurento.recorderPathPrefix}_${new Date().getTime()}.webm`,
                 stopOnEndOfStream: true,
                 mediaProfile: "WEBM",
             }
