@@ -54,17 +54,17 @@ cd openvidu-loadtest/browser-emulator/
 npm install
 npm run start
 ```
-
+##### Running options
 By default, this worker is listening on port `5000` that you have to specify later in the controller configuration. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start` command:
 
 ```bash
 SERVER_PORT=6000 npm run start
 ```
 
-Moreover, the worker will assign `NODE_WEBRTC` for emulated users. You can set `KMS` type adding `EMULATED_USER_TYPE=KMS`
+Moreover, the worker will assign `NODE_WEBRTC` for emulated users. You can set `KMS` type adding `EMULATED_USER_TYPE=KMS` or run the following script:
 
 ```bash
-EMULATED_USER_TYPE=KMS npm run start
+npm run start:kms
 ```
 See [emulated user types](browser-emulator/src/types/config.type.ts).
 
@@ -324,7 +324,7 @@ To make the load test completely functional, the browser-emulator service also a
 |  **resolution** | String   |Resolution of the video. Default `640x480`. [See publisher property](https://docs.openvidu.io/en/2.16.0/api/openvidu-browser/interfaces/publisherproperties.html#resolution) |
 |  **recordingOutputMode** | String   | `COMPOSED` or `INDIVIDUAL`|
 |**frameRate**| Number (0-30)  | Desired framerate of the video in frames per second. Default `30`|
-|  **recording** | Boolean  |  If `browserMode` is `REAL` and you want record the Chrome browser using ffmpeg. Default `false`.  |
+|  **recording** | Boolean  |  If `browserMode` is `REAL` and you want record the Chrome browser using ffmpeg. Otherwise, If `browserMode` is `EMULATE` and you have started browser.emulator with `KMS` user type (see [worker running options](#running-options)) Default `false`.  |
 |  **showVideoElements** | Boolean  | If `browserMode` is `REAL` and you want show videos elements into the app running in Chrome. Default `true`|
 |  **headless** | Boolean  | If `browserMode` is `REAL` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |
 
