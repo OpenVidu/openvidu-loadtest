@@ -4,6 +4,8 @@ import { ContainerCreateOptions } from "dockerode";
 import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT } from '../config';
 import { ApplicationMode, EmulatedUserType } from '../types/config.type';
 import { DockerService } from './docker.service';
+import { LocalStorageService } from './local-storage.service';
+import { WebrtcStatsService } from './webrtc-stats-storage.service';
 
 export class InstanceService {
 
@@ -37,6 +39,7 @@ export class InstanceService {
 	async cleanEnvironment() {
 		await this.dockerService.stopContainer(this.METRICBEAT_CONTAINER_NAME);
 		await this.dockerService.stopContainer(this.KMS_CONTAINER_NAME);
+		new LocalStorageService().clear(new WebrtcStatsService().getItemName());
 	}
 
 
@@ -106,8 +109,6 @@ export class InstanceService {
 					}
 				},
 			};
-
-			console.log(options);
 			this.kmsContainerId = await this.dockerService.startContainer(options);
 		} catch (error) {
 			console.error(error);
