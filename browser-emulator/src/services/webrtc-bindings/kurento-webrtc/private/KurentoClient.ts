@@ -66,6 +66,9 @@ export async function makeWebRtcEndpoint(
         `[KurentoClient] Kurento WebRtcEndpoint created, recvonly: ${recvonly}, sendonly: ${sendonly}`
     );
 
+    // Playback for sender mode
+    // ========================
+
     if (!recvonly) {
         console.log(
             "[KurentoClient] Not a pure WebRTC receiver: send from PlayerEndpoint"
@@ -78,7 +81,12 @@ export async function makeWebRtcEndpoint(
         );
     }
 
-    if (!sendonly && kurento.recorderPathPrefix) {
+    // Recording for receiver mode
+    // ===========================
+
+    const recordingEnabled = process.env.KURENTO_RECORDING_ENABLED === "true";
+
+    if (!sendonly && kurento.recorderPathPrefix && recordingEnabled) {
         console.log(
             "[KurentoClient] Not a pure WebRTC sender: receive into a RecorderEndpoint"
         );

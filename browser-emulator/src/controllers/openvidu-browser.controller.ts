@@ -103,4 +103,5 @@ function setEnvironmentParams(request: Request): void {
 	process.env.ELASTICSEARCH_HOSTNAME = request.body.elasticSearchHost;
 	process.env.ELASTICSEARCH_USERNAME = request.body.elasticSearchUserName;
 	process.env.ELASTICSEARCH_PASSWORD = request.body.elasticSearchPassword;
+	process.env.KURENTO_RECORDING_ENABLED = "false";
 }
