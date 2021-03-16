@@ -4,13 +4,15 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
 const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
 import { Canvas, createCanvas, Image, loadImage } from 'canvas';
+import { EMULATED_USER_TYPE } from '../config';
+import { EmulatedUserType } from '../types/config.type';
 
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
 	private videoSource;
-	private videoTrack: MediaStreamTrack;
+	private videoTrack: MediaStreamTrack | boolean = true;
 	private canvas: Canvas;
 	private context;
 	private myimg: Image;
@@ -20,7 +22,9 @@ export class EmulateBrowserService {
 	private CANVAS_MAX_WIDTH: number;
 
 	constructor(private httpClient: HttpClient = new HttpClient()) {
-		this.initializeVideoCanvas();
+		if(this.isUsingNodeWebrtc()) {
+			this.initializeVideoCanvas();
+		}
 	}
 
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
@@ -41,7 +45,9 @@ export class EmulateBrowserService {
 
 				await session.connect(token,  properties.userId);
 				if(properties.role === OpenViduRole.PUBLISHER){
-					this.stopVideoCanvasInterval();
+					if(this.isUsingNodeWebrtc()) {
+						this.stopVideoCanvasInterval();
+					}
 					const publisher: Publisher = ov.initPublisher(null, {
 						audioSource: properties.audio,
 						videoSource: properties.video ? this.videoTrack : null,
@@ -51,8 +57,10 @@ export class EmulateBrowserService {
 						frameRate: properties.frameRate,
 					});
 					await session.publish(publisher);
-					const frameRateEstimation = 1000 / properties.frameRate;
-					this.startVideoCanvasInterval(frameRateEstimation);
+					if(this.isUsingNodeWebrtc()) {
+						const frameRateEstimation = 1000 / properties.frameRate;
+						this.startVideoCanvasInterval(frameRateEstimation);
+					}
 				}
 
 				this.storeInstances(ov, session);
@@ -138,5 +146,9 @@ export class EmulateBrowserService {
 		this.context.fillRect(0, 0, this.WIDTH, this.HEIGHT);
 		this.CANVAS_MAX_WIDTH = this.WIDTH - this.myimg.width;
 		this.CANVAS_MAX_HEIGHT = this.HEIGHT - this.myimg.height;
+	}
+
+	private isUsingNodeWebrtc(): boolean {
+		return EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC;
 	}
 }
