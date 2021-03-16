@@ -49,6 +49,16 @@ export async function init(
         await kurento.player.getUri()
     );
 
+    kurento.player.on(
+        "EndOfStream",
+        async (_event: any): Promise<void> => {
+            console.log(
+                "[KurentoClient] Kurento PlayerEndpoint EOS: play() again"
+            );
+            await kurento.player.play();
+        }
+    );
+
     await kurento.player.play();
 
     kurento.recorderPathPrefix = recorderPathPrefix;
