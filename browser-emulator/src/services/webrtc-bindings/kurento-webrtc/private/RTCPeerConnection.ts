@@ -23,14 +23,6 @@ interface RTCOfferOptions {
     offerToReceiveVideo?: boolean;
 }
 
-type RTCSignalingState =
-    | "closed"
-    | "have-local-offer"
-    | "have-local-pranswer"
-    | "have-remote-offer"
-    | "have-remote-pranswer"
-    | "stable";
-
 class RTCPeerConnectionIceEvent extends Event {
     readonly candidate: RTCIceCandidate | null = null;
     readonly url: string | null = null;
@@ -44,12 +36,49 @@ class RTCPeerConnectionIceEvent extends Event {
     }
 }
 
-export class RTCPeerConnection extends EventEmitter {
-    private recvAudio: boolean = false;
-    private recvVideo: boolean = false;
-    private sendAudio: boolean = false;
-    private sendVideo: boolean = false;
+type RTCSignalingState =
+    | "closed"
+    | "have-local-offer"
+    | "have-local-pranswer"
+    | "have-remote-offer"
+    | "have-remote-pranswer"
+    | "stable";
 
+interface RTCStats {
+    id: string;
+    timestamp: number;
+    type: RTCStatsType;
+}
+
+type RTCStatsType =
+    | "candidate-pair"
+    | "certificate"
+    | "codec"
+    | "csrc"
+    | "data-channel"
+    | "ice-server"
+    | "inbound-rtp"
+    | "local-candidate"
+    | "media-source"
+    | "outbound-rtp"
+    | "peer-connection"
+    | "receiver"
+    | "remote-candidate"
+    | "remote-inbound-rtp"
+    | "remote-outbound-rtp"
+    | "sctp-transport"
+    | "sender"
+    | "stream"
+    | "track"
+    | "transceiver"
+    | "transport";
+
+interface RTCStatsReport {
+    // forEach(callbackfn: (value: any, key: string, parent: RTCStatsReport) => void, thisArg?: any): void;
+}
+
+export class RTCPeerConnection extends EventEmitter {
+    private tracks: MediaStreamTrack[] = [];
     private kurentoWebRtcEp: any = null;
 
     private async makeWebRtcEndpoint(
@@ -108,6 +137,10 @@ export class RTCPeerConnection extends EventEmitter {
     }
 
     public set signalingState(value: RTCSignalingState) {
+        if (this._signalingState === value) {
+            return;
+        }
+
         this._signalingState = value;
 
         const event = new Event("signalingstatechange");
@@ -146,11 +179,7 @@ export class RTCPeerConnection extends EventEmitter {
         track: MediaStreamTrack,
         ...streams: MediaStream[]
     ): RTCRtpSender {
-        if (track.kind === "audio") {
-            this.sendAudio = true;
-        } else if (track.kind === "video") {
-            this.sendVideo = true;
-        }
+        this.tracks.push(track);
 
         return { track };
     }
@@ -189,7 +218,9 @@ export class RTCPeerConnection extends EventEmitter {
         options?: RTCOfferOptions
     ): Promise<RTCSessionDescriptionInit> {
         // Offer to send if either an audio or video track has been added.
-        const offerToSend = this.sendAudio || this.sendVideo;
+        const sendAudio = this.tracks.some((track) => track.kind === "audio");
+        const sendVideo = this.tracks.some((track) => track.kind === "video");
+        const offerToSend = sendAudio || sendVideo;
 
         // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
         // The default behavior is to offer to receive only if the local side is
@@ -212,8 +243,8 @@ export class RTCPeerConnection extends EventEmitter {
             sendonly
         );
 
-        const offerAudio = this.sendAudio || options.offerToReceiveAudio;
-        const offerVideo = this.sendVideo || options.offerToReceiveVideo;
+        const offerAudio = sendAudio || options.offerToReceiveAudio;
+        const offerVideo = sendVideo || options.offerToReceiveVideo;
 
         let sdpOffer: string;
         if (offerAudio && offerVideo) {
@@ -238,6 +269,89 @@ export class RTCPeerConnection extends EventEmitter {
             sdp: sdpOffer,
             type: "offer",
         };
+    }
+
+    // Returns a RTCStatsReport with RTCStats objects as defined for WebRTC:
+    // https://www.w3.org/TR/webrtc-stats/
+    public async getStats(
+        selector?: MediaStreamTrack | null
+    ): Promise<RTCStatsReport> {
+        const statsReport = new Map<string, any>();
+
+        for (const kind of ["audio", "video"]) {
+            if (!selector || selector.kind === kind) {
+                const kurentoStatsReport: any = await this.kurentoWebRtcEp.getStats(
+                    kind.toUpperCase()
+                );
+                if (!kurentoStatsReport) {
+                    continue;
+                }
+
+                // A stats report is a Map<string, stats>.
+                const kurentoStatsValues: any[] = Object.values(
+                    kurentoStatsReport
+                );
+                if (!kurentoStatsValues.length) {
+                    continue;
+                }
+
+                // Just get the first stats object.
+                const kurentoStats: any = kurentoStatsValues[0];
+
+                // Convert the Kurento stats into a valid RTCStats.
+                let stats: RTCStats;
+                stats.id = kurentoStats.id;
+                stats.timestamp = kurentoStats.timestampMillis;
+
+                // Possible values taken from `kms-core/src/server/interface/core.kmd.json`.
+                switch (kurentoStats.type) {
+                    case "inboundrtp":
+                        stats.type = "inbound-rtp";
+                        break;
+                    case "outboundrtp":
+                        stats.type = "outbound-rtp";
+                        break;
+                    case "session":
+                        break;
+                    case "datachannel":
+                        stats.type = "data-channel";
+                        break;
+                    case "track":
+                    case "transport":
+                        stats.type = kurentoStats.type;
+                        break;
+                    case "candidatepair":
+                        stats.type = "candidate-pair";
+                        break;
+                    case "localcandidate":
+                        stats.type = "local-candidate";
+                        break;
+                    case "remotecandidate":
+                        stats.type = "remote-candidate";
+                        break;
+                    case "element":
+                        break;
+                    case "endpoint":
+                        break;
+                }
+
+                // Assign all other values directly from the Kurento stats to
+                // our RTCStats object. This will (SHOULD) work because Kurento
+                // stats have the same names than standard ones.
+                for (const [key, value] of Object.entries(kurentoStats)) {
+                    // Exclude properties from the base RTCStats type.
+                    if (["id", "timestamp", "type"].includes(key)) {
+                        continue;
+                    }
+
+                    stats[key] = value;
+                }
+
+                statsReport.set(`KurentoStats_${kind}`, stats);
+            }
+        }
+
+        return statsReport;
     }
 
     public async setLocalDescription(
