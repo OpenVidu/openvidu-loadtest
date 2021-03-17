@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<RTCIceCandidate>.
+ * Partial DOM type implementation: `Partial<RTCIceCandidate>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 

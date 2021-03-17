@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<RTCPeerConnection>.
+ * Partial DOM type implementation: `Partial<RTCPeerConnection>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 

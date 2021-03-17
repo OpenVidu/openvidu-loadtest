@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<MediaStreamTrack>.
+ * Partial DOM type implementation: `Partial<MediaStreamTrack>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 

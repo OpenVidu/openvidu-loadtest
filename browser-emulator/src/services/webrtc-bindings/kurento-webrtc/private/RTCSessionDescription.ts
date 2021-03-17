@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<RTCSessionDescription>.
+ * Partial DOM type implementation: `Partial<RTCSessionDescription>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 

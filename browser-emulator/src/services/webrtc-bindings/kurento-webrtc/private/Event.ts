@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<Event>.
+ * Partial DOM type implementation: `Partial<Event>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 

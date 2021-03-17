@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<MediaStream>.
+ * Partial DOM type implementation: `Partial<MediaStream>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 

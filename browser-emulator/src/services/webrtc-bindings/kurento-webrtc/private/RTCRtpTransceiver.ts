@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<RTCRtpTransceiver>.
+ * Partial DOM type implementation: `Partial<RTCRtpTransceiver>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 

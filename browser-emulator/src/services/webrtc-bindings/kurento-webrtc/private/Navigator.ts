@@ -1,5 +1,5 @@
 /**
- * Partial implementation of DOM interface: Partial<Navigator>.
+ * Partial DOM type implementation: `Partial<Navigator>`.
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 
