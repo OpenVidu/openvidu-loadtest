@@ -8,7 +8,6 @@ import { HackService } from "./services/hack.service";
 import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
 import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
 
-import { DockerService } from './services/docker.service';
 import { InstanceService } from './services/instance.service';
 import { ApplicationMode, EmulatedUserType } from './types/config.type';
 
