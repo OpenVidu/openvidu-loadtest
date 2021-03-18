@@ -291,63 +291,79 @@ export class RTCPeerConnection extends EventEmitter {
                 const kurentoStatsValues: any[] = Object.values(
                     kurentoStatsReport
                 );
-                if (!kurentoStatsValues.length) {
-                    continue;
-                }
 
-                // Just get the first stats object.
-                const kurentoStats: any = kurentoStatsValues[0];
+                for (const kurentoStats of kurentoStatsValues) {
+                    // Convert the Kurento stats into a valid RTCStats.
+                    let stats: RTCStats = {
+                        id: kurentoStats.id,
+                        timestamp: kurentoStats.timestampMillis,
+                        type: "inbound-rtp", // Dummy value.
+                    };
 
-                // Convert the Kurento stats into a valid RTCStats.
-                let stats: RTCStats;
-                stats.id = kurentoStats.id;
-                stats.timestamp = kurentoStats.timestampMillis;
+                    // Possible types taken from `kms-core/src/server/interface/core.kmd.json`.
+                    switch (kurentoStats.type) {
+                        case "inboundrtp":
+                            stats.type = "inbound-rtp";
 
-                // Possible values taken from `kms-core/src/server/interface/core.kmd.json`.
-                switch (kurentoStats.type) {
-                    case "inboundrtp":
-                        stats.type = "inbound-rtp";
-                        break;
-                    case "outboundrtp":
-                        stats.type = "outbound-rtp";
-                        break;
-                    case "session":
-                        break;
-                    case "datachannel":
-                        stats.type = "data-channel";
-                        break;
-                    case "track":
-                    case "transport":
-                        stats.type = kurentoStats.type;
-                        break;
-                    case "candidatepair":
-                        stats.type = "candidate-pair";
-                        break;
-                    case "localcandidate":
-                        stats.type = "local-candidate";
-                        break;
-                    case "remotecandidate":
-                        stats.type = "remote-candidate";
-                        break;
-                    case "element":
-                        break;
-                    case "endpoint":
-                        break;
-                }
+                            // KMS stats don't include the media kind...
+                            stats["kind"] = kind;
 
-                // Assign all other values directly from the Kurento stats to
-                // our RTCStats object. This will (SHOULD) work because Kurento
-                // stats have the same names than standard ones.
-                for (const [key, value] of Object.entries(kurentoStats)) {
-                    // Exclude properties from the base RTCStats type.
-                    if (["id", "timestamp", "type"].includes(key)) {
-                        continue;
+                            // Other stats required by openvidu-browser.
+                            stats["framesDecoded"] = -1;
+                            stats["jitterBufferDelay"] = -1;
+
+                            break;
+                        case "outboundrtp":
+                            stats.type = "outbound-rtp";
+
+                            // KMS stats don't include the media kind...
+                            stats["kind"] = kind;
+
+                            // Other stats required by openvidu-browser.
+                            stats["framesEncoded"] = -1;
+                            stats["qpSum"] = -1;
+
+                            break;
+                        case "session":
+                            break;
+                        case "datachannel":
+                            stats.type = "data-channel";
+                            break;
+                        case "track":
+                        case "transport":
+                            stats.type = kurentoStats.type;
+                            break;
+                        case "candidatepair":
+                            stats.type = "candidate-pair";
+                            break;
+                        case "localcandidate":
+                            stats.type = "local-candidate";
+                            break;
+                        case "remotecandidate":
+                            stats.type = "remote-candidate";
+                            break;
+                        case "element":
+                            break;
+                        case "endpoint":
+                            // TODO - For now, ignore Kurento-specific E2E stats.
+                            continue;
+                            break;
                     }
 
-                    stats[key] = value;
-                }
+                    // Assign all other values directly from the Kurento stats to
+                    // our RTCStats object. This will (SHOULD) work because Kurento
+                    // stats have the same names than standard ones.
+                    for (const [key, value] of Object.entries(kurentoStats)) {
+                        // Exclude properties from the base RTCStats type.
+                        if (["id", "timestamp", "type"].includes(key)) {
+                            continue;
+                        }
 
-                statsReport.set(`KurentoStats_${kind}`, stats);
+                        stats[key] = value;
+                    }
+
+                    statsReport.set(`Kurento_${stats.type}_${kind}`, stats);
+                }
             }
         }
 
