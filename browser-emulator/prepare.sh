@@ -54,6 +54,14 @@ command -v docker >/dev/null || {
 }
 
 
+# Check Docker
+# ============
+
+command -v ffmpeg >/dev/null || {
+    echo "Installing Ffmpeg"
+    snap install ffmpeg
+}
+
 
 # Download necessary media files for containerized Chrome Browser
 if [[ ! -f ./src/assets/mediafiles/fakevideo.y4m ]]; then
