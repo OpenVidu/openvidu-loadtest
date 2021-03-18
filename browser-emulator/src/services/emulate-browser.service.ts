@@ -52,13 +52,11 @@ export class EmulateBrowserService {
 						this.stopVideoCanvasInterval();
 					}
 
-					// TODO: Debugear openvidu para ver que pasa con el audio track
-
 					if(audioSource) {
 						//Create an emulated audio stream track
 						const audioObject = this.initializeAudio();
 						audioSource = audioObject.audioSource;
-						// audioTrackInterval = audioObject.audioTrackInterval;
+						audioTrackInterval = audioObject.audioTrackInterval;
 					}
 
 					const publisher: Publisher = ov.initPublisher(null, {

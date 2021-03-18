@@ -2,7 +2,7 @@ import * as express from 'express';
 import { Request, Response } from 'express';
 import { ElasticSearchService } from '../services/elasticsearch.service';
 import { JSONStatsResponse } from '../types/api-rest.type';
-
+require("util").inspect.defaultOptions.depth = null;
 export const app = express.Router({
     strict: true
 });
