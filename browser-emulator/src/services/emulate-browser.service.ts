@@ -2,8 +2,10 @@ import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
 import { HttpClient } from "../utils/http-client";
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
-const { RTCVideoSource, RTCAudioSource } = require('wrtc').nonstandard;
-import { Canvas, createCanvas, Image, loadImage } from 'canvas';
+
+// const { RTCVideoSource, RTCAudioSource } = require('wrtc').nonstandard;
+import wrtc = require('wrtc');
+
 import { EMULATED_USER_TYPE } from '../config';
 import { EmulatedUserType } from '../types/config.type';
 
@@ -14,7 +16,7 @@ import { StreamOutput } from 'fluent-ffmpeg-multistream';
 
 interface CustomMediaStream {
 	url: string,
-	track: MediaStreamTrack,
+	track: wrtc.MediaStreamTrack,
 	options: string[],
 	kind: string,
 	width?: number,
@@ -25,8 +27,8 @@ export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
-	private videoTrack: MediaStreamTrack | boolean;
-	private audioTrack: MediaStreamTrack | boolean;
+	private videoTrack: wrtc.MediaStreamTrack | boolean;
+	private audioTrack: wrtc.MediaStreamTrack | boolean;
 	private mediaStramTracksCreated: boolean = false;
 	constructor(private httpClient: HttpClient = new HttpClient()) {
 	}
@@ -156,7 +158,7 @@ export class EmulateBrowserService {
 	private createVideoOutput(): CustomMediaStream {
 
 		const ws = chunker(this.WIDTH * this.HEIGHT * 1.5);
-		const source = new RTCVideoSource();
+		const source = new wrtc.nonstandard.RTCVideoSource();
 		const ffmpegOptions = [
 			'-f rawvideo',
 			// '-c:v rawvideo',
@@ -186,7 +188,7 @@ export class EmulateBrowserService {
 	private createAudioOutput(): CustomMediaStream {
 		const sampleRate = 48000;
 		const ws = chunker(2 * sampleRate / 100)
-		const source = new RTCAudioSource();
+		const source = new wrtc.nonstandard.RTCAudioSource();
 		const ffmpegOptions = [
 			'-f s16le',
 			'-ar 48k',

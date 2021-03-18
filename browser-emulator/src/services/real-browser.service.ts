@@ -7,7 +7,8 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { ErrorGenerator } from '../utils/error-generator';
 import { DockerService } from './docker.service';
 import { ContainerCreateOptions } from 'dockerode';
-
+import { Storage } from './local-storage.service';
+declare var localStorage: Storage;
 export class RealBrowserService {
 
 	private readonly BROWSER_CONTAINER_HOSTPORT = 4000;
