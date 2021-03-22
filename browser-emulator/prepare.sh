@@ -63,18 +63,25 @@ command -v ffmpeg >/dev/null || {
 }
 
 
-# Download necessary media files for generating MediaStreamTracks
-if [[ ! -f ./src/assets/mediafiles/fakevideo.y4m ]]; then
-    echo "Downloading video media file"
-    curl --url https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-fakevideo.y4m --output ./src/assets/mediafiles/fakevideo.y4m --create-dirs
+# Download media files
+# ====================
+
+# These are used to simulate MediaStreamTracks.
+
+MEDIAFILES_DIR="./src/assets/mediafiles"
+mkdir -p "$MEDIAFILES_DIR"
+
+if [[ ! -f "$MEDIAFILES_DIR/fakevideo.y4m" ]]; then
+    curl --output "$MEDIAFILES_DIR/fakevideo.y4m" \
+        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-fakevideo.y4m"
 fi
-if [[ ! -f ./src/assets/mediafiles/fakeaudio.wav ]]; then
-    echo "Downloading audio media file"
-    curl --url https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-fakeaudio.wav --output ./src/assets/mediafiles/fakeaudio.wav --create-dirs
+if [[ ! -f "$MEDIAFILES_DIR/fakeaudio.wav" ]]; then
+    curl --output "$MEDIAFILES_DIR/fakeaudio.wav" \
+        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-fakeaudio.wav"
 fi
-if [[ ! -f ./src/assets/mediafiles/video.mp4 ]]; then
-    echo "Downloading video media file"
-    curl --url https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-video.mp4 --output ./src/assets/mediafiles/video.mp4 --create-dirs
+if [[ ! -f "$MEDIAFILES_DIR/video.mp4" ]]; then
+    curl --output "$MEDIAFILES_DIR/video.mp4" \
+        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-video.mp4"
 fi
 
 
