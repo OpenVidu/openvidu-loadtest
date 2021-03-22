@@ -49,9 +49,7 @@ export async function init(
 
 	kurento.player = await kurento.pipeline.create("PlayerEndpoint", {
 		uri: `file://${playerPath}`,
-
-		useEncodedMedia: false,
-		// useEncodedMedia: true,
+		useEncodedMedia: true,
 	});
 	console.log(
 		"[KurentoClient] Kurento PlayerEndpoint created, uri:",
