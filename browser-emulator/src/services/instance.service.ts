@@ -109,6 +109,17 @@ export class InstanceService {
 					}
 				},
 			};
+
+			// Debug logging variables:
+			// GST_DEBUG is used directly by the Kurento Docker image.
+			if ("GST_DEBUG" in process.env) {
+				options.Env.push(`GST_DEBUG=${process.env.GST_DEBUG}`);
+			}
+			// KMS_DOCKER_ENV_GST_DEBUG is used by .env files of OpenVidu.
+			if ("KMS_DOCKER_ENV_GST_DEBUG" in process.env) {
+				options.Env.push(`GST_DEBUG=${process.env.KMS_DOCKER_ENV_GST_DEBUG}`);
+			}
+
 			this.kmsContainerId = await this.dockerService.startContainer(options);
 		} catch (error) {
 			console.error(error);
