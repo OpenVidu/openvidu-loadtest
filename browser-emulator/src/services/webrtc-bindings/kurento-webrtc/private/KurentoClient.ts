@@ -38,6 +38,15 @@ export async function init(
 	kurento.pipeline = await kurento.client.create("MediaPipeline");
 	console.log("[KurentoClient] Kurento MediaPipeline created");
 
+	kurento.pipeline.on("Error", (event: any): void => {
+		console.log(
+			"[KurentoClient] MediaPipeline ERROR %d (%s): %s",
+			event.errorCode,
+			event.type,
+			event.description
+		);
+	});
+
 	kurento.player = await kurento.pipeline.create("PlayerEndpoint", {
 		uri: `file://${playerPath}`,
 
@@ -48,6 +57,15 @@ export async function init(
 		"[KurentoClient] Kurento PlayerEndpoint created, uri:",
 		await kurento.player.getUri()
 	);
+
+	kurento.player.on("Error", (event: any): void => {
+		console.log(
+			"[KurentoClient] PlayerEndpoint ERROR %d (%s): %s",
+			event.errorCode,
+			event.type,
+			event.description
+		);
+	});
 
 	kurento.player.on(
 		"EndOfStream",
@@ -75,6 +93,15 @@ export async function makeWebRtcEndpoint(
 	console.log(
 		`[KurentoClient] Kurento WebRtcEndpoint created, recvonly: ${recvonly}, sendonly: ${sendonly}`
 	);
+
+	kurentoWebRtcEp.on("Error", (event: any): void => {
+		console.log(
+			"[KurentoClient] WebRtcEndpoint ERROR %d (%s): %s",
+			event.errorCode,
+			event.type,
+			event.description
+		);
+	});
 
 	// Playback for sender mode
 	// ========================
@@ -116,6 +143,15 @@ export async function makeWebRtcEndpoint(
 			"[KurentoClient] Kurento RecorderEndpoint created, uri:",
 			await kurentoRecorder.getUri()
 		);
+
+		kurentoRecorder.on("Error", (event: any): void => {
+			console.log(
+				"[KurentoClient] RecorderEndpoint ERROR %d (%s): %s",
+				event.errorCode,
+				event.type,
+				event.description
+			);
+		});
 
 		await kurentoRecorder.record();
 
