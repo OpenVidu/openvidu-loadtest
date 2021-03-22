@@ -1,0 +1,15 @@
+# Configuration for the Prettier code formatter (YAML syntax).
+# Use all settings from the recommended default style, with some exceptions:
+# - 4 spaces per indentation-level.
+# - Indent with tabs instead of spaces.
+tabWidth: 4
+useTabs: true
+overrides:
+  - files:
+      - "*.css"
+      - "*.json"
+      - "*.yaml"
+      - "*.yml"
+    options:
+      tabWidth: 2
+      useTabs: false
