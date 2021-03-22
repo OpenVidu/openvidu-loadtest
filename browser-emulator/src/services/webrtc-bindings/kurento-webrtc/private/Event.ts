@@ -4,13 +4,13 @@
  */
 
 export class Event {
-    /**
-     * Returns the type of event, e.g. "click", "hashchange", or "submit".
-     */
-    readonly type: string;
+	/**
+	 * Returns the type of event, e.g. "click", "hashchange", or "submit".
+	 */
+	readonly type: string;
 
-    // https://dom.spec.whatwg.org/#event
-    constructor(type: string) {
-        this.type = type;
-    }
+	// https://dom.spec.whatwg.org/#event
+	constructor(type: string) {
+		this.type = type;
+	}
 }

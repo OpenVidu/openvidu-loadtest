@@ -6,28 +6,28 @@
 import { MediaStreamTrack } from "./MediaStreamTrack";
 
 export class MediaStream {
-    // MediaStream has 3 constructors, but I don't know how to do this
-    // in TypeScript without making a mess:
-    // https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/MediaStream
-    // constructor();
-    // constructor(stream: MediaStream);
-    // constructor(tracks: MediaStreamTrack[]);
+	// MediaStream has 3 constructors, but I don't know how to do this
+	// in TypeScript without making a mess:
+	// https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/MediaStream
+	// constructor();
+	// constructor(stream: MediaStream);
+	// constructor(tracks: MediaStreamTrack[]);
 
-    private tracks: MediaStreamTrack[] = [];
+	private tracks: MediaStreamTrack[] = [];
 
-    constructor(tracks: MediaStreamTrack[]) {
-        this.tracks = Array.from(tracks);
-    }
+	constructor(tracks: MediaStreamTrack[]) {
+		this.tracks = Array.from(tracks);
+	}
 
-    public getAudioTracks(): MediaStreamTrack[] {
-        return this.tracks.filter((track) => track.kind === "audio");
-    }
+	public getAudioTracks(): MediaStreamTrack[] {
+		return this.tracks.filter((track) => track.kind === "audio");
+	}
 
-    public getVideoTracks(): MediaStreamTrack[] {
-        return this.tracks.filter((track) => track.kind === "video");
-    }
+	public getVideoTracks(): MediaStreamTrack[] {
+		return this.tracks.filter((track) => track.kind === "video");
+	}
 
-    public getTracks(): MediaStreamTrack[] {
-        return this.tracks;
-    }
+	public getTracks(): MediaStreamTrack[] {
+		return this.tracks;
+	}
 }

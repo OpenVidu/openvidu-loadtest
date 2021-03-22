@@ -29,30 +29,30 @@ import { MediaStreamTrack } from "./MediaStreamTrack";
 // }
 
 interface MediaStreamConstraints {
-    audio?: boolean; // | MediaTrackConstraints;
-    peerIdentity?: string;
-    video?: boolean; // | MediaTrackConstraints;
+	audio?: boolean; // | MediaTrackConstraints;
+	peerIdentity?: string;
+	video?: boolean; // | MediaTrackConstraints;
 }
 
 export class MediaDevices {
-    public async getUserMedia(
-        constraints?: MediaStreamConstraints
-    ): Promise<MediaStream> {
-        const tracks: MediaStreamTrack[] = [];
+	public async getUserMedia(
+		constraints?: MediaStreamConstraints
+	): Promise<MediaStream> {
+		const tracks: MediaStreamTrack[] = [];
 
-        if (constraints) {
-            if (constraints.audio) {
-                tracks.push(new MediaStreamTrack({ kind: "audio" }));
-            }
-            if (constraints.video) {
-                tracks.push(new MediaStreamTrack({ kind: "video" }));
-            }
-        } else {
-            tracks.push(new MediaStreamTrack({ kind: "audio" }));
-            tracks.push(new MediaStreamTrack({ kind: "video" }));
-        }
+		if (constraints) {
+			if (constraints.audio) {
+				tracks.push(new MediaStreamTrack({ kind: "audio" }));
+			}
+			if (constraints.video) {
+				tracks.push(new MediaStreamTrack({ kind: "video" }));
+			}
+		} else {
+			tracks.push(new MediaStreamTrack({ kind: "audio" }));
+			tracks.push(new MediaStreamTrack({ kind: "video" }));
+		}
 
-        const stream = new MediaStream(tracks);
-        return stream;
-    }
+		const stream = new MediaStream(tracks);
+		return stream;
+	}
 }

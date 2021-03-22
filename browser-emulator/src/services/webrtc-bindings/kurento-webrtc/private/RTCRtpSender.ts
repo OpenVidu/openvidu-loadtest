@@ -6,9 +6,9 @@
 import { MediaStreamTrack } from "./MediaStreamTrack";
 
 export class RTCRtpSender {
-    readonly track: MediaStreamTrack | null = null;
+	readonly track: MediaStreamTrack | null = null;
 
-    constructor(initDict: Partial<RTCRtpSender> = {}) {
-        Object.assign(this, initDict);
-    }
+	constructor(initDict: Partial<RTCRtpSender> = {}) {
+		Object.assign(this, initDict);
+	}
 }

@@ -6,11 +6,11 @@
 import { MediaDevices } from "./MediaDevices";
 
 export class Navigator {
-    // interface NavigatorID
-    // =====================
-    public readonly userAgent: string = "KurentoWebRTC";
+	// interface NavigatorID
+	// =====================
+	public readonly userAgent: string = "KurentoWebRTC";
 
-    // interface Navigator
-    // ===================
-    public readonly mediaDevices = new MediaDevices();
+	// interface Navigator
+	// ===================
+	public readonly mediaDevices = new MediaDevices();
 }

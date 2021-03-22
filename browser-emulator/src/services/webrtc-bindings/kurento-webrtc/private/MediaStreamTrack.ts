@@ -5,11 +5,11 @@
 
 // https://www.w3.org/TR/mediacapture-streams/#mediastreamtrack
 export class MediaStreamTrack {
-    public readonly kind: string;
+	public readonly kind: string;
 
-    constructor(initDict: Partial<MediaStreamTrack>) {
-        Object.assign(this, initDict);
-    }
+	constructor(initDict: Partial<MediaStreamTrack>) {
+		Object.assign(this, initDict);
+	}
 
-    public stop(): void {}
+	public stop(): void {}
 }
