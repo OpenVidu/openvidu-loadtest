@@ -74,7 +74,7 @@ if [[ ! -f ./src/assets/mediafiles/fakeaudio.wav ]]; then
 fi
 if [[ ! -f ./src/assets/mediafiles/video.mp4 ]]; then
     echo "Downloading video media file"
-    curl --url https://s3-eu-west-1.amazonaws.com/public.openvidu.io/sintel.mp4 --output ./src/assets/mediafiles/video.mp4 --create-dirs
+    curl --url https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-video.mp4 --output ./src/assets/mediafiles/video.mp4 --create-dirs
 fi
 
 
