@@ -25,6 +25,7 @@ hs_err_pid*
 fakeaudio.wav
 fakevideo.y4m
 *.mp4
+*.mkv
 */.settings
 .classpath
 .project

@@ -24,7 +24,7 @@ const kurento = {
  */
 export async function init(
 	kurentoUrl: string,
-	playerPath: string = "/tmp/video.mp4",
+	playerPath: string = "/tmp/video.mkv",
 	recorderPathPrefix: string | undefined = undefined
 ): Promise<void> {
 	console.log(

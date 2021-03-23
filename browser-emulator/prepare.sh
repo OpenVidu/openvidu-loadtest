@@ -79,9 +79,10 @@ if [[ ! -f "$MEDIAFILES_DIR/fakeaudio.wav" ]]; then
     curl --output "$MEDIAFILES_DIR/fakeaudio.wav" \
         "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-fakeaudio.wav"
 fi
-if [[ ! -f "$MEDIAFILES_DIR/video.mp4" ]]; then
-    curl --output "$MEDIAFILES_DIR/video.mp4" \
-        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-video.mp4"
+if [[ ! -f "$MEDIAFILES_DIR/video.mkv" ]]; then
+    curl --output "$MEDIAFILES_DIR/video.mkv" \
+        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo_vp8_opus.mkv"
+    # https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo_h264_opus.mkv
 fi
 
 

@@ -50,7 +50,7 @@ export class HackService {
 
 			await KurentoWebRTC.init(
 				'ws://localhost:8888/kurento',
-				`${this.KMS_MEDIAFILES_PATH}/video.mp4`,
+				`${this.KMS_MEDIAFILES_PATH}/video.mkv`,
 				`${this.KMS_RECORDINGS_PATH}/recording`,
 			);
 
