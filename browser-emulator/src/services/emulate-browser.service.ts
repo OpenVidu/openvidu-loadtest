@@ -167,7 +167,7 @@ export class EmulateBrowserService {
 
 	private createVideoOutput(): CustomMediaStream {
 
-		const ws = chunker(this.WIDTH * this.HEIGHT * 1.5);
+		const sourceStream = chunker(this.WIDTH * this.HEIGHT * 1.5);
 		const source = new wrtc.nonstandard.RTCVideoSource();
 		const ffmpegOptions = [
 			'-f rawvideo',
@@ -177,7 +177,7 @@ export class EmulateBrowserService {
 			'-r 24'
 		];
 
-		ws.on('data', (chunk) => {
+		sourceStream.on('data', (chunk) => {
 			const data = {
 				width: this.WIDTH,
 				height: this.HEIGHT,
@@ -186,7 +186,7 @@ export class EmulateBrowserService {
 			source.onFrame(data);
 		});
 
-		const output = StreamOutput(ws);
+		const output = StreamOutput(sourceStream);
 		output.track = source.createTrack();
 		output.options = ffmpegOptions;
 		output.kind = 'video';
@@ -197,14 +197,14 @@ export class EmulateBrowserService {
 	}
 	private createAudioOutput(): CustomMediaStream {
 		const sampleRate = 48000;
-		const ws = chunker(2 * sampleRate / 100)
+		const sourceStream = chunker(2 * sampleRate / 100)
 		const source = new wrtc.nonstandard.RTCAudioSource();
 		const ffmpegOptions = [
 			'-f s16le',
 			'-ar 48k',
 			'-ac 1'
 		];
-		ws.on('data', (chunk) => {
+		sourceStream.on('data', (chunk) => {
 			const data = {
 				samples: new Int16Array(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.length)),
 				sampleRate
@@ -213,7 +213,7 @@ export class EmulateBrowserService {
 			source.onData(data);
 		});
 
-		const output = StreamOutput(ws)
+		const output = StreamOutput(sourceStream)
 		output.track = source.createTrack()
 		output.options = ffmpegOptions;
 		output.kind = 'audio';
