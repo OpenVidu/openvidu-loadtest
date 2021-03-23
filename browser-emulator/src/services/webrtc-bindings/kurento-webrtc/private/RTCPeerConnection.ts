@@ -427,4 +427,14 @@ export class RTCPeerConnection extends EventEmitter {
 		}
 		this.remoteDescription = description;
 	}
+
+	// Methods from parent interface EventTarget.
+	// FIXME: This should just come from extending Noede.js's EventTarget class,
+	// but that class is not yet available in Node.js v14 (it is in v15).
+	public addEventListener(
+		type: string | symbol,
+		listener: (...args: any[]) => void
+	): void {
+		this.on(type, listener);
+	}
 }
