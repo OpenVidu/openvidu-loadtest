@@ -1,5 +1,5 @@
 import * as KurentoClient from "kurento-client";
-import { send } from "process";
+import { writeFile } from "fs/promises";
 
 export { getComplexType } from "kurento-client";
 
@@ -9,6 +9,9 @@ const kurento = {
 	player: null,
 	recorders: [],
 	recorderPathPrefix: "",
+
+	// DEBUG
+	numWebRtcEndpoints: 0,
 };
 
 /**
@@ -166,9 +169,30 @@ export async function makeWebRtcEndpoint(
 			);
 		}
 	}
+
+	kurento.numWebRtcEndpoints += 1;
+	if (
+		kurento.numWebRtcEndpoints == 4 || // 2 peers
+		kurento.numWebRtcEndpoints == 12 || // 3 peers
+		kurento.numWebRtcEndpoints == 24 // 4 peers
+	) {
 		console.log(
-			"[KurentoClient] WebRtcEndpoint connected to RecorderEndpoint"
+			`[KurentoClient] DEBUG: ${kurento.numWebRtcEndpoints} WebRtcEndpoints: print Pipeline DOT Graph!`
 		);
+
+		const pipelineDot: string = await kurento.pipeline.getGstreamerDot();
+
+		try {
+			await writeFile(
+				`pipeline_${
+					kurento.numWebRtcEndpoints
+				}peers_${new Date().getTime()}.dot`,
+				pipelineDot
+			);
+		} catch (err) {
+			// When a request is aborted - err is an AbortError
+			console.error("[KurentoClient] ERROR:", err);
+		}
 	}
 
 	return kurentoWebRtcEp;
