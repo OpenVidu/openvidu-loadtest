@@ -24,7 +24,7 @@ interface CustomMediaStream {
 };
 
 export class EmulateBrowserService {
-	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
+	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
 	private videoTrack: wrtc.MediaStreamTrack | boolean;
@@ -36,7 +36,6 @@ export class EmulateBrowserService {
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 			try {
-				let audioTrackInterval: NodeJS.Timer;
 				if(!token) {
 					token = await this.getToken(properties);
 				}
@@ -66,7 +65,7 @@ export class EmulateBrowserService {
 
 				}
 
-				this.storeInstances(ov, session, audioTrackInterval);
+				this.storeInstances(ov, session);
 				resolve(session.connection.connectionId);
 			} catch (error) {
 				console.log(
@@ -79,18 +78,16 @@ export class EmulateBrowserService {
 	}
 
 	deleteStreamManagerWithConnectionId(connectionId: string) {
-		const {session, audioTrackInterval} = this.openviduMap.get(connectionId);
+		const {session} = this.openviduMap.get(connectionId);
 		session?.disconnect();
-		clearInterval(audioTrackInterval);
 		this.openviduMap.delete(connectionId);
 	}
 
 	deleteStreamManagerWithRole(role: OpenViduRole) {
 		const connectionsToDelete = [];
-		this.openviduMap.forEach((value: {session: Session, openvidu: OpenVidu, audioTrackInterval: NodeJS.Timer}, connectionId: string) => {
+		this.openviduMap.forEach((value: {session: Session, openvidu: OpenVidu}, connectionId: string) => {
 			if (value.session.connection.role === role) {
 				value.session.disconnect();
-				clearInterval(value.audioTrackInterval);
 				connectionsToDelete.push(connectionId);
 			}
 		});
@@ -104,9 +101,9 @@ export class EmulateBrowserService {
 		return this.httpClient.getToken(properties);
 	}
 
-	private storeInstances(openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer) {
+	private storeInstances(openvidu: OpenVidu, session: Session) {
 		// Store the OV and Session objects into a map
-		this.openviduMap.set(session.connection.connectionId, {openvidu, session, audioTrackInterval});
+		this.openviduMap.set(session.connection.connectionId, {openvidu, session});
 	}
 
 	private async createMediaStreamTracks(properties: TestProperties): Promise<void> {
