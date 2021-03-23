@@ -39,7 +39,7 @@ export async function init(
 	console.log("[KurentoClient] Kurento MediaPipeline created");
 
 	kurento.pipeline.on("Error", (event: any): void => {
-		console.log(
+		console.error(
 			"[KurentoClient] MediaPipeline ERROR %d (%s): %s",
 			event.errorCode,
 			event.type,
@@ -57,7 +57,7 @@ export async function init(
 	);
 
 	kurento.player.on("Error", (event: any): void => {
-		console.log(
+		console.error(
 			"[KurentoClient] PlayerEndpoint ERROR %d (%s): %s",
 			event.errorCode,
 			event.type,
@@ -93,7 +93,7 @@ export async function makeWebRtcEndpoint(
 	);
 
 	kurentoWebRtcEp.on("Error", (event: any): void => {
-		console.log(
+		console.error(
 			"[KurentoClient] WebRtcEndpoint ERROR %d (%s): %s",
 			event.errorCode,
 			event.type,
