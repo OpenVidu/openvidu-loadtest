@@ -30,13 +30,19 @@ export class EmulateBrowserService {
 	private videoTrack: wrtc.MediaStreamTrack | boolean;
 	private audioTrack: wrtc.MediaStreamTrack | boolean;
 	private mediaStramTracksCreated: boolean = false;
+	private exceptionFound: boolean = false;
 	constructor(private httpClient: HttpClient = new HttpClient()) {
 	}
 
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 			try {
-				if(!token) {
+
+				if (this.exceptionFound) {
+					throw {status: 500, message: 'Exception found in openvidu-browser'};
+				}
+
+				if (!token) {
 					token = await this.getToken(properties);
 				}
 
@@ -46,6 +52,13 @@ export class EmulateBrowserService {
 
 				session.on("streamCreated", (event: StreamEvent) => {
 					session.subscribe(event.stream, null);
+				});
+
+				session.on('exception', (exception: any) => {
+					if (exception.name === 'ICE_CANDIDATE_ERROR') {
+						// Error on sendIceCandidate
+						this.exceptionFound = true;
+					}
 				});
 
 				await session.connect(token,  properties.userId);
@@ -72,7 +85,7 @@ export class EmulateBrowserService {
 					"There was an error connecting to the session:",
 					error
 				);
-				reject({status:error.status, message: error.statusText || error.message});
+				reject({status:error.status, message: error.statusText || error.message || error});
 			}
 		});
 	}
