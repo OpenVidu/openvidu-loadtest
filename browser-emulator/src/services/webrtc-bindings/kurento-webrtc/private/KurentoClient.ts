@@ -104,10 +104,15 @@ export async function makeWebRtcEndpoint(
 	// Playback for sender mode
 	// ========================
 
-	if (!recvonly) {
-		console.log(
-			"[KurentoClient] Not a pure WebRTC receiver: send from PlayerEndpoint"
-		);
+	// FIXME -- openvidu-browser will build a sendrecv PeerConnection when it
+	// actually just wants a recvonly one. However, it at least does build a
+	// sendonly PeerConnection when it just wants to send. So use that to
+	// differentiate between both modes...
+	// This will be fixed when the SDP Offer refactoring gets merged:
+	// https://github.com/OpenVidu/openvidu/pull/577
+	//if (!recvonly) {
+	if (sendonly) {
+		console.log("[KurentoClient] WebRTC sender requested");
 
 		await kurento.player.connect(kurentoWebRtcEp);
 
@@ -121,40 +126,46 @@ export async function makeWebRtcEndpoint(
 
 	const recordingEnabled = process.env.KURENTO_RECORDING_ENABLED === "true";
 
-	if (!sendonly && kurento.recorderPathPrefix && recordingEnabled) {
-		console.log(
-			"[KurentoClient] Not a pure WebRTC sender: receive into a RecorderEndpoint"
-		);
+	if (!sendonly) {
+		console.log("[KurentoClient] WebRTC receiver requested");
 
-		const kurentoRecorder = await kurento.pipeline.create(
-			"RecorderEndpoint",
-			{
-				uri: `file://${
-					kurento.recorderPathPrefix
-				}_${new Date().getTime()}.webm`,
-				stopOnEndOfStream: true,
-				mediaProfile: "WEBM",
-			}
-		);
-		kurento.recorders.push(kurentoRecorder);
-		console.log(
-			"[KurentoClient] Kurento RecorderEndpoint created, uri:",
-			await kurentoRecorder.getUri()
-		);
+		if (kurento.recorderPathPrefix && recordingEnabled) {
+			console.log("[KurentoClient] Recording is enabled");
 
-		kurentoRecorder.on("Error", (event: any): void => {
-			console.log(
-				"[KurentoClient] RecorderEndpoint ERROR %d (%s): %s",
-				event.errorCode,
-				event.type,
-				event.description
+			const kurentoRecorder = await kurento.pipeline.create(
+				"RecorderEndpoint",
+				{
+					uri: `file://${
+						kurento.recorderPathPrefix
+					}_${new Date().getTime()}.webm`,
+					stopOnEndOfStream: true,
+					mediaProfile: "WEBM",
+				}
 			);
-		});
+			kurento.recorders.push(kurentoRecorder);
+			console.log(
+				"[KurentoClient] Kurento RecorderEndpoint created, uri:",
+				await kurentoRecorder.getUri()
+			);
 
-		await kurentoRecorder.record();
+			kurentoRecorder.on("Error", (event: any): void => {
+				console.error(
+					"[KurentoClient] RecorderEndpoint ERROR %d (%s): %s",
+					event.errorCode,
+					event.type,
+					event.description
+				);
+			});
 
-		await kurentoWebRtcEp.connect(kurentoRecorder);
+			await kurentoRecorder.record();
 
+			await kurentoWebRtcEp.connect(kurentoRecorder);
+
+			console.log(
+				"[KurentoClient] WebRtcEndpoint connected to RecorderEndpoint"
+			);
+		}
+	}
 		console.log(
 			"[KurentoClient] WebRtcEndpoint connected to RecorderEndpoint"
 		);
