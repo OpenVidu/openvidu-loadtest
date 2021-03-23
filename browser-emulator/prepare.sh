@@ -73,11 +73,11 @@ mkdir -p "$MEDIAFILES_DIR"
 
 if [[ ! -f "$MEDIAFILES_DIR/fakevideo.y4m" ]]; then
     curl --output "$MEDIAFILES_DIR/fakevideo.y4m" \
-        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-fakevideo.y4m"
+        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo.y4m"
 fi
 if [[ ! -f "$MEDIAFILES_DIR/fakeaudio.wav" ]]; then
     curl --output "$MEDIAFILES_DIR/fakeaudio.wav" \
-        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb-fakeaudio.wav"
+        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakeaudio.wav"
 fi
 if [[ ! -f "$MEDIAFILES_DIR/video.mkv" ]]; then
     curl --output "$MEDIAFILES_DIR/video.mkv" \
