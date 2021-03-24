@@ -11,15 +11,13 @@ shopt -s inherit_errexit 2>/dev/null || true
 set -o xtrace
 
 
-
 # Check permissions
 # =================
 
-[[ "$(id -u)" -eq 0 ]] || {
-    echo "ERROR: Please run as root user (or with 'sudo')"
-    exit 1
+[[ "$(id -u)" -ne 0 ]] || {
+    # Refresh the sudo password (will ask for it only if necessary).
+    sudo --validate
 }
-
 
 
 # Check Node.js
@@ -28,10 +26,9 @@ set -o xtrace
 command -v node >/dev/null || {
     echo "Installing Node.js"
     curl -sL https://deb.nodesource.com/setup_14.x | bash -
-    apt-get update && apt-get install --no-install-recommends --yes \
+    sudo apt-get update && sudo apt-get install --no-install-recommends --yes \
         nodejs
 }
-
 
 
 # Check Docker
@@ -39,27 +36,27 @@ command -v node >/dev/null || {
 
 command -v docker >/dev/null || {
     echo "Installing Docker CE"
-    apt-get update && apt-get install --no-install-recommends --yes \
+    sudo apt-get update && sudo apt-get install --no-install-recommends --yes \
         apt-transport-https \
         ca-certificates \
         curl \
         software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
     source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
-    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
-    apt-get update && apt-get install --no-install-recommends --yes \
+    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
+    sudo apt-get update && sudo apt-get install --no-install-recommends --yes \
         docker-ce
-    usermod -aG docker "$USER"
+    sudo usermod -aG docker "$USER"
     newgrp docker
 }
 
 
-# Check Docker
+# Check FFmpeg
 # ============
 
 command -v ffmpeg >/dev/null || {
     echo "Installing Ffmpeg"
-    snap install ffmpeg
+    sudo snap install ffmpeg
 }
 
 
@@ -84,7 +81,6 @@ if [[ ! -f "$MEDIAFILES_DIR/video.mkv" ]]; then
         "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo_vp8_opus.mkv"
     # https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo_h264_opus.mkv
 fi
-
 
 
 echo "Instance is ready"
