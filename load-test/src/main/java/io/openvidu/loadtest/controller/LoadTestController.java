@@ -109,7 +109,7 @@ public class LoadTestController {
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), testCase);
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), participantsBySession, testCase);
 
 				if (responseIsOk && userNumber.get() < participantsBySession) {
 					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
@@ -146,7 +146,7 @@ public class LoadTestController {
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), testCase);
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), publishers, testCase);
 				if (!responseIsOk) {
 					log.error("Response status is not 200 OK. Exit");
 					return;
@@ -159,7 +159,7 @@ public class LoadTestController {
 				for (int i = 0; i < subscribers; i++) {
 					log.info("Creating SUBSCRIBER '{}' in session",
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-					responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get(),
+					responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get(), subscribers,
 							testCase);
 
 					if (responseIsOk && userNumber.get() < totalParticipants) {

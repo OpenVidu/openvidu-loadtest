@@ -18,6 +18,8 @@ public class LoadTestConfig {
 	private Environment env;
 
 	private List<String> workerUrlList;
+	
+	private String updateWorkerUrlPolicy;
 
 	private String openviduUrl;
 
@@ -102,6 +104,10 @@ public class LoadTestConfig {
 	public List<String> getWorkerUrlList() {
 		return this.workerUrlList;
 	}
+	
+	public String getUpdateWorkerUrlPolicy() {
+		return this.updateWorkerUrlPolicy;
+	}
 
 	@PostConstruct
 	private void checkConfigurationProperties() {
@@ -118,6 +124,7 @@ public class LoadTestConfig {
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 			kibanaHost = asOptionalURL("KIBANA_HOST");
 			workerUrlList = asStringList("WORKER_URL_LIST");
+			updateWorkerUrlPolicy = asOptionalString("UPDATE_WORKER_URL_POLICY");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
 			
@@ -136,6 +143,7 @@ public class LoadTestConfig {
 		System.out.printf(format, "OpenVidu URL:", openviduUrl);
 		System.out.printf(format, "OpenVidu SECRET:", openviduSecret);
 		System.out.printf(format, "Worker List:", workerUrlList);
+		System.out.printf(format, "Worker Update Url Policy:", updateWorkerUrlPolicy);
 		System.out.printf(format, "Session Name Prefix:", sessionNamePrefix);
 		System.out.printf(format, "Username Prefix:", userNamePrefix);
 		System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);

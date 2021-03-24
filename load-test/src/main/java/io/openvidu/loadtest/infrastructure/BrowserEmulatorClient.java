@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.PostConstruct;
 
@@ -21,6 +20,7 @@ import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.models.testcase.WorkerUpdatePolicy;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -30,7 +30,7 @@ public class BrowserEmulatorClient {
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
 
 	private static List<String> workerUrlList = new ArrayList<String>();
-	private static AtomicInteger lastWorkerIndex = new AtomicInteger(-1);
+	private static String currentWorkerUrl = "";
 	private static final int HTTP_STATUS_OK = 200;
 
 	@Autowired
@@ -45,21 +45,22 @@ public class BrowserEmulatorClient {
 	@PostConstruct
 	public void init() {
 		workerUrlList = this.loadTestConfig.getWorkerUrlList();
+		currentWorkerUrl = workerUrlList.get(0);
 	}
 
-	public boolean createPublisher(int userNumber, int sessionNumber, TestCase testCase) {
-		String workerUrl = "";
+	public boolean createPublisher(int userNumber, int sessionNumber, int participantsBySession, TestCase testCase) {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
 		
 		try {
-			workerUrl = getNextWorkerUrl();
-			log.info("Selected worker: {}", workerUrl);
-			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager",
+			updateWorkerUrl(sessionNumber, participantsBySession);
+
+			log.info("Selected worker: {}", currentWorkerUrl);
+			HttpResponse<String> response = this.httpClient.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager",
 					body.toJson(), null, getHeaders());
 			return processResponse(response);
 		} catch (IOException | InterruptedException e) {
 			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
-				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+				log.error("Error trying connect with worker on {}: {}", currentWorkerUrl, e.getMessage());
 				System.exit(1);
 			}
 			e.printStackTrace();
@@ -67,21 +68,21 @@ public class BrowserEmulatorClient {
 		return false;
 	}
 
-	public boolean createSubscriber(int userNumber, int sessionNumber, TestCase testCase) {
-		String workerUrl = "";
+	public boolean createSubscriber(int userNumber, int sessionNumber, int participantsBySession, TestCase testCase) {
 		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
-
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
 
 		try {
-			workerUrl = getNextWorkerUrl();
-			log.info("Selected worker: {}", workerUrl);
-			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager",
+			//TODO: The capacity of sessions with subscribers is not defined
+			updateWorkerUrl(sessionNumber, participantsBySession);
+			
+			log.info("Selected worker: {}", currentWorkerUrl);
+			HttpResponse<String> response = this.httpClient.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager",
 					body.toJson(), null, getHeaders());
 			return processResponse(response);
 		} catch (IOException | InterruptedException e) {
 			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
-				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+				log.error("Error trying connect with worker on {}: {}", currentWorkerUrl, e.getMessage());
 				System.exit(1);
 			}
 			e.printStackTrace();
@@ -152,15 +153,43 @@ public class BrowserEmulatorClient {
 //		return capacity;
 //	}
 
-	private String getNextWorkerUrl() {
-		int workerInstances = workerUrlList.size();
-		int nextWorkerIndex = lastWorkerIndex.incrementAndGet();
+	
+	private void updateWorkerUrl(int sessionNumber, int participantsBySession) {
+		
+		String updatePolicy = this.loadTestConfig.getUpdateWorkerUrlPolicy();
+		
+		if(updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
+			// TODO: The capacity number depends of instance resources.
+			int mod = -1;
+			if(participantsBySession == 2) {
+				mod = sessionNumber % 17;
+			} else if(participantsBySession == 3) {
+				mod = sessionNumber % 12;
 
-		if (nextWorkerIndex > workerInstances - 1) {
-			lastWorkerIndex.set(0);
-			return workerUrlList.get(0);
+			} else if(participantsBySession == 5) {
+				mod = sessionNumber % 4;
+
+			} else if(participantsBySession == 8) {
+				mod = sessionNumber % 2;
+			}
+			
+			if(mod == 0) {
+				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
+				currentWorkerUrl = workerUrlList.get(nextIndex);
+			}
+		} else if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.ROUNDROBIN.getValue())) {
+
+			if(workerUrlList.size() > 1) {
+				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
+				if(nextIndex >= workerUrlList.size()) {
+					nextIndex = 0;
+				}
+				currentWorkerUrl = workerUrlList.get(nextIndex);
+			}
 		}
-		return workerUrlList.get(nextWorkerIndex);
+		
+		
+		
 
 	}
 
