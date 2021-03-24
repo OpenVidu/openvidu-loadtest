@@ -65,7 +65,8 @@ command -v ffmpeg >/dev/null || {
 
 # These are used to simulate MediaStreamTracks.
 
-MEDIAFILES_DIR="./src/assets/mediafiles"
+SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
+MEDIAFILES_DIR="$SELF_PATH/src/assets/mediafiles"
 mkdir -p "$MEDIAFILES_DIR"
 
 if [[ ! -f "$MEDIAFILES_DIR/fakevideo.y4m" ]]; then
