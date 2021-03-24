@@ -31,6 +31,7 @@ export class EmulateBrowserService {
 	private audioTrack: wrtc.MediaStreamTrack | boolean;
 	private mediaStramTracksCreated: boolean = false;
 	private exceptionFound: boolean = false;
+	private exceptionMessage: string = '';
 	constructor(private httpClient: HttpClient = new HttpClient()) {
 	}
 
@@ -39,7 +40,7 @@ export class EmulateBrowserService {
 			try {
 
 				if (this.exceptionFound) {
-					throw {status: 500, message: 'Exception found in openvidu-browser'};
+					throw {status: 500, message: this.exceptionMessage};
 				}
 
 				if (!token) {
@@ -57,7 +58,9 @@ export class EmulateBrowserService {
 				session.on('exception', (exception: any) => {
 					if (exception.name === 'ICE_CANDIDATE_ERROR') {
 						// Error on sendIceCandidate
+						console.error(exception);
 						this.exceptionFound = true;
+						this.exceptionMessage = 'Exception found in openvidu-browser';
 					}
 				});
 
@@ -157,6 +160,13 @@ export class EmulateBrowserService {
 				.output(audioOutput.url)
 				.outputOptions(audioOutput.options)
 		}
+
+		command.on('error', (err, stdout, stderr) => {
+			console.error(err.message);
+			this.exceptionFound = true;
+			this.exceptionMessage = 'Exception found in ffmpeg' + err.message;
+
+		});
 
 		command.run();
 
