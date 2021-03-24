@@ -11,15 +11,6 @@ shopt -s inherit_errexit 2>/dev/null || true
 set -o xtrace
 
 
-# Check permissions
-# =================
-
-if [[ "$(id -u)" -ne 0 ]]; then
-    # Refresh the sudo password (will ask for it only if necessary).
-    sudo --validate
-fi
-
-
 # Check Node.js
 # =============
 
