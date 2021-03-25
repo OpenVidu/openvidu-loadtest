@@ -78,8 +78,6 @@ export async function init(
 		}
 	);
 
-	await kurento.player.play();
-
 	kurento.recorderPathPrefix = recorderPathPrefix;
 }
 
@@ -122,6 +120,13 @@ export async function makeWebRtcEndpoint(
 		console.log(
 			"[KurentoClient] PlayerEndpoint connected to WebRtcEndpoint"
 		);
+
+		// First time, start the playback.
+		const playerState: string = await kurento.player.getState();
+		if (playerState !== "START") {
+			console.log("[KurentoClient] Kurento PlayerEndpoint: play()");
+			await kurento.player.play();
+		}
 	}
 
 	// Recording for receiver mode
