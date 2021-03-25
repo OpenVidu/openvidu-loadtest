@@ -7,10 +7,10 @@ import { HackService } from "./services/hack.service";
 
 import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
 import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
+import {app as instanceController} from './controllers/instance.controller';
 
 import { InstanceService } from './services/instance.service';
 import { ApplicationMode, EmulatedUserType } from './types/config.type';
-
 
 const app = express();
 
@@ -26,6 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/', webrtcStatsController);
 app.use('/openvidu-browser', ovBrowserController);
+app.use('/instance', instanceController);
 
 const server = https.createServer(options, app);
 
