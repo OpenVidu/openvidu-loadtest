@@ -4,19 +4,10 @@
 			"typology": "N:N",
 			"participants": [3],
 			"sessions": "infinite",
+			"browserMode": "EMULATE",
+			"recording": false,
+			"headless": false,
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
-		},
-		{
-			"typology": "N:M",
-			"participants": ["1:10", "1:100", "2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
-			"sessions": "infinite",
-			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS and SUBSCRIBERS as the participants array indicates."
-		},
-		{
-			"typology": "TEACHING",
-			"participants": ["2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
-			"sessions": "infinite",
-			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers and students) as the participants array indicates. The students will be PUBLISHERS but they will only publish theirs audio"
 		}
 	]
 }

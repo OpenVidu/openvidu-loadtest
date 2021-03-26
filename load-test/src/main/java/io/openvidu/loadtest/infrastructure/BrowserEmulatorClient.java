@@ -52,7 +52,7 @@ public class BrowserEmulatorClient {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
 		
 		try {
-			updateWorkerUrl(sessionNumber, participantsBySession);
+//			updateWorkerUrl(sessionNumber, participantsBySession);
 
 			log.info("Selected worker: {}", currentWorkerUrl);
 			HttpResponse<String> response = this.httpClient.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager",
@@ -74,7 +74,7 @@ public class BrowserEmulatorClient {
 
 		try {
 			//TODO: The capacity of sessions with subscribers is not defined
-			updateWorkerUrl(sessionNumber, participantsBySession);
+//			updateWorkerUrl(sessionNumber, participantsBySession);
 			
 			log.info("Selected worker: {}", currentWorkerUrl);
 			HttpResponse<String> response = this.httpClient.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager",
@@ -152,9 +152,26 @@ public class BrowserEmulatorClient {
 //		}
 //		return capacity;
 //	}
+	
+	public boolean restartAll() {
+		for (String workerUrl : workerUrlList) {
+			try {
+		
+				log.info("Restart worker {}", currentWorkerUrl);
+				JsonObject body = new JsonObject();
+				HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/instance/restart", body, null, getHeaders());
+				processResponse(response);
+			} catch (Exception e) {
+	//			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
+	//				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+	//			}
+			}
+		}
+		return true;
+	}
 
 	
-	private void updateWorkerUrl(int sessionNumber, int participantsBySession) {
+	public void updateWorkerUrl(int sessionNumber, int participantsBySession) {
 		
 		String updatePolicy = this.loadTestConfig.getUpdateWorkerUrlPolicy();
 		
@@ -162,20 +179,22 @@ public class BrowserEmulatorClient {
 			// TODO: The capacity number depends of instance resources.
 			int mod = -1;
 			if(participantsBySession == 2) {
-				mod = sessionNumber % 17;
+				mod = sessionNumber % 13;
 			} else if(participantsBySession == 3) {
-				mod = sessionNumber % 12;
+				mod = sessionNumber % 8;
 
 			} else if(participantsBySession == 5) {
-				mod = sessionNumber % 4;
+				mod = sessionNumber % 2;
 
 			} else if(participantsBySession == 8) {
-				mod = sessionNumber % 2;
+				mod = sessionNumber % 1;
 			}
 			
 			if(mod == 0) {
+				System.out.println("Changing worker");
 				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
 				currentWorkerUrl = workerUrlList.get(nextIndex);
+				System.out.println("New worker is: " + currentWorkerUrl);
 			}
 		} else if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.ROUNDROBIN.getValue())) {
 
@@ -188,9 +207,6 @@ public class BrowserEmulatorClient {
 			}
 		}
 		
-		
-		
-
 	}
 
 	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role, TestCase testCase ) {

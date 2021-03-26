@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.models.testcase.WorkerUpdatePolicy;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 
 /**
@@ -47,7 +48,7 @@ public class LoadTestController {
 
 	public void startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
-		
+
 		testCasesList.forEach(testCase -> {
 
 			if (testCase.is_NxN()) {
@@ -124,6 +125,9 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 //				this.showIterationReport(sessionNumber.get(), userNumber.get(), participantsBySession);
 				userNumber.set(1);
+				if(this.loadTestConfig.getUpdateWorkerUrlPolicy().equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
+					this.browserEmulatorClient.updateWorkerUrl(sessionNumber.get(), participantsBySession);
+				}
 			}
 		}
 	}
@@ -187,6 +191,7 @@ public class LoadTestController {
 
 	private void cleanEnvironment() {
 		this.browserEmulatorClient.disconnectAll();
+		this.browserEmulatorClient.restartAll();
 		sessionNumber.set(0);
 		responseIsOk = true;
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
