@@ -72,7 +72,7 @@ export async function init(
 		"EndOfStream",
 		async (_event: any): Promise<void> => {
 			console.log(
-				"[KurentoClient] Kurento PlayerEndpoint EOS: play() again"
+				"[KurentoClient] PlayerEndpoint End Of Stream: play() again"
 			);
 			await kurento.player.play();
 		}
