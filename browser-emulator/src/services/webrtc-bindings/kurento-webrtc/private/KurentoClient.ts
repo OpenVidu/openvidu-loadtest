@@ -74,6 +74,7 @@ export async function init(
 			console.log(
 				"[KurentoClient] PlayerEndpoint End Of Stream: play() again"
 			);
+			await kurento.player.stop();
 			await kurento.player.play();
 		}
 	);
