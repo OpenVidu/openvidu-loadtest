@@ -1,10 +1,5 @@
 import { Publisher, VideoInsertMode, PublisherProperties, OpenVidu } from 'openvidu-browser';
-// TODO: CREATE NEW ONE ?
-import { MediaStream } from '../../../services/webrtc-bindings/kurento-webrtc/KurentoWebRTC';
 
-interface HTMLElement {
-
-}
 interface MediaTrackSettings {
   height?: number;
   width?: number;

@@ -1,0 +1,44 @@
+curl --insecure --request POST 'https://ec2-34-204-173-51.compute-1.amazonaws.com:5000/openvidu-browser/streamManager' --header 'Content-Type: application/json' --data-raw '{
+    "openviduUrl": "https://demos.openvidu.io",
+ "openviduSecret": "MY_SECRET",
+    "browserMode": "EMULATE",
+    "properties": {
+        "userId": "User1",
+        "sessionName": "LoadTestSession",
+        "token": "",
+        "role": "PUBLISHER",
+        "audio": true,
+        "video": true,
+        "resolution": "640x480",
+        "recordingOutputMode": "",
+        "frameRate": 30,
+        "recording": false,
+        "headless": false
+    }
+}'
+
+curl --insecure --request DELETE 'https://3.229.142.4:5000/openvidu-browser/streamManager' \
+--header 'Content-Type: application/json'
+
+curl --insecure --request GET 'https://192.168.0.18:5000/instance/restart' --header 'Content-Type: application/json'
+
+get workers ips aws
+/usr/local/bin/aws ec2 describe-instances --query "Reservations[*].Instances[*].PublicIpAddress" --filters Name=tag:type,Values=browseremulator2
+
+
+Problemas con:
+
+eliminar participants en workers. Tendrian que invocar la llamada concurrentemente
+https://crunchify.com/how-to-run-multiple-threads-concurrently-in-java-executorservice-approach/
+
+localstorage
+index en kibana
+java.io.IOException: HTTP/1.1 header parser received no bytes
+	at java.net.http/jdk.internal.net.http.HttpClientImpl.send(HttpClientImpl.java:565)
+	at java.net.http/jdk.internal.net.http.HttpClientFacade.send(HttpClientFacade.java:119)
+	at io.openvidu.loadtest.utils.CustomHttpClient.sendPost(CustomHttpClient.java:70)
+	at io.openvidu.loadtest.infrastructure.BrowserEmulatorClient.createPublisher(BrowserEmulatorClient.java:58)
+
+al lanzar metricbeat (si storage no se borra, no se lanza). Tambien se queda lanzado y hay conflicto al lanzar uno nuevo. No se limpia
+
+Al borrar y tirar los contenedores de chrome no siempre devuelve respuesta y por tanto, se queda pending

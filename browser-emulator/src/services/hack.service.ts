@@ -34,18 +34,7 @@ export class HackService {
 	}
 
 	async webrtc(): Promise<void> {
-		if(EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC) {
-			// Overriding WebRTC API using node-wrtc library with the aim of provide it to openvidu-browser
-			// For EmulatedUserType.KMS, this is not necessary due to KMS will implement the WebRTC API itself.
-			globalThis.RTCPeerConnection = RTCPeerConnectionWRTC;
-			globalThis.RTCIceCandidate = RTCIceCandidateWRTC;
-			globalThis.RTCSessionDescription = RTCSessionDescriptionWRTC;
-			globalThis.getUserMedia = getUserMediaWRTC;
-			globalThis.MediaStream = MediaStreamWRTC;
-			globalThis.MediaStreamTrack = MediaStreamTrackWRTC;
-			(<any>globalThis.navigator)['mediaDevices'] = mediaDevicesWRTC;
-			// globalThis.navigator.mediaDevices = mediaDevicesWRTC;
-		} else {
+		if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
 			// Implement fake RTCPeerConnection methods, to get media from Kurento.
 
 			await KurentoWebRTC.init(
@@ -62,6 +51,17 @@ export class HackService {
 			globalObject.RTCPeerConnection = KurentoWebRTC.RTCPeerConnection;
 			globalObject.RTCSessionDescription =
 				KurentoWebRTC.RTCSessionDescription;
+		} else {
+			// Overriding WebRTC API using node-wrtc library with the aim of provide it to openvidu-browser
+			// For EmulatedUserType.KMS, this is not necessary due to KMS will implement the WebRTC API itself.
+			globalThis.RTCPeerConnection = RTCPeerConnectionWRTC;
+			globalThis.RTCIceCandidate = RTCIceCandidateWRTC;
+			globalThis.RTCSessionDescription = RTCSessionDescriptionWRTC;
+			globalThis.getUserMedia = getUserMediaWRTC;
+			globalThis.MediaStream = MediaStreamWRTC;
+			globalThis.MediaStreamTrack = MediaStreamTrackWRTC;
+			(<any>globalThis.navigator)['mediaDevices'] = mediaDevicesWRTC;
+			// globalThis.navigator.mediaDevices = mediaDevicesWRTC;
 		}
 	}
 
