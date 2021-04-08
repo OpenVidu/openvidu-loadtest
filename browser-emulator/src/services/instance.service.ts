@@ -51,7 +51,7 @@ export class InstanceService {
 	async launchMetricBeat() {
 		if(!this.isMetricbeatStarted() && APPLICATION_MODE === ApplicationMode.PROD) {
 			try {
-
+				const timestamp = new Date().getTime();
 				const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
 				const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
 				const options: ContainerCreateOptions = {
@@ -63,7 +63,7 @@ export class InstanceService {
 						`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
 						`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
 						`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
-						`WORKER_PORT=${SERVER_PORT}`,
+						`WORKER_UUID=${timestamp}`,
 					],
 					Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
 					HostConfig:  {

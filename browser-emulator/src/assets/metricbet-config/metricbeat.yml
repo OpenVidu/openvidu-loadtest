@@ -25,7 +25,7 @@ metricbeat.modules:
     period: ${METRICBEAT_MONITORING_INTERVAL}s
     cpu.metrics: [normalized_percentages]
 fields:
-    worker_name: worker_${WORKER_PORT}
+    worker_name: worker_${WORKER_UUID}
     worker_port: ${WORKER_PORT}
     node_role: browseremulator
 output:
