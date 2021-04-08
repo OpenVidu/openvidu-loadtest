@@ -4,7 +4,6 @@ import { Index } from '@elastic/elasticsearch/api/requestParams';
 import { APPLICATION_MODE } from '../config';
 import { JSONStatsResponse } from '../types/api-rest.type';
 import { ApplicationMode } from '../types/config.type';
-import { v4 as uuidv4 } from 'uuid';
 
 export class ElasticSearchService {
 
@@ -113,7 +112,7 @@ export class ElasticSearchService {
 	private generateNewIndexName(): string {
 		const date = new Date();
 		const timestamp = `${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}-${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`;
-		this.indexName = this.LOADTEST_INDEX + '-' + timestamp + '-' + uuidv4();
+		this.indexName = this.LOADTEST_INDEX + '-' + timestamp + '-' + new Date().getTime();
 		return this.indexName;
 	}
 }
