@@ -56,7 +56,11 @@ export class BrowserManagerService {
 
 			if(this.elasticSearchService.isElasticSearchAvailable() && !this.localStorage.exist(webrtcStorageName)){
 				// Create webrtc stats item in virtual localStorage
-				this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
+				try {
+					this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
+				} catch (error) {
+					console.error(error);
+				}
 			}
 			// Create new stream manager using node-webrtc library, emulating a normal browser.
 			connectionId = await this.emulateBrowserService.createStreamManager(request.token, request.properties);
