@@ -64,7 +64,11 @@ export class ElasticSearchService {
 				indexData.body[key] = json[key];
 			});
 			if(!!Object.keys(indexData.body).length) {
-				await this.client.index(indexData);
+				try {
+					await this.client.index(indexData);
+				} catch (error) {
+					console.error(error);
+				}
 			}
 		}
 	}
