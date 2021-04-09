@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.models.testcase.TestCase;
@@ -33,7 +34,6 @@ import io.openvidu.loadtest.utils.JsonUtils;
 public class BrowserEmulatorClient {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
-
 	private static List<String> workerUrlList = new ArrayList<String>();
 	private static String currentWorkerUrl = "";
 	private static final int HTTP_STATUS_OK = 200;
@@ -55,20 +55,36 @@ public class BrowserEmulatorClient {
 
 	public boolean createPublisher(int userNumber, int sessionNumber, int participantsBySession, TestCase testCase) {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
-		
+
 		try {
-//			updateWorkerUrl(sessionNumber, participantsBySession);
+			updateWorkerUrl(sessionNumber, participantsBySession);
 
 			log.info("Selected worker: {}", currentWorkerUrl);
-			HttpResponse<String> response = this.httpClient.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager",
-					body.toJson(), null, getHeaders());
+			HttpResponse<String> response = this.httpClient
+					.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
+
+			if (response.statusCode() != HTTP_STATUS_OK) {
+				System.out.println("Error: " + response.body());
+				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
+						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
+					return false;
+				}
+				System.out.println("Retrying");
+				return this.createPublisher(userNumber, sessionNumber, participantsBySession, testCase);
+			}
 			return processResponse(response);
-		} catch (IOException | InterruptedException e) {
-			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
+		} catch (Exception e) {
+			if (e.getMessage().contains("Connection timed out")) {
+				return this.createPublisher(userNumber, sessionNumber, participantsBySession, testCase);
+			} else if (e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", currentWorkerUrl, e.getMessage());
 				System.exit(1);
+			} else if (e.getMessage().contains("received no bytes")) {
+				System.out.println(e.getMessage());
+				return true;
 			}
 			e.printStackTrace();
+
 		}
 		return false;
 	}
@@ -78,12 +94,12 @@ public class BrowserEmulatorClient {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
 
 		try {
-			//TODO: The capacity of sessions with subscribers is not defined
+			// TODO: The capacity of sessions with subscribers is not defined
 //			updateWorkerUrl(sessionNumber, participantsBySession);
-			
+
 			log.info("Selected worker: {}", currentWorkerUrl);
-			HttpResponse<String> response = this.httpClient.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager",
-					body.toJson(), null, getHeaders());
+			HttpResponse<String> response = this.httpClient
+					.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
 			return processResponse(response);
 		} catch (IOException | InterruptedException e) {
 			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
