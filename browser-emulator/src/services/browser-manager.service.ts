@@ -71,17 +71,9 @@ export class BrowserManagerService {
 
 	}
 
-	async deleteStreamManagerWithRoles(roles: OpenViduRole[]): Promise<void> {
-		const promisesToResolve: Promise<void>[] = [];
-		roles.forEach((role: OpenViduRole) => {
-			this.emulateBrowserService.deleteStreamManagerWithRole(role);
-			promisesToResolve.push(this.realBrowserService.deleteStreamManagerWithRole(role));
-		});
-		if(this.elasticSearchService.isElasticSearchAvailable()){
-			await this.elasticSearchService.clean();
-		}
-
-		await Promise.all(promisesToResolve);
+	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
+		this.emulateBrowserService.deleteStreamManagerWithRole(role);
+		await this.realBrowserService.deleteStreamManagerWithRole(role);
 	}
 
 	async deleteStreamManagerWithConnectionId(connectionId: string): Promise<void> {
@@ -93,10 +85,18 @@ export class BrowserManagerService {
 		return await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 	}
 
+	async clean(): Promise<void> {
+		await this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
+		await this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
+		if(this.elasticSearchService.isElasticSearchAvailable()){
+			await this.elasticSearchService.clean();
+		}
+	}
+
 
 	private printRequestInfo(req: LoadTestPostRequest): void {
 
-		const info = `Starting a ${req.properties.role} participant in a ${req.browserMode} browser with: \n` +
+		const info = `\nStarting a ${req.properties.role} participant in a ${req.browserMode} browser with: \n` +
 					`Audio: ${req.properties.audio} \n` +
 					`Video: ${req.properties.video} \n` +
 					`Frame Rate: ${req.properties.frameRate} \n` +

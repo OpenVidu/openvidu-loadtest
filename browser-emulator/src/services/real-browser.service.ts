@@ -95,23 +95,28 @@ export class RealBrowserService {
 		this.containerMap.delete(containerId);
 	}
 
-	async deleteStreamManagerWithRole(role: any): Promise<void> {
-		const containersToDelete: {containerId:string, isRecording: boolean}[] = [];
-		const promisesToResolve: Promise<void>[] = [];
-		this.containerMap.forEach((info: BrowserContainerInfo, containerId: string) => {
-			if(info.connectionRole === role) {
-				containersToDelete.push({containerId, isRecording: info.isRecording});
+	deleteStreamManagerWithRole(role: any): Promise<void> {
+		return new Promise(async (resolve,reject) => {
+			const containersToDelete: {containerId:string, isRecording: boolean}[] = [];
+			const promisesToResolve: Promise<void>[] = [];
+			this.containerMap.forEach((info: BrowserContainerInfo, containerId: string) => {
+				if(info.connectionRole === role) {
+					containersToDelete.push({containerId, isRecording: info.isRecording});
+				}
+			});
+
+			containersToDelete.forEach( async (value: {containerId:string, isRecording: boolean}) => {
+				promisesToResolve.push(this.stopBrowserContainer(value.containerId, value.isRecording));
+				this.containerMap.delete(value.containerId);
+			});
+
+			try {
+				await Promise.all(promisesToResolve);
+				resolve();
+			} catch (error) {
+				reject(error);
 			}
 		});
-
-		containersToDelete.forEach( async (value: {containerId:string, isRecording: boolean}) => {
-			promisesToResolve.push(this.stopBrowserContainer(value.containerId, value.isRecording));
-			this.containerMap.delete(value.containerId);
-		});
-
-		if(promisesToResolve.length > 0){
-			await Promise.all(promisesToResolve);
-		}
 	}
 
 	async launchBrowser(request: LoadTestPostRequest, storageName?: string, storageValue?: string, timeout: number = 1000): Promise<void> {

@@ -42,8 +42,13 @@ app.delete('/streamManager', async (req: Request, res: Response) => {
 
 	const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 	console.log('Deleting all participants');
-	await browserManagerService.deleteStreamManagerWithRoles([OpenViduRole.PUBLISHER, OpenViduRole.SUBSCRIBER]);
-	res.status(200).send({});
+	try {
+		await browserManagerService.clean();
+		res.status(200).send(`Instance ${req.headers.host} is clean`);
+	} catch (error) {
+		console.error(error);
+		res.status(500).send(error);
+	}
 
 });
 
@@ -76,7 +81,7 @@ app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 		role = role === OpenViduRole.PUBLISHER ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
 		console.log('Deleting streams with ROLE:' + role);
-		await browserManagerService.deleteStreamManagerWithRoles([role]);
+		await browserManagerService.deleteStreamManagerWithRole(role);
 		res.status(200).send({});
 	} catch (error) {
 		console.log(error);
