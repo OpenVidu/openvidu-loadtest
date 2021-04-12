@@ -55,7 +55,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 			}
 		}
 
-		res.status(200).send();
+		res.status(200).send(`Instance ${req.headers.host} has been initialized`);
 	} catch (error) {
 		console.error(error);
 		res.status(500).send(error);
