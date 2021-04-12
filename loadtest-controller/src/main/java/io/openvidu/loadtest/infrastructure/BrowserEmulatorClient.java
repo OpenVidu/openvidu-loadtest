@@ -52,6 +52,34 @@ public class BrowserEmulatorClient {
 		workerUrlList = this.loadTestConfig.getWorkerUrlList();
 		currentWorkerUrl = workerUrlList.get(0);
 	}
+	
+	public void initializeInstances() {
+		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
+		List<Callable<String>> callableTasks = new ArrayList<>();
+
+		for (String workerUrl : workerUrlList) {
+
+			Callable<String> callableTask = () -> {
+				return this.initializeInstance(workerUrl);
+			};
+			callableTasks.add(callableTask);
+		}
+		try {
+			//TODO: Refactoring callable task in an external class
+			List<Future<String>> futures = executorService.invokeAll(callableTasks);
+			futures.forEach((future) -> {
+				try {
+					log.info(future.get());
+				} catch (InterruptedException | ExecutionException e) {
+					e.printStackTrace();
+				}
+			});
+			executorService.shutdown();
+			log.info("Participants disconnected");
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
 
 	public boolean createPublisher(int userNumber, int sessionNumber, int participantsBySession, TestCase testCase) {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
@@ -124,6 +152,7 @@ public class BrowserEmulatorClient {
 			callableTasks.add(callableTask);
 		}
 		try {
+			// TODO: Refactoring callable task in an external class
 			List<Future<String>> futures = executorService.invokeAll(callableTasks);
 			futures.forEach((future) -> {
 				try {
@@ -217,6 +246,22 @@ public class BrowserEmulatorClient {
 			return e.getMessage();
 		}
 	}
+	
+	private String initializeInstance(String workerUrl) {
+		JsonObject body = new RequestBody()
+		.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
+		.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
+		.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword()).build().toJson();
+		
+		try {
+			System.out.println(body.toString());
+			HttpResponse<String> response = this.httpClient.sendPost(workerUrl+ "/instance/initialize", body, null, getHeaders());
+			return response.body();
+		} catch (IOException | InterruptedException e) {
+			return e.getMessage();
+		}
+		
+	}
 
 	private boolean processResponse(HttpResponse<String> response) {
 
@@ -239,9 +284,6 @@ public class BrowserEmulatorClient {
 
 		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
 				.openviduSecret(this.loadTestConfig.getOpenViduSecret()).browserMode(testCase.getBrowserMode())
-				.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
-				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
-				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
 				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
 				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber).audio(true).video(video)
 				.role(role).recording(testCase.isRecording()).showVideoElements(!testCase.isHeadless())// TODO: new
