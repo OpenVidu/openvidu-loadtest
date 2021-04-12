@@ -4,12 +4,16 @@ export interface LoadTestPostRequest {
 
 	openviduUrl: string,
 	openviduSecret: string,
-    elasticSearchPassword?: string;
-	elasticSearchUserName?: string;
-	elasticSearchHost?: string;
 	token?: string,
     browserMode: BrowserMode,
     properties: TestProperties
+}
+
+export interface InitializePostRequest {
+
+    elasticSearchPassword: string;
+	elasticSearchUserName: string;
+	elasticSearchHost: string;
 }
 
 

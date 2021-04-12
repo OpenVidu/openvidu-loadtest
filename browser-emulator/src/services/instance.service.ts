@@ -1,25 +1,20 @@
 import * as os  from 'node-os-utils';
 import { ContainerCreateOptions } from "dockerode";
 
-import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT } from '../config';
-import { ApplicationMode, EmulatedUserType } from '../types/config.type';
+import { EMULATED_USER_TYPE } from '../config';
+import { EmulatedUserType } from '../types/config.type';
 import { DockerService } from './docker.service';
 import { LocalStorageService } from './local-storage.service';
 import { WebrtcStatsService } from './webrtc-stats-storage.service';
+import { ContainerName } from '../types/container-info.type';
 
 export class InstanceService {
 
 	private static instance: InstanceService;
-	private metricbeatContainerId: string;
-	private kmsContainerId: string;
-
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
-	private readonly METRICBEAT_CONTAINER_NAME = 'metricbeat';
 	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
-	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.8.0';
+	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbet-config/metricbeat.yml`;
-
-	private readonly KMS_CONTAINER_NAME = 'kms';
 	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
@@ -37,60 +32,51 @@ export class InstanceService {
 	}
 
 	async cleanEnvironment() {
-		await this.dockerService.stopContainer(this.METRICBEAT_CONTAINER_NAME);
-		await this.dockerService.stopContainer(this.KMS_CONTAINER_NAME);
+		await this.dockerService.stopContainer(ContainerName.KMS);
+		await this.dockerService.removeContainer(ContainerName.KMS);
 		new LocalStorageService().clear(new WebrtcStatsService().getItemName());
 	}
 
-
 	async getCpuUsage(): Promise<number> {
-		const cpuUsage: number = await os.cpu.usage();
-		return cpuUsage;
+		return await os.cpu.usage();
 	}
 
 	async launchMetricBeat() {
-		if(!this.isMetricbeatStarted() && APPLICATION_MODE === ApplicationMode.PROD) {
-			try {
-				const timestamp = new Date().getTime();
-				const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
-				const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
-				const options: ContainerCreateOptions = {
-					Image: this.METRICBEAT_IMAGE,
-					name: this.METRICBEAT_CONTAINER_NAME,
-					User: 'root',
-					Env: [
-						`ELASTICSEARCH_HOSTNAME=${process.env.ELASTICSEARCH_HOSTNAME}`,
-						`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
-						`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
-						`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
-						`WORKER_UUID=${timestamp}`,
-					],
-					Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
-					HostConfig:  {
-						Binds: [
-							`/var/run/docker.sock:/var/run/docker.sock`,
-							`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
-							'/proc:/hostfs/proc:ro',
-							'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
-							'/:/hostfs:ro'
-						],
-						NetworkMode: 'host'
-					},
-				};
-				this.metricbeatContainerId = await this.dockerService.startContainer(options);
-			} catch (error) {
-				console.error(error);
-				this.dockerService.stopContainer(this.metricbeatContainerId);
-				this.metricbeatContainerId = '';
-			}
-		}
+		const timestamp = new Date().getTime();
+		const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
+		const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
+		const options: ContainerCreateOptions = {
+			Image: this.METRICBEAT_IMAGE,
+			name: ContainerName.METRICBEAT,
+			User: 'root',
+			Env: [
+				`ELASTICSEARCH_HOSTNAME=${process.env.ELASTICSEARCH_HOSTNAME}`,
+				`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
+				`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
+				`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
+				`WORKER_UUID=${timestamp}`,
+			],
+			Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
+			HostConfig:  {
+				Binds: [
+					`/var/run/docker.sock:/var/run/docker.sock`,
+					`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
+					'/proc:/hostfs/proc:ro',
+					'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
+					'/:/hostfs:ro'
+				],
+				NetworkMode: 'host',
+
+			},
+		};
+		await this.dockerService.startContainer(options);
 	}
 
 	async launchKMS(): Promise<void> {
 		try {
 			const options: ContainerCreateOptions = {
 				Image: this.KMS_IMAGE,
-				name: this.KMS_CONTAINER_NAME,
+				name: ContainerName.KMS,
 				User: 'root',
 				Env: [
 					'KMS_MIN_PORT=40000',
@@ -120,16 +106,16 @@ export class InstanceService {
 				options.Env.push(`GST_DEBUG=${process.env.KMS_DOCKER_ENV_GST_DEBUG}`);
 			}
 
-			this.kmsContainerId = await this.dockerService.startContainer(options);
+			await this.dockerService.startContainer(options);
 		} catch (error) {
 			console.error(error);
-			this.dockerService.stopContainer(this.kmsContainerId);
-			this.kmsContainerId = '';
+			this.dockerService.stopContainer(ContainerName.KMS);
+			this.dockerService.removeContainer(ContainerName.KMS);
 		}
 	}
 
-	isMetricbeatStarted(): boolean {
-		return !!this.metricbeatContainerId;
+	async removeContainer(containerNameOrId: string){
+		await this.dockerService.removeContainer(containerNameOrId);
 	}
 
 	async pullImagesNeeded(): Promise<void> {

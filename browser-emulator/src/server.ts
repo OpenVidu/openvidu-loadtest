@@ -32,11 +32,7 @@ const server = https.createServer(options, app);
 
 server.listen(SERVER_PORT, async () => {
 	const hack = new HackService();
-
-	createRecordingsDirectory();
-
 	const instanceService = InstanceService.getInstance();
-	await instanceService.cleanEnvironment();
 
 	if(APPLICATION_MODE === ApplicationMode.PROD) {
 		console.log("Pulling Docker images needed...");
@@ -44,6 +40,7 @@ server.listen(SERVER_PORT, async () => {
 	}
 
 	if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
+		await instanceService.cleanEnvironment();
 		console.log('Starting Kurento Media Server');
 		await instanceService.launchKMS();
 	}
@@ -63,11 +60,3 @@ server.listen(SERVER_PORT, async () => {
 	console.log("---------------------------------------------------------");
 });
 
-function createRecordingsDirectory() {
-	var dir = `${process.env.PWD}/recordings`;
-	if (!fs.existsSync(dir)){
-		fs.mkdirSync(dir);
-		fs.mkdirSync(dir + '/kms');
-		fs.mkdirSync(dir + '/chrome');
-	}
-}

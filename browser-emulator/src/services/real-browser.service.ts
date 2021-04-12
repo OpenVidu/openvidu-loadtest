@@ -83,6 +83,7 @@ export class RealBrowserService {
 				await this.stopRecordingInContainer(containerId);
 			}
 			await this.dockerService.stopContainer(containerId);
+			await this.dockerService.removeContainer(containerId);
 		} catch (error) {
 			Promise.reject(error);
 		}

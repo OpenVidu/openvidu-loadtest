@@ -7,7 +7,7 @@ export class DockerService {
 		this.docker = new Docker();
 	}
 
-	async startContainer(options: Docker.ContainerCreateOptions) {
+	async startContainer(options: Docker.ContainerCreateOptions): Promise<string> {
 		console.log(`Starting ${options.Image}`);
 		const container: Docker.Container = await this.docker.createContainer(options);
 		await container.start();
@@ -20,13 +20,24 @@ export class DockerService {
 	    if (!!container) {
 			try {
 				await container.stop();
-				await container.remove({ force: true });
 	        	console.log('Container ' + container.id + ' stopped');
 			} catch (error) {
-
+				throw error;
 			}
 		}
 	}
+
+	public async removeContainer(containerNameOrId: string) {
+		const container = await this.getContainerByIdOrName(containerNameOrId);
+        if (!!container) {
+			try {
+				await container.remove({ force: true });
+           		console.log('Container ' + containerNameOrId + ' removed');
+			} catch (error) {
+				throw 'Container ' + containerNameOrId + ' does not exist';
+			}
+        }
+    }
 
 	async imageExists(image: string): Promise<boolean> {
 		const imageNamesArr: string[] = [image];

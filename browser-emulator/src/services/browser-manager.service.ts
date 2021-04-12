@@ -32,10 +32,6 @@ export class BrowserManagerService {
 		let connectionId: string;
 		let webrtcStorageName: string;
 		let webrtcStorageValue: string;
-		if(this.elasticSearchService.needToBeConfigured()) {
-			await this.elasticSearchService.initialize();
-			await this.instanceService.launchMetricBeat();
-		}
 
 		if(this.elasticSearchService.isElasticSearchAvailable()){
 			webrtcStorageName = this.webrtcStorageService.getItemName();
