@@ -1,11 +1,15 @@
 package io.openvidu.loadtest.utils;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 
 import com.google.gson.JsonArray;
@@ -13,6 +17,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
 
 import io.openvidu.loadtest.models.testcase.BrowserMode;
+import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 
 @Service
@@ -20,6 +25,8 @@ public class DataIO {
 
 	private static ClassLoader classLoader = DataIO.class.getClassLoader();
 	private static final String TEST_CASES_JSON_FILE = "test_cases.json";
+	private static final String REPORT_FILE_RESULT = "results.txt";
+
 	
 	@Autowired
 	private JsonUtils jsonUtils;
@@ -38,6 +45,25 @@ public class DataIO {
 		}
 
 		return this.convertJsonArrayToTestCasesList(testCasesList);
+	}
+	
+	public void exportResults(ResultReport result) {
+
+		String RESULT_PATH = new FileSystemResource(REPORT_FILE_RESULT).getFile().getAbsolutePath();
+
+		FileWriter fw;
+		try {
+			fw = new FileWriter(RESULT_PATH, true);
+			BufferedWriter bw = new BufferedWriter(fw);
+		    bw.write(result.toString());
+		    bw.newLine();
+		    bw.newLine();
+		    bw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    
+
 	}
 
 	private List<TestCase> convertJsonArrayToTestCasesList(JsonArray array) {

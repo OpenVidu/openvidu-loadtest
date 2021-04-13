@@ -54,7 +54,7 @@ public class ResultReport {
 	@Override
 	public String toString() {
 		
-		return " *** Test Case Report *** " + System.getProperty("line.separator")
+		return " ----- Test Case Report " +  startTime.getTime() + " ----- " + System.getProperty("line.separator")
 				+ "Browser approach:	" + browserModeSelected + System.getProperty("line.separator")
 				+ "Browser with recording:	" + recording + System.getProperty("line.separator")
 				+ "Session typology:	" + sessionTypology + System.getProperty("line.separator")
@@ -65,7 +65,8 @@ public class ResultReport {
 				+ "Number of used workers:	" + usedWorkers + System.getProperty("line.separator")
 				+ "Test duration:	" + getDuration() + System.getProperty("line.separator")
 				+ "Kibana url:	" + kibanaUrl + System.getProperty("line.separator")
-				+ "   ***   ";
+				+ System.getProperty("line.separator")
+				+ "   ---------------------   ";
 	}
 	
 }

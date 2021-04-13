@@ -37,7 +37,7 @@ public class BrowserEmulatorClient {
 	private static List<String> workerUrlList = new ArrayList<String>();
 	private static String currentWorkerUrl = "";
 	private static final int HTTP_STATUS_OK = 200;
-	private static int usedWorkers = 0;
+	private static int usedWorkers = 1;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
@@ -166,6 +166,7 @@ public class BrowserEmulatorClient {
 			});
 			executorService.shutdown();
 			log.info("Participants disconnected");
+			usedWorkers = 1;
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}

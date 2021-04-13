@@ -12,6 +12,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import io.openvidu.loadtest.controller.LoadTestController;
+import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.utils.DataIO;
 
@@ -41,7 +42,11 @@ public class LoadTestApplication {
 		
 		List<TestCase> testCasesList = io.getTestCasesFromJSON();
 		if (testCasesList.size() > 0) {
-			loadTestController.startLoadTests(testCasesList);
+			
+			List<ResultReport> results = loadTestController.startLoadTests(testCasesList);
+			for (ResultReport result : results) {
+				io.exportResults(result);
+			}
 		} else {
 			log.error(
 					"Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
