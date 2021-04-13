@@ -13,6 +13,7 @@ import org.springframework.stereotype.Controller;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
+import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.WorkerUpdatePolicy;
 import io.openvidu.loadtest.monitoring.KibanaClient;
@@ -38,21 +39,25 @@ public class LoadTestController {
 
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	private static final int THIRTY_SECONDS = 30;
 
 	private static AtomicInteger sessionNumber = new AtomicInteger(0);
 	private static AtomicInteger userNumber = new AtomicInteger(1);
 	private static boolean responseIsOk = true;
-	
-	private static List<String> resultsReportList = new ArrayList<String>();
+	private AtomicInteger sessionsCompleted = new AtomicInteger(0);
+	private AtomicInteger totalParticipants = new AtomicInteger(0);
 
-	public void startLoadTests(List<TestCase> testCasesList) {
+	private static List<ResultReport> resultReportList = new ArrayList<ResultReport>();
+
+	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
+
+//		testCasesList = new ArrayList<>();
+//		this.browserEmulatorClient.disconnectAll();
 
 		testCasesList.forEach(testCase -> {
 
 			if (testCase.is_NxN()) {
-				this.initCalendarTime();
+				this.startTime = Calendar.getInstance();
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					System.out.print("\n");
@@ -64,11 +69,12 @@ public class LoadTestController {
 
 					this.startNxNTest(participantsBySession, testCase);
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
+					this.saveResultReport(testCase, String.valueOf(participantsBySession));
 					this.cleanEnvironment();
-					this.saveReportLink();
-
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
+				this.startTime = Calendar.getInstance();
+
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
@@ -80,18 +86,18 @@ public class LoadTestController {
 
 					this.startNxMTest(publishers, subscribers, testCase);
 					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
+					this.saveResultReport(testCase, participants);
 					this.cleanEnvironment();
-					this.saveReportLink();
 				}
 
 			} else {
 				log.error("Test case has wrong typology, SKIPPED.");
 				return;
 			}
-
 		});
-		
-		this.showLoadTestReport(testCasesList);
+
+		return resultReportList;
+
 	}
 
 	private void startNxNTest(int participantsBySession, TestCase testCase) {
@@ -110,11 +116,19 @@ public class LoadTestController {
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), participantsBySession, testCase);
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(),
+						participantsBySession, testCase);
 
-				if (responseIsOk && userNumber.get() < participantsBySession) {
-					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
-					userNumber.getAndIncrement();
+				if (responseIsOk) {
+					this.totalParticipants.incrementAndGet();
+					if(userNumber.get() < participantsBySession){
+//						if(this.loadTestConfig.getUpdateWorkerUrlPolicy().equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
+//							this.browserEmulatorClient.updateWorkerUrl(sessionNumber.get(), participantsBySession);
+//						}
+						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+						userNumber.getAndIncrement();
+					}
+
 				} else if (!responseIsOk) {
 					log.error("Response status is not 200 OK. Exit");
 					return;
@@ -123,9 +137,10 @@ public class LoadTestController {
 
 			if (responseIsOk) {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
-//				this.showIterationReport(sessionNumber.get(), userNumber.get(), participantsBySession);
+				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				if(this.loadTestConfig.getUpdateWorkerUrlPolicy().equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
+				if (this.loadTestConfig.getUpdateWorkerUrlPolicy()
+						.equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
 					this.browserEmulatorClient.updateWorkerUrl(sessionNumber.get(), participantsBySession);
 				}
 			}
@@ -150,12 +165,14 @@ public class LoadTestController {
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(), publishers, testCase);
+				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(),
+						publishers, testCase);
 				if (!responseIsOk) {
 					log.error("Response status is not 200 OK. Exit");
 					return;
 				}
 				userNumber.getAndIncrement();
+				this.totalParticipants.incrementAndGet();
 			}
 
 			if (responseIsOk) {
@@ -163,12 +180,16 @@ public class LoadTestController {
 				for (int i = 0; i < subscribers; i++) {
 					log.info("Creating SUBSCRIBER '{}' in session",
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-					responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get(), subscribers,
-							testCase);
+					responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get(),
+							subscribers, testCase);
 
-					if (responseIsOk && userNumber.get() < totalParticipants) {
-						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
-						userNumber.getAndIncrement();
+					if (responseIsOk) {
+						this.totalParticipants.incrementAndGet();
+						if(userNumber.get() < totalParticipants) {
+							userNumber.getAndIncrement();
+							sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+						}
+
 					} else if (!responseIsOk) {
 						log.error("Response status is not 200 OK. Exit");
 						return;
@@ -177,8 +198,8 @@ public class LoadTestController {
 
 				if (responseIsOk) {
 					log.info("Session number {} has been succesfully created ", sessionNumber.get());
-//					this.showIterationReport(sessionNumber.get(), userNumber.get(), totalParticipants);
 					userNumber.set(1);
+					this.sessionsCompleted.incrementAndGet();
 				}
 			}
 		}
@@ -191,63 +212,39 @@ public class LoadTestController {
 
 	private void cleanEnvironment() {
 		this.browserEmulatorClient.disconnectAll();
-		this.browserEmulatorClient.restartAll();
+//		this.browserEmulatorClient.restartAll();
+		this.totalParticipants.set(0);
+		this.sessionsCompleted.set(0);
 		sessionNumber.set(0);
+		userNumber.set(1);
 		responseIsOk = true;
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 	}
-	
-	private void initCalendarTime() {
-		this.startTime = Calendar.getInstance();
-		// Subtract five minutes because of Kibana time filter
-		this.startTime.add(Calendar.SECOND, -THIRTY_SECONDS);
-	}
 
-	private void saveReportLink() {
-
-		Calendar endCalendarTime = Calendar.getInstance();
-		endCalendarTime.add(Calendar.SECOND, THIRTY_SECONDS);
+	private void saveResultReport(TestCase testCase, String participantsBySession) {
+		Calendar endTime = Calendar.getInstance();
 
 		// Parse date to match with Kibana time filter
-		String startTime = formatter.format(this.startTime.getTime()).replace(" ", "T");
-		String endTime = formatter.format(endCalendarTime.getTime()).replace(" ", "T");
+		String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
+		String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T");
 
-		String url = this.kibanaClient.getDashboardUrl(startTime, endTime);
+		int totalParticipants = this.totalParticipants.get();
+		int numSessionsCompleted = this.sessionsCompleted.get();
+		int numSessionsCreated = sessionNumber.get();
+		String sessionTypology = testCase.getTopology().toString();
+		String browserModeSelected = testCase.getBrowserMode().toString();
+		boolean recording = testCase.isRecording();
+		String participantsPerSession = participantsBySession;
+		int usedWorkers = this.browserEmulatorClient.getUsedWorkers();
+
+		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
+
+		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, usedWorkers, sessionTypology,
+				browserModeSelected, recording, participantsPerSession, this.startTime, endTime, kibanaUrl);
 		
-		resultsReportList.add(url);
-//		log.info("Load Test finished.");
-//		log.info("Kibana Dashboard Report: {} ", url);
+		resultReportList.add(rr);
 
 	}
-	
-	private void showLoadTestReport(List<TestCase> testCasesList) {
-
-		log.info("Load Test finished.");
-		for(int i = 0; i < testCasesList.size(); i++) {
-			log.info("--- Load Test Report --- ");
-			log.info("Test Case Number : {} ", i + 1);
-			log.info("{}", testCasesList.get(i).toString());
-			log.info("Kibana Dashboard Report : {} ", resultsReportList.get(i));
-			System.out.print("\n");
-		}		
-	}
-
-//	private void showIterationReport(int sessionsCreated, int currentUserNumber, int participantsBySession) {
-//		int sessionsCompleted = 0;
-//		if (sessionsCreated > 1) {
-//			sessionsCompleted = sessionsCreated - 1;
-//		}
-//
-//		int totalPublishers = (participantsBySession * sessionsCompleted) + currentUserNumber;
-//		int totalSubscribers = (participantsBySession * (participantsBySession - 1) * sessionsCompleted)
-//				+ currentUserNumber * (currentUserNumber - 1);
-//
-//		log.info("---  Report  ---");
-//		log.info("Total sessions created: {}", sessionsCreated);
-//		log.info("Total publishers created: {}", totalPublishers);
-//		log.info("Total subscribers created: {}", totalSubscribers);
-//		log.info("-- ----------------- ---");
-//	}
 
 	private void sleep(int seconds, String reason) {
 		if (seconds > 0) {

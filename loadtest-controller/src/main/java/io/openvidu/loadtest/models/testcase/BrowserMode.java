@@ -2,29 +2,29 @@ package io.openvidu.loadtest.models.testcase;
 
 public enum BrowserMode {
 	
-	EMULATE("EMULATE", "EMULATE"),
+	EMULATE("EMULATE", "Using KMS or NODE_WEBRTC as a browser"),
 
-	REAL("REAL", "REAL");
+	REAL("REAL", "Selenium controlled Chrome Browser");
 
 
-	private String label;
 	private String value;
+	private String description;
 
-	BrowserMode(String label, String string) {
-		this.label = label;
-		this.value = string;
+	BrowserMode(String value, String description) {
+		this.value = value;
+		this.description = description;
 	}
 
 	public String getValue() {
 		return this.value;
 	}
 
-	public String getLabel() {
-		return this.label;
+	public String getDesription() {
+		return this.description;
 	}
 
 	public String toString() {
-		return this.getLabel();
+		return this.getValue() + ": " + this.getDesription();
 	}
 
 }

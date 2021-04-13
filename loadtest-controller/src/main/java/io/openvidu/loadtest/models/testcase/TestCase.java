@@ -4,7 +4,7 @@ import java.util.List;
 
 public class TestCase {
 
-	private String typology;
+	private Typology typology;
 	private List<String> participants;
 	private int sessions;
 	private BrowserMode browserMode;
@@ -12,7 +12,7 @@ public class TestCase {
 	private boolean headless = false;
 
 	public TestCase(String typology, List<String> participants, int sessions, BrowserMode browserMode, boolean headless, boolean recording) {
-		this.typology = typology;
+		this.typology = getTypology(typology);
 		this.participants = participants;
 		this.sessions = sessions;
 		this.browserMode = browserMode;
@@ -21,23 +21,19 @@ public class TestCase {
 	}
 
 	public boolean is_NxN() {
-		return this.typology.equals(Typology.NxN.getValue());
-	}
-
-	public boolean is_1xN() {
-		return this.typology.equals(Typology.oneNxM.getValue());
+		return this.typology.getValue().equals(Typology.NxN.getValue());
 	}
 
 	public boolean is_NxM() {
-		return this.typology.equals(Typology.NxM.getValue());
+		return this.typology.getValue().equals(Typology.NxM.getValue());
 	}
 
 	public boolean is_TEACHING() {
-		return this.typology.equals(Typology.TEACHING.getValue());
+		return this.typology.getValue().equals(Typology.TEACHING.getValue());
 	}
 
-	public void setTopology(String typology) {
-		this.typology = typology;
+	public Typology getTopology() {
+		return typology;
 	}
 
 	public List<String> getParticipants() {
@@ -89,6 +85,15 @@ public class TestCase {
 				" | Browser mode: " + browserMode.getValue() +
 				" | Headless: " + isHeadless() +
 				" | Recording: " + isRecording();
+	}
+	
+	private Typology getTypology(String typology) {
+		for(int i = 0; i < Typology.values().length; i++) {
+			if(Typology.values()[i].getValue().equalsIgnoreCase(typology)) {
+				return Typology.values()[i];
+			}
+		}
+		return null;
 	}
 
 }

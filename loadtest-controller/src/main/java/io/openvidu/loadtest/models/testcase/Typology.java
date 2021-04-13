@@ -2,31 +2,31 @@ package io.openvidu.loadtest.models.testcase;
 
 public enum Typology {
 	
-	NxN("N:N", "N:N"),
+	NxN("N:N", "All participants will be PUBLISHER"),
 
-	oneNxM("1:M", "1:M"),
-
-	NxM("N:M", "N:M"),
+	NxM("N:M", "N PUBLISHERS and M SUBSCRIBERS"),
 
 	TEACHING("TEACHING", "TEACHING");
 
-	private String label;
 	private String value;
+	private String description;
 
-	Typology(String label, String string) {
-		this.label = label;
-		this.value = string;
+
+	Typology(String value, String description) {
+		this.value = value;
+		this.description = description;
+
 	}
 
 	public String getValue() {
 		return this.value;
 	}
 
-	public String getLabel() {
-		return this.label;
+	public String getDescription() {
+		return this.description;
 	}
 
 	public String toString() {
-		return this.getLabel();
+		return this.getValue() + ": " + this.description;
 	}
 }

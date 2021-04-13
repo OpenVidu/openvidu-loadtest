@@ -37,6 +37,7 @@ public class BrowserEmulatorClient {
 	private static List<String> workerUrlList = new ArrayList<String>();
 	private static String currentWorkerUrl = "";
 	private static final int HTTP_STATUS_OK = 200;
+	private static int usedWorkers = 0;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
@@ -219,6 +220,7 @@ public class BrowserEmulatorClient {
 				System.out.println("Changing worker");
 				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
 				currentWorkerUrl = workerUrlList.get(nextIndex);
+				usedWorkers +=1;
 				System.out.println("New worker is: " + currentWorkerUrl);
 			}
 		} else if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.ROUNDROBIN.getValue())) {
@@ -228,12 +230,18 @@ public class BrowserEmulatorClient {
 				if (nextIndex >= workerUrlList.size()) {
 					nextIndex = 0;
 				}
+				usedWorkers +=1;
 				currentWorkerUrl = workerUrlList.get(nextIndex);
 			}
 		}
-
 	}
 
+	public int getUsedWorkers() {
+		if(usedWorkers > workerUrlList.size()) {
+			return workerUrlList.size();
+		}
+		return usedWorkers;
+	}
 	private String disconnect(String workerUrl) {
 		try {
 			log.info("Deleting all participants from worker {}", workerUrl);
