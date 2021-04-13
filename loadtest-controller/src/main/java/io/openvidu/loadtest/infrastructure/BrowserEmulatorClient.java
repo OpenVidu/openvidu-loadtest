@@ -56,27 +56,29 @@ public class BrowserEmulatorClient {
 	
 	public void initializeInstances() {
 		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
-		List<Callable<String>> callableTasks = new ArrayList<>();
+		List<Callable<HttpResponse<String>>> callableTasks = new ArrayList<>();
 
 		for (String workerUrl : workerUrlList) {
 
-			Callable<String> callableTask = () -> {
+			Callable<HttpResponse<String>> callableTask = () -> {
 				return this.initializeInstance(workerUrl);
 			};
 			callableTasks.add(callableTask);
 		}
 		try {
 			//TODO: Refactoring callable task in an external class
-			List<Future<String>> futures = executorService.invokeAll(callableTasks);
+			List<Future<HttpResponse<String>>> futures = executorService.invokeAll(callableTasks);
 			futures.forEach((future) -> {
 				try {
-					log.info(future.get());
+					HttpResponse<String> response = future.get();
+					if(response.statusCode() != HTTP_STATUS_OK) {
+						log.error("Error initializing worker {}", response.uri());
+					}
 				} catch (InterruptedException | ExecutionException e) {
 					e.printStackTrace();
 				}
 			});
 			executorService.shutdown();
-			log.info("Participants disconnected");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -169,18 +171,6 @@ public class BrowserEmulatorClient {
 		}
 	}
 
-//	public int getCapacity(String typology, int participantsPerSession) {
-//		int capacity = 0;
-//		try {
-//			HttpResponse<String> response = this.httpClient.sendGet(WORKER_URL + "/browser-emulator/capacity?typology=" + typology);
-//			JsonObject convertedObject = new Gson().fromJson(response.body().toString(), JsonObject.class);
-//			capacity = convertedObject.get("capacity").getAsInt();
-//		} catch (IOException | InterruptedException e) {
-//			e.printStackTrace();
-//		}
-//		return capacity;
-//	}
-
 	public boolean restartAll() {
 		for (String workerUrl : workerUrlList) {
 			try {
@@ -255,20 +245,18 @@ public class BrowserEmulatorClient {
 		}
 	}
 	
-	private String initializeInstance(String workerUrl) {
+	private HttpResponse<String> initializeInstance(String workerUrl) {
 		JsonObject body = new RequestBody()
 		.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
 		.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
 		.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword()).build().toJson();
 		
 		try {
-			System.out.println(body.toString());
-			HttpResponse<String> response = this.httpClient.sendPost(workerUrl+ "/instance/initialize", body, null, getHeaders());
-			return response.body();
+			return this.httpClient.sendPost(workerUrl+ "/instance/initialize", body, null, getHeaders());
 		} catch (IOException | InterruptedException e) {
-			return e.getMessage();
+			log.error(e.getMessage());
 		}
-		
+		return null;		
 	}
 
 	private boolean processResponse(HttpResponse<String> response) {

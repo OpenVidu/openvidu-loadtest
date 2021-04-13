@@ -50,6 +50,7 @@ public class LoadTestController {
 
 	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
+		this.browserEmulatorClient.initializeInstances();
 
 //		testCasesList = new ArrayList<>();
 //		this.browserEmulatorClient.disconnectAll();
