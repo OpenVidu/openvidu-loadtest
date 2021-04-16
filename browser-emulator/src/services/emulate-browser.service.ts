@@ -1,4 +1,4 @@
-import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
+import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent } from "openvidu-browser";
 import { HttpClient } from "../utils/http-client";
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
@@ -10,6 +10,8 @@ import { EmulatedUserType } from '../types/config.type';
 import { CanvasService } from './emulated/canvas.service';
 import { FfmpegService } from './emulated/ffmpeg.service';
 import { MediaStreamTracksResponse } from '../types/emulate-webrtc.type';
+import { ExceptionEvent } from 'openvidu-browser/lib/OpenViduInternal/Events/ExceptionEvent';
+import { WsService } from './ws.service';
 
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
@@ -17,7 +19,11 @@ export class EmulateBrowserService {
 	private readonly HEIGHT = 480;
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
-	constructor(private httpClient: HttpClient = new HttpClient(), private nodeWebrtcService: CanvasService | FfmpegService = null) {
+	constructor(
+		private httpClient: HttpClient = new HttpClient(),
+		private nodeWebrtcService: CanvasService | FfmpegService = null,
+		private wsService: WsService = WsService.getInstance()
+		) {
 		if(this.isUsingNodeWebrtcCanvas()){
 			this.nodeWebrtcService = new CanvasService(this.HEIGHT, this.WIDTH);
 		} else if (this.isUsingNodeWebrtcFfmpeg()){
@@ -40,19 +46,7 @@ export class EmulateBrowserService {
 				const ov: OpenVidu = new OpenVidu();
 				ov.enableProdMode();
 				const session: Session = ov.initSession();
-
-				session.on("streamCreated", (event: StreamEvent) => {
-					session.subscribe(event.stream, null);
-				});
-
-				session.on('exception', (exception: any) => {
-					if (exception.name === 'ICE_CANDIDATE_ERROR') {
-						// Error on sendIceCandidate
-						console.error(exception);
-						this.exceptionFound = true;
-						this.exceptionMessage = 'Exception found in openvidu-browser';
-					}
-				});
+				this.subscriberToSessionsEvents(session);
 
 				await session.connect(token,  properties.userId);
 				if(properties.role === OpenViduRole.PUBLISHER){
@@ -67,6 +61,8 @@ export class EmulateBrowserService {
 						resolution: this.WIDTH + 'x' + this.HEIGHT,
 						frameRate: properties.frameRate,
 					});
+
+					this.subscriberToPublisherEvents(publisher);
 					await session.publish(publisher);
 
 				}
@@ -136,6 +132,69 @@ export class EmulateBrowserService {
 
 	private isUsingNodeWebrtcCanvas(): boolean {
 		return EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC_CANVAS;
+	}
+
+	private subscriberToSessionsEvents(session: Session) {
+		session.on("connectionCreated", (event: ConnectionEvent) => {
+			var connectionType = 'remote';
+			if (event.connection.connectionId === session.connection.connectionId) {
+				connectionType = 'local';
+			}
+			const message: string = JSON.stringify({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType});
+			this.wsService.send(message);
+		});
+
+		session.on("streamCreated", (event: StreamEvent) => {
+			const message: string = JSON.stringify({event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
+			this.wsService.send(message);
+			const subscriber = session.subscribe(event.stream, null);
+
+			subscriber.on("streamPlaying", (e: StreamEvent) => {
+				const message: string = JSON.stringify({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
+				this.wsService.send(message);
+			});
+		});
+
+		session.on("streamDestroyed", (event: StreamEvent) => {
+			const message: string = JSON.stringify({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
+			this.wsService.send(message);
+
+		});
+
+		session.on('sessionDisconnected', (event: SessionDisconnectedEvent) => {
+			const message: string = JSON.stringify({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local'});
+			this.wsService.send(message);
+		});
+
+		session.on('exception', (exception: ExceptionEvent) => {
+			if (exception.name === 'ICE_CANDIDATE_ERROR') {
+				// Error on sendIceCandidate
+				console.error(exception);
+				this.exceptionFound = true;
+				this.exceptionMessage = 'Exception found in openvidu-browser';
+				const message: string = JSON.stringify({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message });
+				this.wsService.send(message);
+			}
+		});
+	}
+
+	private subscriberToPublisherEvents(publisher: Publisher) {
+		publisher.once("accessAllowed", e => {
+			const message: string = JSON.stringify({ event: "accessAllowed", connectionId: '', connection: 'local' });
+			this.wsService.send(message);
+		});
+		publisher.once("streamCreated", (e: StreamEvent) => {
+			const message: string = JSON.stringify({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
+			this.wsService.send(message);
+		});
+		publisher.once("streamPlaying", e => {
+			const message: string = JSON.stringify({ event: "streamPlaying", connectionId: '', connection: 'local' });
+			this.wsService.send(message);
+		});
+		publisher.once("streamDestroyed", (e: StreamEvent) => {
+			const message: string = JSON.stringify({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
+			this.wsService.send(message);
+		});
 	}
 
 }

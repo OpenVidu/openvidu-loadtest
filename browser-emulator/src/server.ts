@@ -6,7 +6,7 @@ import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT } from "./config";
 import { HackService } from "./services/hack.service";
 
 import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
-import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
+import {app as eventsController} from './controllers/events.controller';
 import {app as instanceController} from './controllers/instance.controller';
 
 import { InstanceService } from './services/instance.service';
@@ -32,7 +32,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/', webrtcStatsController);
+app.use('/', eventsController);
 app.use('/openvidu-browser', ovBrowserController);
 app.use('/instance', instanceController);
 

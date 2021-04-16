@@ -3,35 +3,43 @@ import { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service';
 import { OpenViduRole } from '../types/openvidu.type';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
+import { WsService } from '../services/ws.service';
 
 export const app = express.Router({
     strict: true
 });
 
 
-app.post('/streamManager', async (req: Request, res: Response) => {
+app.post('/streamManager', (req: Request, res: Response) => {
 	try {
 		const request: LoadTestPostRequest = req.body;
 
 		if(areStreamManagerParamsCorrect(request)) {
-			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
-
-			request.browserMode = request.browserMode || BrowserMode.EMULATE;
-			request.properties.frameRate = request.properties.frameRate || 30;
-			// Setting default role for publisher properties
-			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
-			request.properties.resolution = request.properties.resolution || '640x480';
-			if(request.browserMode === BrowserMode.REAL){
-				request.properties.showVideoElements = request.properties.showVideoElements || true;
-			}
-
 			setEnvironmentParams(req);
-			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
-			return res.status(200).send(response);
+
+			const remoteAddress = req.socket.remoteAddress.split(':').pop();
+			WsService.getInstance().startWs(`ws://${remoteAddress}:8080/loadtest`, async () => {
+				const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
+
+				request.browserMode = request.browserMode || BrowserMode.EMULATE;
+				request.properties.frameRate = request.properties.frameRate || 30;
+				// Setting default role for publisher properties
+				request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
+				request.properties.resolution = request.properties.resolution || '640x480';
+				if(request.browserMode === BrowserMode.REAL){
+					request.properties.showVideoElements = request.properties.showVideoElements || true;
+				}
+
+				const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
+				return res.status(200).send(response);
+			});
+
+		} else {
+			console.log('Problem with some body parameter' + JSON.stringify(request));
+			return res.status(400).send('Problem with some body parameter');
 		}
 
-		console.log('Problem with some body parameter' + JSON.stringify(request));
-		return res.status(400).send('Problem with some body parameter');
+
 	} catch (error) {
 		console.log("ERROR ", error);
 		res.status(error?.status || 500).send({message: error?.statusText, error: error});

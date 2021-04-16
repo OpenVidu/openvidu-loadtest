@@ -4,7 +4,7 @@ import { InstanceService } from './instance.service';
 import { RealBrowserService } from './real-browser.service';
 import { ElasticSearchService } from './elasticsearch.service';
 import { LocalStorageService } from './local-storage.service';
-import { WebrtcStatsService } from './webrtc-stats-storage.service';
+import { OpenViduEventsService, WebrtcStatsService } from './config-storage.service';
 import { OpenViduRole } from '../types/openvidu.type';
 
 export class BrowserManagerService {
@@ -43,7 +43,10 @@ export class BrowserManagerService {
 			// Create new stream manager using launching a normal Chrome browser
 			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
 			try {
-				await this.realBrowserService.launchBrowser(request, webrtcStorageName, webrtcStorageValue);
+				const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
+				const storageNameObject = {webrtcStorageName, ovEventStorageName: ovEventsService.getItemName()};
+				const storageValueObject = {webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig()};
+				await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
 			} catch (error) {
 				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 				throw error;

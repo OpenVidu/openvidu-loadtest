@@ -8,10 +8,12 @@ import { ErrorGenerator } from '../utils/error-generator';
 import { DockerService } from './docker.service';
 import { ContainerCreateOptions } from 'dockerode';
 import { Storage } from './local-storage.service';
+import { StorageNameObject, StorageValueObject } from '../types/storage-config.type';
 declare var localStorage: Storage;
 export class RealBrowserService {
 
 	private readonly BROWSER_CONTAINER_HOSTPORT = 4000;
+	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
 	private containerMap: Map<string, BrowserContainerInfo> = new Map();
@@ -120,7 +122,7 @@ export class RealBrowserService {
 		});
 	}
 
-	async launchBrowser(request: LoadTestPostRequest, storageName?: string, storageValue?: string, timeout: number = 1000): Promise<void> {
+	async launchBrowser(request: LoadTestPostRequest, storageNameObj?: StorageNameObject, storageValueObj?: StorageValueObject, timeout: number = 1000): Promise<void> {
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
 				try {
@@ -130,18 +132,19 @@ export class RealBrowserService {
 					let chrome = await this.getChromeDriver();
 					await chrome.get(webappUrl);
 
-					if(!!storageName && !!storageValue) {
+					if(!!storageNameObj && !!storageValueObj) {
 						// Add webrtc stats config to LocalStorage
 						await chrome.executeScript(() => {
-							localStorage.setItem(arguments[0], arguments[1]);
-						},  storageName, storageValue);
+							localStorage.setItem(arguments[0].webrtcStorageName, arguments[1].webrtcStorageValue);
+							localStorage.setItem(arguments[0].ovEventStorageName, arguments[1].ovEventStorageValue);
+						},  storageNameObj, storageValueObj);
 					}
 
 					// Wait until connection has been created
-					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), 30000);
+					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), this.BROWSER_WAIT_TIMEOUT_MS);
 					if(request.properties.role === OpenViduRole.PUBLISHER){
 						// Wait until publisher has been published regardless of whether the videos are shown or not
-						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), 30000);
+						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), this.BROWSER_WAIT_TIMEOUT_MS);
 					}
 					console.log("Browser works as expected");
 					resolve();

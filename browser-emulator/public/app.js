@@ -57,37 +57,50 @@ function appendElement(id) {
 
 async function joinSession() {
 	OV = new OpenVidu();
-	// OV.enableProdMode();
+	OV.enableProdMode();
 	session = OV.initSession();
 
 	session.on("connectionCreated", event => {
-		// appendEvent({ event: "connectionCreated", content: event.connection.connectionId });
+		var connectionType = 'remote';
 		if (event.connection.connectionId === session.connection.connectionId) {
 			appendElement('local-connection-created');
+			connectionType = 'local';
 		}
+		sendEvent({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType  });
+
 	});
 
 	session.on("streamCreated", event => {
-		// appendEvent({ event: "streamCreated", content: event.stream.streamId });
+		sendEvent({ event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
 
 		var subscriberContainer = insertSubscriberContainer(event);
-
 		var videoContainer = null;
 		if(SHOW_VIDEO_ELEMENTS){
 			videoContainer = 'remote-video-publisher';
 		}
 		var subscriber = session.subscribe(event.stream, videoContainer);
+
 		subscriber.on("streamPlaying", e => {
+			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
 		});
 	});
 
 	session.on("streamDestroyed", event => {
+		sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
+
 	});
 
 	session.on("sessionDisconnected", event => {
 		document.querySelectorAll('.video-container').forEach(a => {
 			a.remove()
-		})
+		});
+		sendEvent({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local' });
+	});
+
+	session.on('exception', exception => {
+		if (exception.name === 'ICE_CANDIDATE_ERROR') {
+			sendEvent({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message });
+		}
 	});
 
 	if (!OPENVIDU_TOKEN) {
@@ -163,13 +176,19 @@ function setPublisherButtonsActions(publisher) {
 		session.disconnect();
 	}
 	publisher.once("accessAllowed", e => {
+		sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
+
 	});
 	publisher.once("streamCreated", e => {
+		sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
 		appendElement('local-stream-created');
 	});
 	publisher.once("streamPlaying", e => {
+		sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' });
 	});
 	publisher.once("streamDestroyed", e => {
+		sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
+
 		if (e.reason !== 'unpublish') {
 			document.getElementById('video-publisher').outerHTML = "";
 		}
@@ -235,7 +254,6 @@ function createSession(sessionId) { // See https://docs.openvidu.io/en/stable/re
 			},
 			success: response => resolve(response.id),
 			error: (error) => {
-				console.log(error);
 				if (error.status === 409) {
 					resolve(sessionId);
 				} else {
@@ -264,4 +282,27 @@ function createToken(sessionId) { // See https://docs.openvidu.io/en/stable/refe
             error: (error) => reject(error)
         });
     });
+}
+
+function sendEvent(event) {
+	var ITEM_NAME = 'ov-events-config';
+
+	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
+
+	if(url) {
+		return new Promise((resolve, reject) => {
+			$.ajax({
+				type: 'POST',
+				url: url.httpEndpoint,
+				data: JSON.stringify(event),
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				success: (response) => resolve(),
+				error: (error) => reject(error)
+			});
+		});
+	}
+
+
 }

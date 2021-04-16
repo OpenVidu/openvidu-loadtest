@@ -5,7 +5,7 @@ import { EMULATED_USER_TYPE } from '../config';
 import { EmulatedUserType } from '../types/config.type';
 import { DockerService } from './docker.service';
 import { LocalStorageService } from './local-storage.service';
-import { WebrtcStatsService } from './webrtc-stats-storage.service';
+import { WebrtcStatsService } from './config-storage.service';
 import { ContainerName } from '../types/container-info.type';
 
 export class InstanceService {
