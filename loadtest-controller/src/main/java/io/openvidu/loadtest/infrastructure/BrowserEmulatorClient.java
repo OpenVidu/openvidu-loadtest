@@ -71,7 +71,7 @@ public class BrowserEmulatorClient {
 			futures.forEach((future) -> {
 				try {
 					HttpResponse<String> response = future.get();
-					if(response.statusCode() != HTTP_STATUS_OK) {
+					if(response != null && response.statusCode() != HTTP_STATUS_OK) {
 						log.error("Error initializing worker {}", response.uri());
 					}
 				} catch (InterruptedException | ExecutionException e) {
