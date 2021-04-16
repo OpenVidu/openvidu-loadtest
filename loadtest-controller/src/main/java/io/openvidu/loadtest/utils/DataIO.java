@@ -62,8 +62,8 @@ public class DataIO {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	    
-
+		
+		System.out.println("Saved result in a " + RESULT_PATH);
 	}
 
 	private List<TestCase> convertJsonArrayToTestCasesList(JsonArray array) {
