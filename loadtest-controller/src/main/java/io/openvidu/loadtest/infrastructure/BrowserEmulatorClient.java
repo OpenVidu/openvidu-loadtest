@@ -105,12 +105,12 @@ public class BrowserEmulatorClient {
 			}
 			return processResponse(response);
 		} catch (Exception e) {
-			if (e.getMessage().contains("Connection timed out")) {
+			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
 				return this.createPublisher(userNumber, sessionNumber, participantsBySession, testCase);
-			} else if (e.getMessage().equalsIgnoreCase("Connection refused")) {
+			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", currentWorkerUrl, e.getMessage());
 				System.exit(1);
-			} else if (e.getMessage().contains("received no bytes")) {
+			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				System.out.println(e.getMessage());
 				return true;
 			}
