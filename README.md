@@ -87,7 +87,7 @@ Fill `OPENVIDU_URL`, `OPENVIDU_SECRET` and  `WORKER_URL_LIST` parameters in load
 Run this command **under project root directory**:
 
 ```bash
-nano load-test/src/main/resources/application.properties
+nano loadtest-controller/src/main/resources/application.properties
 ```
 After these three parameters are being filled, save changes and go to the next step.
 
@@ -116,7 +116,7 @@ Controller is being developed to allow the configuration of the load test cases:
 
 Currently, the only available option is the change of the number of participants of the session.
 
-To configure the test cases the file [`load-test/src/main/resources/test_cases.json`](load-test/src/main/resources/test_cases.json) has to be edited:
+To configure the test cases the file [`loadtest-controller/src/main/resources/test_cases.json`](loadtest-controller/src/main/resources/test_cases.json) has to be edited:
 
 ```json
 {
@@ -154,7 +154,10 @@ When an error in a worker is produced, the load test will stop and will order to
 For start with it, run the following command:
 
 ```bash
-cd load-test
+cd loadtest-controller
+sudo su
+./prepare.sh
+exit
 mvn spring-boot:run
 ```
 
