@@ -20,6 +20,16 @@ public class LoadTestConfig {
 	private List<String> workerUrlList;
 	
 	private String updateWorkerUrlPolicy;
+	
+	private String workerAmiId;
+	
+	private String workerInstanceType;
+	
+	private String workerSecurityGroupId;
+	
+	private String workerInstanceRegion;
+	
+	private int workersNumberAtTheBeginning;
 
 	private String openviduUrl;
 
@@ -108,6 +118,26 @@ public class LoadTestConfig {
 	public String getUpdateWorkerUrlPolicy() {
 		return this.updateWorkerUrlPolicy;
 	}
+	
+	public String getWorkerAmiId() {
+		return this.workerAmiId;
+	}
+	
+	public String getWorkerInstanceType() {
+		return workerInstanceType;
+	}
+
+	public String getWorkerSecurityGroupId() {
+		return workerSecurityGroupId;
+	}
+	
+	public String getWorkerInstanceRegion() {
+		return workerInstanceRegion;
+	}
+
+	public int getWorkersNumberAtTheBeginning() {
+		return workersNumberAtTheBeginning;
+	}
 
 	@PostConstruct
 	private void checkConfigurationProperties() {
@@ -124,7 +154,12 @@ public class LoadTestConfig {
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 			kibanaHost = asOptionalURL("KIBANA_HOST");
 			workerUrlList = asStringList("WORKER_URL_LIST");
-			updateWorkerUrlPolicy = asOptionalString("UPDATE_WORKER_URL_POLICY");
+			workerAmiId = asString("WORKER_AMI_ID");
+			workerInstanceType = asString("WORKER_INSTANCE_TYPE");
+			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
+			workerInstanceRegion = asString("WORKER_INSTANCE_REGION");
+			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
+			updateWorkerUrlPolicy = asString("UPDATE_WORKER_URL_POLICY");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
 			
@@ -144,6 +179,7 @@ public class LoadTestConfig {
 		System.out.printf(format, "OpenVidu SECRET:", openviduSecret);
 		System.out.printf(format, "Worker List:", workerUrlList);
 		System.out.printf(format, "Worker Update Url Policy:", updateWorkerUrlPolicy);
+		System.out.printf(format, "Worker Ami Id:", workerAmiId);
 		System.out.printf(format, "Session Name Prefix:", sessionNamePrefix);
 		System.out.printf(format, "Username Prefix:", userNamePrefix);
 		System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);
