@@ -1,5 +1,6 @@
 package io.openvidu.loadtest.infrastructure;
 
+import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
@@ -40,8 +41,9 @@ public class Ec2Client {
 	private static String SECURITY_GROUP_ID = "";
 	private static String INSTANCE_REGION = "";
 	private static int WORKERS_NUMBER_AT_THE_BEGINNING;
+	private static List<Tag> ec2Tags;
 
-	private static int WAIT_RUNNING_STATE_MS = 5000;
+	private static final int WAIT_RUNNING_STATE_MS = 5000;
 
 	private static AmazonEC2 ec2;
 
@@ -55,20 +57,24 @@ public class Ec2Client {
 		SECURITY_GROUP_ID = this.loadTestConfig.getWorkerSecurityGroupId();
 		INSTANCE_REGION = this.loadTestConfig.getWorkerInstanceRegion();
 		WORKERS_NUMBER_AT_THE_BEGINNING = this.loadTestConfig.getWorkersNumberAtTheBeginning();
+		Tag nameTag = new Tag().withKey("Name").withValue("Worker");
+		Tag typeTag = new Tag().withKey("Type").withValue("OpenViduLoadTest");
+		ec2Tags = Arrays.asList(nameTag, typeTag);
 
 		ec2 = AmazonEC2ClientBuilder.standard().withRegion(INSTANCE_REGION).build();
 	}
+	
+	public List<Instance> launchInitialInstances() {
+		return this.launchInstance(WORKERS_NUMBER_AT_THE_BEGINNING);
+	}
 
-	public List<Instance> launchInstance(String name) {
-
-		Tag nameTag = new Tag().withKey("Name").withValue(name);
-		Tag typeTag = new Tag().withKey("Type").withValue("OpenViduLoadTest");
+	public List<Instance> launchInstance(int number) {
 
 		TagSpecification tagSpecification = new TagSpecification().withResourceType(ResourceType.Instance)
-				.withTags(nameTag, typeTag);
+				.withTags(ec2Tags);
 
 		RunInstancesRequest ec2request = new RunInstancesRequest().withImageId(AMI_ID).withInstanceType(INSTANCE_TYPE)
-				.withTagSpecifications(tagSpecification).withMaxCount(WORKERS_NUMBER_AT_THE_BEGINNING).withMinCount(1);
+				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1);
 
 		if (!SECURITY_GROUP_ID.isEmpty()) {
 			ec2request.withSecurityGroupIds(SECURITY_GROUP_ID);
@@ -87,16 +93,14 @@ public class Ec2Client {
 		return ec2InstanceList;
 
 	}
-
+	
 	public void startInstance(List<String> instanceIds) {
 		StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instanceIds);
 
 		ec2.startInstances(request);
 		for (String id : instanceIds) {
 			waitUntilInstanceState(id, InstanceStateName.Running);
-
 		}
-
 	}
 
 	public void stopInstance(List<String> instanceIds) {
@@ -142,10 +146,13 @@ public class Ec2Client {
 
 		Instance instance = getInstanceFromId(instanceId);
 		InstanceState instanceState = instance.getState();
-
+		boolean needsWait = true;
+		
 		if (instanceState.getName().equalsIgnoreCase(finalState.toString())) {
-			log.info("Instance {} is {}", instanceId, finalState);
-		} else {
+			needsWait = finalState.equals(InstanceStateName.Running) && instance.getPublicDnsName().isEmpty();
+		}
+
+		if (needsWait) {
 			try {
 				log.info("{} ... Waiting until instance will be {} ... ", instanceState.getName(), finalState);
 				Thread.sleep(WAIT_RUNNING_STATE_MS);
@@ -154,7 +161,11 @@ public class Ec2Client {
 				e.printStackTrace();
 				log.error(e.getMessage());
 			}
+		} else {
+			log.info("Instance {} is {}", instance.getPublicDnsName(), finalState);
+			
 		}
+
 	}
 
 }
