@@ -11,11 +11,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
+import com.amazonaws.services.ec2.model.Instance;
+
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
+import io.openvidu.loadtest.infrastructure.Ec2Client;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.WorkerUpdatePolicy;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 
 /**
@@ -37,6 +39,13 @@ public class LoadTestController {
 	@Autowired
 	private KibanaClient kibanaClient;
 
+	@Autowired
+	private Ec2Client ec2Client;
+
+	private static List<Instance> workersList = new ArrayList<Instance>();
+	private static String currentWorkerUrl = "";
+	private static int workersUsed = 0;
+
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -50,10 +59,9 @@ public class LoadTestController {
 
 	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
 		this.kibanaClient.importDashboards();
-		this.browserEmulatorClient.initializeInstances();
 
-//		testCasesList = new ArrayList<>();
-//		this.browserEmulatorClient.disconnectAll();
+		// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+		workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
 
 		testCasesList.forEach(testCase -> {
 
@@ -104,6 +112,8 @@ public class LoadTestController {
 	private void startNxNTest(int participantsBySession, TestCase testCase) {
 		int sessionsLimit = testCase.getSessions();
 
+		setAndInitializeNextWorker();
+		
 		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
 
 			if (responseIsOk && sessionNumber.get() > 0) {
@@ -117,20 +127,20 @@ public class LoadTestController {
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(),
-						participantsBySession, testCase);
+				responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
+						sessionNumber.get(), testCase);
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
-					if(userNumber.get() < participantsBySession){
-//						if(this.loadTestConfig.getUpdateWorkerUrlPolicy().equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
-//							this.browserEmulatorClient.updateWorkerUrl(sessionNumber.get(), participantsBySession);
-//						}
+					if (userNumber.get() < participantsBySession) {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						userNumber.getAndIncrement();
 					}
+					if(this.browserEmulatorClient.getWorkerCpuPct() > this.loadTestConfig.getWorkerMaxLoad()) {
+						setAndInitializeNextWorker();
+					}
 
-				} else if (!responseIsOk) {
+				} else {
 					log.error("Response status is not 200 OK. Exit");
 					return;
 				}
@@ -140,10 +150,6 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				if (this.loadTestConfig.getUpdateWorkerUrlPolicy()
-						.equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
-					this.browserEmulatorClient.updateWorkerUrl(sessionNumber.get(), participantsBySession);
-				}
 			}
 		}
 	}
@@ -151,6 +157,7 @@ public class LoadTestController {
 	private void startNxMTest(int publishers, int subscribers, TestCase testCase) {
 		int totalParticipants = subscribers + publishers;
 		int sessionsLimit = testCase.getSessions();
+		setAndInitializeNextWorker();
 		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
 
 			if (responseIsOk && sessionNumber.get() > 0) {
@@ -166,14 +173,18 @@ public class LoadTestController {
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(userNumber.get(), sessionNumber.get(),
-						publishers, testCase);
-				if (!responseIsOk) {
+				responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
+						sessionNumber.get(), testCase);
+				if (responseIsOk) {
+					userNumber.getAndIncrement();
+					this.totalParticipants.incrementAndGet();
+					if(this.browserEmulatorClient.getWorkerCpuPct() > this.loadTestConfig.getWorkerMaxLoad()) {
+						setAndInitializeNextWorker();
+					}
+				} else {
 					log.error("Response status is not 200 OK. Exit");
 					return;
 				}
-				userNumber.getAndIncrement();
-				this.totalParticipants.incrementAndGet();
 			}
 
 			if (responseIsOk) {
@@ -181,17 +192,20 @@ public class LoadTestController {
 				for (int i = 0; i < subscribers; i++) {
 					log.info("Creating SUBSCRIBER '{}' in session",
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-					responseIsOk = this.browserEmulatorClient.createSubscriber(userNumber.get(), sessionNumber.get(),
-							subscribers, testCase);
+					responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
+							sessionNumber.get(), testCase);
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
-						if(userNumber.get() < totalParticipants) {
+						if (userNumber.get() < totalParticipants) {
 							userNumber.getAndIncrement();
 							sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						}
+						if(this.browserEmulatorClient.getWorkerCpuPct() > this.loadTestConfig.getWorkerMaxLoad()) {
+							setAndInitializeNextWorker();
+						}
 
-					} else if (!responseIsOk) {
+					} else {
 						log.error("Response status is not 200 OK. Exit");
 						return;
 					}
@@ -205,6 +219,44 @@ public class LoadTestController {
 			}
 		}
 	}
+	
+	private void setAndInitializeNextWorker() {
+		currentWorkerUrl = getNextWorker();
+		this.browserEmulatorClient.ping(currentWorkerUrl);
+		this.browserEmulatorClient.initializeInstance(currentWorkerUrl);
+	}
+
+	private String getNextWorker() {
+		workersUsed++;
+		if (currentWorkerUrl.isEmpty()) {
+			log.info("Getting worker already launched");
+			return workersList.get(0).getPublicDnsName();
+		}
+
+		int index = 0;
+		Instance nextInstance;
+
+		// Search last used instance
+		for (int i = 0; i < workersList.size(); i++) {
+			if (currentWorkerUrl.equals(workersList.get(i).getPublicDnsName())) {
+				index = i;
+				break;
+			}
+		}
+
+		nextInstance = workersList.get(index + 1);
+
+		if (nextInstance == null) {
+			log.info("Getting a new worker. Launching a new Ec2 instance... ");
+			List<Instance> nextInstanceList = this.ec2Client.launchInstance(this.loadTestConfig.getWorkersRumpUp());
+			workersList.addAll(nextInstanceList);
+			return nextInstanceList.get(0).getPublicDnsName();
+		}
+		
+		log.info("Getting worker already launched");
+		return nextInstance.getPublicDnsName();
+
+	}
 
 	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
 		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionNumber.get() < sessionsLimit);
@@ -212,13 +264,20 @@ public class LoadTestController {
 	}
 
 	private void cleanEnvironment() {
-		this.browserEmulatorClient.disconnectAll();
+		List<String> workersUrl = new ArrayList<String>();
+		for(Instance ec2 : workersList) {
+			workersUrl.add(ec2.getPublicDnsName());
+		}
+		this.browserEmulatorClient.disconnectAll(workersUrl);
 //		this.browserEmulatorClient.restartAll();
+		this.ec2Client.rebootInstance(workersUrl);
 		this.totalParticipants.set(0);
 		this.sessionsCompleted.set(0);
 		sessionNumber.set(0);
 		userNumber.set(1);
 		responseIsOk = true;
+		workersUsed = 0;
+		currentWorkerUrl = "";
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 	}
 
@@ -236,13 +295,13 @@ public class LoadTestController {
 		String browserModeSelected = testCase.getBrowserMode().toString();
 		boolean recording = testCase.isRecording();
 		String participantsPerSession = participantsBySession;
-		int usedWorkers = this.browserEmulatorClient.getUsedWorkers();
 
 		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
 
-		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, usedWorkers, sessionTypology,
-				browserModeSelected, recording, participantsPerSession, this.startTime, endTime, kibanaUrl);
-		
+		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, workersUsed,
+				sessionTypology, browserModeSelected, recording, participantsPerSession, this.startTime, endTime,
+				kibanaUrl);
+
 		resultReportList.add(rr);
 
 	}

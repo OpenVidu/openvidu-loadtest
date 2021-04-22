@@ -30,6 +30,10 @@ public class LoadTestConfig {
 	private String workerInstanceRegion;
 	
 	private int workersNumberAtTheBeginning;
+	
+	private int workerMaxLoad;
+	
+	private int workersRumpUp;
 
 	private String openviduUrl;
 
@@ -138,6 +142,14 @@ public class LoadTestConfig {
 	public int getWorkersNumberAtTheBeginning() {
 		return workersNumberAtTheBeginning;
 	}
+	
+	public int getWorkersRumpUp() {
+		return workersRumpUp;
+	}
+	
+	public int getWorkerMaxLoad() {
+		return workerMaxLoad;
+	}
 
 	@PostConstruct
 	private void checkConfigurationProperties() {
@@ -159,6 +171,8 @@ public class LoadTestConfig {
 			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
 			workerInstanceRegion = asString("WORKER_INSTANCE_REGION");
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
+			workerMaxLoad = asInt("WORKER_MAX_LOAD");
+			workersRumpUp = asInt("WORKERS_RUMP_UP");
 			updateWorkerUrlPolicy = asString("UPDATE_WORKER_URL_POLICY");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
@@ -180,6 +194,9 @@ public class LoadTestConfig {
 		System.out.printf(format, "Worker List:", workerUrlList);
 		System.out.printf(format, "Worker Update Url Policy:", updateWorkerUrlPolicy);
 		System.out.printf(format, "Worker Ami Id:", workerAmiId);
+		System.out.printf(format, "AWS instance region:", workerInstanceRegion);
+		System.out.printf(format, "Worker max load:", workerMaxLoad);
+		System.out.printf(format, "Worker rump up:", workersRumpUp);
 		System.out.printf(format, "Session Name Prefix:", sessionNamePrefix);
 		System.out.printf(format, "Username Prefix:", userNamePrefix);
 		System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);

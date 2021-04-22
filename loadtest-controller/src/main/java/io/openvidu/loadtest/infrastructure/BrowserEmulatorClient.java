@@ -34,10 +34,13 @@ import io.openvidu.loadtest.utils.JsonUtils;
 public class BrowserEmulatorClient {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
-	private static List<String> workerUrlList = new ArrayList<String>();
-	private static String currentWorkerUrl = "";
+//	private static List<String> workerUrlList = new ArrayList<String>();
+//	private static String currentWorkerUrl = "";
 	private static final int HTTP_STATUS_OK = 200;
-	private static int usedWorkers = 1;
+//	private static int usedWorkers = 1;
+	private static int workerCpuPct = 0;
+
+	private static final int WAIT_MS = 2000;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
@@ -48,51 +51,83 @@ public class BrowserEmulatorClient {
 	@Autowired
 	private JsonUtils jsonUtils;
 
-	@PostConstruct
-	public void init() {
-		workerUrlList = this.loadTestConfig.getWorkerUrlList();
-		currentWorkerUrl = workerUrlList.get(0);
-	}
-	
-	public void initializeInstances() {
-		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
-		List<Callable<HttpResponse<String>>> callableTasks = new ArrayList<>();
+//	@PostConstruct
+//	public void init() {
+//		workerUrlList = this.loadTestConfig.getWorkerUrlList();
+//		currentWorkerUrl = workerUrlList.get(0);
+//	}
 
-		for (String workerUrl : workerUrlList) {
-
-			Callable<HttpResponse<String>> callableTask = () -> {
-				return this.initializeInstance(workerUrl);
-			};
-			callableTasks.add(callableTask);
-		}
+	public void ping(String workerUrl) {
 		try {
-			//TODO: Refactoring callable task in an external class
-			List<Future<HttpResponse<String>>> futures = executorService.invokeAll(callableTasks);
-			futures.forEach((future) -> {
-				try {
-					HttpResponse<String> response = future.get();
-					if(response != null && response.statusCode() != HTTP_STATUS_OK) {
-						log.error("Error initializing worker {}", response.uri());
-					}
-				} catch (InterruptedException | ExecutionException e) {
-					e.printStackTrace();
-				}
-			});
-			executorService.shutdown();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+			log.info("Do ping to {}", workerUrl);
+			HttpResponse<String> response = this.httpClient
+					.sendGet("https://" + workerUrl + ":5000/openvidu-browser/streamManager", getHeaders());
+			log.info("Response: {}", response.body());
+		} catch (Exception e) {
+			try {
+				log.error(e.getMessage());
+				log.error("Error doing ping. Retry...");
+				Thread.sleep(WAIT_MS);
+			} catch (InterruptedException e1) {
+				e1.printStackTrace();
+			}
+			ping(workerUrl);
 		}
 	}
 
-	public boolean createPublisher(int userNumber, int sessionNumber, int participantsBySession, TestCase testCase) {
+	public HttpResponse<String> initializeInstance(String workerUrl) {
+		JsonObject body = new RequestBody().elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
+				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
+				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword()).build().toJson();
+
+		try {
+			log.info("Initialize worker {}", workerUrl);
+			return this.httpClient.sendPost(workerUrl + "/instance/initialize", body, null, getHeaders());
+		} catch (IOException | InterruptedException e) {
+			log.error(e.getMessage());
+		}
+		return null;
+	}
+
+//	public void initializeInstances() {
+//		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
+//		List<Callable<HttpResponse<String>>> callableTasks = new ArrayList<>();
+//
+//		for (String workerUrl : workerUrlList) {
+//
+//			Callable<HttpResponse<String>> callableTask = () -> {
+//				return this.initializeInstance(workerUrl);
+//			};
+//			callableTasks.add(callableTask);
+//		}
+//		try {
+//			//TODO: Refactoring callable task in an external class
+//			List<Future<HttpResponse<String>>> futures = executorService.invokeAll(callableTasks);
+//			futures.forEach((future) -> {
+//				try {
+//					HttpResponse<String> response = future.get();
+//					if(response != null && response.statusCode() != HTTP_STATUS_OK) {
+//						log.error("Error initializing worker {}", response.uri());
+//					}
+//				} catch (InterruptedException | ExecutionException e) {
+//					e.printStackTrace();
+//				}
+//			});
+//			executorService.shutdown();
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+//	}
+
+	public boolean createPublisher(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
 
 		try {
-			updateWorkerUrl(sessionNumber, participantsBySession);
+//			updateWorkerUrl(sessionNumber, participantsBySession);
 
-			log.info("Selected worker: {}", currentWorkerUrl);
-			HttpResponse<String> response = this.httpClient
-					.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
+			log.info("Selected worker: {}", workerUrl);
+			HttpResponse<String> response = this.httpClient.sendPost(
+					"https://" + workerUrl + ":5000/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
 
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				System.out.println("Error: " + response.body());
@@ -101,14 +136,14 @@ public class BrowserEmulatorClient {
 					return false;
 				}
 				System.out.println("Retrying");
-				return this.createPublisher(userNumber, sessionNumber, participantsBySession, testCase);
+				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			}
 			return processResponse(response);
 		} catch (Exception e) {
 			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
-				return this.createPublisher(userNumber, sessionNumber, participantsBySession, testCase);
+				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
-				log.error("Error trying connect with worker on {}: {}", currentWorkerUrl, e.getMessage());
+				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
 				System.exit(1);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				System.out.println(e.getMessage());
@@ -120,7 +155,7 @@ public class BrowserEmulatorClient {
 		return false;
 	}
 
-	public boolean createSubscriber(int userNumber, int sessionNumber, int participantsBySession, TestCase testCase) {
+	public boolean createSubscriber(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
 		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
 
@@ -128,13 +163,13 @@ public class BrowserEmulatorClient {
 			// TODO: The capacity of sessions with subscribers is not defined
 //			updateWorkerUrl(sessionNumber, participantsBySession);
 
-			log.info("Selected worker: {}", currentWorkerUrl);
-			HttpResponse<String> response = this.httpClient
-					.sendPost(currentWorkerUrl + "/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
+			log.info("Selected worker: {}", workerUrl);
+			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager",
+					body.toJson(), null, getHeaders());
 			return processResponse(response);
 		} catch (IOException | InterruptedException e) {
 			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
-				log.error("Error trying connect with worker on {}: {}", currentWorkerUrl, e.getMessage());
+				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
 				System.exit(1);
 			}
 			e.printStackTrace();
@@ -142,7 +177,7 @@ public class BrowserEmulatorClient {
 		return false;
 	}
 
-	public void disconnectAll() {
+	public void disconnectAll(List<String> workerUrlList) {
 
 		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
 		List<Callable<String>> callableTasks = new ArrayList<>();
@@ -166,73 +201,76 @@ public class BrowserEmulatorClient {
 			});
 			executorService.shutdown();
 			log.info("Participants disconnected");
-			usedWorkers = 1;
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public boolean restartAll() {
-		for (String workerUrl : workerUrlList) {
-			try {
-
-				log.info("Restart worker {}", currentWorkerUrl);
-				JsonObject body = new JsonObject();
-				HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/instance/restart", body, null,
-						getHeaders());
-				processResponse(response);
-			} catch (Exception e) {
-				// if (e.getMessage().equalsIgnoreCase("Connection refused")) {
-				// log.error("Error trying connect with worker on {}: {}", workerUrl,
-				// e.getMessage());
-				// }
-			}
-		}
-		return true;
+//	public boolean restartAll(List<String> workerUrlList) {
+//		for (String workerUrl : workerUrlList) {
+//			try {
+//
+//				log.info("Restart worker {}", workerUrl);
+//				JsonObject body = new JsonObject();
+//				HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/instance/restart", body, null,
+//						getHeaders());
+//				processResponse(response);
+//			} catch (Exception e) {
+//				// if (e.getMessage().equalsIgnoreCase("Connection refused")) {
+//				// log.error("Error trying connect with worker on {}: {}", workerUrl,
+//				// e.getMessage());
+//				// }
+//			}
+//		}
+//		return true;
+//	}
+	
+	public int getWorkerCpuPct() { 
+		return workerCpuPct;
 	}
 
-	public void updateWorkerUrl(int sessionNumber, int participantsBySession) {
+//	public void updateWorkerUrl(int sessionNumber, int participantsBySession) {
+//
+//		String updatePolicy = this.loadTestConfig.getUpdateWorkerUrlPolicy();
+//
+//		if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
+//			// TODO: The capacity number depends of instance resources.
+//			int mod = -1;
+//			if (participantsBySession == 2) {
+//				mod = sessionNumber % 5;
+//			} else if (participantsBySession == 3) {
+//				mod = sessionNumber % 3;
+//			} else if (participantsBySession == 5) {
+//				mod = sessionNumber % 5;
+//			} else if (participantsBySession == 8) {
+//				mod = sessionNumber % 1;
+//			}
+//			if (mod == 0) {
+//				System.out.println("Changing worker");
+//				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
+//				currentWorkerUrl = workerUrlList.get(nextIndex);
+//				usedWorkers +=1;
+//				System.out.println("New worker is: " + currentWorkerUrl);
+//			}
+//		} else if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.ROUNDROBIN.getValue())) {
+//
+//			if (workerUrlList.size() > 1) {
+//				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
+//				if (nextIndex >= workerUrlList.size()) {
+//					nextIndex = 0;
+//				}
+//				usedWorkers +=1;
+//				currentWorkerUrl = workerUrlList.get(nextIndex);
+//			}
+//		}
+//	}
 
-		String updatePolicy = this.loadTestConfig.getUpdateWorkerUrlPolicy();
-
-		if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
-			// TODO: The capacity number depends of instance resources.
-			int mod = -1;
-			if (participantsBySession == 2) {
-				mod = sessionNumber % 5;
-			} else if (participantsBySession == 3) {
-				mod = sessionNumber % 3;
-			} else if (participantsBySession == 5) {
-				mod = sessionNumber % 5;
-			} else if (participantsBySession == 8) {
-				mod = sessionNumber % 1;
-			}
-			if (mod == 0) {
-				System.out.println("Changing worker");
-				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
-				currentWorkerUrl = workerUrlList.get(nextIndex);
-				usedWorkers +=1;
-				System.out.println("New worker is: " + currentWorkerUrl);
-			}
-		} else if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.ROUNDROBIN.getValue())) {
-
-			if (workerUrlList.size() > 1) {
-				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
-				if (nextIndex >= workerUrlList.size()) {
-					nextIndex = 0;
-				}
-				usedWorkers +=1;
-				currentWorkerUrl = workerUrlList.get(nextIndex);
-			}
-		}
-	}
-
-	public int getUsedWorkers() {
-		if(usedWorkers > workerUrlList.size()) {
-			return workerUrlList.size();
-		}
-		return usedWorkers;
-	}
+//	public int getUsedWorkers() {
+//		if(usedWorkers > workerUrlList.size()) {
+//			return workerUrlList.size();
+//		}
+//		return usedWorkers;
+//	}
 	private String disconnect(String workerUrl) {
 		try {
 			log.info("Deleting all participants from worker {}", workerUrl);
@@ -245,29 +283,15 @@ public class BrowserEmulatorClient {
 			return e.getMessage();
 		}
 	}
-	
-	private HttpResponse<String> initializeInstance(String workerUrl) {
-		JsonObject body = new RequestBody()
-		.elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
-		.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
-		.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword()).build().toJson();
-		
-		try {
-			return this.httpClient.sendPost(workerUrl+ "/instance/initialize", body, null, getHeaders());
-		} catch (IOException | InterruptedException e) {
-			log.error(e.getMessage());
-		}
-		return null;		
-	}
 
 	private boolean processResponse(HttpResponse<String> response) {
 
 		if (response != null && response.statusCode() == HTTP_STATUS_OK) {
 			JsonObject jsonResponse = jsonUtils.getJson(response.body());
 			String connectionId = jsonResponse.get("connectionId").getAsString();
-			String workerCpu = jsonResponse.get("workerCpuUsage").getAsString();
+			workerCpuPct = jsonResponse.get("workerCpuUsage").getAsInt();
 			log.info("Connection {} created", connectionId);
-			log.info("Worker CPU USAGE: {}% ", workerCpu);
+			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
 			return true;
 		}
 		log.error("Error. Http Status Response {} ", response.statusCode());

@@ -8,7 +8,7 @@ public class ResultReport {
 	private int totalParticipants = 0;
 	private int numSessionsCompleted = 0;
 	private int numSessionsCreated = 0;
-	private int usedWorkers = 0;
+	private int workersUsed = 0;
 	private String sessionTypology;
 	private String browserModeSelected;
 	private boolean recording;
@@ -17,13 +17,13 @@ public class ResultReport {
 	private Calendar endTime;
 	private String kibanaUrl = "";
 
-	public ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int usedWorkers,
+	public ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
 			String sessionTypology, String browserModeSelected, boolean recording, String participantsPerSession,
 			Calendar startTime, Calendar endTime, String kibanaUrl) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
 		this.numSessionsCreated = numSessionsCreated;
-		this.usedWorkers = usedWorkers;
+		this.workersUsed = workersUsed;
 		this.sessionTypology = sessionTypology;
 		this.browserModeSelected = browserModeSelected;
 		this.recording = recording;
@@ -62,7 +62,7 @@ public class ResultReport {
 				+ "Number of sessions created:	" + numSessionsCreated + System.getProperty("line.separator")
 				+ "Number of sessions completed:	" + numSessionsCompleted + System.getProperty("line.separator")
 				+ "Number of participants created:	" + totalParticipants + System.getProperty("line.separator")
-				+ "Number of used workers:	" + usedWorkers + System.getProperty("line.separator")
+				+ "Number of workers used:	" + workersUsed + System.getProperty("line.separator")
 				+ "Test duration:	" + getDuration() + System.getProperty("line.separator")
 				+ "Kibana url:	" + kibanaUrl + System.getProperty("line.separator")
 				+ System.getProperty("line.separator")
