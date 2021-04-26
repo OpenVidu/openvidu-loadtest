@@ -65,18 +65,17 @@ public class Ec2Client {
 
 	public List<Instance> launchAndCleanInitialInstances() {
 		List<Instance> resultList = new ArrayList<Instance>();
-		resultList.addAll(getInstanceWithTag());
-		List<String> instanceIds = new ArrayList<String>();
-		for(Instance i : resultList) {
-			instanceIds.add(i.getInstanceId());
-		}
+		Filter tagFilter = getTagFilter();
+		Filter stateFilter = getInstanceStateFilter(InstanceStateName.Running);
+		resultList.addAll(getInstanceWithFilters(tagFilter, stateFilter));
+		List<String> instanceIds = getInstanceIds(resultList);
 		// Clean launched instances
 		rebootInstance(instanceIds);
-		
-		if(resultList.size() < WORKERS_NUMBER_AT_THE_BEGINNING) {
+
+		if (resultList.size() < WORKERS_NUMBER_AT_THE_BEGINNING) {
 			resultList.addAll(launchInstance(WORKERS_NUMBER_AT_THE_BEGINNING - resultList.size()));
 		}
-		
+
 		return resultList;
 	}
 
@@ -134,6 +133,13 @@ public class Ec2Client {
 		log.info("Instance {} is being rebooted", instanceIds);
 	}
 
+	public void terminateAllInstances() {
+		Filter tagFilter = getTagFilter();
+		List<Instance> instancesToTerminate = getInstanceWithFilters(tagFilter);
+		List<String> instancesToTerminateIds = getInstanceIds(instancesToTerminate);
+		terminateInstance(instancesToTerminateIds);
+	}
+
 	public void terminateInstance(List<String> instanceIds) {
 
 		TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest()
@@ -144,6 +150,14 @@ public class Ec2Client {
 		for (String id : instanceIds) {
 			waitUntilInstanceState(id, InstanceStateName.Terminated);
 		}
+	}
+
+	private List<String> getInstanceIds(List<Instance> instances) {
+		List<String> instanceIds = new ArrayList<String>();
+		for (Instance i : instances) {
+			instanceIds.add(i.getInstanceId());
+		}
+		return instanceIds;
 	}
 
 	private Instance getInstanceFromId(String instanceId) {
@@ -158,19 +172,17 @@ public class Ec2Client {
 
 	}
 
-	private List<Instance> getInstanceWithTag() {
+	private List<Instance> getInstanceWithFilters(Filter... filters) {
 
 		List<Instance> resultList = new ArrayList<Instance>();
-		Filter tagFilter = new Filter().withName("tag:" + TYPE_TAG.getKey()).withValues(TYPE_TAG.getValue());
-		Filter runningFilter = new Filter().withName("instance-state-name").withValues(InstanceStateName.Running.toString());
 
-		DescribeInstancesRequest request = new DescribeInstancesRequest().withFilters(tagFilter, runningFilter);
+		DescribeInstancesRequest request = new DescribeInstancesRequest().withFilters(filters);
 		DescribeInstancesResult result = ec2.describeInstances(request);
 
 		for (Reservation r : result.getReservations()) {
 			resultList.addAll(r.getInstances());
 		}
-		
+
 		return resultList;
 	}
 
@@ -199,7 +211,14 @@ public class Ec2Client {
 			log.info("Instance {} is {}", instance.getPublicDnsName(), finalState);
 
 		}
-
 	}
 
+	private Filter getTagFilter() {
+		return new Filter().withName("tag:" + TYPE_TAG.getKey()).withValues(TYPE_TAG.getValue());
+	}
+
+	private Filter getInstanceStateFilter(InstanceStateName state) {
+		return new Filter().withName("instance-state-name").withValues(state.toString());
+
+	}
 }
