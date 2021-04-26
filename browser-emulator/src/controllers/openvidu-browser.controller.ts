@@ -10,30 +10,25 @@ export const app = express.Router({
 });
 
 
-app.post('/streamManager', (req: Request, res: Response) => {
+app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
 		const request: LoadTestPostRequest = req.body;
 
 		if(areStreamManagerParamsCorrect(request)) {
 			setEnvironmentParams(req);
+			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 
-			const remoteAddress = req.socket.remoteAddress.split(':').pop();
-			WsService.getInstance().startWs(`ws://${remoteAddress}:8080/loadtest`, async () => {
-				const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
+			request.browserMode = request.browserMode || BrowserMode.EMULATE;
+			request.properties.frameRate = request.properties.frameRate || 30;
+			// Setting default role for publisher properties
+			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
+			request.properties.resolution = request.properties.resolution || '640x480';
+			if(request.browserMode === BrowserMode.REAL){
+				request.properties.showVideoElements = request.properties.showVideoElements || true;
+			}
 
-				request.browserMode = request.browserMode || BrowserMode.EMULATE;
-				request.properties.frameRate = request.properties.frameRate || 30;
-				// Setting default role for publisher properties
-				request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
-				request.properties.resolution = request.properties.resolution || '640x480';
-				if(request.browserMode === BrowserMode.REAL){
-					request.properties.showVideoElements = request.properties.showVideoElements || true;
-				}
-
-				const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
-				return res.status(200).send(response);
-			});
-
+			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
+			return res.status(200).send(response);
 		} else {
 			console.log('Problem with some body parameter' + JSON.stringify(request));
 			return res.status(400).send('Problem with some body parameter');
