@@ -14,11 +14,12 @@ import org.springframework.stereotype.Controller;
 import com.amazonaws.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
-import io.openvidu.loadtest.infrastructure.BrowserEmulatorClient;
-import io.openvidu.loadtest.infrastructure.Ec2Client;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.KibanaClient;
+import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.WebSocketClient;
 
 /**
  * @author Carlos Santos

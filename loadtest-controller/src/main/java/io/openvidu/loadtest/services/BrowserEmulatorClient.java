@@ -1,4 +1,4 @@
-package io.openvidu.loadtest.infrastructure;
+package io.openvidu.loadtest.services;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;

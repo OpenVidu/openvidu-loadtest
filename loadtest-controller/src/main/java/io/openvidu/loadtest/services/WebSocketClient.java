@@ -1,4 +1,4 @@
-package io.openvidu.loadtest.config;
+package io.openvidu.loadtest.services;
 
 import java.io.IOException;
 import java.net.URI;
@@ -24,8 +24,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 @ClientEndpoint
-public class WebSocketConfig extends Endpoint{
-	private static final Logger log = LoggerFactory.getLogger(WebSocketConfig.class);
+public class WebSocketClient extends Endpoint{
+	private static final Logger log = LoggerFactory.getLogger(WebSocketClient.class);
 
 	private static WebSocketContainer wsClient = ContainerProvider.getWebSocketContainer();
 	private static final int RETRY_TIME_MS = 4000;
