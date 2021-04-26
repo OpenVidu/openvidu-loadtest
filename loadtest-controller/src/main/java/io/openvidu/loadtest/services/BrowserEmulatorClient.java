@@ -12,8 +12,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import javax.annotation.PostConstruct;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +24,6 @@ import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.WorkerUpdatePolicy;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -34,10 +31,8 @@ import io.openvidu.loadtest.utils.JsonUtils;
 public class BrowserEmulatorClient {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
-//	private static List<String> workerUrlList = new ArrayList<String>();
-//	private static String currentWorkerUrl = "";
 	private static final int HTTP_STATUS_OK = 200;
-//	private static int usedWorkers = 1;
+	private static final int WORKER_PORT = 5000;
 	private static int workerCpuPct = 0;
 
 	private static final int WAIT_MS = 2000;
@@ -51,18 +46,12 @@ public class BrowserEmulatorClient {
 	@Autowired
 	private JsonUtils jsonUtils;
 
-//	@PostConstruct
-//	public void init() {
-//		workerUrlList = this.loadTestConfig.getWorkerUrlList();
-//		currentWorkerUrl = workerUrlList.get(0);
-//	}
-
 	public void ping(String workerUrl) {
 		try {
-			log.info("Do ping to {}", workerUrl);
+			log.info("Pinging to {}", workerUrl);
 			HttpResponse<String> response = this.httpClient
-					.sendGet("https://" + workerUrl + ":5000/openvidu-browser/streamManager", getHeaders());
-			log.info("Response: {}", response.body());
+					.sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
+			log.info("Ping success: {}", response.body());
 		} catch (Exception e) {
 			try {
 				log.error(e.getMessage());
@@ -82,7 +71,8 @@ public class BrowserEmulatorClient {
 
 		try {
 			log.info("Initialize worker {}", workerUrl);
-			return this.httpClient.sendPost(workerUrl + "/instance/initialize", body, null, getHeaders());
+			return this.httpClient.sendPost("https://" + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
+					null, getHeaders());
 		} catch (IOException | InterruptedException e) {
 			log.error(e.getMessage());
 		}
@@ -123,11 +113,10 @@ public class BrowserEmulatorClient {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
 
 		try {
-//			updateWorkerUrl(sessionNumber, participantsBySession);
-
 			log.info("Selected worker: {}", workerUrl);
 			HttpResponse<String> response = this.httpClient.sendPost(
-					"https://" + workerUrl + ":5000/openvidu-browser/streamManager", body.toJson(), null, getHeaders());
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
+					getHeaders());
 
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				System.out.println("Error: " + response.body());
@@ -160,12 +149,10 @@ public class BrowserEmulatorClient {
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
 
 		try {
-			// TODO: The capacity of sessions with subscribers is not defined
-//			updateWorkerUrl(sessionNumber, participantsBySession);
-
 			log.info("Selected worker: {}", workerUrl);
-			HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/openvidu-browser/streamManager",
-					body.toJson(), null, getHeaders());
+			HttpResponse<String> response = this.httpClient.sendPost(
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
+					getHeaders());
 			return processResponse(response);
 		} catch (IOException | InterruptedException e) {
 			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
@@ -224,60 +211,18 @@ public class BrowserEmulatorClient {
 //		}
 //		return true;
 //	}
-	
-	public int getWorkerCpuPct() { 
+
+	public int getWorkerCpuPct() {
 		return workerCpuPct;
 	}
 
-//	public void updateWorkerUrl(int sessionNumber, int participantsBySession) {
-//
-//		String updatePolicy = this.loadTestConfig.getUpdateWorkerUrlPolicy();
-//
-//		if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.CAPACITY.getValue())) {
-//			// TODO: The capacity number depends of instance resources.
-//			int mod = -1;
-//			if (participantsBySession == 2) {
-//				mod = sessionNumber % 5;
-//			} else if (participantsBySession == 3) {
-//				mod = sessionNumber % 3;
-//			} else if (participantsBySession == 5) {
-//				mod = sessionNumber % 5;
-//			} else if (participantsBySession == 8) {
-//				mod = sessionNumber % 1;
-//			}
-//			if (mod == 0) {
-//				System.out.println("Changing worker");
-//				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
-//				currentWorkerUrl = workerUrlList.get(nextIndex);
-//				usedWorkers +=1;
-//				System.out.println("New worker is: " + currentWorkerUrl);
-//			}
-//		} else if (updatePolicy.equalsIgnoreCase(WorkerUpdatePolicy.ROUNDROBIN.getValue())) {
-//
-//			if (workerUrlList.size() > 1) {
-//				int nextIndex = workerUrlList.indexOf(currentWorkerUrl) + 1;
-//				if (nextIndex >= workerUrlList.size()) {
-//					nextIndex = 0;
-//				}
-//				usedWorkers +=1;
-//				currentWorkerUrl = workerUrlList.get(nextIndex);
-//			}
-//		}
-//	}
-
-//	public int getUsedWorkers() {
-//		if(usedWorkers > workerUrlList.size()) {
-//			return workerUrlList.size();
-//		}
-//		return usedWorkers;
-//	}
 	private String disconnect(String workerUrl) {
 		try {
 			log.info("Deleting all participants from worker {}", workerUrl);
 			Map<String, String> headers = new HashMap<String, String>();
 			headers.put("Content-Type", "application/json");
-			HttpResponse<String> response = this.httpClient.sendDelete(workerUrl + "/openvidu-browser/streamManager",
-					headers);
+			HttpResponse<String> response = this.httpClient.sendDelete(
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", headers);
 			return response.body();
 		} catch (Exception e) {
 			return e.getMessage();

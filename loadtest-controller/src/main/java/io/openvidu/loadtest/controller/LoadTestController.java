@@ -6,6 +6,8 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.annotation.PostConstruct;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,12 +46,17 @@ public class LoadTestController {
 	private Ec2Client ec2Client;
 
 	private static List<Instance> workersList = new ArrayList<Instance>();
+	private static List<String> devWorkersList = new ArrayList<String>();
+
 	private static String currentWorkerUrl = "";
 	private static int workersUsed = 0;
 
 	private Calendar startTime;
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
+	private static final int WEBSOCKET_PORT = 5001;
+
+	private static boolean PROD_MODE = false;
 	private static AtomicInteger sessionNumber = new AtomicInteger(0);
 	private static AtomicInteger userNumber = new AtomicInteger(1);
 	private static boolean responseIsOk = true;
@@ -57,16 +64,28 @@ public class LoadTestController {
 	private AtomicInteger totalParticipants = new AtomicInteger(0);
 
 	private static List<ResultReport> resultReportList = new ArrayList<ResultReport>();
+	
+	@PostConstruct
+	public void initialize() {
+		PROD_MODE = this.loadTestConfig.getWorkerUrlList().isEmpty();
+		devWorkersList = this.loadTestConfig.getWorkerUrlList();
+
+	}
 
 	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
-		this.kibanaClient.importDashboards();
-
-		// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-		workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+		
+		if(PROD_MODE) {
+			this.kibanaClient.importDashboards();
+		}
 
 		testCasesList.forEach(testCase -> {
 
 			if (testCase.is_NxN()) {
+				if(PROD_MODE) {
+					// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+					workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+				}
+				
 				this.startTime = Calendar.getInstance();
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
@@ -83,6 +102,8 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
+				// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+				workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
 				this.startTime = Calendar.getInstance();
 
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
@@ -100,6 +121,8 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 
+			} else if (testCase.is_TERMINATE() && PROD_MODE) {
+				this.ec2Client.terminateAllInstances();
 			} else {
 				log.error("Test case has wrong typology, SKIPPED.");
 				return;
@@ -222,42 +245,57 @@ public class LoadTestController {
 	}
 	
 	private void setAndInitializeNextWorker() {
-		currentWorkerUrl = getNextWorker();
+		String nextWorkerUrl = getNextWorker();
+		boolean requireInitialize = currentWorkerUrl.equals(nextWorkerUrl);
+		currentWorkerUrl = nextWorkerUrl;
 		this.browserEmulatorClient.ping(currentWorkerUrl);
-		new WebSocketConfig().connect("ws://" + currentWorkerUrl + "/events");
-		this.browserEmulatorClient.initializeInstance(currentWorkerUrl);
+		new WebSocketClient().connect("ws://" + currentWorkerUrl + ":" + WEBSOCKET_PORT + "/events");
+		if(requireInitialize) {
+			this.browserEmulatorClient.initializeInstance(currentWorkerUrl);
+		}
 	}
 
 	private String getNextWorker() {
-		workersUsed++;
-		if (currentWorkerUrl.isEmpty()) {
-			log.info("Getting worker already launched");
-			return workersList.get(0).getPublicDnsName();
-		}
-
-		int index = 0;
-		Instance nextInstance;
-
-		// Search last used instance
-		for (int i = 0; i < workersList.size(); i++) {
-			if (currentWorkerUrl.equals(workersList.get(i).getPublicDnsName())) {
-				index = i;
-				break;
+		if(PROD_MODE) {
+			workersUsed++;
+			if (currentWorkerUrl.isEmpty()) {
+				log.info("Getting worker already launched");
+				return workersList.get(0).getPublicDnsName();
 			}
-		}
-
-		nextInstance = workersList.get(index + 1);
-
-		if (nextInstance == null) {
-			log.info("Getting a new worker. Launching a new Ec2 instance... ");
-			List<Instance> nextInstanceList = this.ec2Client.launchInstance(this.loadTestConfig.getWorkersRumpUp());
-			workersList.addAll(nextInstanceList);
-			return nextInstanceList.get(0).getPublicDnsName();
-		}
+			
+				int index = 0;
+				Instance nextInstance;
 		
-		log.info("Getting worker already launched");
-		return nextInstance.getPublicDnsName();
-
+				// Search last used instance
+				for (int i = 0; i < workersList.size(); i++) {
+					if (currentWorkerUrl.equals(workersList.get(i).getPublicDnsName())) {
+						index = i;
+						break;
+					}
+				}
+		
+				nextInstance = workersList.get(index + 1);
+		
+				if (nextInstance == null) {
+					log.info("Getting a new worker. Launching a new Ec2 instance... ");
+					List<Instance> nextInstanceList = this.ec2Client.launchInstance(this.loadTestConfig.getWorkersRumpUp());
+					workersList.addAll(nextInstanceList);
+					return nextInstanceList.get(0).getPublicDnsName();
+				}
+				
+				log.info("Getting worker already launched");
+				return nextInstance.getPublicDnsName();
+		} else {
+			if(devWorkersList.size() > 1) {
+				int index = devWorkersList.indexOf(currentWorkerUrl);
+				if(index + 1 > devWorkersList.size()) {
+					return devWorkersList.get(0);
+				}
+				return devWorkersList.get(index + 1);
+			}
+			log.info("Development workers list has 1 element and cannot create a new one.");
+			return devWorkersList.get(0);
+		}
 	}
 
 	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
@@ -266,13 +304,18 @@ public class LoadTestController {
 	}
 
 	private void cleanEnvironment() {
-		List<String> workersUrl = new ArrayList<String>();
-		for(Instance ec2 : workersList) {
-			workersUrl.add(ec2.getPublicDnsName());
+		List<String> workersUrl = devWorkersList;
+
+		if(PROD_MODE) {
+			for(Instance ec2 : workersList) {
+				workersUrl.add(ec2.getPublicDnsName());
+			}
 		}
 		this.browserEmulatorClient.disconnectAll(workersUrl);
 //		this.browserEmulatorClient.restartAll();
-		this.ec2Client.rebootInstance(workersUrl);
+		if(PROD_MODE) {
+			this.ec2Client.rebootInstance(workersUrl);
+		}
 		this.totalParticipants.set(0);
 		this.sessionsCompleted.set(0);
 		sessionNumber.set(0);
