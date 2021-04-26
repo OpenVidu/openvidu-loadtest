@@ -84,13 +84,12 @@ public class WebSocketClient extends Endpoint{
 
 	@OnOpen
 	public void onOpen(Session session, EndpointConfig config) {
-		log.info("opening websocket {}", session);
+		log.info("Websocket connected");
 	}
 
 	@OnMessage
 	public void onMessage(String message) {
 		log.info("Received message: {}", message);
 	}
-	
 	
 }

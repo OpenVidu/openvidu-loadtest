@@ -48,10 +48,10 @@ public class BrowserEmulatorClient {
 
 	public void ping(String workerUrl) {
 		try {
-			log.info("Pinging to {}", workerUrl);
+			log.info("Pinging to {} ...", workerUrl);
 			HttpResponse<String> response = this.httpClient
 					.sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
-			log.info("Ping success: {}", response.body());
+			log.info("Ping success. Response {}", response.body());
 		} catch (Exception e) {
 			try {
 				log.error(e.getMessage());
