@@ -223,6 +223,7 @@ public class LoadTestController {
 	private void setAndInitializeNextWorker() {
 		currentWorkerUrl = getNextWorker();
 		this.browserEmulatorClient.ping(currentWorkerUrl);
+		new WebSocketConfig().connect("ws://" + currentWorkerUrl + "/events");
 		this.browserEmulatorClient.initializeInstance(currentWorkerUrl);
 	}
 
