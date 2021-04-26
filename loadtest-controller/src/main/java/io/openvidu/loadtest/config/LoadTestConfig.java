@@ -3,6 +3,7 @@ package io.openvidu.loadtest.config;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
@@ -18,8 +19,6 @@ public class LoadTestConfig {
 	private Environment env;
 
 	private List<String> workerUrlList;
-	
-	private String updateWorkerUrlPolicy;
 	
 	private String workerAmiId;
 	
@@ -119,10 +118,6 @@ public class LoadTestConfig {
 		return this.workerUrlList;
 	}
 	
-	public String getUpdateWorkerUrlPolicy() {
-		return this.updateWorkerUrlPolicy;
-	}
-	
 	public String getWorkerAmiId() {
 		return this.workerAmiId;
 	}
@@ -165,7 +160,7 @@ public class LoadTestConfig {
 			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 			kibanaHost = asOptionalURL("KIBANA_HOST");
-			workerUrlList = asStringList("WORKER_URL_LIST");
+			workerUrlList = asOptionalStringList("WORKER_URL_LIST");
 			workerAmiId = asString("WORKER_AMI_ID");
 			workerInstanceType = asString("WORKER_INSTANCE_TYPE");
 			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
@@ -173,7 +168,6 @@ public class LoadTestConfig {
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
 			workersRumpUp = asInt("WORKERS_RUMP_UP");
-			updateWorkerUrlPolicy = asString("UPDATE_WORKER_URL_POLICY");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
 			
@@ -192,7 +186,6 @@ public class LoadTestConfig {
 		System.out.printf(format, "OpenVidu URL:", openviduUrl);
 		System.out.printf(format, "OpenVidu SECRET:", openviduSecret);
 		System.out.printf(format, "Worker List:", workerUrlList);
-		System.out.printf(format, "Worker Update Url Policy:", updateWorkerUrlPolicy);
 		System.out.printf(format, "Worker Ami Id:", workerAmiId);
 		System.out.printf(format, "AWS instance region:", workerInstanceRegion);
 		System.out.printf(format, "Worker max load:", workerMaxLoad);
@@ -242,6 +235,14 @@ public class LoadTestConfig {
 		}
 
 		return value;
+	}
+	
+	private List<String> asOptionalStringList(String property) {
+		try {
+			return this.asStringList(property);
+		} catch (Exception e) {
+			return new ArrayList<String>();
+		}
 	}
 	
 	private int asInt(String property) {
