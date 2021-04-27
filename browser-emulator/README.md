@@ -3,21 +3,49 @@
 Service with the aim of emulating a standard browser using [OpenVidu Browser library](https://github.com/OpenVidu/openvidu#readme) and overriding WebRTC API with [node-webrtc library](https://github.com/node-webrtc/node-webrtc). This service is also **capable to launch Chrome containerized browsers** and connect them to Openvidu emulating a fully real user.
 
 This app provides a simple REST API that will be used by **Load Test application** and it allows:
-* [Create a Stream Manager](#create-stream-manager) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
+* [Ping to instance](#ping-instance) Do ping to check if instance is ready.
+* [Initialize instance](#initialize-instance) initialize instance starting required containers.
 
-* [Delete a specific Stream Manager](#delete-stream-manager-by-connectionId) by its connectionId
-* [Delete all Stream Manager](#delete-stream-managers-by-role-publisher-or-subscriber) with a specific role (`PUBLISHER` or `SUBSCRIBER`).
+* [Create a participant](#create-participant) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
 
-### API REST
+* [Delete a specific participant](#delete-participant-by-connectionId) by its connectionId
+* [Delete all participant](#delete-participants-by-role-publisher-or-subscriber) with a specific role (`PUBLISHER` or `SUBSCRIBER`).
 
-#### CREATE STREAM MANAGER
+## API REST
+
+### PING INSTANCE
+
+* #### METHOD: **GET**
+* #### URL:  https://localhost:5000/openvidu-browser/instance/ping
+
+
+
+### INITIALIZE INSTANCE
+
+* #### METHOD: **POST**
+* #### URL:  https://localhost:5000/openvidu-browser/instance/initialize
+* #### BODY
+```json
+{
+	"elasticSearchHost": "your-elasticsearch-hostname",
+	"elasticSearchUserName": "your-username",
+	"elasticSearchPassword": "your-password"
+}
+```
+
+* #### RESPONSE
+```json
+Instance has been initialized
+```
+
+### CREATE PARTICIPANT
 
 This endpoint provides a lot of configuration that you should take into account. As said before, you can make a request to **create a new Stream Manger using your own token** or make a request **letting the browser-emulator create a new one**.
 
 
-#### CREATE STREAM MANAGER _(using your custom token)_
+### CREATE PARTICIPANT _(using your custom token)_
 
-_Create a new Stream Manager with a specified **token**_
+_Create a new participant with a specified **token**_
 
 * #### METHOD: **POST**
 
@@ -45,9 +73,9 @@ _Create a new Stream Manager with a specified **token**_
 	}
 	```
 
-#### **CREATE STREAM MANAGER** _(Creating a token)_
+### **CREATE PARTICIPANT** _(Creating a token)_
 
-_Create a new Stream Manager with a specified **role** and connect it into a specified **sessionName**_
+_Create a new participant with a specified **role** and connect it into a specified **sessionName**_
 
 * #### METHOD: **POST**
 
@@ -70,29 +98,24 @@ _Create a new Stream Manager with a specified **role** and connect it into a spe
 	```
 
 * #### RESPONSE
-	```json
-	{
-		"connectionId": "con_FmtswrvbkT",
-		"workerCpuUsage": 10.00
-	}
-	```
+```json
+{
+	"connectionId": "con_FmtswrvbkT",
+	"workerCpuUsage": 10.00
+}
+```
 
 Moreover, you can customize the request with many of the parameters that we can found in OpenVidu Browser library.
 
 
-#### Create Stream Manager: Body Parameters
+### Create Stream Manager: Body Parameters
 
 To make the load test completely functional, the browser-emulator service also accept others extra body parameters.
-
-//TODO upadate
 
 ```json
 {
 	"openviduUrl": "your OpenVidu hostname",
  	"openviduSecret": "your OpenVidu Secret",
-    "elasticSearchHost": "your ElasticSearch hostname",
-    "elasticSearchUserName": "your ElasticSearch usename",
-    "elasticSearchPassword": "your ElasticSearch password",
     "browserMode": "'EMULATE' or 'REAL'",
 	"properties": Properties JSON object << See properties list >>
 }
@@ -104,9 +127,6 @@ To make the load test completely functional, the browser-emulator service also a
 |---|---|---|
 |  **openviduUrl** |  String |OpenVidu URL.  |
 |  **openviduSecret** |  String | OpenVidu secret.|
-|  **elasticSearchHost** |  String | ElasticSearch hostname.|
-|  **elasticSearchUserName** | String  | ElasticSearch username.  |
-|  **elasticSearchPassword** | String  | ElasticSearch password.  |
 |  **browserMode** | String  | If `EMULATE` the service will emulate a browser. If  `REAL`, the service will launch a Chrome browser docker container. Default `EMULATE` Choosing `EMULATE`, **you must ensure that OpenVidu aren't forcing H264 coded**|
 |  **properties** | JSON Object   | [See properties object](#properties-json-object) |
 
@@ -130,18 +150,27 @@ To make the load test completely functional, the browser-emulator service also a
 |  **headless** | Boolean  | If `browserMode` is `REAL` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |
 
 
-#### **DELETE STREAM MANAGER** _(by connectionId)_
+### **DISCONNECT ALL PARTICIPANTS**
 
-_Delete a single Stream Manager by its connectionId_
+_Disconnect all participants_
+
+* #### METHOD: **DELETE**
+
+* #### URL:  https://localhost:5000/openvidu-browser/streamManager
+
+
+### **DELETE PARTICIPANT** _(by connectionId)_
+
+_Delete a single participant by its connectionId_
 
 * #### METHOD: **DELETE**
 
 * #### URL:  https://localhost:5000/openvidu-browser/streamManager/connection/{{CONNECTION_ID}}
 
 
-#### **DELETE STREAM MANAGER's** _(by ROLE: `PUBLISHER` or `SUBSCRIBER`)_
+### **DELETE PARTICIPANTS** _(by ROLE: `PUBLISHER` or `SUBSCRIBER`)_
 
-_Delete all Stream Manager with the specified ROLE_
+_Delete all participants with the specified ROLE_
 
 * #### METHOD: **DELETE**
 
