@@ -55,7 +55,7 @@ public class BrowserEmulatorClient {
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			log.error("Error doing ping. Retry...");
-			sleep();
+			sleep(WAIT_MS);
 			ping(workerUrl);
 		}
 	}
@@ -125,13 +125,13 @@ public class BrowserEmulatorClient {
 					return false;
 				}
 				System.out.println("Retrying");
-				sleep();
+				sleep(WAIT_MS);
 				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			}
 			return processResponse(response);
 		} catch (Exception e) {
 			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
-				sleep();
+				sleep(WAIT_MS);
 				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
@@ -267,13 +267,12 @@ public class BrowserEmulatorClient {
 		return headers;
 	}
 	
-	private void sleep() {
+	private void sleep(int seconds) {
 		try {
-			Thread.sleep(WAIT_MS);
+			Thread.sleep(seconds);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-
 	}
 
 }
