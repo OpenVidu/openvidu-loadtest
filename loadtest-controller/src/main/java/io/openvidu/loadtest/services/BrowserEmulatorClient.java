@@ -155,11 +155,31 @@ public class BrowserEmulatorClient {
 			HttpResponse<String> response = this.httpClient.sendPost(
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
 					getHeaders());
+			if (response.statusCode() != HTTP_STATUS_OK) {
+				System.out.println("Error: " + response.body());
+				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
+						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
+					return false;
+				}
+				
+				if(response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+					return false;
+				}
+				System.out.println("Retrying");
+				sleep(WAIT_MS);
+				return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
+			}
 			return processResponse(response);
 		} catch (IOException | InterruptedException e) {
-			if (e.getMessage().equalsIgnoreCase("Connection refused")) {
+			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
+				sleep(WAIT_MS);
+				return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
+			} else if (e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
 				System.exit(1);
+			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
+				System.out.println(e.getMessage());
+				return true;
 			}
 			e.printStackTrace();
 		}
