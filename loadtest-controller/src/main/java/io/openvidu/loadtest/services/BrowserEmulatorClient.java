@@ -53,13 +53,9 @@ public class BrowserEmulatorClient {
 					.sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
 			log.info("Ping success. Response {}", response.body());
 		} catch (Exception e) {
-			try {
-				log.error(e.getMessage());
-				log.error("Error doing ping. Retry...");
-				Thread.sleep(WAIT_MS);
-			} catch (InterruptedException e1) {
-				e1.printStackTrace();
-			}
+			log.error(e.getMessage());
+			log.error("Error doing ping. Retry...");
+			sleep();
 			ping(workerUrl);
 		}
 	}
@@ -124,12 +120,18 @@ public class BrowserEmulatorClient {
 						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
 					return false;
 				}
+				
+				if(response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+					return false;
+				}
 				System.out.println("Retrying");
+				sleep();
 				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			}
 			return processResponse(response);
 		} catch (Exception e) {
 			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
+				sleep();
 				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
@@ -263,6 +265,15 @@ public class BrowserEmulatorClient {
 		Map<String, String> headers = new HashMap<String, String>();
 		headers.put("Content-Type", "application/json");
 		return headers;
+	}
+	
+	private void sleep() {
+		try {
+			Thread.sleep(WAIT_MS);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
 	}
 
 }
