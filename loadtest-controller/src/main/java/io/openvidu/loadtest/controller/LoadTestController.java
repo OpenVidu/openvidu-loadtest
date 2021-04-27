@@ -288,7 +288,7 @@ public class LoadTestController {
 		} else {
 			if(devWorkersList.size() > 1) {
 				int index = devWorkersList.indexOf(currentWorkerUrl);
-				if(index + 1 > devWorkersList.size()) {
+				if(index + 1 >= devWorkersList.size()) {
 					return devWorkersList.get(0);
 				}
 				return devWorkersList.get(index + 1);
