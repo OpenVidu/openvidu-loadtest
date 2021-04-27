@@ -258,14 +258,14 @@ public class LoadTestController {
 	private String getNextWorker() {
 		if(PROD_MODE) {
 			workersUsed++;
-			if (currentWorkerUrl.isEmpty()) {
-				log.info("Getting worker already launched");
-				return workersList.get(0).getPublicDnsName();
-			}
-			
+			String newWorkerUrl = "";
+			if (currentWorkerUrl.isBlank()) {
+				newWorkerUrl = workersList.get(0).getPublicDnsName();
+				log.info("Getting new worker already launched: {}", newWorkerUrl);
+			} else {
 				int index = 0;
 				Instance nextInstance;
-		
+				
 				// Search last used instance
 				for (int i = 0; i < workersList.size(); i++) {
 					if (currentWorkerUrl.equals(workersList.get(i).getPublicDnsName())) {
@@ -273,18 +273,21 @@ public class LoadTestController {
 						break;
 					}
 				}
-		
-				nextInstance = workersList.get(index + 1);
-		
+				nextInstance = index + 1 >= workersList.size() ? null : workersList.get(index + 1);
 				if (nextInstance == null) {
-					log.info("Getting a new worker. Launching a new Ec2 instance... ");
+					log.info("Launching a new Ec2 instance... ");
 					List<Instance> nextInstanceList = this.ec2Client.launchInstance(this.loadTestConfig.getWorkersRumpUp());
 					workersList.addAll(nextInstanceList);
-					return nextInstanceList.get(0).getPublicDnsName();
+					newWorkerUrl = nextInstanceList.get(0).getPublicDnsName();
+					log.info("New worker has been launched: {}", newWorkerUrl);
+
+				} else {
+					newWorkerUrl = nextInstance.getPublicDnsName();
+					log.info("Getting new worker already launched: {}", newWorkerUrl);
+
 				}
-				
-				log.info("Getting worker already launched");
-				return nextInstance.getPublicDnsName();
+			}
+			return newWorkerUrl;
 		} else {
 			if(devWorkersList.size() > 1) {
 				int index = devWorkersList.indexOf(currentWorkerUrl);

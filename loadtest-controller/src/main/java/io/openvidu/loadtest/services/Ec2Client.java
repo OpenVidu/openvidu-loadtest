@@ -69,8 +69,13 @@ public class Ec2Client {
 		Filter stateFilter = getInstanceStateFilter(InstanceStateName.Running);
 		resultList.addAll(getInstanceWithFilters(tagFilter, stateFilter));
 		List<String> instanceIds = getInstanceIds(resultList);
+		log.info("{} EC2 instances found", resultList.size());
+
 		// Clean launched instances
 		rebootInstance(instanceIds);
+		for (String id : instanceIds) {
+			waitUntilInstanceState(id, InstanceStateName.Running);
+		}
 
 		if (resultList.size() < WORKERS_NUMBER_AT_THE_BEGINNING) {
 			resultList.addAll(launchInstance(WORKERS_NUMBER_AT_THE_BEGINNING - resultList.size()));
@@ -93,37 +98,37 @@ public class Ec2Client {
 
 		RunInstancesResult ec2response = ec2.runInstances(ec2request);
 
-		List<Instance> ec2InstanceList = ec2response.getReservation().getInstances();
+		List<Instance> ec2InstanceList = new ArrayList<Instance>();
 
-		for (Instance instance : ec2InstanceList) {
-			waitUntilInstanceState(instance.getInstanceId(), InstanceStateName.Running);
-			log.info("Successfully started EC2 instance {} ", instance.getPublicDnsName());
-
+		for (Instance instance : ec2response.getReservation().getInstances()) {
+			// Need to get the instance periodically to obtain all properties updated
+			ec2InstanceList.add(waitUntilInstanceState(instance.getInstanceId(), InstanceStateName.Running));
+			log.info("Successfully started EC2 instance");
 		}
 
 		return ec2InstanceList;
 
 	}
 
-	public void startInstance(List<String> instanceIds) {
-		StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instanceIds);
+//	public void startInstance(List<String> instanceIds) {
+//		StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instanceIds);
+//
+//		ec2.startInstances(request);
+//		for (String id : instanceIds) {
+//			waitUntilInstanceState(id, InstanceStateName.Running);
+//		}
+//	}
 
-		ec2.startInstances(request);
-		for (String id : instanceIds) {
-			waitUntilInstanceState(id, InstanceStateName.Running);
-		}
-	}
-
-	public void stopInstance(List<String> instanceIds) {
-		StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);
-
-		ec2.stopInstances(request);
-		log.info("Instance {} is being stopped", instanceIds);
-
-		for (String id : instanceIds) {
-			waitUntilInstanceState(id, InstanceStateName.Stopped);
-		}
-	}
+//	public void stopInstance(List<String> instanceIds) {
+//		StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);
+//
+//		ec2.stopInstances(request);
+//		log.info("Instance {} is being stopped", instanceIds);
+//
+//		for (String id : instanceIds) {
+//			waitUntilInstanceState(id, InstanceStateName.Stopped);
+//		}
+//	}
 
 	public void rebootInstance(List<String> instanceIds) {
 
@@ -131,6 +136,8 @@ public class Ec2Client {
 
 		ec2.rebootInstances(request);
 		log.info("Instance {} is being rebooted", instanceIds);
+		// Avoided start test before reboot instances
+		sleep(WAIT_RUNNING_STATE_MS);
 	}
 
 	public void terminateAllInstances() {
@@ -186,31 +193,24 @@ public class Ec2Client {
 		return resultList;
 	}
 
-	private void waitUntilInstanceState(String instanceId, InstanceStateName finalState) {
+	private Instance waitUntilInstanceState(String instanceId, InstanceStateName finalState) {
 
 		Instance instance = getInstanceFromId(instanceId);
 		InstanceState instanceState = instance.getState();
 		boolean needsWait = true;
 
 		if (instanceState.getName().equals(finalState.toString())) {
-			needsWait = finalState.equals(InstanceStateName.Running) && instance.getPublicDnsName().isEmpty();
+			needsWait = finalState.equals(InstanceStateName.Running) && instance.getPublicDnsName().isBlank();
 		}
 
 		if (needsWait) {
-			try {
-				log.info("Address {} ... ", instance.getPublicDnsName());
-
-				log.info("{} ... Waiting until instance will be {} ... ", instanceState.getName(), finalState);
-				Thread.sleep(WAIT_RUNNING_STATE_MS);
-				waitUntilInstanceState(instanceId, finalState);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-				log.error(e.getMessage());
-			}
-		} else {
-			log.info("Instance {} is {}", instance.getPublicDnsName(), finalState);
-
-		}
+			log.info("{} ... Waiting until instance will be {} ... ", instanceState.getName(), finalState);
+			sleep(WAIT_RUNNING_STATE_MS);
+			return waitUntilInstanceState(instanceId, finalState);
+		} 
+		
+		log.info("Instance {} is {}", instance.getPublicDnsName(), finalState);
+		return instance;
 	}
 
 	private Filter getTagFilter() {
@@ -219,6 +219,13 @@ public class Ec2Client {
 
 	private Filter getInstanceStateFilter(InstanceStateName state) {
 		return new Filter().withName("instance-state-name").withValues(state.toString());
-
+	}
+	
+	private void sleep(int seconds) {
+		try {
+			Thread.sleep(seconds);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 }
