@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 public class WorkerExceptionManager {
 	private static WorkerExceptionManager INSTANCE;
 
-	private static String exception;
+	private static String exception = "";
 
 	private WorkerExceptionManager() {
 
@@ -19,7 +19,7 @@ public class WorkerExceptionManager {
 	}
 
 	public synchronized boolean exceptionExist() {
-		return getException().isBlank();
+		return !getException().isBlank();
 	}
 
 	public synchronized void setException(String exception) {
