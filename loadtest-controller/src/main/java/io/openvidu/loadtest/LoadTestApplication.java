@@ -1,6 +1,5 @@
 package io.openvidu.loadtest;
 
-
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -35,12 +34,12 @@ public class LoadTestApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(LoadTestApplication.class, args);
 	}
-	
-	public void start() {
-		
+
+	public void start() throws Exception {
+
 		List<TestCase> testCasesList = io.getTestCasesFromJSON();
 		if (testCasesList.size() > 0) {
-			
+
 			List<ResultReport> results = loadTestController.startLoadTests(testCasesList);
 			for (ResultReport result : results) {
 				io.exportResults(result);
@@ -49,12 +48,11 @@ public class LoadTestApplication {
 		} else {
 			log.error(
 					"Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
-
 		}
 	}
-	
+
 	@EventListener(ApplicationReadyEvent.class)
-	public void whenReady() {
+	public void whenReady() throws Exception {
 		this.start();
 	}
 

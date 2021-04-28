@@ -106,6 +106,13 @@ public class BrowserEmulatorClient {
 //	}
 
 	public boolean createPublisher(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
+		
+		// Check if there was an exception on openvidu-browser 
+		if(WorkerExceptionManager.getInstance().exceptionExist()) {
+			log.error("There was an EXCEPTION: {}", WorkerExceptionManager.getInstance().getExceptionAndClean());
+			return false;
+		}
+		
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
 
 		try {
@@ -141,12 +148,18 @@ public class BrowserEmulatorClient {
 				return true;
 			}
 			e.printStackTrace();
-
 		}
 		return false;
 	}
 
 	public boolean createSubscriber(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
+		
+		// Check if there was an exception on openvidu-browser 
+		if(WorkerExceptionManager.getInstance().exceptionExist()) {
+			log.error("There was an EXCEPTION: {}", WorkerExceptionManager.getInstance().getExceptionAndClean());
+			return false;
+		}
+		
 		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
 

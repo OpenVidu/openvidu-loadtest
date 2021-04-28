@@ -78,7 +78,7 @@ public class WebSocketClient extends Endpoint{
 	 @Override
      public void onError(Session session, Throwable thr) {
          super.onError(session, thr);
-         System.out.println("checkerWindow.DownloadMessages().new Endpoint() {...}.onError()");
+         log.error("Error {}", thr.getMessage());
          thr.printStackTrace();
      }
 
@@ -90,6 +90,8 @@ public class WebSocketClient extends Endpoint{
 	@OnMessage
 	public void onMessage(String message) {
 		log.info("Received message: {}", message);
+		if(message.contains("exception") || message.contains("Exception")) {
+			WorkerExceptionManager.getInstance().setException(message);
+		}
 	}
-	
 }
