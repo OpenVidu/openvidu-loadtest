@@ -37,8 +37,8 @@ command -v docker >/dev/null || {
     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
     sudo apt-get update && sudo apt-get install --no-install-recommends --yes \
         docker-ce
-    sudo usermod -aG docker "$USER"
-    newgrp docker
+    # sudo usermod -aG docker "$USER"
+    # newgrp docker
 }
 
 
