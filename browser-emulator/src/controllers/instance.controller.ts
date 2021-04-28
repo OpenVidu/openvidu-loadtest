@@ -14,7 +14,11 @@ export const app = express.Router({
 });
 
 app.get('/ping', (req: Request, res: Response) => {
-	res.status(200).send('Pong');
+	if(InstanceService.getInstance().isInstanceInitialized()) {
+		res.status(200).send('Pong');
+	} else {
+		res.status(500).send();
+	}
 });
 
 app.post('/restart', async (req: Request, res: Response) => {

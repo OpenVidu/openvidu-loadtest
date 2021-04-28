@@ -69,10 +69,11 @@ server.listen(SERVER_PORT, async () => {
 	console.log(`Listening in port ${SERVER_PORT}`);
 	console.log(" ");
 	console.log("---------------------------------------------------------");
+	instanceService.instanceInitialized()
+
 });
 
 ws.on('connection', (ws: WebSocket) => {
-
 	WsService.getInstance().setWebsocket(ws);
 });
 

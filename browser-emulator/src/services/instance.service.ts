@@ -11,6 +11,7 @@ import { ContainerName } from '../types/container-info.type';
 export class InstanceService {
 
 	private static instance: InstanceService;
+	private isinstanceInitialized: boolean = false;
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
 	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
 	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
@@ -29,6 +30,14 @@ export class InstanceService {
 			InstanceService.instance = new InstanceService();
 		}
 		return InstanceService.instance;
+	}
+
+	isInstanceInitialized() {
+		return this.isinstanceInitialized;
+	}
+
+	instanceInitialized() {
+		this.isinstanceInitialized = true;
 	}
 
 	async cleanEnvironment() {
