@@ -31,6 +31,10 @@ public class TestCase {
 	public boolean is_TEACHING() {
 		return this.typology.getValue().equals(Typology.TEACHING.getValue());
 	}
+	
+	public boolean is_TERMINATE() {
+		return this.typology.getValue().equals(Typology.TERMINATE.getValue());
+	}
 
 	public Typology getTopology() {
 		return typology;

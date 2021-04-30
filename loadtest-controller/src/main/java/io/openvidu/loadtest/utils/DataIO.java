@@ -19,6 +19,7 @@ import com.google.gson.stream.JsonReader;
 import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.models.testcase.Typology;
 
 @Service
 public class DataIO {
@@ -74,18 +75,24 @@ public class DataIO {
 			JsonObject element = array.get(i).getAsJsonObject();
 			boolean headless = false;
 			boolean recording = false;
+			List<String> participants = new ArrayList<String>();
+			int sessions = 0;
+			BrowserMode browserMode = null;
 			String typology = element.get("typology").getAsString();
-			String sessionsStr = element.get("sessions").getAsString();
-			JsonArray participantsArray = (JsonArray) element.get("participants");
-			List<String> participants = jsonUtils.getStringList(participantsArray);
-			String browserModeStr = element.get("browserMode").getAsString();
-			BrowserMode browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
-			int sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
+			if (!typology.equalsIgnoreCase(Typology.TERMINATE.getValue())) {
+				String sessionsStr = element.get("sessions").getAsString();
+				JsonArray participantsArray = (JsonArray) element.get("participants");
+				participants = jsonUtils.getStringList(participantsArray);
+				String browserModeStr = element.get("browserMode").getAsString();
+				browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
+				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
 
-			if(browserMode.equals(BrowserMode.REAL)) {
-				recording = element.get("recording").getAsBoolean();
-				headless = element.get("headless").getAsBoolean();
+				if(browserMode.equals(BrowserMode.REAL)) {
+					recording = element.get("recording").getAsBoolean();
+					headless = element.get("headless").getAsBoolean();
+				}
 			}
+			
 			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, headless, recording));
 		}
 

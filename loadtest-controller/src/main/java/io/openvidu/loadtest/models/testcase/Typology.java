@@ -6,7 +6,9 @@ public enum Typology {
 
 	NxM("N:M", "N PUBLISHERS and M SUBSCRIBERS"),
 
-	TEACHING("TEACHING", "TEACHING");
+	TEACHING("TEACHING", "TEACHING"),
+	
+	TERMINATE("TERMINATE", "Terminate all Ec2 instances launched");
 
 	private String value;
 	private String description;
