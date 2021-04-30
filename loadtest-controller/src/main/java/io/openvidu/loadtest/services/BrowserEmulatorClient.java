@@ -234,25 +234,6 @@ public class BrowserEmulatorClient {
 		}
 	}
 
-//	public boolean restartAll(List<String> workerUrlList) {
-//		for (String workerUrl : workerUrlList) {
-//			try {
-//
-//				log.info("Restart worker {}", workerUrl);
-//				JsonObject body = new JsonObject();
-//				HttpResponse<String> response = this.httpClient.sendPost(workerUrl + "/instance/restart", body, null,
-//						getHeaders());
-//				processResponse(response);
-//			} catch (Exception e) {
-//				// if (e.getMessage().equalsIgnoreCase("Connection refused")) {
-//				// log.error("Error trying connect with worker on {}: {}", workerUrl,
-//				// e.getMessage());
-//				// }
-//			}
-//		}
-//		return true;
-//	}
-
 	public int getWorkerCpuPct() {
 		return workerCpuPct;
 	}

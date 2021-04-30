@@ -102,8 +102,10 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
-				// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-				workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+				if(PROD_MODE) {
+					// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+					workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+				}
 				this.startTime = Calendar.getInstance();
 
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
@@ -122,6 +124,7 @@ public class LoadTestController {
 				}
 
 			} else if (testCase.is_TERMINATE() && PROD_MODE) {
+				log.info("TERMINATE typology. Terminate all EC2 instances");
 				this.ec2Client.terminateAllInstances();
 			} else {
 				log.error("Test case has wrong typology, SKIPPED.");
@@ -313,12 +316,12 @@ public class LoadTestController {
 			for(Instance ec2 : workersList) {
 				workersUrl.add(ec2.getPublicDnsName());
 			}
+			workersList = new ArrayList<Instance>();
 		}
 		this.browserEmulatorClient.disconnectAll(workersUrl);
-//		this.browserEmulatorClient.restartAll();
-		if(PROD_MODE) {
-			this.ec2Client.rebootInstance(workersUrl);
-		}
+//		if(PROD_MODE) {
+//			this.ec2Client.rebootInstance(workersUrl);
+//		}
 		this.totalParticipants.set(0);
 		this.sessionsCompleted.set(0);
 		sessionNumber.set(0);
