@@ -24,7 +24,7 @@ export class ElasticSearchService {
 	}
 
 	async initialize(){
-		if(!this.needToBeConfigured()) {
+		if(this.needToBeConfigured()) {
 			console.log('Initializing ElasticSearch');
 			const clientOptions: ClientOptions = {
 				node: process.env.ELASTICSEARCH_HOSTNAME,
