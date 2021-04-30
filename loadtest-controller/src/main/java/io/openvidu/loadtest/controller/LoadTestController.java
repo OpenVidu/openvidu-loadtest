@@ -163,7 +163,7 @@ public class LoadTestController {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						userNumber.getAndIncrement();
 					}
-					if(this.browserEmulatorClient.getWorkerCpuPct() > this.loadTestConfig.getWorkerMaxLoad()) {
+					if(this.browserEmulatorClient.getWorkerCpuPct() > this.loadTestConfig.getWorkerMaxLoad() && canCreateNewSession(sessionsLimit, sessionNumber)) {
 						setAndInitializeNextWorker();
 					}
 
@@ -249,11 +249,11 @@ public class LoadTestController {
 	
 	private void setAndInitializeNextWorker() {
 		String nextWorkerUrl = getNextWorker();
-		boolean requireInitialize = currentWorkerUrl.equals(nextWorkerUrl);
+		boolean requireInitialize = !currentWorkerUrl.equals(nextWorkerUrl);
 		currentWorkerUrl = nextWorkerUrl;
 		this.browserEmulatorClient.ping(currentWorkerUrl);
 		new WebSocketClient().connect("ws://" + currentWorkerUrl + ":" + WEBSOCKET_PORT + "/events");
-		if(requireInitialize) {
+		if(requireInitialize && this.loadTestConfig.isKibanaEstablished()) {
 			this.browserEmulatorClient.initializeInstance(currentWorkerUrl);
 		}
 	}
