@@ -71,13 +71,16 @@ public class Ec2Client {
 		List<String> instanceIds = getInstanceIds(resultList);
 		log.info("{} EC2 instances found", resultList.size());
 
-		// Clean launched instances
-		rebootInstance(instanceIds);
-		for (String id : instanceIds) {
-			waitUntilInstanceState(id, InstanceStateName.Running);
+		if(!instanceIds.isEmpty()) {
+			// Clean launched instances
+			rebootInstance(instanceIds);
+			for (String id : instanceIds) {
+				waitUntilInstanceState(id, InstanceStateName.Running);
+			}
 		}
 
 		if (resultList.size() < WORKERS_NUMBER_AT_THE_BEGINNING) {
+			log.info("Launching {} instance(s)", WORKERS_NUMBER_AT_THE_BEGINNING - resultList.size());
 			resultList.addAll(launchInstance(WORKERS_NUMBER_AT_THE_BEGINNING - resultList.size()));
 		}
 
@@ -154,9 +157,9 @@ public class Ec2Client {
 		ec2.terminateInstances(terminateInstancesRequest);
 		log.info("Instance {} is terminating", instanceIds);
 
-		for (String id : instanceIds) {
-			waitUntilInstanceState(id, InstanceStateName.Terminated);
-		}
+//		for (String id : instanceIds) {
+//			waitUntilInstanceState(id, InstanceStateName.Terminated);
+//		}
 	}
 
 	private List<String> getInstanceIds(List<Instance> instances) {
