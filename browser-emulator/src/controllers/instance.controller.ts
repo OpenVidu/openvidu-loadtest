@@ -1,7 +1,6 @@
 import fs = require('fs');
 import * as express from 'express';
 import { Request, Response } from 'express';
-import { exec } from 'child_process';
 import { InitializePostRequest } from '../types/api-rest.type';
 import { InstanceService } from '../services/instance.service';
 import { ElasticSearchService } from '../services/elasticsearch.service';
@@ -21,15 +20,15 @@ app.get('/ping', (req: Request, res: Response) => {
 	}
 });
 
-app.post('/restart', async (req: Request, res: Response) => {
-	try {
-		console.log('Restarting browser-emulator');
-		res.status(200).send();
-		exec('forever restartall');
-	} catch (error) {
-		res.status(500).send(error);
-	}
-});
+// app.post('/restart', async (req: Request, res: Response) => {
+// 	try {
+// 		console.log('Restarting browser-emulator');
+// 		res.status(200).send();
+// 		exec('forever restartall');
+// 	} catch (error) {
+// 		res.status(500).send(error);
+// 	}
+// });
 
 app.post('/initialize', async (req: Request, res: Response) => {
 	try {
