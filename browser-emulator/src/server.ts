@@ -66,7 +66,8 @@ server.listen(SERVER_PORT, async () => {
 	console.log(" ");
 	console.log(`Service started in ${APPLICATION_MODE} mode`);
 	console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
-	console.log(`Listening in port ${SERVER_PORT}`);
+	console.log(`API REST is listening in port ${SERVER_PORT}`);
+	console.log(`WebSocket is listening in port ${WEBSOCKET_PORT}`);
 	console.log(" ");
 	console.log("---------------------------------------------------------");
 	instanceService.instanceInitialized()
