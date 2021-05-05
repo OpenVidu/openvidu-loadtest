@@ -292,6 +292,7 @@ public class LoadTestController {
 			}
 			return newWorkerUrl;
 		} else {
+			workersUsed = devWorkersList.size();
 			if(devWorkersList.size() > 1) {
 				int index = devWorkersList.indexOf(currentWorkerUrl);
 				if(index + 1 >= devWorkersList.size()) {
