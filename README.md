@@ -21,21 +21,30 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 ![Load test architecture](resources/diagram.png)
 
-* [**Browser-emulator**](#browser-emulator): Worker service that **is able to start and launch real containerized Chrome browsers** using Docker and Selenium and **emulate browsers** capable of connecting to an OpenVidu session and sending and receiving WebRTC media provided by [node-webrtc library](https://github.com/node-webrtc/node-webrtc) using openvidu-browser library. It is implemented in NodeJS and controlled with a REST protocol.
-* [**Load Test**](#load-test): Controller service in charge of the coordination of the browser-emulator workers. It read the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
+* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that **is able to start and launch real containerized Chrome browsers** using Docker and Selenium and **emulate browsers** capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library.
+
+	There are two ways to emulate a browser:
+	+ [node-webrtc library](https://github.com/node-webrtc/node-webrtc).
+	+ [Kurento](https://www.kurento.org/)
+
+* [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It read the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
 
 ## **Usage Instructions**
 
 These instructions assume that OpenVidu CE or PRO is already deployed. See [how deploy OpenVidu PRO](https://docs.openvidu.io/en/stable/openvidu-pro/#how).
 
+### 1. Launch workers
 
-To start with the load test you will have to deploy the workers first and the execute the controller.
+<details>
+  <summary><strong>For testing locally</strong></summary>
 
->This instructions assume you are using a linux system. Windows and Mac can require some adaptation.
+<br>
+To start with the load test you will have to start a worker first and the execute the controller.
 
-### 1. Deploy workers
+>This instructions assume you are using a **linux system**. Windows and Mac can require some adaptation.
 
-In the machines were you want to execute the workers you need to have NodeJS platform installed.
+
+In the machines where you want to execute the workers you need to have **NodeJS** and **Docker** platform installed.
 
 Then follow these steps:
 
@@ -49,11 +58,19 @@ git clone https://github.com/OpenVidu/openvidu-loadtest.git
 
 ```bash
 cd openvidu-loadtest/browser-emulator/
-# Assuming that you're in a clean environment, the script will install Node, Docker and it will download te required media files for executing the containerized Chrome Browsers
+# Assuming that you're in a clean environment, the script will install:
+# - NodeJS
+# - Docker
+# - Ffmpeg
+# - Download te required media files for executing the containerized Chrome Browsers
+sudo su
 ./prepare.sh
 npm install
 npm run start
 ```
+
+**3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally).
+
 ##### Running options
 By default, this worker is listening on port `5000` that you have to specify later in the controller configuration. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start` command:
 
@@ -61,35 +78,50 @@ By default, this worker is listening on port `5000` that you have to specify lat
 SERVER_PORT=6000 npm run start
 ```
 
-Moreover, the worker will assign `NODE_WEBRTC` for emulated users. You can set `KMS` type adding `EMULATED_USER_TYPE=KMS` or run the following script:
+Moreover, the worker will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can set `KMS` type adding `EMULATED_USER_TYPE=KMS` or run the following script:
 
 ```bash
 npm run start:kms
 ```
-See [emulated user types](browser-emulator/src/types/config.type.ts).
+
+</details>
+
+<details>
+  <summary><strong>For testing on AWS</strong></summary>
+
+  If we want launch our load tests in a prodction environment, we can do that on AWS.
+
+  The browser-emulator services will be launched (**_by the loadtest-controller_**) in EC2 instances with the aim of emulate real users connected to OpenVidu.
+
+  The *loadtest-controller* will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
+
+
+</details>
+
 
 ### 2. Execute controller
 
-In the machine you want to execute the controller you need to have Java 11 platform installed.
+In the machine you want to execute the controller you need to have **Java 11** platform installed.
 
 Then follow these steps:
 
-**1. Clone this repository**
+#### 1. Clone this repository
 
 ```bash
 git clone https://github.com/OpenVidu/openvidu-loadtest.git
 ```
 
-**2. Configure OpenVidu platform and workers**
+#### 2. Configure Loadtest Controller
 
-Fill `OPENVIDU_URL`, `OPENVIDU_SECRET` and  `WORKER_URL_LIST` (for testing locally) or AWS properties (for testing on remotely) parameters in load-test [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties):
-
-Run this command **under project root directory**:
+Running the following command **under project root directory** you will be able to edit the [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties) which contains a list of configuration parameters that you will can customize.
 
 ```bash
 nano loadtest-controller/src/main/resources/application.properties
 ```
-After these three parameters are being filled, save changes and go to the next step.
+
+In this file you will see:
+
+#### Required parameters
 
 ```properties
 # Load Test Parameters (Required)
@@ -101,14 +133,25 @@ SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS=1
 SECONDS_TO_WAIT_BETWEEN_SESSIONS=2
 SECONDS_TO_WAIT_BEFORE_TEST_FINISHED=10
 SECONDS_TO_WAIT_BETWEEN_TEST_CASES=10
+```
+#### Development mode parameters (for testing locally)
 
-# For testing locally use, fill it with the worker ip address: 195.166.0.0
+```properties
+# For testing locally, fill it with the worker ip address: 195.166.0.0
 WORKER_URL_LIST=
+```
 
+#### AWS parameters (for testing on AWS)
 
-# For testing with AWS
+```properties
+# For testing on AWS
 WORKER_AMI_ID=
+# We recommend c5 type. https://aws.amazon.com/ec2/instance-types/
 WORKER_INSTANCE_TYPE=
+# By default, the browser-emulator service is listening on:
+# 5000 (API REST)
+# 5001 (WebSocket)
+# The SG will need this ports opened.
 WORKER_SECURITY_GROUP_ID=
 WORKER_INSTANCE_REGION=
 # Numbers of workers to launch before the test starts
@@ -117,14 +160,18 @@ WORKERS_NUMBER_AT_THE_BEGINNING=
 WORKER_MAX_LOAD=
 # Number of new workers incrementation
 WORKERS_RUMP_UP=
+```
 
+#### Monitoring parameters
+
+```properties
 # Monitoring Parameters (Optional)
 ELASTICSEARCH_USERNAME=elasticusername
 ELASTICSEARCH_PASSWORD=password
 KIBANA_HOST=https://kibanahost
 ```
 
-**3. Configure session typology:**
+#### 3. Configure session typology
 
 Controller is being developed to allow the configuration of the load test cases: number of participants, typology, number of sessions, etc.
 
@@ -152,12 +199,16 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 			"participants": ["2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
 			"sessions": "infinite",
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers:students) as the participants array indicates. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio"
+		},
+		{
+			"typology": "TERMINATE",
+			"desciption": "This terminate all EC2 instances launched for loadtest purposes"
 		}
 	]
 }
 ```
 
-**3. Run load test:**
+### 3. Run load test
 
 When you execute the load test the controller will create sessions and will connect participants into them automatically.
 
@@ -195,11 +246,13 @@ Thus achieving more capacity in the load test and less resource consumption.
 
 ## **Analyze test results**
 
+The loadtest-controller will create a report result on the root directory `/openvidu-loadtest/loadtest-controller` with the name **result.txt**.
+
 If you're testing **OpenVidu PRO**, the Load Test App **will import a Kibana Dashboard automatically** at the beginning of the test. This dashboard will include Kibana Visualizations with all metrics retrieved from OpenVidu.
 
 ![Load Test Dashboard](resources/kibana.png)
 
-To allow that the Load Test App import it, **you must fill the ElasticSearch and Kibana parameters** declared in the [application.properties](load-test/src/main/resources/application.properties#L15-L17) file.
+To allow that the Load Test App import it, **you must fill** the [monitoring parameters](#Monitoring-parameters).
 
 **What happen if the dashboard have not been imported automatically?**
 
