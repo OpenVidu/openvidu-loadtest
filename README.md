@@ -21,11 +21,15 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 ![Load test architecture](resources/diagram.png)
 
-* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that **is able to start and launch real containerized Chrome browsers** using Docker and Selenium and **emulate browsers** capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library.
+* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library.
+The browser-emulator service provides several connection modes:
 
-	There are two ways to emulate a browser:
-	+ [node-webrtc library](https://github.com/node-webrtc/node-webrtc).
-	+ [Kurento](https://www.kurento.org/)
+	+ **Traditional mode**: It is able to start and launch **containerized Chrome browsers** using Docker and Selenium emulating a fully real user.
+
+	+ **Emulated mode**: It is capable to emulate a user connection without use a browser:
+		+ Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a canvas publishing a moving image.
+		+ ~~Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a **video file** using ffmpeg.~~
+		+ Overriding the peerConnection objects using [Kurento](https://www.kurento.org/) and getting the media from a video file.
 
 * [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It read the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
 
@@ -149,7 +153,7 @@ WORKER_AMI_ID=
 # We recommend c5 type. https://aws.amazon.com/ec2/instance-types/
 WORKER_INSTANCE_TYPE=
 # By default, the browser-emulator service is listening on:
-# 5000 (API REST)
+# 5000 (REST API)
 # 5001 (WebSocket)
 # The SG will need this ports opened.
 WORKER_SECURITY_GROUP_ID=
@@ -268,13 +272,17 @@ Besides, if you have deployed OpenVidu PRO you can [create your own visualizatio
 
 ## **Browser Emulator documentation**
 
-Service with the aim of emulating a standard browser using [OpenVidu Browser library](https://github.com/OpenVidu/openvidu#readme) and overriding WebRTC API with [node-webrtc library](https://github.com/node-webrtc/node-webrtc). This service is also **capable to launch Chrome containerized browsers** and connect them to Openvidu emulating a fully real user.
+This service provides a simple **REST API** that will be used by **Load Test application** and it allows:
+* **Ping to instance**. Do ping to check if instance is ready.
+* **Initialize instance**. Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container.
 
-This app provides a simple REST API that will be used by **Load Test application** and it allows:
-* [Create a Stream Manager](#create-stream-manager) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
+* **Create a participant** (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
 
-* [Delete a specific Stream Manager](#delete-stream-manager-by-connectionId) by its connectionId
-* [Delete all Stream Manager](#delete-stream-managers-by-role-publisher-or-subscriber) with a specific role (`PUBLISHER` or `SUBSCRIBER`).
+* **Delete a specific participant** by its connectionId
+* **Delete all participant with a specific role** (`PUBLISHER` or `SUBSCRIBER`).
+* **Delete all participant**
 
+
+This services also is listening for a **WebSocket communication** on `ws:browser-emulator-addres:5001/events`. It will send information from openvidu-browser to the loadtest-controller.
 
 See [browser-emulator docummentation](browser-emulator/README.md) for more info.

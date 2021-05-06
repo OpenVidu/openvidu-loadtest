@@ -1,17 +1,30 @@
 ## **Browser Emulator documentation**
 
-Service with the aim of emulating a standard browser using [OpenVidu Browser library](https://github.com/OpenVidu/openvidu#readme) and overriding WebRTC API with [node-webrtc library](https://github.com/node-webrtc/node-webrtc). This service is also **capable to launch Chrome containerized browsers** and connect them to Openvidu emulating a fully real user.
+ Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library.
+The browser-emulator service provides several connection modes:
 
-This app provides a simple REST API that will be used by **Load Test application** and it allows:
-* [Ping to instance](#ping-instance) Do ping to check if instance is ready.
-* [Initialize instance](#initialize-instance) initialize instance starting required containers.
++ **Traditional mode**: It is able to start and launch **containerized Chrome browsers** using Docker and Selenium emulating a fully real user.
+
++ **Emulated mode**: It is capable to emulate a user connection without use a browser:
+	+ Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a canvas publishing a moving image.
+	+ ~~Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a **video file** using ffmpeg.~~
+	+ Overriding the peerConnection objects using [Kurento](https://www.kurento.org/) and getting the media from a video file.
+
+This app provides a simple **REST API** that will be used by **Load Test application** and it allows:
+* [Ping to instance](#ping-instance). Do ping to check if instance is ready.
+* [Initialize instance](#initialize-instance). Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container.
 
 * [Create a participant](#create-participant) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
 
 * [Delete a specific participant](#delete-participant-by-connectionId) by its connectionId
 * [Delete all participant](#delete-participants-by-role-publisher-or-subscriber) with a specific role (`PUBLISHER` or `SUBSCRIBER`).
 
-## API REST
+* [Delete all participant](#delete-participants).
+
+This services also is listening for a **WebSocket communication** on `ws:browser-emulator-addres:5001/events`. It will send information from openvidu-browser to the loadtest-controller.
+
+
+## REST API
 
 ### PING INSTANCE
 
@@ -175,4 +188,12 @@ _Delete all participants with the specified ROLE_
 * #### METHOD: **DELETE**
 
 * #### URL:  https://localhost:5000/openvidu-browser/streamManager/role/{{ROLE}}
+
+### **DELETE PARTICIPANTS** _(by ROLE: `PUBLISHER` or `SUBSCRIBER`)_
+
+_Delete all participants_
+
+* #### METHOD: **DELETE**
+
+* #### URL:  https://localhost:5000/openvidu-browser/streamManager
 
