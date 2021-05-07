@@ -11,23 +11,27 @@ public class ResultReport {
 	private int workersUsed = 0;
 	private String sessionTypology;
 	private String browserModeSelected;
-	private boolean recording;
+	private boolean browserRecording;
+	private String openviduRecording = "";
 	private String participantsPerSession = "";
+	private String stopReason = "";
 	private Calendar startTime;
 	private Calendar endTime;
 	private String kibanaUrl = "";
 
 	public ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
-			String sessionTypology, String browserModeSelected, boolean recording, String participantsPerSession,
+			String sessionTypology, String browserModeSelected, String openviduRecording, boolean browserRecording, String participantsPerSession, String stopReason,
 			Calendar startTime, Calendar endTime, String kibanaUrl) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
 		this.numSessionsCreated = numSessionsCreated;
 		this.workersUsed = workersUsed;
 		this.sessionTypology = sessionTypology;
+		this.openviduRecording = openviduRecording;
 		this.browserModeSelected = browserModeSelected;
-		this.recording = recording;
+		this.browserRecording = browserRecording;
 		this.participantsPerSession = participantsPerSession;
+		this.stopReason = stopReason;
 		this.startTime = startTime;
 		this.endTime = endTime;
 	   
@@ -56,13 +60,15 @@ public class ResultReport {
 		
 		return " ----- Test Case Report " +  startTime.getTime() + " ----- " + System.getProperty("line.separator")
 				+ "Browser approach:	" + browserModeSelected + System.getProperty("line.separator")
-				+ "Browser with recording:	" + recording + System.getProperty("line.separator")
+				+ "Browser with recording:	" + browserRecording + System.getProperty("line.separator")
+				+ "OpenVidu recorgind:	" + openviduRecording + System.getProperty("line.separator")
 				+ "Session typology:	" + sessionTypology + System.getProperty("line.separator")
 				+ "Participants per session:	" + participantsPerSession + System.getProperty("line.separator")
 				+ "Number of sessions created:	" + numSessionsCreated + System.getProperty("line.separator")
 				+ "Number of sessions completed:	" + numSessionsCompleted + System.getProperty("line.separator")
 				+ "Number of participants created:	" + totalParticipants + System.getProperty("line.separator")
 				+ "Number of workers used:	" + workersUsed + System.getProperty("line.separator")
+				+ "Stop reason:	" + stopReason + System.getProperty("line.separator")
 				+ "Test duration:	" + getDuration() + System.getProperty("line.separator")
 				+ "Kibana url:	" + kibanaUrl + System.getProperty("line.separator")
 				+ System.getProperty("line.separator")

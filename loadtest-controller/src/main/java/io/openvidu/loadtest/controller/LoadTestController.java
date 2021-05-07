@@ -16,6 +16,7 @@ import org.springframework.stereotype.Controller;
 import com.amazonaws.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.KibanaClient;
@@ -74,12 +75,15 @@ public class LoadTestController {
 
 	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
 		
+		
+		
 		if(PROD_MODE) {
 			this.kibanaClient.importDashboards();
 		}
 
 		testCasesList.forEach(testCase -> {
 
+			
 			if (testCase.is_NxN()) {
 				if(PROD_MODE) {
 					// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
@@ -345,13 +349,15 @@ public class LoadTestController {
 		int numSessionsCreated = sessionNumber.get();
 		String sessionTypology = testCase.getTopology().toString();
 		String browserModeSelected = testCase.getBrowserMode().toString();
-		boolean recording = testCase.isRecording();
+		boolean browserRecording = testCase.isBrowserRecording();
+		String openviduRecordingMode = testCase.getOpenviduRecordingMode().toString();
+		String stopReason = this.browserEmulatorClient.getStopReason();
 		String participantsPerSession = participantsBySession;
 
 		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
 
 		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, workersUsed,
-				sessionTypology, browserModeSelected, recording, participantsPerSession, this.startTime, endTime,
+				sessionTypology, openviduRecordingMode, browserModeSelected, browserRecording, participantsPerSession, stopReason, this.startTime, endTime,
 				kibanaUrl);
 
 		resultReportList.add(rr);

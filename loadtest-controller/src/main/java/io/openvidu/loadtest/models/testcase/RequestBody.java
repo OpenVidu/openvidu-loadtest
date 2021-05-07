@@ -10,18 +10,18 @@ public class RequestBody {
 	private String elasticSearchUserName = "";
 	private String elasticSearchPassword = "";
 	private BrowserMode browserMode = BrowserMode.EMULATE;
-	private String userId  = "";
+	private String userId = "";
 	private String sessionName = "";
 	private String token = "";
 	private OpenViduRole role = OpenViduRole.PUBLISHER;
 	private boolean audio = true;
 	private boolean video = true;
 	private Resolution resolution = Resolution.MEDIUM;
-	private OutputMode recordingOutputMode;
+	private OpenViduRecordingMode openviduRecordingMode;
 	private int frameRate = 30;
-	private boolean recording = false;
+	private boolean browserRecording = false;
 	private boolean showVideoElements = true;
-	private boolean headless = false;
+	private boolean headlessBrowser = false;
 
 	public RequestBody() {
 	}
@@ -78,24 +78,24 @@ public class RequestBody {
 		return resolution;
 	}
 
-	public OutputMode getRecordingOutputMode() {
-		return recordingOutputMode;
+	public OpenViduRecordingMode getOpenviduRecordingMode() {
+		return openviduRecordingMode;
 	}
 
 	public int getFrameRate() {
 		return frameRate;
 	}
 
-	public boolean isRecording() {
-		return recording;
+	public boolean isBrowserRecording() {
+		return browserRecording;
 	}
 
 	public boolean isShowVideoElements() {
 		return showVideoElements;
 	}
 
-	public boolean isHeadless() {
-		return headless;
+	public boolean isHeadlessBrowser() {
+		return headlessBrowser;
 	}
 
 	public RequestBody openviduUrl(String openviduUrl) {
@@ -163,8 +163,8 @@ public class RequestBody {
 		return this;
 	}
 
-	public RequestBody recordingOutputMode(OutputMode recordingOutputMode) {
-		this.recordingOutputMode = recordingOutputMode;
+	public RequestBody openviduRecordingMode(OpenViduRecordingMode openviduRecordingMode) {
+		this.openviduRecordingMode = openviduRecordingMode;
 		return this;
 	}
 
@@ -175,8 +175,8 @@ public class RequestBody {
 		return this;
 	}
 
-	public RequestBody recording(boolean recording) {
-		this.recording = recording;
+	public RequestBody browserRecording(boolean browserRecording) {
+		this.browserRecording = browserRecording;
 		return this;
 	}
 
@@ -185,15 +185,14 @@ public class RequestBody {
 		return this;
 	}
 
-	public RequestBody headless(boolean headless) {
-		this.headless = headless;
+	public RequestBody headlessBrowser(boolean headlessBrowser) {
+		this.headlessBrowser = headlessBrowser;
 		return this;
 	}
 
 	public RequestBody build() {
-		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName,
-				elasticSearchPassword, browserMode, userId, sessionName, token, role, audio, video, resolution,
-				recordingOutputMode, frameRate, recording, showVideoElements, headless);
+		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName, elasticSearchPassword, browserMode, userId, sessionName, token, role, audio, video,
+				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser);
 	}
 
 	public JsonObject toJson() {
@@ -215,24 +214,23 @@ public class RequestBody {
 		if (!token.isEmpty()) {
 			properties.addProperty("token", this.token);
 		}
-		if (this.recordingOutputMode != null && !this.recordingOutputMode.getValue().isEmpty()) {
-			properties.addProperty("recordingOutputMode", this.recordingOutputMode.getValue());
+		if (this.openviduRecordingMode != null && !this.openviduRecordingMode.getValue().isEmpty()) {
+			properties.addProperty("recordingOutputMode", this.openviduRecordingMode.getValue());
 		}
 		if (this.browserMode.getValue().equals(BrowserMode.REAL.getValue())) {
-			properties.addProperty("recording", this.recording);
+			properties.addProperty("recording", this.browserRecording);
 			properties.addProperty("showVideoElements", this.showVideoElements);
-			properties.addProperty("headless", this.headless);
+			properties.addProperty("headless", this.headlessBrowser);
 		}
 		jsonBody.add("properties", properties);
 		return jsonBody;
 
 	}
 
-	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost,
-			String elasticSearchUserName, String elasticSearchPassword, BrowserMode browserMode, String userId,
+	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost, String elasticSearchUserName, String elasticSearchPassword, BrowserMode browserMode, String userId,
 			String sessionName, String token, OpenViduRole role, boolean audio, boolean video, Resolution resolution,
-			OutputMode recordingOutputMode, int frameRate, boolean recording, boolean showVideoElements,
-			boolean headless) {
+			OpenViduRecordingMode openviduRecordingMode, int frameRate, boolean browserRecording,
+			boolean showVideoElements, boolean headlessBrowser) {
 		super();
 		this.openviduUrl = openviduUrl;
 		this.openviduSecret = openviduSecret;
@@ -247,11 +245,11 @@ public class RequestBody {
 		this.audio = audio;
 		this.video = video;
 		this.resolution = resolution;
-		this.recordingOutputMode = recordingOutputMode;
+		this.openviduRecordingMode = openviduRecordingMode;
 		this.frameRate = frameRate;
-		this.recording = recording;
+		this.browserRecording = browserRecording;
 		this.showVideoElements = showVideoElements;
-		this.headless = headless;
+		this.headlessBrowser = headlessBrowser;
 	}
 
 }

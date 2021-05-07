@@ -17,6 +17,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
 
 import io.openvidu.loadtest.models.testcase.BrowserMode;
+import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Typology;
@@ -73,27 +74,49 @@ public class DataIO {
 
 		for (int i = 0; i < array.size(); i++) {
 			JsonObject element = array.get(i).getAsJsonObject();
-			boolean headless = false;
-			boolean recording = false;
+			boolean headlessBrowser = false;
+			boolean browserRecording = false;
+			boolean showBrowserVideoElements = false;
+			int frameRate = 30;
 			List<String> participants = new ArrayList<String>();
 			int sessions = 0;
-			BrowserMode browserMode = null;
+			BrowserMode browserMode = BrowserMode.EMULATE;
+			OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
 			String typology = element.get("typology").getAsString();
 			if (!typology.equalsIgnoreCase(Typology.TERMINATE.getValue())) {
 				String sessionsStr = element.get("sessions").getAsString();
 				JsonArray participantsArray = (JsonArray) element.get("participants");
 				participants = jsonUtils.getStringList(participantsArray);
 				String browserModeStr = element.get("browserMode").getAsString();
-				browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
+				if(!browserModeStr.isBlank() ) {
+					browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
+				}
+				
+				if(!element.get("frameRate").getAsString().isBlank()) {
+					frameRate = element.get("frameRate").getAsInt();
+				}
+				
+				String openviduRecordingModeStr = element.get("openviduRecordingMode").getAsString();
+
+				if(!openviduRecordingModeStr.isBlank()) {
+					if(openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.COMPOSED.getValue())) {
+						openviduRecordingMode = OpenViduRecordingMode.COMPOSED;
+					} else if (openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.INDIVIDUAL.getValue())){
+						openviduRecordingMode = OpenViduRecordingMode.INDIVIDUAL;
+					}
+				}
+				
 				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
 
 				if(browserMode.equals(BrowserMode.REAL)) {
-					recording = element.get("recording").getAsBoolean();
-					headless = element.get("headless").getAsBoolean();
+					browserRecording = element.get("browserRecording").getAsBoolean();
+					headlessBrowser = element.get("headlessBrowser").getAsBoolean();
+					showBrowserVideoElements = element.get("showBrowserVideoElements").getAsBoolean();
 				}
 			}
 			
-			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, headless, recording));
+			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, frameRate, openviduRecordingMode,
+					headlessBrowser, browserRecording, showBrowserVideoElements));
 		}
 
 		return testCaseList;

@@ -34,6 +34,8 @@ public class BrowserEmulatorClient {
 	private static final int HTTP_STATUS_OK = 200;
 	private static final int WORKER_PORT = 5000;
 	private static int workerCpuPct = 0;
+	
+	private static String stopReason = "Test case finished as expected";
 
 	private static final int WAIT_MS = 2000;
 
@@ -51,12 +53,12 @@ public class BrowserEmulatorClient {
 			log.info("Pinging to {} ...", workerUrl);
 			HttpResponse<String> response = this.httpClient
 					.sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
-			if(response.statusCode() != HTTP_STATUS_OK) {
+			if (response.statusCode() != HTTP_STATUS_OK) {
 				sleep(WAIT_MS);
 				log.error("Error doing ping. Retry...");
 				ping(workerUrl);
 			} else {
-				log.info("Ping success. Response {}", response.body());	
+				log.info("Ping success. Response {}", response.body());
 			}
 		} catch (Exception e) {
 			log.error(e.getMessage());
@@ -112,14 +114,17 @@ public class BrowserEmulatorClient {
 //	}
 
 	public boolean createPublisher(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
-		
-		// Check if there was an exception on openvidu-browser 
-		if(WorkerExceptionManager.getInstance().exceptionExist()) {
-			log.error("There was an EXCEPTION: {}", WorkerExceptionManager.getInstance().getExceptionAndClean());
+
+		// Check if there was an exception on openvidu-browser
+		if (WorkerExceptionManager.getInstance().exceptionExist()) {
+			stopReason = WorkerExceptionManager.getInstance().getExceptionAndClean();
+			log.error("There was an EXCEPTION: {}", stopReason);
 			return false;
 		}
-		
+
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
+		
+		System.out.println(body);
 
 		try {
 			log.info("Selected worker: {}", workerUrl);
@@ -131,10 +136,12 @@ public class BrowserEmulatorClient {
 				System.out.println("Error: " + response.body());
 				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
 						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
+					stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser" + response.body().substring(0, 100);
 					return false;
 				}
-				
-				if(response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+
+				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
 					return false;
 				}
 				System.out.println("Retrying");
@@ -159,13 +166,14 @@ public class BrowserEmulatorClient {
 	}
 
 	public boolean createSubscriber(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
-		
-		// Check if there was an exception on openvidu-browser 
-		if(WorkerExceptionManager.getInstance().exceptionExist()) {
-			log.error("There was an EXCEPTION: {}", WorkerExceptionManager.getInstance().getExceptionAndClean());
+
+		// Check if there was an exception on openvidu-browser
+		if (WorkerExceptionManager.getInstance().exceptionExist()) {
+			stopReason = WorkerExceptionManager.getInstance().getExceptionAndClean();
+			log.error("There was an EXCEPTION: {}", stopReason);
 			return false;
 		}
-		
+
 		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
 
@@ -178,10 +186,12 @@ public class BrowserEmulatorClient {
 				System.out.println("Error: " + response.body());
 				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
 						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
+					stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser" + response.body().substring(0, 100);
 					return false;
 				}
-				
-				if(response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+
+				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
 					return false;
 				}
 				System.out.println("Retrying");
@@ -206,7 +216,7 @@ public class BrowserEmulatorClient {
 	}
 
 	public void disconnectAll(List<String> workerUrlList) {
-
+		stopReason = "Test case finished as expected";
 		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
 		List<Callable<String>> callableTasks = new ArrayList<>();
 
@@ -237,6 +247,10 @@ public class BrowserEmulatorClient {
 	public int getWorkerCpuPct() {
 		return workerCpuPct;
 	}
+	
+	public String getStopReason() {
+		return stopReason;
+	}
 
 	private String disconnect(String workerUrl) {
 		try {
@@ -263,30 +277,37 @@ public class BrowserEmulatorClient {
 		}
 		log.error("Error. Http Status Response {} ", response.statusCode());
 		log.error("Response message {} ", response.body());
+		stopReason = response.body().substring(0, 100);
 		return false;
 	}
 
+// @formatter:off
 	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role, TestCase testCase) {
-
 		boolean video = (testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.is_TEACHING();
-
-		return new RequestBody().openviduUrl(this.loadTestConfig.getOpenViduUrl())
-				.openviduSecret(this.loadTestConfig.getOpenViduSecret()).browserMode(testCase.getBrowserMode())
+		return new RequestBody().
+				openviduUrl(this.loadTestConfig.getOpenViduUrl())
+				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
+				.browserMode(testCase.getBrowserMode())
+				.frameRate(testCase.getFrameRate())
 				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
-				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber).audio(true).video(video)
-				.role(role).recording(testCase.isRecording()).showVideoElements(!testCase.isHeadless())// TODO: new
-																										// param in
-																										// testCase.json?
-				.headless(testCase.isHeadless()).build();
-
+				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber)
+				.audio(true)
+				.video(video)
+				.role(role)
+				.openviduRecordingMode(testCase.getOpenviduRecordingMode())
+				.browserRecording(testCase.isBrowserRecording())
+				.showVideoElements(testCase.isShowBrowserVideoElements())
+				.headlessBrowser(testCase.isHeadlessBrowser())
+				.build();
 	}
+// @formatter:on
 
 	private Map<String, String> getHeaders() {
 		Map<String, String> headers = new HashMap<String, String>();
 		headers.put("Content-Type", "application/json");
 		return headers;
 	}
-	
+
 	private void sleep(int seconds) {
 		try {
 			Thread.sleep(seconds);
