@@ -10,6 +10,8 @@ import { OpenViduRole } from '../types/openvidu.type';
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
 
+	private browserMode: BrowserMode;
+
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
@@ -32,6 +34,7 @@ export class BrowserManagerService {
 		let connectionId: string;
 		let webrtcStorageName: string;
 		let webrtcStorageValue: string;
+		this.browserMode = request.browserMode;
 
 		if(this.elasticSearchService.isElasticSearchAvailable()){
 			webrtcStorageName = this.webrtcStorageService.getItemName();
@@ -39,7 +42,7 @@ export class BrowserManagerService {
 		}
 		this.printRequestInfo(request);
 
-		if(request.browserMode === BrowserMode.REAL){
+		if(this.isRealBrowser()){
 			// Create new stream manager using launching a normal Chrome browser
 			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
 			try {
@@ -66,7 +69,8 @@ export class BrowserManagerService {
 		}
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
-		return {connectionId, workerCpuUsage};
+		const streams = this.getStreamsCreated();
+		return {connectionId, streams, workerCpuUsage};
 
 	}
 
@@ -92,6 +96,13 @@ export class BrowserManagerService {
 		}
 	}
 
+	private getStreamsCreated(): number {
+		if(this.isRealBrowser()){
+			return -1;
+		}
+		return this.emulateBrowserService.getStreamsCreated();
+	}
+
 
 	private printRequestInfo(req: LoadTestPostRequest): void {
 
@@ -105,6 +116,10 @@ export class BrowserManagerService {
 					`Headless Browser: ${req.properties.headless} \n`;
 		console.log(info);
 
+	}
+
+	private isRealBrowser(): boolean {
+		return this.browserMode === BrowserMode.REAL
 	}
 
 }

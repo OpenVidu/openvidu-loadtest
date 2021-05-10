@@ -17,6 +17,8 @@ export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
+	private publishersCreated = 0;
+	private subscribersCreated = 0;
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
 	constructor(
@@ -67,7 +69,8 @@ export class EmulateBrowserService {
 
 				}
 
-				this.storeInstances(ov, session, mediaStreamTracks.audioTrackInterval);
+				this.storeInstances(ov, session, mediaStreamTracks?.audioTrackInterval);
+				this.storeParticipant(properties.role);
 				resolve(session.connection.connectionId);
 			} catch (error) {
 				console.log(
@@ -101,6 +104,21 @@ export class EmulateBrowserService {
 		});
 	}
 
+	getStreamsCreated(): number {
+
+		let streamsSent = this.publishersCreated;
+		let stremsReceived = 0;
+
+		if(this.publishersCreated > 1) {
+			// Add all streams subscribed by publishers
+			stremsReceived = this.publishersCreated * (this.publishersCreated - 1);
+		}
+
+		stremsReceived += this.subscribersCreated * this.publishersCreated;
+
+		return streamsSent + stremsReceived;
+	}
+
 	private async getToken(properties: TestProperties): Promise<string> {
 		return this.httpClient.getToken(properties);
 	}
@@ -108,6 +126,14 @@ export class EmulateBrowserService {
 	private storeInstances(openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer) {
 		// Store the OV and Session objects into a map
 		this.openviduMap.set(session.connection.connectionId, {openvidu, session, audioTrackInterval});
+	}
+
+	private storeParticipant(role: OpenViduRole) {
+		if(role === OpenViduRole.PUBLISHER) {
+			this.publishersCreated += 1;
+		} else {
+			this.subscribersCreated +=1;
+		}
 	}
 
 	private async createMediaStreamTracks(properties: TestProperties): Promise<MediaStreamTracksResponse> {
