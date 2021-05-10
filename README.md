@@ -155,7 +155,7 @@ WORKER_INSTANCE_TYPE=
 # By default, the browser-emulator service is listening on:
 # 5000 (REST API)
 # 5001 (WebSocket)
-# The SG will need this ports opened.
+# The SG will need these ports opened.
 WORKER_SECURITY_GROUP_ID=
 WORKER_INSTANCE_REGION=
 # Numbers of workers to launch before the test starts
@@ -187,13 +187,16 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 {
 	"testcases": [
 		{
-			"typology": "N:N", // All users will be PUBLISHERS and SUBSCRIBERS
-			"participants": [2], // Sessions with 2 users
-			"sessions": "infinite", // Session limit. Test will create infinite sessions
+			"typology": "N:N",
+			"participants": ["2", "3", "5"],
+			"sessions": "20",
+			"browserMode": "EMULATE",
+			"frameRate": "30",
+			"openviduRecordingMode": "",
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
 		},
 		{
-			"typology": "N:M", // N number will be PUBLISHERS and M number will be SUBSCRIBERS
+			"typology": "N:M",
 			"participants": ["1:10", "1:100", "2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
 			"sessions": "infinite",
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS and SUBSCRIBERS as the participants array indicates."
@@ -212,11 +215,32 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 }
 ```
 
+##### Test Case JSON properties
+
+|Properties|Type|Description|
+|---|---|---|
+|  **typology** * |  `N:N`, `N:M`, `TEACHING` or `TERMINATE`| **N:N**: All users will be PUBLISHERS and SUBSCRIBERS <br> **N:M**: **_N_** number will be PUBLISHERS and **_M_** number will be SUBSCRIBERS <br> **TEACHING**:  It will emulate a teaching videoconference. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio <br> **TERMINATE**: It will terminate all EC2 instances launched for loadtest purposes  |
+|  **participants** *  |  String [] | Number of participants in each session. It will run the same test case as many time as the positions in the array. <br> For example: <br>For **_N:N_** typology: `["2","5"]` where all of them will be _publishers_ and test case will be run twice (sessions with 2 and 5 participants)  <br>For **_N:M_** typology: `["2:30"]` where 2 will be _publishers_ and 30 will be _subscribers_ <br>For **_TEACHING_** typology: `["2:30"]` where 2 will be teachers and 30 will be students   |
+|  **sessions** *  |  `infinite` or Number | **infinite**: It will create infinite sessions until the limit is reached. <br> **Number value**: It will create only (**_number value_**) sessions  |
+|  **browserMode** * | `EMULATE` or `REAL`  | **EMULATE**: the service will emulate a browser. <br> **REAL**: the service will launch a Chrome browser docker container. <br> Choosing `EMULATE`, **you must ensure that OpenVidu aren't forcing H264 coded**  |
+|  **openviduRecordingMode** | String   | `COMPOSED` or `INDIVIDUAL` <br> See [OpenVidu recording](https://docs.openvidu.io/en/stable/advanced-features/recording/).|
+|**frameRate**| Number (0-30)  | Desired framerate of the video in frames per second. Default `30`|
+|  **browserRecording** | Boolean  |  If `browserMode` is `REAL` and you want record the Chrome browser using ffmpeg. Otherwise, If `browserMode` is `EMULATE` and you have started browser-emulator with `KMS` user type (see [worker running options](#running-options)) Default `false`.  |
+|  **showBrowserVideoElements** | Boolean  | If `browserMode` is `REAL` and you want show videos elements into the app running in Chrome. Default `true`|
+|  **headlessBrowser** | Boolean  | If `browserMode` is `REAL` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |
+
+
 ### 3. Run load test
 
 When you execute the load test the controller will create sessions and will connect participants into them automatically.
 
-The load test will stop when any of the browser-emulators return something different from a `200` status response. Take into account that errors can be produced by OpenVidu errors or if the worker itself is overloaded. Please control CPU usage in workers.
+The load test has **several stop conditions**. It will stop when any of the following conditions occur:
+
+* When loadtest-controller receives an **exception error** from any of the workers.
+
+* When any of workers **can't create a new participant** because of lack of resources or a long time trying creating it.
+
+Take into account that errors can be produced by OpenVidu errors or if the worker itself is overloaded. Please control CPU usage in workers.
 
 When an error in a worker is produced, the load test will stop and will order to destroy and close every participants and sessions to the workers.
 
@@ -248,11 +272,26 @@ Thus achieving more capacity in the load test and less resource consumption.
 
 ![Worker 2 Logs](resources/worker2.png)
 
-## **Analyze test results**
+## **Test results**
 
-The loadtest-controller will create a report result on the root directory `/openvidu-loadtest/loadtest-controller` with the name **result.txt**.
+The loadtest-controller will create a report result on the root directory `/openvidu-loadtest/loadtest-controller` with the name **result.txt**. This file will contains the following information:
 
-If you're testing **OpenVidu PRO**, the Load Test App **will import a Kibana Dashboard automatically** at the beginning of the test. This dashboard will include Kibana Visualizations with all metrics retrieved from OpenVidu.
+```
+ ----- Test Case Report Fri Apr 30 12:39:46 CEST 2021 -----
+Browser approach:
+Browser with recording:
+Session typology:
+Participants per session:
+Number of sessions created:
+Number of sessions completed:
+Number of participants created:
+Number of workers used:
+Stop reason:
+Test duration:
+Kibana url:
+```
+
+If you're testing **OpenVidu PRO**, the loadtest-controller **will import a Kibana Dashboard automatically** at the beginning of the test. This dashboard will include Kibana Visualizations with all metrics retrieved from OpenVidu.
 
 ![Load Test Dashboard](resources/kibana.png)
 
