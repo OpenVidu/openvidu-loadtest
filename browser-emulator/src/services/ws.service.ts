@@ -29,10 +29,15 @@ export class WsService {
 	}
 
 	send(message: string) {
-		if (this.ws?.readyState === this.OPEN) {
-			this.ws.send(message);
-			console.log("Message was sent: ", message);
+		try {
+			if (this.ws?.readyState === this.OPEN) {
+				this.ws.send(message);
+				console.log("Message was sent: ", message);
+			}
+		} catch (error) {
+			console.log("Error sending WS message");
 		}
+
 	}
 
 }

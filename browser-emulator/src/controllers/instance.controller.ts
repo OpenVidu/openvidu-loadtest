@@ -40,11 +40,12 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		createRecordingsDirectory();
 
 		console.log('Initialize browser-emulator');
-		process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
-		process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
-		process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
 
-		if(isProdMode) {
+
+		if(isProdMode && !elasticSearchService.isElasticSearchRunning()) {
+			process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
+			process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
+			process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
 			await elasticSearchService.initialize();
 			try {
 				await instanceService.launchMetricBeat();

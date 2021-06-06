@@ -36,7 +36,7 @@ export class BrowserManagerService {
 		let webrtcStorageValue: string;
 		this.browserMode = request.browserMode;
 
-		if(this.elasticSearchService.isElasticSearchAvailable()){
+		if(this.elasticSearchService.isElasticSearchRunning()){
 			webrtcStorageName = this.webrtcStorageService.getItemName();
 			webrtcStorageValue = this.webrtcStorageService.getConfig();
 		}
@@ -56,7 +56,7 @@ export class BrowserManagerService {
 			}
 		} else {
 
-			if(this.elasticSearchService.isElasticSearchAvailable() && !this.localStorage.exist(webrtcStorageName)){
+			if(this.elasticSearchService.isElasticSearchRunning() && !this.localStorage.exist(webrtcStorageName)){
 				// Create webrtc stats item in virtual localStorage
 				try {
 					this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
@@ -91,7 +91,7 @@ export class BrowserManagerService {
 	async clean(): Promise<void> {
 		await this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
 		await this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
-		if(this.elasticSearchService.isElasticSearchAvailable()){
+		if(this.elasticSearchService.isElasticSearchRunning()){
 			await this.elasticSearchService.clean();
 		}
 	}

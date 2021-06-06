@@ -57,7 +57,7 @@ export class ElasticSearchService {
 	}
 
 	async sendJson(json: JSONStatsResponse) {
-		if(this.isElasticSearchAvailable() && APPLICATION_MODE === ApplicationMode.PROD) {
+		if(this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
 			let indexData: Index<Record<string, any>> = {
 				index: this.indexName,
 				body: {}
@@ -75,7 +75,7 @@ export class ElasticSearchService {
 		}
 	}
 
-	isElasticSearchAvailable(): boolean {
+	isElasticSearchRunning(): boolean {
 		return this.pingSuccess;
 	}
 
