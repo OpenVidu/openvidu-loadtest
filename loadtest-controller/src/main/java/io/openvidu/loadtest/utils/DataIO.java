@@ -29,7 +29,7 @@ public class DataIO {
 	private static final String TEST_CASES_JSON_FILE = "test_cases.json";
 	private static final String REPORT_FILE_RESULT = "results.txt";
 
-	
+
 	@Autowired
 	private JsonUtils jsonUtils;
 
@@ -48,7 +48,7 @@ public class DataIO {
 
 		return this.convertJsonArrayToTestCasesList(testCasesList);
 	}
-	
+
 	public void exportResults(ResultReport result) {
 
 		String RESULT_PATH = new FileSystemResource(REPORT_FILE_RESULT).getFile().getAbsolutePath();
@@ -64,7 +64,7 @@ public class DataIO {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		System.out.println("Saved result in a " + RESULT_PATH);
 	}
 
@@ -77,6 +77,7 @@ public class DataIO {
 			boolean headlessBrowser = false;
 			boolean browserRecording = false;
 			boolean showBrowserVideoElements = false;
+			String openviduRecordingModeStr = "";
 			int frameRate = 30;
 			List<String> participants = new ArrayList<String>();
 			int sessions = 0;
@@ -91,12 +92,15 @@ public class DataIO {
 				if(!browserModeStr.isBlank() ) {
 					browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
 				}
-				
+
 				if(!element.get("frameRate").getAsString().isBlank()) {
 					frameRate = element.get("frameRate").getAsInt();
 				}
-				
-				String openviduRecordingModeStr = element.get("openviduRecordingMode").getAsString();
+
+				if(element.get("openviduRecordingMode") != null && !element.get("openviduRecordingMode").getAsString().isBlank()) {
+
+					openviduRecordingModeStr = element.get("openviduRecordingMode").getAsString();
+				}
 
 				if(!openviduRecordingModeStr.isBlank()) {
 					if(openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.COMPOSED.getValue())) {
@@ -105,7 +109,7 @@ public class DataIO {
 						openviduRecordingMode = OpenViduRecordingMode.INDIVIDUAL;
 					}
 				}
-				
+
 				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
 
 				if(browserMode.equals(BrowserMode.REAL)) {
@@ -114,7 +118,7 @@ public class DataIO {
 					showBrowserVideoElements = element.get("showBrowserVideoElements").getAsBoolean();
 				}
 			}
-			
+
 			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, frameRate, openviduRecordingMode,
 					headlessBrowser, browserRecording, showBrowserVideoElements));
 		}
