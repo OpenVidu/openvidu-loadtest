@@ -198,7 +198,8 @@ export class EmulateBrowserService {
 				console.error(exception);
 				this.exceptionFound = true;
 				this.exceptionMessage = 'Exception found in openvidu-browser';
-				const message: string = JSON.stringify({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message });
+				const connectionId = (<any>exception.origin).connection.connectionId;
+				const message: string = JSON.stringify({ event: "exception", connectionId , reason: exception.message });
 				this.wsService.send(message);
 			}
 		});

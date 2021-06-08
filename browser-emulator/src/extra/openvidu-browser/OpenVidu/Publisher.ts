@@ -1,8 +1,8 @@
 import { Publisher, VideoInsertMode, PublisherProperties, OpenVidu } from 'openvidu-browser';
 
 interface MediaTrackSettings {
-  height?: number;
-  width?: number;
+  height: number;
+  width: number;
 }
 
 export class PublisherOverride extends Publisher {
@@ -18,7 +18,8 @@ export class PublisherOverride extends Publisher {
     }
   }
 
-  getVideoDimensions(mediaStream: MediaStream): MediaTrackSettings {
-       return { height: 480, width: 640 };
+  async getVideoDimensions(mediaStream: MediaStream): Promise<MediaTrackSettings> {
+    const constraints = <any>mediaStream.getVideoTracks()[0]?.getConstraints();
+    return { width: constraints.width || 480, height: constraints.height || 640 };
   }
 }
