@@ -34,7 +34,7 @@
     "selenium-webdriver": "4.0.0-beta.4",
     "stream-chunker": "1.2.8",
     "wrtc": "0.4.7",
-    "ws": "7.4.5"
+    "ws": "7.4.6"
   },
   "devDependencies": {
     "@tsconfig/node14": "1.0.0",
