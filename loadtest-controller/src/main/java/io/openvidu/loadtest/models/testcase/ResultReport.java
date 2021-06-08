@@ -4,7 +4,7 @@ import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
 public class ResultReport {
-	
+
 	private int totalParticipants = 0;
 	private int numSessionsCompleted = 0;
 	private int numSessionsCreated = 0;
@@ -34,10 +34,10 @@ public class ResultReport {
 		this.stopReason = stopReason;
 		this.startTime = startTime;
 		this.endTime = endTime;
-	   
+
 		this.kibanaUrl = kibanaUrl;
 	}
-	
+
 	private String getDuration() {
 		int hours = 0;
 		int minutes = 0;
@@ -57,11 +57,11 @@ public class ResultReport {
 
 	@Override
 	public String toString() {
-		
+
 		return " ----- Test Case Report " +  startTime.getTime() + " ----- " + System.getProperty("line.separator")
 				+ "Browser approach:	" + browserModeSelected + System.getProperty("line.separator")
 				+ "Browser with recording:	" + browserRecording + System.getProperty("line.separator")
-				+ "OpenVidu recorgind:	" + openviduRecording + System.getProperty("line.separator")
+				+ "OpenVidu recording:	" + openviduRecording + System.getProperty("line.separator")
 				+ "Session typology:	" + sessionTypology + System.getProperty("line.separator")
 				+ "Participants per session:	" + participantsPerSession + System.getProperty("line.separator")
 				+ "Number of sessions created:	" + numSessionsCreated + System.getProperty("line.separator")
@@ -74,5 +74,5 @@ public class ResultReport {
 				+ System.getProperty("line.separator")
 				+ "   ---------------------   ";
 	}
-	
+
 }

@@ -357,7 +357,7 @@ public class LoadTestController {
 		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
 
 		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, workersUsed,
-				sessionTypology, openviduRecordingMode, browserModeSelected, browserRecording, participantsPerSession, stopReason, this.startTime, endTime,
+				sessionTypology, browserModeSelected, openviduRecordingMode, browserRecording, participantsPerSession, stopReason, this.startTime, endTime,
 				kibanaUrl);
 
 		resultReportList.add(rr);
