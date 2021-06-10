@@ -6,9 +6,9 @@ metricbeat.modules:
       - memory
       - network
       - filesystem
-      - fsstat
-      - process_summary
-      - uptime
+      # - fsstat
+      # - process_summary
+      # - uptime
     filesystem.ignore_types: [nfs, smbfs, autofs, devtmpfs, devpts, hugetlbfs, tmpfs, sysfs, securityfs, cgroup2, cgroup, pstore, debugfs, configfs, fusectl, proc, fuse.lxcfs, squashfs]
     processes: ['.*']
     processors:
