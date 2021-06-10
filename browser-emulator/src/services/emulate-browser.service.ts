@@ -17,8 +17,7 @@ export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
-	private publishersCreated = 0;
-	private subscribersCreated = 0;
+	private connections: Map<string, {publishers: string[], subscribers: string[]}> = new Map();
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
 	constructor(
@@ -66,11 +65,10 @@ export class EmulateBrowserService {
 
 					this.subscriberToPublisherEvents(publisher);
 					await session.publish(publisher);
-
 				}
 
 				this.storeInstances(ov, session, mediaStreamTracks?.audioTrackInterval);
-				this.storeParticipant(properties.role);
+				this.storeParticipant(session.connection.connectionId, properties);
 				resolve(session.connection.connectionId);
 			} catch (error) {
 				console.log(
@@ -106,17 +104,23 @@ export class EmulateBrowserService {
 
 	getStreamsCreated(): number {
 
-		let streamsSent = this.publishersCreated;
-		let stremsReceived = 0;
+		let result = 0;
 
-		if(this.publishersCreated > 1) {
-			// Add all streams subscribed by publishers
-			stremsReceived = this.publishersCreated * (this.publishersCreated - 1);
-		}
+		this.connections.forEach((value: {publishers: string[], subscribers: string[]}) => {
 
-		stremsReceived += this.subscribersCreated * this.publishersCreated;
+			let streamsSent = value.publishers.length;
+			let stremsReceived = 0;
 
-		return streamsSent + stremsReceived;
+			if(value.publishers.length > 1) {
+				// Add all streams subscribed by publishers
+				stremsReceived = value.publishers.length * (value.publishers.length - 1);
+			}
+
+			stremsReceived += value.subscribers.length * value.publishers.length;
+			result += streamsSent + stremsReceived;
+		});
+
+		return result;
 	}
 
 	private async getToken(properties: TestProperties): Promise<string> {
@@ -128,12 +132,25 @@ export class EmulateBrowserService {
 		this.openviduMap.set(session.connection.connectionId, {openvidu, session, audioTrackInterval});
 	}
 
-	private storeParticipant(role: OpenViduRole) {
-		if(role === OpenViduRole.PUBLISHER) {
-			this.publishersCreated += 1;
+	private storeParticipant(connectionId: string, properties: TestProperties) {
+
+		if(this.connections.has(properties.sessionName)){
+			if(properties.role === OpenViduRole.PUBLISHER){
+				this.connections.get(properties.sessionName).publishers.push(connectionId);
+			} else {
+				this.connections.get(properties.sessionName).subscribers.push(connectionId);
+			}
 		} else {
-			this.subscribersCreated +=1;
+			const subscribers = [];
+			const publishers = [];
+			if(properties.role === OpenViduRole.PUBLISHER){
+				publishers.push(connectionId);
+			} else {
+				subscribers.push(connectionId);
+			}
+			this.connections.set(properties.sessionName,{publishers, subscribers});
 		}
+
 	}
 
 	private async createMediaStreamTracks(properties: TestProperties): Promise<MediaStreamTracksResponse> {
