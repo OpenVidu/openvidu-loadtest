@@ -109,15 +109,15 @@ export class EmulateBrowserService {
 		this.connections.forEach((value: {publishers: string[], subscribers: string[]}) => {
 
 			let streamsSent = value.publishers.length;
-			let stremsReceived = 0;
+			let streamsReceived = 0;
 
 			if(value.publishers.length > 1) {
 				// Add all streams subscribed by publishers
-				stremsReceived = value.publishers.length * (value.publishers.length - 1);
+				streamsReceived = value.publishers.length * (value.publishers.length - 1);
 			}
 
-			stremsReceived += value.subscribers.length * value.publishers.length;
-			result += streamsSent + stremsReceived;
+			streamsReceived += value.subscribers.length * value.publishers.length;
+			result += streamsSent + streamsReceived;
 		});
 
 		return result;
