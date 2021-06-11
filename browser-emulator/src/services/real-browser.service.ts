@@ -12,6 +12,8 @@ import { StorageNameObject, StorageValueObject } from '../types/storage-config.t
 declare var localStorage: Storage;
 export class RealBrowserService {
 
+	private connections: Map<string, {publishers: string[], subscribers: string[]}> = new Map();
+
 	private readonly BROWSER_CONTAINER_HOSTPORT = 4000;
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private chromeOptions = new chrome.Options();
@@ -155,6 +157,46 @@ export class RealBrowserService {
 				}
 			}, timeout);
 		});
+	}
+
+	getStreamsCreated(): number {
+		let result = 0;
+
+		this.connections.forEach((value: {publishers: string[], subscribers: string[]}) => {
+
+			let streamsSent = value.publishers.length;
+			let stremsReceived = 0;
+
+			if(value.publishers.length > 1) {
+				// Add all streams subscribed by publishers
+				stremsReceived = value.publishers.length * (value.publishers.length - 1);
+			}
+
+			stremsReceived += value.subscribers.length * value.publishers.length;
+			result += streamsSent + stremsReceived;
+		});
+
+		return result;
+	}
+
+	storeParticipant(connectionId: string, properties: TestProperties) {
+
+		if(this.connections.has(properties.sessionName)){
+			if(properties.role === OpenViduRole.PUBLISHER){
+				this.connections.get(properties.sessionName).publishers.push(connectionId);
+			} else {
+				this.connections.get(properties.sessionName).subscribers.push(connectionId);
+			}
+		} else {
+			const subscribers = [];
+			const publishers = [];
+			if(properties.role === OpenViduRole.PUBLISHER){
+				publishers.push(connectionId);
+			} else {
+				subscribers.push(connectionId);
+			}
+			this.connections.set(properties.sessionName,{publishers, subscribers});
+		}
 	}
 
 	private async enableMediaFileAccess(containerId: string) {

@@ -150,7 +150,6 @@ export class EmulateBrowserService {
 			}
 			this.connections.set(properties.sessionName,{publishers, subscribers});
 		}
-
 	}
 
 	private async createMediaStreamTracks(properties: TestProperties): Promise<MediaStreamTracksResponse> {

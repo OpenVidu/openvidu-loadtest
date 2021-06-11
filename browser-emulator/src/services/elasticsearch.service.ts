@@ -2,7 +2,7 @@
 import { ApiResponse, Client, ClientOptions } from '@elastic/elasticsearch';
 import { Index } from '@elastic/elasticsearch/api/requestParams';
 import { APPLICATION_MODE } from '../config';
-import { JSONStatsResponse } from '../types/api-rest.type';
+import { JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type';
 import { ApplicationMode } from '../types/config.type';
 
 export class ElasticSearchService {
@@ -56,7 +56,7 @@ export class ElasticSearchService {
 		}
 	}
 
-	async sendJson(json: JSONStatsResponse) {
+	async sendJson(json: JSONStatsResponse | JSONStreamsInfo) {
 		if(this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
 			let indexData: Index<Record<string, any>> = {
 				index: this.indexName,
@@ -111,9 +111,9 @@ export class ElasticSearchService {
 	// 	}
 	// }
 
-	private async indexExists(index: string): Promise<ApiResponse<boolean, Record<string, unknown>>> {
-		return await this.client.indices.exists({index});
-	}
+	// private async indexExists(index: string): Promise<ApiResponse<boolean, Record<string, unknown>>> {
+	// 	return await this.client.indices.exists({index});
+	// }
 
 	private generateNewIndexName(): string {
 		const date = new Date();

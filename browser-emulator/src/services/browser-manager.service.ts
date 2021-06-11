@@ -1,5 +1,5 @@
 import { EmulateBrowserService } from './emulate-browser.service';
-import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
+import { BrowserMode, JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
 import { InstanceService } from './instance.service';
 import { RealBrowserService } from './real-browser.service';
 import { ElasticSearchService } from './elasticsearch.service';
@@ -9,9 +9,6 @@ import { OpenViduRole } from '../types/openvidu.type';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
-
-	private browserMode: BrowserMode;
-
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
@@ -34,7 +31,7 @@ export class BrowserManagerService {
 		let connectionId: string;
 		let webrtcStorageName: string;
 		let webrtcStorageValue: string;
-		this.browserMode = request.browserMode;
+		const isRealBrowser = request.browserMode === BrowserMode.REAL
 
 		if(this.elasticSearchService.isElasticSearchRunning()){
 			webrtcStorageName = this.webrtcStorageService.getItemName();
@@ -42,7 +39,7 @@ export class BrowserManagerService {
 		}
 		this.printRequestInfo(request);
 
-		if(this.isRealBrowser()){
+		if(isRealBrowser){
 			// Create new stream manager using launching a normal Chrome browser
 			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
 			try {
@@ -50,6 +47,7 @@ export class BrowserManagerService {
 				const storageNameObject = {webrtcStorageName, ovEventStorageName: ovEventsService.getItemName()};
 				const storageValueObject = {webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig()};
 				await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
+				this.realBrowserService.storeParticipant(connectionId, request.properties);
 			} catch (error) {
 				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 				throw error;
@@ -70,6 +68,7 @@ export class BrowserManagerService {
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
 		const streams = this.getStreamsCreated();
+		this.sendStreamsData(streams);
 		return {connectionId, streams, workerCpuUsage};
 
 	}
@@ -97,10 +96,22 @@ export class BrowserManagerService {
 	}
 
 	private getStreamsCreated(): number {
-		if(this.isRealBrowser()){
-			return -1;
+		return this.emulateBrowserService.getStreamsCreated() + this.realBrowserService.getStreamsCreated();
+	}
+
+	private async sendStreamsData(streams: number) {
+		const json: JSONStreamsInfo = {
+			'@timestamp': new Date().toISOString(),
+			streams,
+			node_role: 'browseremulator',
+			worker_name: `worker_${this.instanceService.WORKER_UUID}`
+		};
+		try {
+			await this.elasticSearchService.sendJson(json);
+		} catch (error) {
+			console.error('Error sending streams data to ElasticSearch');
+			console.log(error);
 		}
-		return this.emulateBrowserService.getStreamsCreated();
 	}
 
 
@@ -117,9 +128,4 @@ export class BrowserManagerService {
 		console.log(info);
 
 	}
-
-	private isRealBrowser(): boolean {
-		return this.browserMode === BrowserMode.REAL
-	}
-
 }

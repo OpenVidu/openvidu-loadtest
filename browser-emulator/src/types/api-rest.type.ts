@@ -55,6 +55,7 @@ export interface TestProperties {
 
 export interface LoadTestPostResponse {
 	connectionId: string,
+	streams: number,
  	workerCpuUsage: number
 }
 
@@ -65,36 +66,44 @@ export interface JSONStatsResponse {
     platform: string,
     platform_description: string,
     stream: string,
-    webrtc_stats: IWebrtcStats
+    webrtc_stats: any
 }
 
-interface IWebrtcStats {
-    inbound: {
-        audio: {
-            bytesReceived: number,
-            packetsReceived: number,
-            packetsLost: number
-            jitter: number,
-            delayMs: number
-        } | {},
-        video: {
-            bytesReceived: number,
-            packetsReceived: number,
-            packetsLost: number,
-            framesDecoded: number,
-            nackCount: number
-        } | {}
-    } | {},
-    outbound: {
-        audio: {
-            bytesSent: number,
-            packetsSent: number,
-        } | {},
-        video: {
-            bytesSent: number,
-            packetsSent: number,
-            framesEncoded: number,
-            nackCount: number
-        } | {}
-    } | {}
-};
+export interface JSONStreamsInfo {
+	'@timestamp': string,
+	streams: number,
+	worker_name: string
+    node_role: string
+
+}
+
+// interface IWebrtcStats {
+//     inbound: {
+//         audio: {
+//             bytesReceived: number,
+//             packetsReceived: number,
+//             packetsLost: number
+//             jitter: number,
+//             delayMs: number
+//         } | {},
+//         video: {
+//             bytesReceived: number,
+//             packetsReceived: number,
+//             packetsLost: number,
+//             framesDecoded: number,
+//             nackCount: number
+//         } | {}
+//     } | {},
+//     outbound: {
+//         audio: {
+//             bytesSent: number,
+//             packetsSent: number,
+//         } | {},
+//         video: {
+//             bytesSent: number,
+//             packetsSent: number,
+//             framesEncoded: number,
+//             nackCount: number
+//         } | {}
+//     } | {}
+// };
