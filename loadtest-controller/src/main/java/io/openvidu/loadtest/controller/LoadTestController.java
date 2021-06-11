@@ -144,8 +144,8 @@ public class LoadTestController {
 		int sessionsLimit = testCase.getSessions();
 
 		setAndInitializeNextWorker();
-		
-		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
+
+		while (responseIsOk && needCreateNewSession(sessionsLimit, sessionNumber)) {
 
 			if (responseIsOk && sessionNumber.get() > 0) {
 				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
@@ -167,7 +167,7 @@ public class LoadTestController {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						userNumber.getAndIncrement();
 					}
-					if(this.browserEmulatorClient.getWorkerCpuPct() > this.loadTestConfig.getWorkerMaxLoad() && canCreateNewSession(sessionsLimit, sessionNumber)) {
+					if(this.browserEmulatorClient.getWorkerCpuPct() > this.loadTestConfig.getWorkerMaxLoad() && needCreateNewSession(sessionsLimit, sessionNumber)) {
 						setAndInitializeNextWorker();
 					}
 
@@ -189,7 +189,7 @@ public class LoadTestController {
 		int totalParticipants = subscribers + publishers;
 		int sessionsLimit = testCase.getSessions();
 		setAndInitializeNextWorker();
-		while (responseIsOk && canCreateNewSession(sessionsLimit, sessionNumber)) {
+		while (responseIsOk && needCreateNewSession(sessionsLimit, sessionNumber)) {
 
 			if (responseIsOk && sessionNumber.get() > 0) {
 				// Waiting time between sessions
@@ -309,7 +309,7 @@ public class LoadTestController {
 		}
 	}
 
-	private boolean canCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
+	private boolean needCreateNewSession(int sessionsLimit, AtomicInteger sessionNumber) {
 		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionNumber.get() < sessionsLimit);
 
 	}
