@@ -47,7 +47,7 @@ export class BrowserManagerService {
 				const storageNameObject = {webrtcStorageName, ovEventStorageName: ovEventsService.getItemName()};
 				const storageValueObject = {webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig()};
 				await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
-				this.realBrowserService.storeParticipant(connectionId, request.properties);
+				this.realBrowserService.storeConnection(connectionId, request.properties);
 			} catch (error) {
 				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 				throw error;

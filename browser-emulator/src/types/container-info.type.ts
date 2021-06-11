@@ -8,6 +8,7 @@ export enum ContainerName {
 
 export interface BrowserContainerInfo {
 	bindedPort: number;
-	connectionRole: OpenViduRole,
-	isRecording: boolean
+	connectionRole: OpenViduRole;
+	isRecording: boolean;
+	sessionName: string;
 }

@@ -68,7 +68,7 @@ export class EmulateBrowserService {
 				}
 
 				this.storeInstances(ov, session, mediaStreamTracks?.audioTrackInterval);
-				this.storeParticipant(session.connection.connectionId, properties);
+				this.storeConnection(session.connection.connectionId, properties);
 				resolve(session.connection.connectionId);
 			} catch (error) {
 				console.log(
@@ -132,7 +132,7 @@ export class EmulateBrowserService {
 		this.openviduMap.set(session.connection.connectionId, {openvidu, session, audioTrackInterval});
 	}
 
-	private storeParticipant(connectionId: string, properties: TestProperties) {
+	private storeConnection(connectionId: string, properties: TestProperties) {
 
 		if(this.connections.has(properties.sessionName)){
 			if(properties.role === OpenViduRole.PUBLISHER){
@@ -149,6 +149,23 @@ export class EmulateBrowserService {
 				subscribers.push(connectionId);
 			}
 			this.connections.set(properties.sessionName,{publishers, subscribers});
+		}
+	}
+
+	private deleteConnection(sessionName: string, connectionId: string, role: OpenViduRole) {
+
+		const value =  this.connections.get(sessionName);
+		let index = -1;
+		if(role === OpenViduRole.PUBLISHER){
+			index = value.publishers.indexOf(connectionId, 0);
+			if(index >= 0) {
+				value.publishers.splice(index, 1);
+			}
+		} else {
+			index = value.subscribers.indexOf(connectionId, 0);
+			if(index >= 0) {
+				value.subscribers.splice(index, 1);
+			}
 		}
 	}
 
@@ -206,6 +223,8 @@ export class EmulateBrowserService {
 		session.on('sessionDisconnected', (event: SessionDisconnectedEvent) => {
 			const message: string = JSON.stringify({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local'});
 			this.wsService.send(message);
+			console.log(session.connection.role);
+			this.deleteConnection(session.sessionId, session.connection.connectionId, <OpenViduRole>session.connection.role);
 		});
 
 		session.on('exception', (exception: ExceptionEvent) => {

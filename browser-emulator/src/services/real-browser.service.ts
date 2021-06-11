@@ -58,7 +58,7 @@ export class RealBrowserService {
 				const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
 				const options: ContainerCreateOptions = this.getChromeContainerOptions(containerName, bindedPort);
 				containerId = await this.dockerService.startContainer(options);
-				this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort, isRecording});
+				this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort, isRecording, sessionName: properties.sessionName});
 				await this.enableMediaFileAccess(containerId);
 				if(isRecording) {
 					console.log("Starting browser recording");
@@ -95,9 +95,10 @@ export class RealBrowserService {
 
 	async deleteStreamManagerWithConnectionId(containerId: string): Promise<void> {
 		console.log("Removing and stopping container ", containerId);
-		const isRecording = this.containerMap.get(containerId)?.isRecording;
-		await this.stopBrowserContainer(containerId, isRecording);
+		const value = this.containerMap.get(containerId);
+		await this.stopBrowserContainer(containerId, value?.isRecording);
 		this.containerMap.delete(containerId);
+		this.deleteConnection(value?.sessionName, containerId, value?.connectionRole)
 	}
 
 	deleteStreamManagerWithRole(role: any): Promise<void> {
@@ -107,6 +108,7 @@ export class RealBrowserService {
 			this.containerMap.forEach((info: BrowserContainerInfo, containerId: string) => {
 				if(info.connectionRole === role) {
 					containersToDelete.push({containerId, isRecording: info.isRecording});
+					this.deleteConnection(info.sessionName,containerId,info.connectionRole);
 				}
 			});
 
@@ -179,7 +181,7 @@ export class RealBrowserService {
 		return result;
 	}
 
-	storeParticipant(connectionId: string, properties: TestProperties) {
+	storeConnection(connectionId: string, properties: TestProperties) {
 
 		if(this.connections.has(properties.sessionName)){
 			if(properties.role === OpenViduRole.PUBLISHER){
@@ -196,6 +198,23 @@ export class RealBrowserService {
 				subscribers.push(connectionId);
 			}
 			this.connections.set(properties.sessionName,{publishers, subscribers});
+		}
+	}
+
+	private deleteConnection(sessionName: string, connectionId: string, role: OpenViduRole) {
+
+		const value =  this.connections.get(sessionName);
+		let index = -1;
+		if(role === OpenViduRole.PUBLISHER){
+			index = value.publishers.indexOf(connectionId, 0);
+			if(index >= 0) {
+				value.publishers.splice(index, 1);
+			}
+		} else {
+			index = value.subscribers.indexOf(connectionId, 0);
+			if(index >= 0) {
+				value.subscribers.splice(index, 1);
+			}
 		}
 	}
 
