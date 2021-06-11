@@ -33,7 +33,8 @@ public class BrowserEmulatorClient {
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
 	private static final int HTTP_STATUS_OK = 200;
 	private static final int WORKER_PORT = 5000;
-	private static int workerCpuPct = 0;
+	private static double workerCpuPct = 0;
+	private static int streamsInWorker = 0;
 	
 	private static String stopReason = "Test case finished as expected";
 
@@ -124,8 +125,6 @@ public class BrowserEmulatorClient {
 
 		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
 		
-		System.out.println(body);
-
 		try {
 			log.info("Selected worker: {}", workerUrl);
 			HttpResponse<String> response = this.httpClient.sendPost(
@@ -244,8 +243,12 @@ public class BrowserEmulatorClient {
 		}
 	}
 
-	public int getWorkerCpuPct() {
+	public double getWorkerCpuPct() {
 		return workerCpuPct;
+	}
+	
+	public int getStreamsInWorker() {
+		return streamsInWorker;
 	}
 	
 	public String getStopReason() {
@@ -270,9 +273,11 @@ public class BrowserEmulatorClient {
 		if (response != null && response.statusCode() == HTTP_STATUS_OK) {
 			JsonObject jsonResponse = jsonUtils.getJson(response.body());
 			String connectionId = jsonResponse.get("connectionId").getAsString();
-			workerCpuPct = jsonResponse.get("workerCpuUsage").getAsInt();
+			workerCpuPct = jsonResponse.get("workerCpuUsage").getAsDouble();
+			streamsInWorker = jsonResponse.get("streams").getAsInt(); 
 			log.info("Connection {} created", connectionId);
 			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
+			log.info("Worker STREAMS CREATED: {} ", streamsInWorker);
 			return true;
 		}
 		log.error("Error. Http Status Response {} ", response.statusCode());
