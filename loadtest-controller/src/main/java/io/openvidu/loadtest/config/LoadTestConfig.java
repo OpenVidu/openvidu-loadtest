@@ -33,6 +33,8 @@ public class LoadTestConfig {
 	private int workerMaxLoad;
 	
 	private int workersRumpUp;
+	
+	private boolean terminateWorkers;
 
 	private String openviduUrl;
 
@@ -145,6 +147,10 @@ public class LoadTestConfig {
 	public int getWorkerMaxLoad() {
 		return workerMaxLoad;
 	}
+	
+	public boolean isTerminateWorkers() {
+		return terminateWorkers;
+	}
 
 	@PostConstruct
 	private void checkConfigurationProperties() {
@@ -168,6 +174,7 @@ public class LoadTestConfig {
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
 			workersRumpUp = asInt("WORKERS_RUMP_UP");
+			terminateWorkers = asBoolean("TERMINATE_WORKERS");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
 			
@@ -260,6 +267,14 @@ public class LoadTestConfig {
 
 	private String asOptionalString(String property) {
 		return env.getProperty(property);
+	}
+	
+	private boolean asBoolean(String property) {
+		try {
+			return Boolean.parseBoolean(env.getProperty(property));
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	private void checkUrl(String url) throws Exception {

@@ -73,6 +73,14 @@ public class LoadTestController {
 	}
 
 	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
+		
+		if(this.loadTestConfig.isTerminateWorkers()) {
+			log.info("Terminate all EC2 instances");
+			this.ec2Client.terminateAllInstances();
+			return resultReportList;
+		}
+		
+		
 		if (PROD_MODE) {
 			this.kibanaClient.importDashboards();
 		}
