@@ -14,6 +14,8 @@ export interface InitializePostRequest {
     elasticSearchPassword: string;
 	elasticSearchUserName: string;
 	elasticSearchHost: string;
+	awsAccessKey?: string;
+	awsSecretAccessKey?: string;
 }
 
 

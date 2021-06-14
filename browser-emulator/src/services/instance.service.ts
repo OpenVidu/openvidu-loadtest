@@ -1,3 +1,4 @@
+import fs = require('fs');
 import * as os  from 'node-os-utils';
 import { ContainerCreateOptions } from "dockerode";
 
@@ -7,6 +8,8 @@ import { DockerService } from './docker.service';
 import { LocalStorageService } from './local-storage.service';
 import { WebrtcStatsService } from './config-storage.service';
 import { ContainerName } from '../types/container-info.type';
+
+import * as AWS from 'aws-sdk';
 
 export class InstanceService {
 
@@ -19,6 +22,8 @@ export class InstanceService {
 	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
+	readonly S3_BUCKET = 'openvidu-loadtest-default';
+	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig/config.json`;
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
 
@@ -138,6 +143,50 @@ export class InstanceService {
 		if (!(await this.dockerService.imageExists(this.KMS_IMAGE)) && EMULATED_USER_TYPE === EmulatedUserType.KMS) {
 			await this.dockerService.pullImage(this.KMS_IMAGE);
 		}
+	}
+
+	recordingsExist(): boolean {
+		const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
+		dirs.forEach(dir => {
+			if(fs.readdirSync(dir).length > 0) {
+				return true;
+			}
+		});
+		return false;
+	}
+
+
+	uploadFilesToS3(): string {
+
+		if (fs.existsSync(this.AWS_CREDENTIALS_PATH)) {
+
+			AWS.config.loadFromPath(this.AWS_CREDENTIALS_PATH);
+			const s3 = new AWS.S3();
+			const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
+
+			dirs.forEach(dir => {
+				fs.readdirSync(dir).forEach(file => {
+					const data = fs.readFileSync(`${dir}/${file}`);
+					const s3Config: AWS.S3.PutObjectRequest = {
+						Bucket: this.S3_BUCKET,
+						Key: file,
+						Body: data
+					};
+
+					s3.putObject(s3Config, (err, data) => {
+						if (err) {
+							console.log(err);
+						} else {
+							console.log(`Successfully uploaded data to ${this.S3_BUCKET} / ${file}`);
+							fs.rmSync(`${dir}/${file}`, {recursive: true, force: true});
+						}
+					});
+				});
+			});
+			return this.S3_BUCKET;
+
+		}
+
 	}
 
 }

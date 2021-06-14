@@ -87,11 +87,14 @@ export class BrowserManagerService {
 		return await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 	}
 
-	async clean(): Promise<void> {
+	async clean(): Promise<string> {
 		await this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
 		await this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
 		if(this.elasticSearchService.isElasticSearchRunning()){
 			await this.elasticSearchService.clean();
+		}
+		if(this.instanceService.recordingsExist()){
+			return this.instanceService.uploadFilesToS3();
 		}
 	}
 

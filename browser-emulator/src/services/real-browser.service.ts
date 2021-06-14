@@ -232,7 +232,7 @@ export class RealBrowserService {
 			},
 			HostConfig:  {
 				Binds: [
-					`${process.env.PWD}/recordings:${this.RECORDINGS_PATH}`,
+					`${process.env.PWD}/recordings/chrome:${this.RECORDINGS_PATH}`,
 					`${process.env.PWD}/src/assets/mediafiles:${this.MEDIA_FILES_PATH}`,
 				],
 				PortBindings: { "4444/tcp": [{ "HostPort": hostPort.toString(), "HostIp": "0.0.0.0" }] },
