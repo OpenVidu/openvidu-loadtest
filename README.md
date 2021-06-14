@@ -251,6 +251,14 @@ cd loadtest-controller
 mvn spring-boot:run
 ```
 
+#### Extra features
+
+* For terminate AWS EC2 instances:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-DTERMINATE_WORKERS=true"
+```
+
 ## **Sample test execution**
 
 For illustration proporses here is an example composed by 2 workers and the load test app all of them running locally.
@@ -313,7 +321,7 @@ Besides, if you have deployed OpenVidu PRO you can [create your own visualizatio
 
 This service provides a simple **REST API** that will be used by **Load Test application** and it allows:
 * **Ping to instance**. Do ping to check if instance is ready.
-* **Initialize instance**. Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container.
+* **Initialize instance**. Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container. This request also set the AWS public and secret keys for uploading the **video recordings files to S3** (just in case the test case includes recording).
 
 * **Create a participant** (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
 

@@ -12,7 +12,7 @@ The browser-emulator service provides several connection modes:
 
 This app provides a simple **REST API** that will be used by **Load Test application** and it allows:
 * [Ping to instance](#ping-instance). Do ping to check if instance is ready.
-* [Initialize instance](#initialize-instance). Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container.
+* [Initialize instance](#initialize-instance). Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container. This request also set the AWS public and secret keys for uploading the **video recordings files to S3** (just in case the test case includes recording).
 
 * [Create a participant](#create-participant) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
 
@@ -42,7 +42,10 @@ This services also is listening for a **WebSocket communication** on `ws:browser
 {
 	"elasticSearchHost": "your-elasticsearch-hostname",
 	"elasticSearchUserName": "your-username",
-	"elasticSearchPassword": "your-password"
+	"elasticSearchPassword": "your-password",
+	"awsAccessKey": "your-AWS-access-key",
+	"awsSecretAccessKey": "your-AWS-secret-key"
+
 }
 ```
 
