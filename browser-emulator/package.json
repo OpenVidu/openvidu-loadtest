@@ -7,7 +7,7 @@
     "// FIXME Canvas forces importing the DOM module:": "",
     "// https://github.com/Automattic/node-canvas/issues/1656": "",
     "//postinstall": "rm -f ./node_modules/typescript/lib/lib.dom.d.ts",
-    "start": "nodemon ./src/server.ts",
+    "start": "EMULATED_USER_TYPE=KMS nodemon ./dist/server.js",
     "start:dev": "APPLICATION_MODE=DEVELOPMENT nodemon ./src/server.ts",
     "start:kms": "EMULATED_USER_TYPE=KMS nodemon ./src/server.ts",
     "build": "tsc",
