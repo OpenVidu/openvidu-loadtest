@@ -45,36 +45,39 @@ server.listen(SERVER_PORT, async () => {
 	const hack = new HackService();
 	const instanceService = InstanceService.getInstance();
 
-	if(APPLICATION_MODE === ApplicationMode.PROD) {
-		console.log("Pulling Docker images needed...");
-		await instanceService.pullImagesNeeded();
+	try {
+		if(APPLICATION_MODE === ApplicationMode.PROD) {
+			console.log("Pulling Docker images needed...");
+			await instanceService.pullImagesNeeded();
+		}
+
+		if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
+			await instanceService.cleanEnvironment();
+			console.log('Starting Kurento Media Server');
+			await instanceService.launchKMS();
+		}
+
+		hack.openviduBrowser();
+		await hack.webrtc();
+		hack.websocket();
+		hack.platform();
+		hack.allowSelfSignedCertificate();
+
+		console.log("---------------------------------------------------------");
+		console.log(" ");
+		console.log(`Service started in ${APPLICATION_MODE} mode`);
+		console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
+		console.log(`API REST is listening in port ${SERVER_PORT}`);
+		console.log(`WebSocket is listening in port ${WEBSOCKET_PORT}`);
+		console.log(" ");
+		console.log("---------------------------------------------------------");
+		instanceService.instanceInitialized();
+	} catch (error) {
+		console.error(error);
 	}
-
-	if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
-		await instanceService.cleanEnvironment();
-		console.log('Starting Kurento Media Server');
-		await instanceService.launchKMS();
-	}
-
-	hack.openviduBrowser();
-	await hack.webrtc();
-	hack.websocket();
-	hack.platform();
-	hack.allowSelfSignedCertificate();
-
-	console.log("---------------------------------------------------------");
-	console.log(" ");
-	console.log(`Service started in ${APPLICATION_MODE} mode`);
-	console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
-	console.log(`API REST is listening in port ${SERVER_PORT}`);
-	console.log(`WebSocket is listening in port ${WEBSOCKET_PORT}`);
-	console.log(" ");
-	console.log("---------------------------------------------------------");
-	instanceService.instanceInitialized()
 
 });
 
 ws.on('connection', (ws: WebSocket) => {
 	WsService.getInstance().setWebsocket(ws);
 });
-
