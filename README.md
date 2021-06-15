@@ -93,9 +93,15 @@ npm run start:kms
 <details>
   <summary><strong>For testing on AWS</strong></summary>
 
-  If we want launch our load tests in a prodction environment, we can do that on AWS.
+  If we want launch our load tests in a prodction environment, we can do that with AWS.
 
   The browser-emulator services will be launched (**_by the loadtest-controller_**) in EC2 instances with the aim of emulate real users connected to OpenVidu.
+
+  >Note: For creating a new browser-emulator AMI, you only have to run the `createAMI.sh` script:
+
+  ```bash
+./browser-emulator/aws/createAMI.sh
+  ```
 
   The *loadtest-controller* will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
 
