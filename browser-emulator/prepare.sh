@@ -17,7 +17,7 @@ set -o xtrace
 command -v node >/dev/null || {
     echo "Installing Node.js"
     curl -sL https://deb.nodesource.com/setup_14.x | bash -
-    sudo apt-get update && sudo apt-get install --no-install-recommends --yes \
+    apt-get update && apt-get install --no-install-recommends --yes \
         nodejs
 }
 
@@ -27,17 +27,17 @@ command -v node >/dev/null || {
 
 command -v docker >/dev/null || {
     echo "Installing Docker CE"
-    sudo apt-get update && sudo apt-get install --no-install-recommends --yes \
+    apt-get update && apt-get install --no-install-recommends --yes \
         apt-transport-https \
         ca-certificates \
         curl \
         software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
     source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
-    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
-    sudo apt-get update && sudo apt-get install --no-install-recommends --yes \
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
+    apt-get update && apt-get install --no-install-recommends --yes \
         docker-ce
-    # sudo usermod -aG docker "$USER"
+    # usermod -aG docker "$USER"
     # newgrp docker
 }
 
@@ -47,7 +47,7 @@ command -v docker >/dev/null || {
 
 command -v ffmpeg >/dev/null || {
     echo "Installing Ffmpeg"
-    sudo snap install ffmpeg
+    snap install ffmpeg
 }
 
 
