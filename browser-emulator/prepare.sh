@@ -45,10 +45,11 @@ command -v docker >/dev/null || {
 # Check FFmpeg
 # ============
 
-command -v ffmpeg >/dev/null || {
-    echo "Installing Ffmpeg"
-    snap install ffmpeg
-}
+## Ffmpeg is only used with NODE_CANVAS strategy. However, this strategy consume more resources than we expected so, for now, it will be disabled
+# command -v ffmpeg >/dev/null || {
+#     echo "Installing Ffmpeg"
+#     snap install ffmpeg
+# }
 
 
 # Download media files
