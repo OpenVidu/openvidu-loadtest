@@ -53,7 +53,6 @@ server.listen(SERVER_PORT, async () => {
 
 		if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
 			await instanceService.cleanEnvironment();
-			console.log('Starting Kurento Media Server');
 			await instanceService.launchKMS();
 		}
 

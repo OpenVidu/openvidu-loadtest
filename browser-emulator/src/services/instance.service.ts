@@ -124,8 +124,8 @@ export class InstanceService {
 			await this.dockerService.startContainer(options);
 		} catch (error) {
 			console.error(error);
-			this.dockerService.stopContainer(ContainerName.KMS);
-			this.dockerService.removeContainer(ContainerName.KMS);
+			// this.dockerService.stopContainer(ContainerName.KMS);
+			// this.dockerService.removeContainer(ContainerName.KMS);
 		}
 	}
 

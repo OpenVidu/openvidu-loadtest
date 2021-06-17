@@ -22,7 +22,7 @@ export class DockerService {
 				await container.stop();
 	        	console.log('Container ' + container.id + ' stopped');
 			} catch (error) {
-				throw error;
+				console.error('KMS has already stopped. Skipping');
 			}
 		}
 	}
@@ -34,7 +34,7 @@ export class DockerService {
 				await container.remove({ force: true });
            		console.log('Container ' + containerNameOrId + ' removed');
 			} catch (error) {
-				throw 'Container ' + containerNameOrId + ' does not exist';
+				console.error('Container ' + containerNameOrId + ' does not exist');
 			}
         }
     }
