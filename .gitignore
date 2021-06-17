@@ -48,3 +48,5 @@ browser-emulator/webrtc-stats-config
 *.txt
 
 browser-emulator/.awsconfig/
+
+docker/browser-emulator/browser-emulator/
