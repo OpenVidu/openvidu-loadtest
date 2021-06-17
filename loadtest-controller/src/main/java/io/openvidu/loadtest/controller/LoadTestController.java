@@ -63,6 +63,7 @@ public class LoadTestController {
 	private AtomicInteger sessionsCompleted = new AtomicInteger(0);
 	private AtomicInteger totalParticipants = new AtomicInteger(0);
 
+	private static List<Integer> streamsPerWorker = new ArrayList<>();
 	private static List<ResultReport> resultReportList = new ArrayList<ResultReport>();
 
 	@PostConstruct
@@ -182,8 +183,11 @@ public class LoadTestController {
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
 				if (needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0)) {
+					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 					setAndInitializeNextWorker();
 				}
+			} else {
+				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 			}
 		}
 	}
@@ -245,8 +249,11 @@ public class LoadTestController {
 					// TODO: in TEACHING sessions, all participants are PUBLISHERS
 					// Now, it is assuming they are PUBLISHERS and SUBSCRIBERS
 					if (needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(publishers, subscribers)) {
+						streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 						setAndInitializeNextWorker();
 					}
+				}else {
+					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 				}
 			}
 		}
@@ -371,7 +378,7 @@ public class LoadTestController {
 
 		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
 
-		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, workersUsed,
+		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, workersUsed, streamsPerWorker, 
 				sessionTypology, browserModeSelected, openviduRecordingMode, browserRecording, participantsPerSession,
 				stopReason, this.startTime, endTime, kibanaUrl);
 

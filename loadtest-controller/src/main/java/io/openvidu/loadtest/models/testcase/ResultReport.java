@@ -1,6 +1,8 @@
 package io.openvidu.loadtest.models.testcase;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class ResultReport {
@@ -9,6 +11,7 @@ public class ResultReport {
 	private int numSessionsCompleted = 0;
 	private int numSessionsCreated = 0;
 	private int workersUsed = 0;
+	private List<Integer> streamsPerWorker = new ArrayList<>();
 	private String sessionTypology;
 	private String browserModeSelected;
 	private boolean browserRecording;
@@ -19,13 +22,14 @@ public class ResultReport {
 	private Calendar endTime;
 	private String kibanaUrl = "";
 
-	public ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
+	public ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed, List<Integer> streamsPerWorker,
 			String sessionTypology, String browserModeSelected, String openviduRecording, boolean browserRecording, String participantsPerSession, String stopReason,
 			Calendar startTime, Calendar endTime, String kibanaUrl) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
 		this.numSessionsCreated = numSessionsCreated;
 		this.workersUsed = workersUsed;
+		this.streamsPerWorker = streamsPerWorker;
 		this.sessionTypology = sessionTypology;
 		this.openviduRecording = openviduRecording;
 		this.browserModeSelected = browserModeSelected;
@@ -68,6 +72,7 @@ public class ResultReport {
 				+ "Number of sessions completed:	" + numSessionsCompleted + System.getProperty("line.separator")
 				+ "Number of participants created:	" + totalParticipants + System.getProperty("line.separator")
 				+ "Number of workers used:	" + workersUsed + System.getProperty("line.separator")
+				+ "Number of streams per workers:	" + streamsPerWorker + System.getProperty("line.separator")
 				+ "Stop reason:	" + stopReason + System.getProperty("line.separator")
 				+ "Test duration:	" + getDuration() + System.getProperty("line.separator")
 				+ "Kibana url:	" + kibanaUrl + System.getProperty("line.separator")
