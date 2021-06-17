@@ -1,0 +1,16 @@
+**/node_modules
+**/aws
+**/dist
+**/recordings
+**/webrtc-stats-config
+**/package-lock.json
+**/.mvn
+**/.settings
+**/target
+**/.classpath
+**.mkv
+**.wav
+**.y4m
+
+resources
+docker
