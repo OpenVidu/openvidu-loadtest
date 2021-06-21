@@ -70,9 +70,9 @@ export class BrowserManagerService {
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
 		const streams = this.getStreamsCreated();
+		const participants = this.getParticipantsCreated();
 		this.sendStreamsData(streams);
-		return {connectionId, streams, workerCpuUsage};
-
+		return {connectionId, streams, participants, workerCpuUsage};
 	}
 
 	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
@@ -102,6 +102,10 @@ export class BrowserManagerService {
 
 	private getStreamsCreated(): number {
 		return this.emulateBrowserService.getStreamsCreated() + this.realBrowserService.getStreamsCreated();
+	}
+
+	private getParticipantsCreated(): number {
+		return this.emulateBrowserService.getParticipantsCreated() + this.realBrowserService.getParticipantsCreated();
 	}
 
 	private async sendStreamsData(streams: number) {

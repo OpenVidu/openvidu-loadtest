@@ -58,6 +58,7 @@ export interface TestProperties {
 export interface LoadTestPostResponse {
 	connectionId: string,
 	streams: number,
+	participants: number,
  	workerCpuUsage: number
 }
 

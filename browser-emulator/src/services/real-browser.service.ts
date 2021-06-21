@@ -181,6 +181,10 @@ export class RealBrowserService {
 		return result;
 	}
 
+	getParticipantsCreated(): number {
+		return this.containerMap.size;
+	}
+
 	storeConnection(connectionId: string, properties: TestProperties) {
 
 		if(this.connections.has(properties.sessionName)){

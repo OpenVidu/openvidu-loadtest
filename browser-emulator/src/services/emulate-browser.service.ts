@@ -123,6 +123,10 @@ export class EmulateBrowserService {
 		return result;
 	}
 
+	getParticipantsCreated(): number {
+		return this.openviduMap.size;
+	}
+
 	private async getToken(properties: TestProperties): Promise<string> {
 		return this.httpClient.getToken(properties);
 	}
