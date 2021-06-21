@@ -6,6 +6,8 @@ import { ElasticSearchService } from './elasticsearch.service';
 import { LocalStorageService } from './local-storage.service';
 import { OpenViduEventsService, WebrtcStatsService } from './config-storage.service';
 import { OpenViduRole } from '../types/openvidu.type';
+import { APPLICATION_MODE } from '../config';
+import { ApplicationMode } from '../types/config.type';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
@@ -93,7 +95,7 @@ export class BrowserManagerService {
 		if(this.elasticSearchService.isElasticSearchRunning()){
 			await this.elasticSearchService.clean();
 		}
-		if(this.instanceService.recordingsExist()){
+		if(APPLICATION_MODE === ApplicationMode.PROD && this.instanceService.recordingsExist()){
 			return this.instanceService.uploadFilesToS3();
 		}
 	}

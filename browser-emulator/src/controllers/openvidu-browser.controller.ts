@@ -47,10 +47,11 @@ app.delete('/streamManager', async (req: Request, res: Response) => {
 	console.log('Deleting all participants');
 	try {
 		const s3Bucket = await browserManagerService.clean();
+		let s3response;
 		if(!!s3Bucket) {
-			const res = {recordingBucket: s3Bucket};
+			s3response = {recordingBucket: s3Bucket};
 		}
-		res.status(200).send(res || `Instance ${req.headers.host} is clean`);
+		res.status(200).send(s3response || `Instance ${req.headers.host} is clean`);
 	} catch (error) {
 		console.error(error);
 		res.status(500).send(error);
