@@ -153,6 +153,8 @@ WORKER_URL_LIST=
 
 #### AWS parameters (for testing on AWS)
 
+General  AWS parameters
+
 ```properties
 # For testing on AWS
 WORKER_AMI_ID=
@@ -166,11 +168,25 @@ WORKER_SECURITY_GROUP_ID=
 WORKER_INSTANCE_REGION=
 # Numbers of workers to launch before the test starts
 WORKERS_NUMBER_AT_THE_BEGINNING=
-# Overcoming this threshold a new worker will be launched
+```
+
+
+##### For the AUTO distribution of participants to workers
+```properties
+# Overcoming this CPU percentage threshold a new worker will be launched
 WORKER_MAX_LOAD=
 # Number of new workers incrementation
 WORKERS_RUMP_UP=
 ```
+
+##### For the MANUAL distribution of participantsto workers
+```properties
+# Boolean param for MANUAL participants allocation
+MANUAL_PARTICIPANTS_ALLOCATION=
+# Number of participants per worker
+PARTICIPANTS_PER_WORKER=
+```
+
 
 #### Monitoring parameters
 
