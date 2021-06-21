@@ -35,6 +35,7 @@ public class BrowserEmulatorClient {
 	private static final int WORKER_PORT = 5000;
 	private static double workerCpuPct = 0;
 	private static int streamsInWorker = 0;
+	private static int participantsInWorker = 0;
 	
 	private static String stopReason = "Test case finished as expected";
 
@@ -114,7 +115,7 @@ public class BrowserEmulatorClient {
 //		}
 //	}
 
-	public boolean createPublisher(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
+	public boolean createPublisher(String workerUrl, int userNumber, String sessionNumber, TestCase testCase) {
 
 		// Check if there was an exception on openvidu-browser
 		if (WorkerExceptionManager.getInstance().exceptionExist()) {
@@ -164,7 +165,7 @@ public class BrowserEmulatorClient {
 		return false;
 	}
 
-	public boolean createSubscriber(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
+	public boolean createSubscriber(String workerUrl, int userNumber, String sessionNumber, TestCase testCase) {
 
 		// Check if there was an exception on openvidu-browser
 		if (WorkerExceptionManager.getInstance().exceptionExist()) {
@@ -237,6 +238,8 @@ public class BrowserEmulatorClient {
 				}
 			});
 			executorService.shutdown();
+			streamsInWorker = 0;
+			participantsInWorker = 0;
 			log.info("Participants disconnected");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -249,6 +252,10 @@ public class BrowserEmulatorClient {
 	
 	public int getStreamsInWorker() {
 		return streamsInWorker;
+	}
+	
+	public int getParticipantsInWorker() {
+		return participantsInWorker;
 	}
 	
 	public String getStopReason() {
@@ -275,9 +282,11 @@ public class BrowserEmulatorClient {
 			String connectionId = jsonResponse.get("connectionId").getAsString();
 			workerCpuPct = jsonResponse.get("workerCpuUsage").getAsDouble();
 			streamsInWorker = jsonResponse.get("streams").getAsInt(); 
+			participantsInWorker = jsonResponse.get("participants").getAsInt();
 			log.info("Connection {} created", connectionId);
 			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
 			log.info("Worker STREAMS CREATED: {} ", streamsInWorker);
+			log.info("Worker PARTICIPANTS CREATED: {} ", participantsInWorker);
 			return true;
 		}
 		log.error("Error. Http Status Response {} ", response.statusCode());
@@ -287,8 +296,9 @@ public class BrowserEmulatorClient {
 	}
 
 // @formatter:off
-	private RequestBody generateRequestBody(int userNumber, int sessionNumber, OpenViduRole role, TestCase testCase) {
+	private RequestBody generateRequestBody(int userNumber, String sessionNumber, OpenViduRole role, TestCase testCase) {
 		boolean video = (testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.is_TEACHING();
+		
 		return new RequestBody().
 				openviduUrl(this.loadTestConfig.getOpenViduUrl())
 				.openviduSecret(this.loadTestConfig.getOpenViduSecret())

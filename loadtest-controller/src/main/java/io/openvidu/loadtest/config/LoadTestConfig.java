@@ -19,41 +19,45 @@ public class LoadTestConfig {
 	private Environment env;
 
 	private List<String> workerUrlList;
-	
+
 	private String workerAmiId;
-	
+
 	private String workerInstanceType;
-	
+
 	private String workerSecurityGroupId;
-	
+
 	private String workerInstanceRegion;
-	
+
 	private int workersNumberAtTheBeginning;
-	
+
 	private int workerMaxLoad;
-	
+
 	private int workersRumpUp;
-	
+
 	private boolean terminateWorkers;
 
 	private String openviduUrl;
 
 	private String openviduSecret;
-	
+
 	private String sessionNamePrefix;
-	
+
 	private String userNamePrefix;
 
 	private int secondsToWaitBetweenParticipants;
-	
+
 	private int secondsToWaitBetweenSession;
-	
+
 	private int secondsToWaitBeforeTestFinished;
-	
+
 	private int secondsToWaitBetweenTestCases;
-	
+
+	private boolean manualParticipantsAllocation;
+
+	private int participantsPerWorker;
+
 	private String elasticsearchHost;
-	
+
 	private String elasticsearchUserName;
 
 	private String elasticsearchPassword;
@@ -83,15 +87,15 @@ public class LoadTestConfig {
 	public int getSecondsToWaitBetweenSession() {
 		return secondsToWaitBetweenSession;
 	}
-	
+
 	public int getSecondsToWaitBeforeTestFinished() {
 		return secondsToWaitBeforeTestFinished;
 	}
-	
+
 	public int getSecondsToWaitBetweenTestCases() {
 		return secondsToWaitBetweenTestCases;
 	}
-	
+
 	public String getKibanaHost() {
 		return this.kibanaHost;
 	}
@@ -99,8 +103,17 @@ public class LoadTestConfig {
 	public String getElasticsearchHost() {
 		return this.elasticsearchHost;
 	}
+
 	public String getElasticsearchUserName() {
 		return this.elasticsearchUserName;
+	}
+
+	public boolean isManualParticipantsAllocation() {
+		return manualParticipantsAllocation;
+	}
+
+	public int getParticipantsPerWorker() {
+		return participantsPerWorker;
 	}
 
 	public String getElasticsearchPassword() {
@@ -111,7 +124,7 @@ public class LoadTestConfig {
 		return this.elasticsearchUserName != null && !this.elasticsearchUserName.isEmpty()
 				&& this.elasticsearchPassword != null && !this.elasticsearchPassword.isEmpty();
 	}
-	
+
 	public boolean isKibanaEstablished() {
 		return this.kibanaHost != null && !this.kibanaHost.isEmpty();
 	}
@@ -119,11 +132,11 @@ public class LoadTestConfig {
 	public List<String> getWorkerUrlList() {
 		return this.workerUrlList;
 	}
-	
+
 	public String getWorkerAmiId() {
 		return this.workerAmiId;
 	}
-	
+
 	public String getWorkerInstanceType() {
 		return workerInstanceType;
 	}
@@ -131,7 +144,7 @@ public class LoadTestConfig {
 	public String getWorkerSecurityGroupId() {
 		return workerSecurityGroupId;
 	}
-	
+
 	public String getWorkerInstanceRegion() {
 		return workerInstanceRegion;
 	}
@@ -139,15 +152,15 @@ public class LoadTestConfig {
 	public int getWorkersNumberAtTheBeginning() {
 		return workersNumberAtTheBeginning;
 	}
-	
+
 	public int getWorkersRumpUp() {
 		return workersRumpUp;
 	}
-	
+
 	public int getWorkerMaxLoad() {
 		return workerMaxLoad;
 	}
-	
+
 	public boolean isTerminateWorkers() {
 		return terminateWorkers;
 	}
@@ -162,6 +175,8 @@ public class LoadTestConfig {
 			secondsToWaitBetweenSession = asInt("SECONDS_TO_WAIT_BETWEEN_SESSIONS");
 			secondsToWaitBeforeTestFinished = asInt("SECONDS_TO_WAIT_BEFORE_TEST_FINISHED");
 			secondsToWaitBetweenTestCases = asInt("SECONDS_TO_WAIT_BETWEEN_TEST_CASES");
+			manualParticipantsAllocation = asBoolean("MANUAL_PARTICIPANTS_ALLOCATION");
+			participantsPerWorker = asInt("PARTICIPANTS_PER_WORKER");
 			elasticsearchHost = asOptionalString("ELASTICSEARCH_HOST");
 			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
@@ -177,7 +192,7 @@ public class LoadTestConfig {
 			terminateWorkers = asBoolean("TERMINATE_WORKERS");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
-			
+
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -186,7 +201,7 @@ public class LoadTestConfig {
 		}
 
 	}
-	
+
 	private void printInfo() {
 		String format = "%-25s%3s%n";
 		System.out.println("-------- Load Test Parameters --------");
@@ -201,6 +216,7 @@ public class LoadTestConfig {
 		System.out.printf(format, "Username Prefix:", userNamePrefix);
 		System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);
 		System.out.printf(format, "Seconds between sessions:", secondsToWaitBetweenSession);
+		System.out.printf(format, "Is manual participant allocation:", manualParticipantsAllocation);
 
 		System.out.printf(format, "Kibana Host:", kibanaHost);
 		System.out.printf(format, "ElasticSearch Host:", elasticsearchHost);
@@ -243,7 +259,7 @@ public class LoadTestConfig {
 
 		return value;
 	}
-	
+
 	private List<String> asOptionalStringList(String property) {
 		try {
 			return this.asStringList(property);
@@ -251,7 +267,7 @@ public class LoadTestConfig {
 			return new ArrayList<String>();
 		}
 	}
-	
+
 	private int asInt(String property) {
 		try {
 			Integer integerValue = Integer.parseInt(env.getProperty(property));
@@ -262,13 +278,13 @@ public class LoadTestConfig {
 		} catch (NumberFormatException e) {
 			return 0;
 		}
-		
+
 	}
 
 	private String asOptionalString(String property) {
 		return env.getProperty(property);
 	}
-	
+
 	private boolean asBoolean(String property) {
 		try {
 			return Boolean.parseBoolean(env.getProperty(property));

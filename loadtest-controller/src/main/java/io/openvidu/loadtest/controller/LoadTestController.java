@@ -156,6 +156,8 @@ public class LoadTestController {
 			}
 
 			sessionNumber.getAndIncrement();
+			int suffix =  (int) (Math.random() * (10000 - 1)) + 1;
+			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
 			System.out.print("\n");
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 
@@ -163,14 +165,18 @@ public class LoadTestController {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 				responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-						sessionNumber.get(), testCase);
+						sessionNumberStr, testCase);
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
+					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+						setAndInitializeNextWorker();
+					}
 					if (userNumber.get() < participantsBySession) {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						userNumber.getAndIncrement();
 					}
+				
 
 				} else {
 					log.error("Response status is not 200 OK. Exit");
@@ -182,7 +188,7 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				if (needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0)) {
+				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0)) {
 					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 					setAndInitializeNextWorker();
 				}
@@ -204,6 +210,9 @@ public class LoadTestController {
 			}
 
 			sessionNumber.getAndIncrement();
+			int suffix =  (int) (Math.random() * (10000 - 1)) + 1;
+			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
+
 			System.out.print("\n");
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 
@@ -212,10 +221,13 @@ public class LoadTestController {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 				responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-						sessionNumber.get(), testCase);
+						sessionNumberStr, testCase);
 				if (responseIsOk) {
 					userNumber.getAndIncrement();
 					this.totalParticipants.incrementAndGet();
+					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+						setAndInitializeNextWorker();
+					}
 				} else {
 					log.error("Response status is not 200 OK. Exit");
 					return;
@@ -228,10 +240,13 @@ public class LoadTestController {
 					log.info("Creating SUBSCRIBER '{}' in session",
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 					responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
-							sessionNumber.get(), testCase);
+							sessionNumberStr, testCase);
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
+						if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+							setAndInitializeNextWorker();
+						}
 						if (userNumber.get() < totalParticipants) {
 							userNumber.getAndIncrement();
 							sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
@@ -248,7 +263,7 @@ public class LoadTestController {
 					this.sessionsCompleted.incrementAndGet();
 					// TODO: in TEACHING sessions, all participants are PUBLISHERS
 					// Now, it is assuming they are PUBLISHERS and SUBSCRIBERS
-					if (needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(publishers, subscribers)) {
+					if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(publishers, subscribers)) {
 						streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 						setAndInitializeNextWorker();
 					}
