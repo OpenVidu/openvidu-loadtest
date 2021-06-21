@@ -380,22 +380,25 @@ public class LoadTestController {
 		// Parse date to match with Kibana time filter
 		String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
 		String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T");
-
-		int totalParticipants = this.totalParticipants.get();
-		int numSessionsCompleted = this.sessionsCompleted.get();
-		int numSessionsCreated = sessionNumber.get();
-		String sessionTypology = testCase.getTopology().toString();
-		String browserModeSelected = testCase.getBrowserMode().toString();
-		boolean browserRecording = testCase.isBrowserRecording();
-		String openviduRecordingMode = testCase.getOpenviduRecordingMode().toString();
-		String stopReason = this.browserEmulatorClient.getStopReason();
-		String participantsPerSession = participantsBySession;
-
 		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
 
-		ResultReport rr = new ResultReport(totalParticipants, numSessionsCompleted, numSessionsCreated, workersUsed, streamsPerWorker, 
-				sessionTypology, browserModeSelected, openviduRecordingMode, browserRecording, participantsPerSession,
-				stopReason, this.startTime, endTime, kibanaUrl);
+		ResultReport rr = new ResultReport().setTotalParticipants(this.totalParticipants.get())
+				.setNumSessionsCompleted(this.sessionsCompleted.get())
+				.setNumSessionsCreated(sessionNumber.get())
+				.setWorkersUsed(workersUsed)
+				.setStreamsPerWorker(streamsPerWorker)
+				.setSessionTypology(testCase.getTopology().toString())
+				.setBrowserModeSelected(testCase.getBrowserMode().toString())
+				.setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
+				.setBrowserRecording(testCase.isBrowserRecording())
+				.setParticipantsPerSession(participantsBySession)
+				.setStopReason(this.browserEmulatorClient.getStopReason())
+				.setStartTime(this.startTime)
+				.setEndTime(endTime)
+				.setKibanaUrl(kibanaUrl)
+				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
+				.setParticipantsPerWorker(loadTestConfig.getParticipantsPerWorker())
+				.build();
 
 		resultReportList.add(rr);
 
