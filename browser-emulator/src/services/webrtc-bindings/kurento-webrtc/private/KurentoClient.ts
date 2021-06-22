@@ -1,5 +1,7 @@
 import * as KurentoClient from "kurento-client";
 import { writeFile } from "fs/promises";
+import { APPLICATION_MODE } from '../../../../config';
+import { ApplicationMode } from '../../../../types/config.type';
 
 export { getComplexType } from "kurento-client";
 
@@ -176,30 +178,33 @@ export async function makeWebRtcEndpoint(
 		}
 	}
 
-	kurento.numWebRtcEndpoints += 1;
-	if (
-		kurento.numWebRtcEndpoints == 4 || // 2 peers
-		kurento.numWebRtcEndpoints == 12 || // 3 peers
-		kurento.numWebRtcEndpoints == 24 // 4 peers
-	) {
-		console.log(
-			`[KurentoClient] DEBUG: ${kurento.numWebRtcEndpoints} WebRtcEndpoints: print Pipeline DOT Graph!`
-		);
-
-		const pipelineDot: string = await kurento.pipeline.getGstreamerDot();
-
-		try {
-			await writeFile(
-				`pipeline_${
-					kurento.numWebRtcEndpoints
-				}peers_${new Date().getTime()}.dot`,
-				pipelineDot
+	if(APPLICATION_MODE === ApplicationMode.DEV) {
+		kurento.numWebRtcEndpoints += 1;
+		if (
+			kurento.numWebRtcEndpoints == 4 || // 2 peers
+			kurento.numWebRtcEndpoints == 12 || // 3 peers
+			kurento.numWebRtcEndpoints == 24 // 4 peers
+		) {
+			console.log(
+				`[KurentoClient] DEBUG: ${kurento.numWebRtcEndpoints} WebRtcEndpoints: print Pipeline DOT Graph!`
 			);
-		} catch (err) {
-			// When a request is aborted - err is an AbortError
-			console.error("[KurentoClient] ERROR:", err);
+
+			const pipelineDot: string = await kurento.pipeline.getGstreamerDot();
+
+			try {
+				await writeFile(
+					`pipeline_${
+						kurento.numWebRtcEndpoints
+					}peers_${new Date().getTime()}.dot`,
+					pipelineDot
+				);
+			} catch (err) {
+				// When a request is aborted - err is an AbortError
+				console.error("[KurentoClient] ERROR:", err);
+			}
 		}
 	}
+
 
 	return kurentoWebRtcEp;
 }
