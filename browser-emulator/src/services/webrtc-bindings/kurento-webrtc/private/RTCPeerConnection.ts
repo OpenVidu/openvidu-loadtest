@@ -299,6 +299,14 @@ export class RTCPeerConnection extends EventEmitter {
 						timestamp: kurentoStats.timestampMillis,
 						type: "inbound-rtp", // Dummy value.
 					};
+					// Creating candidate pair stats because of the official documentation includes RTT and remb
+					// inside of RTCIceCandidatePairStats but Kurento contradicts it adding them inside of outbound-rtp stats
+					// https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidatePairStats
+					let pairStats: RTCStats = {
+						id: kurentoStats.id,
+						timestamp: kurentoStats.timestampMillis,
+						type: "candidate-pair"
+					};
 
 					// Possible types taken from `kms-core/src/server/interface/core.kmd.json`.
 					switch (kurentoStats.type) {
@@ -358,11 +366,20 @@ export class RTCPeerConnection extends EventEmitter {
 						if (["id", "timestamp", "type"].includes(key)) {
 							continue;
 						}
-
-						stats[key] = value;
+						if (key === "roundTripTime") {
+							pairStats["currentRoundTripTime"] = value;
+						} else if (key === "remb") {
+							pairStats["availableOutgoingBitrate"] = value;
+						} else {
+							stats[key] = value;
+						}
 					}
 
 					statsReport.set(`Kurento_${stats.type}_${kind}`, stats);
+					if('currentRoundTripTime' in pairStats || 'availableOutgoingBitrate' in pairStats){
+						// @ts-ignore - Compiler is too clever and thinks this branch will never execute.
+						statsReport.set(`Kurento_${pairStats.type}_${kind}`, pairStats);
+					}
 				}
 			}
 		}
