@@ -63,7 +63,8 @@ Resources:
           ./browser-emulator/download_mediafiles.sh
 
           # Create browser-emulator docker image
-          ./docker/browser-emulator/run.sh 2.1.0
+          cd docker/browser-emulator/
+          ./run.sh 2.1.0
 
           echo '@reboot docker run -d -it --network host -v /var/run/docker.sock:/var/run/docker.sock -v /opt/browser-emulator/src/assets:/opt/browser-emulator/src/assets openvidu/browser-emulator:2.1.0 > /var/log/crontab.log' | crontab
 
