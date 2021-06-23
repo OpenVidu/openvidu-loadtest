@@ -42,11 +42,22 @@ AMI_ID=$(aws ec2 create-image \
   --description "Browser Emulator AMI" | jq -r '.ImageId')
 
 echo "Creating AMI: ${AMI_ID}"
-aws ec2 wait image-available --image-ids ${AMI_ID}
 
 echo "Cleaning up ..."
 aws cloudformation delete-stack --stack-name BrowserEmulatorAMI-${DATESTAMP}
 rm $TEMPJSON
 
 aws cloudformation wait stack-delete-complete --stack-name BrowserEmulatorAMI-${DATESTAMP}
+
+# Create a while loop because an error waiting image available
+# Waiter ImageAvailable failed: Max attempts exceeded
+exit_status=1
+while [ "${exit_status}" != "0" ]
+do
+    echo "Waiting to AMI available ..."
+    aws ec2 wait image-available --image-ids ${AMI_ID}
+    exit_status="$?"
+
+done
+
 echo "Created AMI: ${AMI_ID}"

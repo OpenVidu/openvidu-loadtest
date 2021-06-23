@@ -3,6 +3,7 @@ FROM ubuntu:20.04
 
 WORKDIR /opt/browser-emulator
 ARG DEBIAN_FRONTEND=noninteractive
+ENV IS_DOCKER_CONTAINER=true
 
 # Install curl and git
 RUN apt-get update && apt-get install -yq \

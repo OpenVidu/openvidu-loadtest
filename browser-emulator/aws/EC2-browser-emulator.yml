@@ -16,6 +16,12 @@ Resources:
       Tags:
       - Key: Name
         Value: !Ref AWS::StackName
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          VolumeType: "gp2"
+          DeleteOnTermination: "true"
+          VolumeSize: "50"
       UserData:
         "Fn::Base64":
           !Sub |
@@ -35,17 +41,31 @@ Resources:
             pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
 
           }
+          command -v docker >/dev/null || {
+            echo "Installing Docker CE"
+            apt-get install --no-install-recommends --yes \
+                apt-transport-https \
+                ca-certificates \
+                curl \
+                software-properties-common
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+            source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
+            add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
+            apt-get update && apt-get install --no-install-recommends --yes \
+                docker-ce
+          }
 
-          if [[ ! -f "/home/ubuntu/openvidu-loadtest" ]]; then
-            git clone https://github.com/OpenVidu/openvidu-loadtest.git /home/ubuntu/openvidu-loadtest
-          fi
+          git clone https://github.com/OpenVidu/openvidu-loadtest.git /opt/openvidu-loadtest
 
-          sudo /home/ubuntu/openvidu-loadtest/browser-emulator/prepare.sh
+          cd /opt/openvidu-loadtest/
 
-          echo "Starting browser emulator"
-          cd /home/ubuntu/openvidu-loadtest/browser-emulator
-          rm package-lock.json || true
-          npm install && sudo npm run start > log.log 2> err.log &
+          # Download media files
+          ./browser-emulator/download_mediafiles.sh
+
+          # Create browser-emulator docker image
+          ./docker/browser-emulator/run.sh 2.1.0
+
+          echo '@reboot docker run -d -it --network host -v /var/run/docker.sock:/var/run/docker.sock -v /opt/browser-emulator/src/assets:/opt/browser-emulator/src/assets openvidu/browser-emulator:2.1.0 > /var/log/crontab.log' | crontab
 
           # sending the finish call
           /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WaitCondition --region ${AWS::Region}
