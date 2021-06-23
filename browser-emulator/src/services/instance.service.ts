@@ -18,7 +18,7 @@ export class InstanceService {
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
 	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
 	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
-	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbet-config/metricbeat.yml`;
+	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbeat-config/metricbeat.yml`;
 	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
