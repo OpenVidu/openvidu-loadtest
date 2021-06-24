@@ -2,7 +2,7 @@
 	"testcases": [
 		{
 			"typology": "N:N",
-			"participants": [3],
+			"participants": ["3"],
 			"sessions": "infinite",
 			"browserMode": "EMULATE",
 			"recording": false,
