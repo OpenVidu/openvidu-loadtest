@@ -72,6 +72,7 @@ export class BrowserManagerService {
 		const streams = this.getStreamsCreated();
 		const participants = this.getParticipantsCreated();
 		this.sendStreamsData(streams);
+		console.log(`Participant ${connectionId} created`);
 		return {connectionId, streams, participants, workerCpuUsage};
 	}
 
