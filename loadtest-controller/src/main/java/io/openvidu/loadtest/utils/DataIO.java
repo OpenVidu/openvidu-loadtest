@@ -93,7 +93,7 @@ public class DataIO {
 					browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
 				}
 
-				if(!element.get("frameRate").getAsString().isBlank()) {
+				if(element.get("frameRate") !=null && !element.get("frameRate").getAsString().isBlank()) {
 					frameRate = element.get("frameRate").getAsInt();
 				}
 
