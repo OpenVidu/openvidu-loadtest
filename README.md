@@ -73,7 +73,7 @@ npm install
 npm run start:dev-canvas
 ```
 
-**3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally).
+**3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**.
 
 ##### Running options
 By default, this worker is listening on port `5000` that you have to specify later in the controller configuration. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start` command:
@@ -105,10 +105,14 @@ npm run start:dev-kms
 	```bash
 	./browser-emulator/aws/createAMI.sh
 	```
+
+	After AMI was created, you must set the  **AMI ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_AMI_ID` property.
+
 * **Create a security group**:
 
 	The instance which will contain the browser-emulator service **must have** the **5000** _(REST API)_ and **5001** _(WebSocket)_ ports opened.
 
+	After AMI was created, you must set the **security group ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_SECURITY_GROUP_ID` property.
 
 The *loadtest-controller* will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
 
@@ -164,32 +168,32 @@ General  AWS parameters
 
 ```properties
 # For testing on AWS
-WORKER_AMI_ID=
+WORKER_AMI_ID=ami-xxxxxxxxxxx
 # We recommend c5 type. https://aws.amazon.com/ec2/instance-types/
-WORKER_INSTANCE_TYPE=
+WORKER_INSTANCE_TYPE=c5.xlarge
 # By default, the browser-emulator service is listening on:
 # 5000 (REST API)
 # 5001 (WebSocket)
 # The SG will need these ports opened.
-WORKER_SECURITY_GROUP_ID=
+WORKER_SECURITY_GROUP_ID=sg-xxxxxxxxx
 WORKER_INSTANCE_REGION=
 # Numbers of workers to launch before the test starts
-WORKERS_NUMBER_AT_THE_BEGINNING=
+WORKERS_NUMBER_AT_THE_BEGINNING=1
 ```
 
 
 ##### For the AUTO distribution of participants to workers
 ```properties
 # Overcoming this CPU percentage threshold a new worker will be launched
-WORKER_MAX_LOAD=
+WORKER_MAX_LOAD=80
 # Number of new workers incrementation
-WORKERS_RUMP_UP=
+WORKERS_RUMP_UP=1
 ```
 
 ##### For the MANUAL distribution of participants to workers
 ```properties
 # Boolean param for MANUAL participants allocation
-MANUAL_PARTICIPANTS_ALLOCATION=
+MANUAL_PARTICIPANTS_ALLOCATION=false
 # Number of participants per worker
 PARTICIPANTS_PER_WORKER=
 ```
