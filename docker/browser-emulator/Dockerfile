@@ -1,7 +1,7 @@
 # Build browser-emulator
 FROM ubuntu:20.04
 
-WORKDIR /opt/browser-emulator
+WORKDIR /opt/openvidu-loadtest/browser-emulator
 ARG DEBIAN_FRONTEND=noninteractive
 ENV IS_DOCKER_CONTAINER=true
 
