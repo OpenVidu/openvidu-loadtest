@@ -70,7 +70,7 @@ cd openvidu-loadtest/browser-emulator/
 sudo su
 ./prepare.sh
 npm install
-npm run start
+npm run start:dev-canvas
 ```
 
 **3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally).
@@ -82,10 +82,10 @@ By default, this worker is listening on port `5000` that you have to specify lat
 SERVER_PORT=6000 npm run start
 ```
 
-Moreover, the worker will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can set `KMS` type adding `EMULATED_USER_TYPE=KMS` or run the following script:
+Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS:
 
 ```bash
-npm run start:kms
+npm run start:dev-kms
 ```
 
 </details>
@@ -97,13 +97,20 @@ npm run start:kms
 
   The browser-emulator services will be launched (**_by the loadtest-controller_**) in EC2 instances with the aim of emulate real users connected to OpenVidu.
 
-  >Note: For creating a new browser-emulator AMI, you only have to run the `createAMI.sh` script:
+**Requirements**
+* **Create browser-emulator AMI**:
 
-  ```bash
-./browser-emulator/aws/createAMI.sh
-  ```
+	For creating a new browser-emulator AMI, you only have to run the `createAMI.sh` script:
 
-  The *loadtest-controller* will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
+	```bash
+	./browser-emulator/aws/createAMI.sh
+	```
+* **Create a security group**:
+
+	The instance which will contain the browser-emulator service **must have** the **5000** _(REST API)_ and **5001** _(WebSocket)_ ports opened.
+
+
+The *loadtest-controller* will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
 
 
 </details>
@@ -179,7 +186,7 @@ WORKER_MAX_LOAD=
 WORKERS_RUMP_UP=
 ```
 
-##### For the MANUAL distribution of participantsto workers
+##### For the MANUAL distribution of participants to workers
 ```properties
 # Boolean param for MANUAL participants allocation
 MANUAL_PARTICIPANTS_ALLOCATION=
