@@ -207,16 +207,39 @@ public class LoadTestConfig {
 		System.out.println("-------- Load Test Parameters --------");
 		System.out.printf(format, "OpenVidu URL:", openviduUrl);
 		System.out.printf(format, "OpenVidu SECRET:", openviduSecret);
-		System.out.printf(format, "Worker List:", workerUrlList);
-		System.out.printf(format, "Worker Ami Id:", workerAmiId);
-		System.out.printf(format, "AWS instance region:", workerInstanceRegion);
-		System.out.printf(format, "Worker max load:", workerMaxLoad);
-		System.out.printf(format, "Worker rump up:", workersRumpUp);
 		System.out.printf(format, "Session Name Prefix:", sessionNamePrefix);
 		System.out.printf(format, "Username Prefix:", userNamePrefix);
 		System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);
 		System.out.printf(format, "Seconds between sessions:", secondsToWaitBetweenSession);
 		System.out.printf(format, "Is manual participant allocation:", manualParticipantsAllocation);
+		if(manualParticipantsAllocation) {
+			System.out.printf(format, "Participants per worker:", participantsPerWorker);
+		}
+		
+		System.out.printf("\n");
+		System.out.printf("--- WORKER PARAMETERS ---");
+		System.out.printf("\n");
+		
+		if(workerUrlList.size() > 0) {
+			System.out.printf("RUNNING TESTS IN PRODUCTION (AWS)");
+			System.out.printf("\n");
+
+			System.out.printf(format, "Worker Ami Id:", workerAmiId);
+			System.out.printf(format, "Worker instance type:", workerInstanceType);
+			System.out.printf(format, "Worker max load:", workerMaxLoad);
+			System.out.printf(format, "Workers at the beginning:", workersNumberAtTheBeginning);
+			System.out.printf(format, "Worker rump up:", workersRumpUp);
+			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
+		} else {
+			System.out.printf("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
+			System.out.printf("\n");
+			System.out.printf(format, "Worker List:", workerUrlList);
+
+		}
+
+		System.out.printf("\n");
+		System.out.printf("--- MONITORING PARAMETERS ---");
+		System.out.printf("\n");
 
 		System.out.printf(format, "Kibana Host:", kibanaHost);
 		System.out.printf(format, "ElasticSearch Host:", elasticsearchHost);
