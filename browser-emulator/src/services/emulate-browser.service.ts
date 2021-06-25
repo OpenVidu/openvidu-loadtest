@@ -49,7 +49,7 @@ export class EmulateBrowserService {
 				const session: Session = ov.initSession();
 				this.subscriberToSessionsEvents(session);
 
-				await session.connect(token,  properties.userId);
+				await session.connect(token,  {clientData: `${EMULATED_USER_TYPE}_${properties.userId}`});
 				if(properties.role === OpenViduRole.PUBLISHER){
 
 					mediaStreamTracks = await this.createMediaStreamTracks(properties);
