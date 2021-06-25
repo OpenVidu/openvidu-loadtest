@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd /opt/browser-emulator
-npm run start
+npm run start:prod
