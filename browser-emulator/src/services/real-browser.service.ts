@@ -208,16 +208,18 @@ export class RealBrowserService {
 	private deleteConnection(sessionName: string, connectionId: string, role: OpenViduRole) {
 
 		const value =  this.connections.get(sessionName);
-		let index = -1;
-		if(role === OpenViduRole.PUBLISHER){
-			index = value.publishers.indexOf(connectionId, 0);
-			if(index >= 0) {
-				value.publishers.splice(index, 1);
-			}
-		} else {
-			index = value.subscribers.indexOf(connectionId, 0);
-			if(index >= 0) {
-				value.subscribers.splice(index, 1);
+		if (!!value) {
+			let index = -1;
+			if(role === OpenViduRole.PUBLISHER){
+				index = value.publishers.indexOf(connectionId, 0);
+				if(index >= 0) {
+					value.publishers.splice(index, 1);
+				}
+			} else {
+				index = value.subscribers.indexOf(connectionId, 0);
+				if(index >= 0) {
+					value.subscribers.splice(index, 1);
+				}
 			}
 		}
 	}
@@ -234,6 +236,9 @@ export class RealBrowserService {
 			ExposedPorts: {
 				"4444/tcp": {},
 			},
+			Env: [
+				`DBUS_SESSION_BUS_ADDRESS=/dev/null`
+			],
 			HostConfig:  {
 				Binds: [
 					`${process.env.PWD}/recordings/chrome:${this.RECORDINGS_PATH}`,

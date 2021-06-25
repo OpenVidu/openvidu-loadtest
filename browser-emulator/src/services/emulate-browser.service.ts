@@ -160,15 +160,17 @@ export class EmulateBrowserService {
 
 		const value =  this.connections.get(sessionName);
 		let index = -1;
-		if(role === OpenViduRole.PUBLISHER){
-			index = value.publishers.indexOf(connectionId, 0);
-			if(index >= 0) {
-				value.publishers.splice(index, 1);
-			}
-		} else {
-			index = value.subscribers.indexOf(connectionId, 0);
-			if(index >= 0) {
-				value.subscribers.splice(index, 1);
+		if (!!value) {
+			if(role === OpenViduRole.PUBLISHER){
+				index = value.publishers.indexOf(connectionId, 0);
+				if(index >= 0) {
+					value.publishers.splice(index, 1);
+				}
+			} else {
+				index = value.subscribers.indexOf(connectionId, 0);
+				if(index >= 0) {
+					value.subscribers.splice(index, 1);
+				}
 			}
 		}
 	}
