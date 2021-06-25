@@ -42,42 +42,42 @@ export class RealBrowserService {
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
 	}
 
-	public async startBrowserContainer(properties: TestProperties): Promise<string> {
+	public async startBrowserContainer(properties: TestProperties): Promise<any> {
 
-		if(this.existMediaFiles()) {
-			let containerId: string;
-			const isRecording = !!properties.recording && !properties.headless;
+		if(!this.existMediaFiles() && !process.env.IS_DOCKER_CONTAINER) {
+			return Promise.reject({message:'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run download_mediafiles.sh?'});
+		}
 
-			if(!!properties.headless) {
-				this.chromeOptions.addArguments('--headless');
+		let containerId: string;
+		const isRecording = !!properties.recording && !properties.headless;
+
+		if(!!properties.headless) {
+			this.chromeOptions.addArguments('--headless');
+		}
+
+		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
+		this.setSeleniumRemoteURL(bindedPort);
+		try {
+			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
+			const options: ContainerCreateOptions = this.getChromeContainerOptions(containerName, bindedPort);
+			containerId = await this.dockerService.startContainer(options);
+			this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort, isRecording, sessionName: properties.sessionName});
+			await this.enableMediaFileAccess(containerId);
+			if(isRecording) {
+				console.log("Starting browser recording");
+				await this.startRecordingInContainer(containerId, containerName);
 			}
-
-			const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
-			this.setSeleniumRemoteURL(bindedPort);
-			try {
-				const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
-				const options: ContainerCreateOptions = this.getChromeContainerOptions(containerName, bindedPort);
-				containerId = await this.dockerService.startContainer(options);
-				this.containerMap.set(containerId, {connectionRole: properties.role, bindedPort, isRecording, sessionName: properties.sessionName});
-				await this.enableMediaFileAccess(containerId);
-				if(isRecording) {
-					console.log("Starting browser recording");
-					await this.startRecordingInContainer(containerId, containerName);
-				}
-				return containerId;
-			} catch (error) {
-				console.error(error);
-				await this.stopBrowserContainer(containerId, isRecording);
-				this.containerMap.delete(containerId);
-				return Promise.reject(new Error(error));
-			} finally {
-				//TODO: Just for development, remove it
-				// setTimeout(async () => {
-				// 	await this.stopBrowserContainer(containerId, isRecording);
-				// }, 20000);
-			}
-		} else {
-			return Promise.reject({message:"Media files not found. fakevideo.y4m and fakeaudio.wav don't exist"});
+			return containerId;
+		} catch (error) {
+			console.error(error);
+			await this.stopBrowserContainer(containerId, isRecording);
+			this.containerMap.delete(containerId);
+			return Promise.reject(new Error(error));
+		} finally {
+			//TODO: Just for development, remove it
+			// setTimeout(async () => {
+			// 	await this.stopBrowserContainer(containerId, isRecording);
+			// }, 20000);
 		}
 	}
 
