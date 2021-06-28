@@ -1,4 +1,4 @@
-import { OpenViduRole } from './openvidu.type';
+import { OpenViduRole, Resolution } from './openvidu.type';
 
 export interface LoadTestPostRequest {
 
@@ -45,7 +45,7 @@ export interface TestProperties {
 	role: OpenViduRole,
 	audio: boolean,
 	video: boolean,
-	resolution?: string,
+	resolution: Resolution,
 	recordingOutputMode?: RecordingOutputMode,
 	frameRate: number,
 

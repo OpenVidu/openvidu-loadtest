@@ -59,7 +59,7 @@ export class EmulateBrowserService {
 						videoSource: mediaStreamTracks.videoTrack,
 						publishAudio: properties.audio,
 						publishVideo: properties.video,
-						resolution: this.WIDTH + 'x' + this.HEIGHT,
+						resolution: properties.resolution || `${this.WIDTH}x${this.HEIGHT}`,
 						frameRate: properties.frameRate,
 					});
 

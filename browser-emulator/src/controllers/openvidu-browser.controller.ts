@@ -1,9 +1,8 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service';
-import { OpenViduRole } from '../types/openvidu.type';
+import { OpenViduRole, Resolution } from '../types/openvidu.type';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
-import { WsService } from '../services/ws.service';
 
 export const app = express.Router({
     strict: true
@@ -22,7 +21,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			request.properties.frameRate = request.properties.frameRate || 30;
 			// Setting default role for publisher properties
 			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
-			request.properties.resolution = request.properties.resolution || '640x480';
+			request.properties.resolution = request.properties.resolution || Resolution.DEFAULT;
 			if(request.browserMode === BrowserMode.REAL){
 				request.properties.showVideoElements = request.properties.showVideoElements || true;
 			}
