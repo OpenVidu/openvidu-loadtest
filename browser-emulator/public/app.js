@@ -107,7 +107,7 @@ async function joinSession() {
 		OPENVIDU_TOKEN = await getToken();
 	}
 
-	session.connect(OPENVIDU_TOKEN, {clientData: `Real_browser_${USER_ID}`)
+	session.connect(OPENVIDU_TOKEN, {clientData: `Real_browser_${USER_ID}`})
 		.then(() => {
 
 			if(ROLE === 'PUBLISHER') {
