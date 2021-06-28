@@ -221,6 +221,10 @@ public class LoadTestConfig {
 		System.out.printf("\n");
 		
 		if(workerUrlList.size() > 0) {
+			System.out.printf("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
+			System.out.printf("\n");
+			System.out.printf(format, "Worker List:", workerUrlList);
+		} else {
 			System.out.printf("RUNNING TESTS IN PRODUCTION (AWS)");
 			System.out.printf("\n");
 
@@ -230,11 +234,6 @@ public class LoadTestConfig {
 			System.out.printf(format, "Workers at the beginning:", workersNumberAtTheBeginning);
 			System.out.printf(format, "Worker rump up:", workersRumpUp);
 			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
-		} else {
-			System.out.printf("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
-			System.out.printf("\n");
-			System.out.printf(format, "Worker List:", workerUrlList);
-
 		}
 
 		System.out.printf("\n");
