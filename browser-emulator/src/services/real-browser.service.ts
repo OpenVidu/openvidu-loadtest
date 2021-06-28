@@ -22,7 +22,7 @@ export class RealBrowserService {
 	private readonly CHROME_BROWSER_IMAGE = "elastestbrowsers/chrome";
 	private readonly RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
-	private readonly VIDEO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakevideo.y4m';
+	private readonly VIDEO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakevideo';
 	private readonly AUDIO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakeaudio.wav';
 
 	constructor(
@@ -36,7 +36,6 @@ export class RealBrowserService {
 			'--use-fake-ui-for-media-stream',
 			'--use-fake-device-for-media-stream',
 			'--allow-file-access-from-files',
-			`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}`,
 			`--use-file-for-fake-audio-capture=${this.AUDIO_FILE_LOCATION}`
 		);
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
@@ -54,6 +53,11 @@ export class RealBrowserService {
 		if(!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 		}
+		// Set video file path based on resolution property
+		// Resolution is not significant for audio
+		this.chromeOptions.addArguments(
+			`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}_${properties.resolution}.y4m`,
+		);
 
 		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
 		this.setSeleniumRemoteURL(bindedPort);

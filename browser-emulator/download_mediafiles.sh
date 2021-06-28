@@ -20,13 +20,17 @@ SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute
 MEDIAFILES_DIR="$SELF_PATH/src/assets/mediafiles"
 mkdir -p "$MEDIAFILES_DIR"
 
-if [[ ! -f "$MEDIAFILES_DIR/fakevideo.y4m" ]]; then
-    curl --output "$MEDIAFILES_DIR/fakevideo.y4m" \
-        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo.y4m"
+if [[ ! -f "$MEDIAFILES_DIR/fakevideo_1280x720.y4m" ]]; then
+    curl --output "$MEDIAFILES_DIR/fakevideo_1280x720.y4m" \
+        "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_1280x720.y4m"
+fi
+if [[ ! -f "$MEDIAFILES_DIR/fakevideo_640x480.y4m" ]]; then
+    curl --output "$MEDIAFILES_DIR/fakevideo_640x480.y4m" \
+    "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.y4m"
 fi
 if [[ ! -f "$MEDIAFILES_DIR/fakeaudio.wav" ]]; then
     curl --output "$MEDIAFILES_DIR/fakeaudio.wav" \
-        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakeaudio.wav"
+        "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb.wav"
 fi
 if [[ ! -f "$MEDIAFILES_DIR/video.mkv" ]]; then
     curl --output "$MEDIAFILES_DIR/video.mkv" \
