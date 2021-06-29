@@ -1,7 +1,7 @@
 {
   "name": "browser-emulator",
   "version": "2.1.0",
-  "description": "",
+  "description": "Load testing tool for OpenVidu",
   "main": "server.ts",
   "scripts": {
     "// FIXME Canvas forces importing the DOM module:": "",
@@ -17,7 +17,7 @@
   "license": "Apache 2.0",
   "dependencies": {
     "@elastic/elasticsearch": "7.13.0",
-    "aws-sdk": "^2.927.0",
+    "aws-sdk": "2.936.0",
     "axios": "0.21.1",
     "btoa": "1.2.1",
     "canvas": "2.8.0",
