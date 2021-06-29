@@ -91,8 +91,9 @@ export class BrowserManagerService {
 	}
 
 	async clean(): Promise<string> {
-		await this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
-		await this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
+		this.emulateBrowserService.clean();
+		await this.realBrowserService.clean();
+
 		if(this.elasticSearchService.isElasticSearchRunning()){
 			await this.elasticSearchService.clean();
 		}

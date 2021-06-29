@@ -47,7 +47,9 @@ export class CanvasService implements IEmulateWebrtc{
 	}
 
 	clean() {
-		clearInterval(this.canvasInterval);
+		if(this.canvasInterval){
+			clearInterval(this.canvasInterval);
+		}
 	}
 
 	private async initializeVideoCanvas() {

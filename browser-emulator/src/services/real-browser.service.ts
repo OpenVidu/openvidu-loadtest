@@ -130,6 +130,11 @@ export class RealBrowserService {
 		});
 	}
 
+	async clean(): Promise<void> {
+		await this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
+		await this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
+	}
+
 	async launchBrowser(request: LoadTestPostRequest, storageNameObj?: StorageNameObject, storageValueObj?: StorageValueObject, timeout: number = 1000): Promise<void> {
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {

@@ -104,6 +104,18 @@ export class EmulateBrowserService {
 		});
 	}
 
+	clean() {
+		this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
+		this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
+		if(this.nodeWebrtcService){
+			this.nodeWebrtcService.clean();
+		}
+
+		if(this.isUsingKms()){
+			KurentoWebRTC.clean();
+		}
+	}
+
 	getStreamsCreated(): number {
 
 		let result = 0;
