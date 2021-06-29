@@ -11,8 +11,8 @@ export class CanvasService implements IEmulateWebrtc{
 	private readonly MIN_FREQUENCY = 500;
 	private readonly MAX_FREQUENCY = 1000;
 
-	private WIDTH;
-	private HEIGHT;
+	private readonly WIDTH = 640;
+	private readonly HEIGHT = 480;
 	private videoSource;
 	private videoTrack: MediaStreamTrack | boolean = true;
 	private canvas: Canvas;
@@ -23,9 +23,7 @@ export class CanvasService implements IEmulateWebrtc{
 	private CANVAS_MAX_HEIGHT: number;
 	private CANVAS_MAX_WIDTH: number;
 
-	constructor(height: number, width: number) {
-		this.HEIGHT = height;
-		this.WIDTH = width;
+	constructor() {
 		this.initializeVideoCanvas();
 	}
 

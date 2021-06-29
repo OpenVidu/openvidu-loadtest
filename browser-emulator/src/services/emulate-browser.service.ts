@@ -15,8 +15,6 @@ import { WsService } from './ws.service';
 
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
-	private readonly WIDTH = 640;
-	private readonly HEIGHT = 480;
 	private connections: Map<string, {publishers: string[], subscribers: string[]}> = new Map();
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
@@ -26,9 +24,9 @@ export class EmulateBrowserService {
 		private wsService: WsService = WsService.getInstance()
 		) {
 		if(this.isUsingNodeWebrtcCanvas()){
-			this.nodeWebrtcService = new CanvasService(this.HEIGHT, this.WIDTH);
+			this.nodeWebrtcService = new CanvasService();
 		} else if (this.isUsingNodeWebrtcFfmpeg()){
-			this.nodeWebrtcService = new FfmpegService(this.HEIGHT, this.WIDTH);
+			this.nodeWebrtcService = new FfmpegService();
 		}
 	}
 
@@ -59,7 +57,7 @@ export class EmulateBrowserService {
 						videoSource: mediaStreamTracks.videoTrack,
 						publishAudio: properties.audio,
 						publishVideo: properties.video,
-						resolution: properties.resolution || `${this.WIDTH}x${this.HEIGHT}`,
+						resolution: properties.resolution,
 						frameRate: properties.frameRate,
 					});
 

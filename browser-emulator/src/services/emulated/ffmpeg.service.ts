@@ -19,12 +19,10 @@ export class FfmpegService implements IEmulateWebrtc {
 	private videoTrack: wrtc.MediaStreamTrack | boolean;
 	private audioTrack: wrtc.MediaStreamTrack | boolean;
 	private mediaStramTracksCreated: boolean = false;
-	private WIDTH;
-	private HEIGHT;
+	private readonly WIDTH = 640;
+	private readonly HEIGHT = 480;
 
-	constructor(height: number, width: number) {
-		this.HEIGHT = height;
-		this.WIDTH = width;
+	constructor() {
 	}
 
 	async createMediaStreamTracks(video: boolean, audio: boolean): Promise<MediaStreamTracksResponse> {
