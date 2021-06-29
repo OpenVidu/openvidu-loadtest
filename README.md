@@ -43,22 +43,25 @@ These instructions assume that OpenVidu CE or PRO is already deployed. See [how 
   <summary><strong>For testing locally</strong></summary>
 
 <br>
-To start with the load test you will have to start a worker first and the execute the controller.
 
 >This instructions assume you are using a **linux system**. Windows and Mac can require some adaptation.
+
+<br>
+To start with the load test you will have to start a worker first and the execute the controller.
+
 
 
 In the machines where you want to execute the workers you need to have **NodeJS** and **Docker** platform installed.
 
 Then follow these steps:
 
-**1. Clone this repository**
+- **Clone this repository**
 
 ```bash
 git clone https://github.com/OpenVidu/openvidu-loadtest.git
 ```
 
-**2. Start browser-emulator (worker)**
+- **Start browser-emulator service (worker)**
 
 ```bash
 cd openvidu-loadtest/browser-emulator/
@@ -73,7 +76,7 @@ npm install
 npm run start:dev-canvas
 ```
 
-**3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**.
+<!-- **3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**. -->
 
 ##### Running options
 By default, this worker is listening on port `5000` that you have to specify later in the controller configuration. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start` command:
@@ -82,7 +85,7 @@ By default, this worker is listening on port `5000` that you have to specify lat
 SERVER_PORT=6000 npm run start
 ```
 
-Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS:
+Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS WebRTC:
 
 ```bash
 npm run start:dev-kms
@@ -93,14 +96,18 @@ npm run start:dev-kms
 <details>
   <summary><strong>For testing on AWS</strong></summary>
 
-  If we want launch our load tests in a prodction environment, we can do that with AWS.
+<br>
+  If you want to launch the load tests in a production environment, you can do that with AWS.
+
 
   The browser-emulator services will be launched (**_by the loadtest-controller_**) in EC2 instances with the aim of emulate real users connected to OpenVidu.
 
 **Requirements**
 * **Create browser-emulator AMI**:
 
-	For creating a new browser-emulator AMI, you only have to run the `createAMI.sh` script:
+	Before run the create an AMI, ensure that your AWS credentials are properly configured. You can check it running `aws configure`.
+
+	**Once aws credentials have been configured in your pc**, it's time to create the browser-emulator AMI. For creating it, you only have to run the `createAMI.sh` script.
 
 	```bash
 	./browser-emulator/aws/createAMI.sh
@@ -110,9 +117,10 @@ npm run start:dev-kms
 
 * **Create a security group**:
 
-	The instance which will contain the browser-emulator service **must have** the **5000** _(REST API)_ and **5001** _(WebSocket)_ ports opened.
+	The instance which will contain the browser-emulator service **must have** the **5000** _(REST API)_ and **5001** _(WebSocket)_ ports opened. For doing this, **you will have to create a AWS Security Group (SG)** with these requeriments.
 
-	After AMI was created, you must set the **security group ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_SECURITY_GROUP_ID` property.
+
+	After SG was created, you must set the **security group ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_SECURITY_GROUP_ID` property.
 
 The *loadtest-controller* will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
 
@@ -155,14 +163,14 @@ SECONDS_TO_WAIT_BETWEEN_SESSIONS=2
 SECONDS_TO_WAIT_BEFORE_TEST_FINISHED=10
 SECONDS_TO_WAIT_BETWEEN_TEST_CASES=10
 ```
-#### Development mode parameters (for testing locally)
+#### Development mode parameters (only for testing locally)
 
 ```properties
 # For testing locally, fill it with the worker ip address: 195.166.0.0
 WORKER_URL_LIST=
 ```
 
-#### AWS parameters (for testing on AWS)
+#### AWS parameters (only for testing on AWS)
 
 General  AWS parameters
 
@@ -225,6 +233,7 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 			"sessions": "20",
 			"browserMode": "EMULATE",
 			"frameRate": "30",
+			"resolution": "640x480",
 			"openviduRecordingMode": "",
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
 		},
@@ -256,8 +265,9 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 |  **participants** *  |  String [] | Number of participants in each session. It will run the same test case as many time as the positions in the array. <br> For example: <br>For **_N:N_** typology: `["2","5"]` where all of them will be _publishers_ and test case will be run twice (sessions with 2 and 5 participants)  <br>For **_N:M_** typology: `["2:30"]` where 2 will be _publishers_ and 30 will be _subscribers_ <br>For **_TEACHING_** typology: `["2:30"]` where 2 will be teachers and 30 will be students   |
 |  **sessions** *  |  `infinite` or Number | **infinite**: It will create infinite sessions until the limit is reached. <br> **Number value**: It will create only (**_number value_**) sessions  |
 |  **browserMode** * | `EMULATE` or `REAL`  | **EMULATE**: the service will emulate a browser. <br> **REAL**: the service will launch a Chrome browser docker container. <br> Choosing `EMULATE`, **you must ensure that OpenVidu aren't forcing H264 coded**  |
-|  **openviduRecordingMode** | String   | `COMPOSED` or `INDIVIDUAL` <br> See [OpenVidu recording](https://docs.openvidu.io/en/stable/advanced-features/recording/).|
+|**resolution**| String | Desired resolution of the video. <br> `640x480` or `1280x720` <br> Default `640x480`|
 |**frameRate**| Number (0-30)  | Desired framerate of the video in frames per second. Default `30`|
+|  **openviduRecordingMode** | String   | `COMPOSED` or `INDIVIDUAL` <br> See [OpenVidu recording](https://docs.openvidu.io/en/stable/advanced-features/recording/).|
 |  **browserRecording** | Boolean  |  If `browserMode` is `REAL` and you want record the Chrome browser using ffmpeg. Otherwise, If `browserMode` is `EMULATE` and you have started browser-emulator with `KMS` user type (see [worker running options](#running-options)) Default `false`.  |
 |  **showBrowserVideoElements** | Boolean  | If `browserMode` is `REAL` and you want show videos elements into the app running in Chrome. Default `true`|
 |  **headlessBrowser** | Boolean  | If `browserMode` is `REAL` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |

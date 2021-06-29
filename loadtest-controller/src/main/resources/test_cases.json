@@ -5,6 +5,7 @@
 			"participants": ["3"],
 			"sessions": "infinite",
 			"browserMode": "EMULATE",
+			"resolution": "640x480",
 			"recording": false,
 			"headless": false,
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
