@@ -2,12 +2,12 @@ const {
 	RTCVideoSource,
 	RTCAudioSource,
 	rgbaToI420,
-} = require("wrtc").nonstandard;
-import { Canvas, createCanvas, Image, loadImage } from "canvas";
-import { MediaStreamTracksResponse } from "../../types/emulate-webrtc.type";
+} = require('wrtc').nonstandard;
+import { Canvas, createCanvas, Image, loadImage } from 'canvas';
+import { MediaStreamTracksResponse } from '../../types/emulate-webrtc.type';
 import { IEmulateWebrtc } from './emulate-webrtc.interface';
 
-export class CanvasService implements IEmulateWebrtc{
+export class CanvasService implements IEmulateWebrtc {
 	private readonly MIN_FREQUENCY = 500;
 	private readonly MAX_FREQUENCY = 1000;
 
@@ -27,17 +27,23 @@ export class CanvasService implements IEmulateWebrtc{
 		this.initializeVideoCanvas();
 	}
 
-
-	async createMediaStreamTracks(video: boolean, audio: boolean): Promise<MediaStreamTracksResponse> {
-		let response: MediaStreamTracksResponse = {videoTrack: null, audioTrack: null, audioTrackInterval: null};
-		if(audio) {
+	async createMediaStreamTracks(
+		video: boolean,
+		audio: boolean
+	): Promise<MediaStreamTracksResponse> {
+		let response: MediaStreamTracksResponse = {
+			videoTrack: null,
+			audioTrack: null,
+			audioTrackInterval: null,
+		};
+		if (audio) {
 			const audioObject = this.initializeAudio();
 			response.audioTrack = audioObject.audioTrack;
 			response.audioTrackInterval = audioObject.audioTrackInterval;
 		}
 
-		if(video) {
-			if (!this.canvasInterval){
+		if (video) {
+			if (!this.canvasInterval) {
 				this.startVideoCanvasInterval();
 			}
 			response.videoTrack = this.videoTrack;
@@ -47,7 +53,7 @@ export class CanvasService implements IEmulateWebrtc{
 	}
 
 	clean() {
-		if(this.canvasInterval){
+		if (this.canvasInterval) {
 			clearInterval(this.canvasInterval);
 		}
 	}
@@ -56,9 +62,9 @@ export class CanvasService implements IEmulateWebrtc{
 		this.videoSource = new RTCVideoSource();
 		this.videoTrack = this.videoSource.createTrack();
 		this.canvas = createCanvas(this.WIDTH, this.HEIGHT);
-		this.context = this.canvas.getContext("2d");
-		this.myimg = await loadImage("src/assets/images/openvidu_logo.png");
-		this.context.fillStyle = "black";
+		this.context = this.canvas.getContext('2d');
+		this.myimg = await loadImage('src/assets/images/openvidu_logo.png');
+		this.context.fillStyle = 'black';
 		this.context.fillRect(0, 0, this.WIDTH, this.HEIGHT);
 		this.CANVAS_MAX_WIDTH = this.WIDTH - this.myimg.width;
 		this.CANVAS_MAX_HEIGHT = this.HEIGHT - this.myimg.height;
@@ -115,7 +121,7 @@ export class CanvasService implements IEmulateWebrtc{
 		// Max 30 fps
 		timeoutMs = timeoutMs < 30 ? 30 : timeoutMs;
 		this.context.fillStyle =
-			"#" + Math.floor(Math.random() * 16777215).toString(16);
+			'#' + Math.floor(Math.random() * 16777215).toString(16);
 
 		this.canvasInterval = setInterval(() => {
 			const x = Math.floor(

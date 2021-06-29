@@ -5,15 +5,14 @@ import { OpenViduRole, Resolution } from '../types/openvidu.type';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
 
 export const app = express.Router({
-    strict: true
+	strict: true,
 });
-
 
 app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
 		const request: LoadTestPostRequest = req.body;
 
-		if(areStreamManagerParamsCorrect(request)) {
+		if (areStreamManagerParamsCorrect(request)) {
 			setEnvironmentParams(req);
 			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 
@@ -22,13 +21,13 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			// Setting default role for publisher properties
 			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
 
-			if(request.properties.resolution && Object.values(Resolution).includes(request.properties.resolution)) {
+			if (request.properties.resolution && Object.values(Resolution).includes(request.properties.resolution)) {
 				request.properties.resolution = request.properties.resolution;
 			} else {
 				request.properties.resolution = Resolution.DEFAULT;
 			}
 
-			if(request.browserMode === BrowserMode.REAL){
+			if (request.browserMode === BrowserMode.REAL) {
 				request.properties.showVideoElements = request.properties.showVideoElements || true;
 			}
 
@@ -38,38 +37,33 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			console.log('Problem with some body parameter' + JSON.stringify(request));
 			return res.status(400).send('Problem with some body parameter');
 		}
-
-
 	} catch (error) {
-		console.log("ERROR ", error);
-		res.status(error?.status || 500).send({message: error?.statusText, error: error});
+		console.log('ERROR ', error);
+		res.status(error?.status || 500).send({ message: error?.statusText, error: error });
 	}
 });
 
 app.delete('/streamManager', async (req: Request, res: Response) => {
-
 	const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 	console.log('Deleting all participants');
 	try {
 		const s3Bucket = await browserManagerService.clean();
 		let s3response;
-		if(!!s3Bucket) {
-			s3response = {recordingBucket: s3Bucket};
+		if (!!s3Bucket) {
+			s3response = { recordingBucket: s3Bucket };
 		}
 		res.status(200).send(s3response || `Instance ${req.headers.host} is clean`);
 	} catch (error) {
 		console.error(error);
 		res.status(500).send(error);
 	}
-
 });
-
 
 app.delete('/streamManager/connection/:connectionId', async (req: Request, res: Response) => {
 	try {
 		const connectionId: string = req.params.connectionId;
 
-		if(!connectionId){
+		if (!connectionId) {
 			return res.status(400).send('Problem with connectionId parameter. IT DOES NOT EXIST');
 		}
 		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
@@ -85,9 +79,9 @@ app.delete('/streamManager/connection/:connectionId', async (req: Request, res: 
 app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	try {
 		let role: any = req.params.role;
-		if(!role){
+		if (!role) {
 			return res.status(400).send('Problem with ROLE parameter. IT DOES NOT EXIST');
-		}else if(role !== OpenViduRole.PUBLISHER && role !== OpenViduRole.SUBSCRIBER ){
+		} else if (role !== OpenViduRole.PUBLISHER && role !== OpenViduRole.SUBSCRIBER) {
 			return res.status(400).send(`Problem with ROLE parameter. IT MUST BE ${OpenViduRole.PUBLISHER} or ${OpenViduRole.SUBSCRIBER}`);
 		}
 		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();

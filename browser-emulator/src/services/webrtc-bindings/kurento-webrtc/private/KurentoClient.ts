@@ -1,16 +1,16 @@
-import * as KurentoClient from "kurento-client";
-import { writeFile } from "fs/promises";
+import * as KurentoClient from 'kurento-client';
+import { writeFile } from 'fs/promises';
 import { APPLICATION_MODE } from '../../../../config';
 import { ApplicationMode } from '../../../../types/config.type';
 
-export { getComplexType } from "kurento-client";
+export { getComplexType } from 'kurento-client';
 
 const kurento = {
 	client: null,
 	pipeline: null,
 	player: null,
 	recorders: [],
-	recorderPathPrefix: "",
+	recorderPathPrefix: '',
 
 	// DEBUG
 	numWebRtcEndpoints: 0,
@@ -32,19 +32,19 @@ export async function init(
 	recorderPathPrefix: string | undefined = undefined
 ): Promise<void> {
 	console.log(
-		"[KurentoClient] Connect with Kurento Media Server:",
+		'[KurentoClient] Connect with Kurento Media Server:',
 		kurentoUrl
 	);
 
 	kurento.client = await KurentoClient.getSingleton(kurentoUrl);
-	console.log("[KurentoClient] Kurento client connected");
+	console.log('[KurentoClient] Kurento client connected');
 
-	kurento.pipeline = await kurento.client.create("MediaPipeline");
-	console.log("[KurentoClient] Kurento MediaPipeline created");
+	kurento.pipeline = await kurento.client.create('MediaPipeline');
+	console.log('[KurentoClient] Kurento MediaPipeline created');
 
-	kurento.pipeline.on("Error", (event: any): void => {
+	kurento.pipeline.on('Error', (event: any): void => {
 		console.error(
-			"[KurentoClient] MediaPipeline ERROR %d (%s): %s",
+			'[KurentoClient] MediaPipeline ERROR %d (%s): %s',
 			event.errorCode,
 			event.type,
 			event.description
@@ -55,22 +55,20 @@ export async function init(
 }
 
 export async function setPlayerEndpointPath(videoUri: string) {
-
-	if(!kurento.player) {
-
-		kurento.player = await kurento.pipeline.create("PlayerEndpoint", {
+	if (!kurento.player) {
+		kurento.player = await kurento.pipeline.create('PlayerEndpoint', {
 			uri: `file://${videoUri}`,
 			useEncodedMedia: true,
 		});
 
 		console.log(
-			"[KurentoClient] Kurento PlayerEndpoint created, uri:",
+			'[KurentoClient] Kurento PlayerEndpoint created, uri:',
 			await kurento.player.getUri()
 		);
 
-		kurento.player.on("Error", (event: any): void => {
+		kurento.player.on('Error', (event: any): void => {
 			console.error(
-				"[KurentoClient] PlayerEndpoint ERROR %d (%s): %s",
+				'[KurentoClient] PlayerEndpoint ERROR %d (%s): %s',
 				event.errorCode,
 				event.type,
 				event.description
@@ -78,16 +76,15 @@ export async function setPlayerEndpointPath(videoUri: string) {
 		});
 
 		kurento.player.on(
-			"EndOfStream",
+			'EndOfStream',
 			async (_event: any): Promise<void> => {
-				if(kurento.player){
+				if (kurento.player) {
 					console.log(
-						"[KurentoClient] PlayerEndpoint End Of Stream: play() again"
+						'[KurentoClient] PlayerEndpoint End Of Stream: play() again'
 					);
 					await kurento.player.stop();
 					await kurento.player.play();
 				}
-
 			}
 		);
 	}
@@ -102,7 +99,7 @@ export async function makeWebRtcEndpoint(
 	recvonly: boolean = false,
 	sendonly: boolean = false
 ): Promise<any> {
-	const kurentoWebRtcEp = await kurento.pipeline.create("WebRtcEndpoint", {
+	const kurentoWebRtcEp = await kurento.pipeline.create('WebRtcEndpoint', {
 		recvonly,
 		sendonly,
 	});
@@ -110,9 +107,9 @@ export async function makeWebRtcEndpoint(
 		`[KurentoClient] Kurento WebRtcEndpoint created, recvonly: ${recvonly}, sendonly: ${sendonly}`
 	);
 
-	kurentoWebRtcEp.on("Error", (event: any): void => {
+	kurentoWebRtcEp.on('Error', (event: any): void => {
 		console.error(
-			"[KurentoClient] WebRtcEndpoint ERROR %d (%s): %s",
+			'[KurentoClient] WebRtcEndpoint ERROR %d (%s): %s',
 			event.errorCode,
 			event.type,
 			event.description
@@ -130,18 +127,18 @@ export async function makeWebRtcEndpoint(
 	// https://github.com/OpenVidu/openvidu/pull/577
 	//if (!recvonly) {
 	if (sendonly) {
-		console.log("[KurentoClient] WebRTC sender requested");
+		console.log('[KurentoClient] WebRTC sender requested');
 
 		await kurento.player.connect(kurentoWebRtcEp);
 
 		console.log(
-			"[KurentoClient] PlayerEndpoint connected to WebRtcEndpoint"
+			'[KurentoClient] PlayerEndpoint connected to WebRtcEndpoint'
 		);
 
 		// First time, start the playback.
 		const playerState: string = await kurento.player.getState();
-		if (playerState !== "START") {
-			console.log("[KurentoClient] Kurento PlayerEndpoint: play()");
+		if (playerState !== 'START') {
+			console.log('[KurentoClient] Kurento PlayerEndpoint: play()');
 			await kurento.player.play();
 		}
 	}
@@ -149,33 +146,33 @@ export async function makeWebRtcEndpoint(
 	// Recording for receiver mode
 	// ===========================
 
-	const recordingEnabled = process.env.KURENTO_RECORDING_ENABLED === "true";
+	const recordingEnabled = process.env.KURENTO_RECORDING_ENABLED === 'true';
 
 	if (!sendonly) {
-		console.log("[KurentoClient] WebRTC receiver requested");
+		console.log('[KurentoClient] WebRTC receiver requested');
 
 		if (kurento.recorderPathPrefix && recordingEnabled) {
-			console.log("[KurentoClient] Recording is enabled");
+			console.log('[KurentoClient] Recording is enabled');
 
 			const kurentoRecorder = await kurento.pipeline.create(
-				"RecorderEndpoint",
+				'RecorderEndpoint',
 				{
 					uri: `file://${
 						kurento.recorderPathPrefix
 					}_${new Date().getTime()}.webm`,
 					stopOnEndOfStream: true,
-					mediaProfile: "WEBM",
+					mediaProfile: 'WEBM',
 				}
 			);
 			kurento.recorders.push(kurentoRecorder);
 			console.log(
-				"[KurentoClient] Kurento RecorderEndpoint created, uri:",
+				'[KurentoClient] Kurento RecorderEndpoint created, uri:',
 				await kurentoRecorder.getUri()
 			);
 
-			kurentoRecorder.on("Error", (event: any): void => {
+			kurentoRecorder.on('Error', (event: any): void => {
 				console.error(
-					"[KurentoClient] RecorderEndpoint ERROR %d (%s): %s",
+					'[KurentoClient] RecorderEndpoint ERROR %d (%s): %s',
 					event.errorCode,
 					event.type,
 					event.description
@@ -187,12 +184,12 @@ export async function makeWebRtcEndpoint(
 			await kurentoWebRtcEp.connect(kurentoRecorder);
 
 			console.log(
-				"[KurentoClient] WebRtcEndpoint connected to RecorderEndpoint"
+				'[KurentoClient] WebRtcEndpoint connected to RecorderEndpoint'
 			);
 		}
 	}
 
-	if(APPLICATION_MODE === ApplicationMode.DEV) {
+	if (APPLICATION_MODE === ApplicationMode.DEV) {
 		kurento.numWebRtcEndpoints += 1;
 		if (
 			kurento.numWebRtcEndpoints == 4 || // 2 peers
@@ -214,11 +211,10 @@ export async function makeWebRtcEndpoint(
 				);
 			} catch (err) {
 				// When a request is aborted - err is an AbortError
-				console.error("[KurentoClient] ERROR:", err);
+				console.error('[KurentoClient] ERROR:', err);
 			}
 		}
 	}
-
 
 	return kurentoWebRtcEp;
 }

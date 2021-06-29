@@ -3,7 +3,7 @@
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 
-type RTCSdpType = "answer" | "offer" | "pranswer" | "rollback";
+type RTCSdpType = 'answer' | 'offer' | 'pranswer' | 'rollback';
 
 export interface RTCSessionDescriptionInit {
 	// lib.dom.d.ts makes these optional, but the WebRTC spec does not!
@@ -13,7 +13,7 @@ export interface RTCSessionDescriptionInit {
 }
 
 export class RTCSessionDescription {
-	readonly sdp: string = "";
+	readonly sdp: string = '';
 	readonly type: RTCSdpType;
 
 	// https://www.w3.org/TR/webrtc/#dom-rtcsessiondescription-constructor

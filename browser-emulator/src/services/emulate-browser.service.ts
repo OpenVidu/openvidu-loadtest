@@ -1,5 +1,5 @@
-import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent } from "openvidu-browser";
-import { HttpClient } from "../utils/http-client";
+import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent } from 'openvidu-browser';
+import { HttpClient } from '../utils/http-client';
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
 
@@ -13,11 +13,11 @@ import { MediaStreamTracksResponse } from '../types/emulate-webrtc.type';
 import { ExceptionEvent } from 'openvidu-browser/lib/OpenViduInternal/Events/ExceptionEvent';
 import { WsService } from './ws.service';
 
-import * as KurentoWebRTC from "./webrtc-bindings/kurento-webrtc/KurentoWebRTC"
+import * as KurentoWebRTC from './webrtc-bindings/kurento-webrtc/KurentoWebRTC';
 
 export class EmulateBrowserService {
-	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
-	private connections: Map<string, {publishers: string[], subscribers: string[]}> = new Map();
+	private openviduMap: Map<string, { openvidu: OpenVidu; session: Session; audioTrackInterval: NodeJS.Timer }> = new Map();
+	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
@@ -26,10 +26,10 @@ export class EmulateBrowserService {
 		private httpClient: HttpClient = new HttpClient(),
 		private nodeWebrtcService: CanvasService | FfmpegService = null,
 		private wsService: WsService = WsService.getInstance()
-		) {
-		if(this.isUsingNodeWebrtcCanvas()){
+	) {
+		if (this.isUsingNodeWebrtcCanvas()) {
 			this.nodeWebrtcService = new CanvasService();
-		} else if (this.isUsingNodeWebrtcFfmpeg()){
+		} else if (this.isUsingNodeWebrtcFfmpeg()) {
 			this.nodeWebrtcService = new FfmpegService();
 		}
 	}
@@ -38,7 +38,7 @@ export class EmulateBrowserService {
 		return new Promise(async (resolve, reject) => {
 			try {
 				if (this.exceptionFound) {
-					throw {status: 500, message: this.exceptionMessage};
+					throw { status: 500, message: this.exceptionMessage };
 				}
 
 				if (!token) {
@@ -51,9 +51,8 @@ export class EmulateBrowserService {
 				const session: Session = ov.initSession();
 				this.subscriberToSessionsEvents(session);
 
-				await session.connect(token,  {clientData: `${EMULATED_USER_TYPE}_${properties.userId}`});
-				if(properties.role === OpenViduRole.PUBLISHER){
-
+				await session.connect(token, { clientData: `${EMULATED_USER_TYPE}_${properties.userId}` });
+				if (properties.role === OpenViduRole.PUBLISHER) {
 					mediaStreamTracks = await this.createMediaStreamTracks(properties);
 
 					const publisher: Publisher = ov.initPublisher(null, {
@@ -73,17 +72,14 @@ export class EmulateBrowserService {
 				this.storeConnection(session.connection.connectionId, properties);
 				resolve(session.connection.connectionId);
 			} catch (error) {
-				console.log(
-					"There was an error connecting to the session:",
-					error
-				);
-				reject({status:error.status, message: error.statusText || error.message || error});
+				console.log('There was an error connecting to the session:', error);
+				reject({ status: error.status, message: error.statusText || error.message || error });
 			}
 		});
 	}
 
 	deleteStreamManagerWithConnectionId(connectionId: string): void {
-		const {session, audioTrackInterval} = this.openviduMap.get(connectionId);
+		const { session, audioTrackInterval } = this.openviduMap.get(connectionId);
 		session?.disconnect();
 		clearInterval(audioTrackInterval);
 		this.openviduMap.delete(connectionId);
@@ -91,15 +87,17 @@ export class EmulateBrowserService {
 
 	deleteStreamManagerWithRole(role: OpenViduRole) {
 		const connectionsToDelete = [];
-		this.openviduMap.forEach((value: {session: Session, openvidu: OpenVidu, audioTrackInterval: NodeJS.Timer}, connectionId: string) => {
-			if (value.session.connection.role === role) {
-				value.session.disconnect();
-				clearInterval(value.audioTrackInterval);
-				connectionsToDelete.push(connectionId);
+		this.openviduMap.forEach(
+			(value: { session: Session; openvidu: OpenVidu; audioTrackInterval: NodeJS.Timer }, connectionId: string) => {
+				if (value.session.connection.role === role) {
+					value.session.disconnect();
+					clearInterval(value.audioTrackInterval);
+					connectionsToDelete.push(connectionId);
+				}
 			}
-		});
+		);
 
-		connectionsToDelete.forEach(connectionId => {
+		connectionsToDelete.forEach((connectionId) => {
 			this.openviduMap.delete(connectionId);
 		});
 	}
@@ -107,25 +105,23 @@ export class EmulateBrowserService {
 	clean() {
 		this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
 		this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
-		if(this.nodeWebrtcService){
+		if (this.nodeWebrtcService) {
 			this.nodeWebrtcService.clean();
 		}
 
-		if(this.isUsingKms()){
+		if (this.isUsingKms()) {
 			KurentoWebRTC.clean();
 		}
 	}
 
 	getStreamsCreated(): number {
-
 		let result = 0;
 
-		this.connections.forEach((value: {publishers: string[], subscribers: string[]}) => {
-
+		this.connections.forEach((value: { publishers: string[]; subscribers: string[] }) => {
 			let streamsSent = value.publishers.length;
 			let streamsReceived = 0;
 
-			if(value.publishers.length > 1) {
+			if (value.publishers.length > 1) {
 				// Add all streams subscribed by publishers
 				streamsReceived = value.publishers.length * (value.publishers.length - 1);
 			}
@@ -147,13 +143,12 @@ export class EmulateBrowserService {
 
 	private storeInstances(openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer) {
 		// Store the OV and Session objects into a map
-		this.openviduMap.set(session.connection.connectionId, {openvidu, session, audioTrackInterval});
+		this.openviduMap.set(session.connection.connectionId, { openvidu, session, audioTrackInterval });
 	}
 
 	private storeConnection(connectionId: string, properties: TestProperties) {
-
-		if(this.connections.has(properties.sessionName)){
-			if(properties.role === OpenViduRole.PUBLISHER){
+		if (this.connections.has(properties.sessionName)) {
+			if (properties.role === OpenViduRole.PUBLISHER) {
 				this.connections.get(properties.sessionName).publishers.push(connectionId);
 			} else {
 				this.connections.get(properties.sessionName).subscribers.push(connectionId);
@@ -161,28 +156,27 @@ export class EmulateBrowserService {
 		} else {
 			const subscribers = [];
 			const publishers = [];
-			if(properties.role === OpenViduRole.PUBLISHER){
+			if (properties.role === OpenViduRole.PUBLISHER) {
 				publishers.push(connectionId);
 			} else {
 				subscribers.push(connectionId);
 			}
-			this.connections.set(properties.sessionName,{publishers, subscribers});
+			this.connections.set(properties.sessionName, { publishers, subscribers });
 		}
 	}
 
 	private deleteConnection(sessionName: string, connectionId: string, role: OpenViduRole) {
-
-		const value =  this.connections.get(sessionName);
+		const value = this.connections.get(sessionName);
 		let index = -1;
 		if (!!value) {
-			if(role === OpenViduRole.PUBLISHER){
+			if (role === OpenViduRole.PUBLISHER) {
 				index = value.publishers.indexOf(connectionId, 0);
-				if(index >= 0) {
+				if (index >= 0) {
 					value.publishers.splice(index, 1);
 				}
 			} else {
 				index = value.subscribers.indexOf(connectionId, 0);
-				if(index >= 0) {
+				if (index >= 0) {
 					value.subscribers.splice(index, 1);
 				}
 			}
@@ -193,9 +187,9 @@ export class EmulateBrowserService {
 		let videoTrack: MediaStreamTrack | boolean = properties.video;
 		let audioTrack: MediaStreamTrack | boolean = properties.audio;
 
-		if(this.isUsingKms()) {
+		if (this.isUsingKms()) {
 			await KurentoWebRTC.setPlayerEndpointPath(`${this.KMS_MEDIAFILES_PATH}/video_${properties.resolution}.mkv`);
-			return {audioTrack, videoTrack};
+			return { audioTrack, videoTrack };
 		}
 
 		// Using NODE_WEBRTC_CANVAS or NODE_WEBRTC_FFMPEG
@@ -215,34 +209,46 @@ export class EmulateBrowserService {
 	}
 
 	private subscriberToSessionsEvents(session: Session) {
-		session.on("connectionCreated", (event: ConnectionEvent) => {
+		session.on('connectionCreated', (event: ConnectionEvent) => {
 			var connectionType = 'remote';
 			if (event.connection.connectionId === session.connection.connectionId) {
 				connectionType = 'local';
 			}
-			const message: string = JSON.stringify({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType});
+			const message: string = JSON.stringify({
+				event: 'connectionCreated',
+				connectionId: event.connection.connectionId,
+				connection: connectionType,
+			});
 			this.wsService.send(message);
 		});
 
-		session.on("streamCreated", (event: StreamEvent) => {
-			const message: string = JSON.stringify({event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
+		session.on('streamCreated', (event: StreamEvent) => {
+			const message: string = JSON.stringify({ event: 'streamCreated', connectionId: event.stream.streamId, connection: 'remote' });
 			this.wsService.send(message);
 			const subscriber = session.subscribe(event.stream, null);
 
-			subscriber.on("streamPlaying", (e: StreamEvent) => {
-				const message: string = JSON.stringify({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
+			subscriber.on('streamPlaying', (e: StreamEvent) => {
+				const message: string = JSON.stringify({
+					event: 'streamPlaying',
+					connectionId: event.stream.streamId,
+					connection: 'remote',
+				});
 				this.wsService.send(message);
 			});
 		});
 
-		session.on("streamDestroyed", (event: StreamEvent) => {
-			const message: string = JSON.stringify({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
+		session.on('streamDestroyed', (event: StreamEvent) => {
+			const message: string = JSON.stringify({ event: 'streamDestroyed', connectionId: event.stream.streamId, connection: 'remote' });
 			this.wsService.send(message);
-
 		});
 
 		session.on('sessionDisconnected', (event: SessionDisconnectedEvent) => {
-			const message: string = JSON.stringify({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local'});
+			const message: string = JSON.stringify({
+				event: 'sessionDisconnected',
+				connectionId: session.connection.connectionId,
+				reason: event.reason,
+				connection: 'local',
+			});
 			this.wsService.send(message);
 			console.log(session.connection.role);
 			this.deleteConnection(session.sessionId, session.connection.connectionId, <OpenViduRole>session.connection.role);
@@ -255,29 +261,28 @@ export class EmulateBrowserService {
 				this.exceptionFound = true;
 				this.exceptionMessage = 'Exception found in openvidu-browser';
 				const connectionId = (<any>exception.origin).connection.connectionId;
-				const message: string = JSON.stringify({ event: "exception", connectionId , reason: exception.message });
+				const message: string = JSON.stringify({ event: 'exception', connectionId, reason: exception.message });
 				this.wsService.send(message);
 			}
 		});
 	}
 
 	private subscriberToPublisherEvents(publisher: Publisher) {
-		publisher.once("accessAllowed", e => {
-			const message: string = JSON.stringify({ event: "accessAllowed", connectionId: '', connection: 'local' });
+		publisher.once('accessAllowed', (e) => {
+			const message: string = JSON.stringify({ event: 'accessAllowed', connectionId: '', connection: 'local' });
 			this.wsService.send(message);
 		});
-		publisher.once("streamCreated", (e: StreamEvent) => {
-			const message: string = JSON.stringify({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
+		publisher.once('streamCreated', (e: StreamEvent) => {
+			const message: string = JSON.stringify({ event: 'streamCreated', connectionId: e.stream.streamId, connection: 'local' });
 			this.wsService.send(message);
 		});
-		publisher.once("streamPlaying", e => {
-			const message: string = JSON.stringify({ event: "streamPlaying", connectionId: '', connection: 'local' });
+		publisher.once('streamPlaying', (e) => {
+			const message: string = JSON.stringify({ event: 'streamPlaying', connectionId: '', connection: 'local' });
 			this.wsService.send(message);
 		});
-		publisher.once("streamDestroyed", (e: StreamEvent) => {
-			const message: string = JSON.stringify({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
+		publisher.once('streamDestroyed', (e: StreamEvent) => {
+			const message: string = JSON.stringify({ event: 'streamDestroyed', connectionId: e.stream.streamId, connection: 'local' });
 			this.wsService.send(message);
 		});
 	}
-
 }

@@ -9,11 +9,11 @@ import { ApplicationMode } from '../types/config.type';
 import { ContainerName } from '../types/container-info.type';
 
 export const app = express.Router({
-    strict: true
+	strict: true,
 });
 
 app.get('/ping', (req: Request, res: Response) => {
-	if(InstanceService.getInstance().isInstanceInitialized()) {
+	if (InstanceService.getInstance().isInstanceInitialized()) {
 		res.status(200).send('Pong');
 	} else {
 		res.status(500).send();
@@ -41,8 +41,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 
 		console.log('Initialize browser-emulator');
 
-
-		if(isProdMode && !elasticSearchService.isElasticSearchRunning()) {
+		if (isProdMode && !elasticSearchService.isElasticSearchRunning()) {
 			process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
 			process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
 			process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
@@ -51,7 +50,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				await instanceService.launchMetricBeat();
 			} catch (error) {
 				console.log('Error starting metricbeat', error);
-				if(error.statusCode === 409 && error.message.includes("Conflict")){
+				if (error.statusCode === 409 && error.message.includes('Conflict')) {
 					console.log('Retrying ...');
 					await instanceService.removeContainer(ContainerName.METRICBEAT);
 					await instanceService.launchMetricBeat();
@@ -59,10 +58,9 @@ app.post('/initialize', async (req: Request, res: Response) => {
 			}
 		}
 
-		if(!isProdMode && !!request.awsAccessKey && !!request.awsSecretAccessKey){
+		if (!isProdMode && !!request.awsAccessKey && !!request.awsSecretAccessKey) {
 			createAWSConfigFile(request.awsAccessKey, request.awsSecretAccessKey);
 		}
-
 
 		res.status(200).send(`Instance ${req.headers.host} has been initialized`);
 	} catch (error) {
@@ -73,7 +71,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 
 function createRecordingsDirectory() {
 	const dir = `${process.env.PWD}/recordings`;
-	if (!fs.existsSync(dir)){
+	if (!fs.existsSync(dir)) {
 		fs.mkdirSync(dir);
 		fs.mkdirSync(dir + '/kms');
 		fs.mkdirSync(dir + '/chrome');
@@ -83,10 +81,10 @@ function createRecordingsDirectory() {
 function createAWSConfigFile(awsAccessKey: string, awsSecretAccessKey: string) {
 	const instanceService = InstanceService.getInstance();
 
-	const awsConfig = { "accessKeyId": awsAccessKey, "secretAccessKey": awsSecretAccessKey, "region": "us-east-1"};
+	const awsConfig = { accessKeyId: awsAccessKey, secretAccessKey: awsSecretAccessKey, region: 'us-east-1' };
 
-	if(fs.existsSync(instanceService.AWS_CREDENTIALS_PATH)){
-		fs.rmSync(instanceService.AWS_CREDENTIALS_PATH, {recursive: true, force: true});
+	if (fs.existsSync(instanceService.AWS_CREDENTIALS_PATH)) {
+		fs.rmSync(instanceService.AWS_CREDENTIALS_PATH, { recursive: true, force: true });
 	}
 	fs.writeFileSync(instanceService.AWS_CREDENTIALS_PATH, JSON.stringify(awsConfig));
 	console.log('Created aws credentials file');

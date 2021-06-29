@@ -18,8 +18,7 @@ export class BrowserManagerService {
 		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
-		){
-	}
+	) {}
 
 	static getInstance() {
 		if (!BrowserManagerService.instance) {
@@ -29,25 +28,24 @@ export class BrowserManagerService {
 	}
 
 	async createStreamManager(request: LoadTestPostRequest): Promise<LoadTestPostResponse> {
-
 		let connectionId: string;
 		let webrtcStorageName: string;
 		let webrtcStorageValue: string;
-		const isRealBrowser = request.browserMode === BrowserMode.REAL
+		const isRealBrowser = request.browserMode === BrowserMode.REAL;
 
-		if(this.elasticSearchService.isElasticSearchRunning()){
+		if (this.elasticSearchService.isElasticSearchRunning()) {
 			webrtcStorageName = this.webrtcStorageService.getItemName();
 			webrtcStorageValue = this.webrtcStorageService.getConfig();
 		}
 		this.printRequestInfo(request);
 
-		if(isRealBrowser){
+		if (isRealBrowser) {
 			// Create new stream manager using launching a normal Chrome browser
 			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
 			try {
 				const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
-				const storageNameObject = {webrtcStorageName, ovEventStorageName: ovEventsService.getItemName()};
-				const storageValueObject = {webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig()};
+				const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName() };
+				const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig() };
 				await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
 				this.realBrowserService.storeConnection(connectionId, request.properties);
 			} catch (error) {
@@ -55,8 +53,7 @@ export class BrowserManagerService {
 				throw error;
 			}
 		} else {
-
-			if(this.elasticSearchService.isElasticSearchRunning() && !this.localStorage.exist(webrtcStorageName)){
+			if (this.elasticSearchService.isElasticSearchRunning() && !this.localStorage.exist(webrtcStorageName)) {
 				// Create webrtc stats item in virtual localStorage
 				try {
 					this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
@@ -73,7 +70,7 @@ export class BrowserManagerService {
 		const participants = this.getParticipantsCreated();
 		this.sendStreamsData(streams);
 		console.log(`Participant ${connectionId} created`);
-		return {connectionId, streams, participants, workerCpuUsage};
+		return { connectionId, streams, participants, workerCpuUsage };
 	}
 
 	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
@@ -83,7 +80,7 @@ export class BrowserManagerService {
 
 	async deleteStreamManagerWithConnectionId(connectionId: string): Promise<void> {
 		const isConnectionFromEmulatedBrowser = connectionId.includes('con_');
-		if(isConnectionFromEmulatedBrowser){
+		if (isConnectionFromEmulatedBrowser) {
 			return this.emulateBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 		}
 
@@ -94,10 +91,10 @@ export class BrowserManagerService {
 		this.emulateBrowserService.clean();
 		await this.realBrowserService.clean();
 
-		if(this.elasticSearchService.isElasticSearchRunning()){
+		if (this.elasticSearchService.isElasticSearchRunning()) {
 			await this.elasticSearchService.clean();
 		}
-		if(APPLICATION_MODE === ApplicationMode.PROD && this.instanceService.recordingsExist()){
+		if (APPLICATION_MODE === ApplicationMode.PROD && this.instanceService.recordingsExist()) {
 			return this.instanceService.uploadFilesToS3();
 		}
 	}
@@ -115,7 +112,7 @@ export class BrowserManagerService {
 			'@timestamp': new Date().toISOString(),
 			streams,
 			node_role: 'browseremulator',
-			worker_name: `worker_${this.instanceService.WORKER_UUID}`
+			worker_name: `worker_${this.instanceService.WORKER_UUID}`,
 		};
 		try {
 			await this.elasticSearchService.sendJson(json);
@@ -125,18 +122,16 @@ export class BrowserManagerService {
 		}
 	}
 
-
 	private printRequestInfo(req: LoadTestPostRequest): void {
-
-		const info = `\nStarting a ${req.properties.role} participant in a ${req.browserMode} browser with: \n` +
-					`Audio: ${req.properties.audio} \n` +
-					`Video: ${req.properties.video} \n` +
-					`Frame Rate: ${req.properties.frameRate} \n` +
-					`Resolution: ${req.properties.resolution} \n` +
-					`OpenVidu Recording: ${req.properties.recordingOutputMode} \n` +
-					`Recording Browser: ${req.properties.recording} \n` +
-					`Headless Browser: ${req.properties.headless} \n`;
+		const info =
+			`\nStarting a ${req.properties.role} participant in a ${req.browserMode} browser with: \n` +
+			`Audio: ${req.properties.audio} \n` +
+			`Video: ${req.properties.video} \n` +
+			`Frame Rate: ${req.properties.frameRate} \n` +
+			`Resolution: ${req.properties.resolution} \n` +
+			`OpenVidu Recording: ${req.properties.recordingOutputMode} \n` +
+			`Recording Browser: ${req.properties.recording} \n` +
+			`Headless Browser: ${req.properties.headless} \n`;
 		console.log(info);
-
 	}
 }

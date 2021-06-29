@@ -1,12 +1,12 @@
 import fs = require('fs');
 import https = require('https');
-import * as express from "express";
-import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT } from "./config";
-import { HackService } from "./services/hack.service";
+import * as express from 'express';
+import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT } from './config';
+import { HackService } from './services/hack.service';
 
-import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
-import {app as eventsController} from './controllers/events.controller';
-import {app as instanceController} from './controllers/instance.controller';
+import { app as ovBrowserController } from './controllers/openvidu-browser.controller';
+import { app as eventsController } from './controllers/events.controller';
+import { app as instanceController } from './controllers/instance.controller';
 
 import { InstanceService } from './services/instance.service';
 import { ApplicationMode, EmulatedUserType } from './types/config.type';
@@ -25,10 +25,7 @@ const options = {
 
 app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');
-	res.header(
-		'Access-Control-Allow-Headers',
-		'Origin, X-Requested-With, Content-Type, Accept',
-	);
+	res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
 	next();
 });
 
@@ -46,12 +43,12 @@ server.listen(SERVER_PORT, async () => {
 	const instanceService = InstanceService.getInstance();
 
 	try {
-		if(APPLICATION_MODE === ApplicationMode.PROD) {
-			console.log("Pulling Docker images needed...");
+		if (APPLICATION_MODE === ApplicationMode.PROD) {
+			console.log('Pulling Docker images needed...');
 			await instanceService.pullImagesNeeded();
 		}
 
-		if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
+		if (EMULATED_USER_TYPE === EmulatedUserType.KMS) {
 			await instanceService.cleanEnvironment();
 			await instanceService.launchKMS();
 		}
@@ -62,19 +59,18 @@ server.listen(SERVER_PORT, async () => {
 		hack.platform();
 		hack.allowSelfSignedCertificate();
 
-		console.log("---------------------------------------------------------");
-		console.log(" ");
+		console.log('---------------------------------------------------------');
+		console.log(' ');
 		console.log(`Service started in ${APPLICATION_MODE} mode`);
 		console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
 		console.log(`API REST is listening in port ${SERVER_PORT}`);
 		console.log(`WebSocket is listening in port ${WEBSOCKET_PORT}`);
-		console.log(" ");
-		console.log("---------------------------------------------------------");
+		console.log(' ');
+		console.log('---------------------------------------------------------');
 		instanceService.instanceInitialized();
 	} catch (error) {
 		console.error(error);
 	}
-
 });
 
 ws.on('connection', (ws: WebSocket) => {

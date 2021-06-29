@@ -1,6 +1,6 @@
 import fs = require('fs');
-import * as os  from 'node-os-utils';
-import { ContainerCreateOptions } from "dockerode";
+import * as os from 'node-os-utils';
+import { ContainerCreateOptions } from 'dockerode';
 
 import { EMULATED_USER_TYPE } from '../config';
 import { EmulatedUserType } from '../types/config.type';
@@ -12,7 +12,6 @@ import { ContainerName } from '../types/container-info.type';
 import * as AWS from 'aws-sdk';
 
 export class InstanceService {
-
 	private static instance: InstanceService;
 	private isinstanceInitialized: boolean = false;
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
@@ -27,10 +26,7 @@ export class InstanceService {
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
 
-	private constructor(
-		private dockerService: DockerService = new DockerService()
-
-	) {}
+	private constructor(private dockerService: DockerService = new DockerService()) {}
 
 	static getInstance(): InstanceService {
 		if (!InstanceService.instance) {
@@ -72,16 +68,15 @@ export class InstanceService {
 				`WORKER_UUID=${this.WORKER_UUID}`,
 			],
 			Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
-			HostConfig:  {
+			HostConfig: {
 				Binds: [
 					`/var/run/docker.sock:/var/run/docker.sock`,
 					`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
 					'/proc:/hostfs/proc:ro',
 					'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
-					'/:/hostfs:ro'
+					'/:/hostfs:ro',
 				],
 				NetworkMode: 'host',
-
 			},
 		};
 		await this.dockerService.startContainer(options);
@@ -93,31 +88,27 @@ export class InstanceService {
 				Image: this.KMS_IMAGE,
 				name: ContainerName.KMS,
 				User: 'root',
-				Env: [
-					'KMS_MIN_PORT=40000',
-     				'KMS_MAX_PORT=65535',
-					`KURENTO_RECORDING_ENABLED=${process.env.KURENTO_RECORDING_ENABLED}`
-				],
-				HostConfig:  {
+				Env: ['KMS_MIN_PORT=40000', 'KMS_MAX_PORT=65535', `KURENTO_RECORDING_ENABLED=${process.env.KURENTO_RECORDING_ENABLED}`],
+				HostConfig: {
 					Binds: [
 						`${process.env.PWD}/recordings/kms:${this.KMS_RECORDINGS_PATH}`,
-						`${process.env.PWD}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`
+						`${process.env.PWD}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`,
 					],
 					AutoRemove: false,
 					NetworkMode: 'host',
 					RestartPolicy: {
-						"Name": "always"
-					}
+						Name: 'always',
+					},
 				},
 			};
 
 			// Debug logging variables:
 			// GST_DEBUG is used directly by the Kurento Docker image.
-			if ("GST_DEBUG" in process.env) {
+			if ('GST_DEBUG' in process.env) {
 				options.Env.push(`GST_DEBUG=${process.env.GST_DEBUG}`);
 			}
 			// KMS_DOCKER_ENV_GST_DEBUG is used by .env files of OpenVidu.
-			if ("KMS_DOCKER_ENV_GST_DEBUG" in process.env) {
+			if ('KMS_DOCKER_ENV_GST_DEBUG' in process.env) {
 				options.Env.push(`GST_DEBUG=${process.env.KMS_DOCKER_ENV_GST_DEBUG}`);
 			}
 
@@ -129,7 +120,7 @@ export class InstanceService {
 		}
 	}
 
-	async removeContainer(containerNameOrId: string){
+	async removeContainer(containerNameOrId: string) {
 		await this.dockerService.removeContainer(containerNameOrId);
 	}
 
@@ -147,30 +138,27 @@ export class InstanceService {
 
 	recordingsExist(): boolean {
 		const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
-		dirs.forEach(dir => {
-			if(fs.readdirSync(dir).length > 0) {
+		dirs.forEach((dir) => {
+			if (fs.readdirSync(dir).length > 0) {
 				return true;
 			}
 		});
 		return false;
 	}
 
-
 	uploadFilesToS3(): string {
-
 		if (fs.existsSync(this.AWS_CREDENTIALS_PATH)) {
-
 			AWS.config.loadFromPath(this.AWS_CREDENTIALS_PATH);
 			const s3 = new AWS.S3();
 			const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
 
-			dirs.forEach(dir => {
-				fs.readdirSync(dir).forEach(file => {
+			dirs.forEach((dir) => {
+				fs.readdirSync(dir).forEach((file) => {
 					const data = fs.readFileSync(`${dir}/${file}`);
 					const s3Config: AWS.S3.PutObjectRequest = {
 						Bucket: this.S3_BUCKET,
 						Key: file,
-						Body: data
+						Body: data,
 					};
 
 					s3.putObject(s3Config, (err, data) => {
@@ -178,15 +166,12 @@ export class InstanceService {
 							console.log(err);
 						} else {
 							console.log(`Successfully uploaded data to ${this.S3_BUCKET} / ${file}`);
-							fs.rmSync(`${dir}/${file}`, {recursive: true, force: true});
+							fs.rmSync(`${dir}/${file}`, { recursive: true, force: true });
 						}
 					});
 				});
 			});
 			return this.S3_BUCKET;
-
 		}
-
 	}
-
 }

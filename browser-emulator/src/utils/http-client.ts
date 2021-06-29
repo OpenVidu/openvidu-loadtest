@@ -1,6 +1,6 @@
-var btoa = require("btoa");
-import axios, { AxiosRequestConfig } from "axios";
-import * as https from "https";
+var btoa = require('btoa');
+import axios, { AxiosRequestConfig } from 'axios';
+import * as https from 'https';
 import { RecordingLayoutMode, RecordingMode, RecordingOutputMode, TestProperties } from '../types/api-rest.type';
 import { OpenViduRole } from '../types/openvidu.type';
 
@@ -20,17 +20,17 @@ export class HttpClient {
 		return new Promise((resolve, reject) => {
 			let properties: any = { customSessionId: sessionId };
 			const recording = recordingMode === RecordingOutputMode.COMPOSED || recordingMode === RecordingOutputMode.INDIVIDUAL;
-			if(recording) {
+			if (recording) {
 				properties.defaultOutputMode = recordingMode;
 				properties.defaultRecordingLayout = RecordingLayoutMode.BEST_FIT;
 				properties.recordingMode = RecordingMode.ALWAYS;
 			}
 
 			axios
-				.post(this.OPENVIDU_URL + "/openvidu/api/sessions", JSON.stringify(properties), {
+				.post(this.OPENVIDU_URL + '/openvidu/api/sessions', JSON.stringify(properties), {
 					headers: {
-						Authorization: "Basic " + btoa("OPENVIDUAPP:" + this.OPENVIDU_SECRET),
-						"Content-Type": "application/json",
+						Authorization: 'Basic ' + btoa('OPENVIDUAPP:' + this.OPENVIDU_SECRET),
+						'Content-Type': 'application/json',
 					},
 					httpsAgent: new https.Agent({
 						rejectUnauthorized: false,
@@ -44,10 +44,7 @@ export class HttpClient {
 					if (error.response && error.response.status === 409) {
 						resolve(sessionId);
 					} else {
-						console.warn(
-							"No connection to OpenVidu Server. This may be a certificate error at " +
-								this.OPENVIDU_URL
-						);
+						console.warn('No connection to OpenVidu Server. This may be a certificate error at ' + this.OPENVIDU_URL);
 						reject(error.response);
 					}
 				});
@@ -57,24 +54,20 @@ export class HttpClient {
 	private createToken(sessionId: string, role: OpenViduRole): Promise<string> {
 		return new Promise((resolve, reject) => {
 			const data = JSON.stringify({
-				type: "WEBRTC",
+				type: 'WEBRTC',
 				record: false,
-				role: role
+				role: role,
 			});
 			axios
-				.post(
-					this.OPENVIDU_URL + "/openvidu/api/sessions/" + sessionId + "/connection",
-					data,
-					{
-						headers: {
-							Authorization: "Basic " + btoa("OPENVIDUAPP:" + this.OPENVIDU_SECRET),
-							"Content-Type": "application/json",
-						},
-						httpsAgent: new https.Agent({
-							rejectUnauthorized: false,
-						}),
-					}
-				)
+				.post(this.OPENVIDU_URL + '/openvidu/api/sessions/' + sessionId + '/connection', data, {
+					headers: {
+						Authorization: 'Basic ' + btoa('OPENVIDUAPP:' + this.OPENVIDU_SECRET),
+						'Content-Type': 'application/json',
+					},
+					httpsAgent: new https.Agent({
+						rejectUnauthorized: false,
+					}),
+				})
 				.then((response) => {
 					resolve(response.data.token);
 				})

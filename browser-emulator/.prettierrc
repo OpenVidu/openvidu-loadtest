@@ -4,6 +4,8 @@
 # - Indent with tabs instead of spaces.
 tabWidth: 4
 useTabs: true
+singleQuote: true
+printWidth: 140
 overrides:
   - files:
       - "*.css"

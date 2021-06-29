@@ -1,7 +1,6 @@
-import WebSocket = require("ws");
+import WebSocket = require('ws');
 
 export class WsService {
-
 	protected static instance: WsService;
 	private readonly CONNECTING = 0;
 	private readonly OPEN = 1;
@@ -24,7 +23,7 @@ export class WsService {
 		this.ws.on('message', this.handleMessage);
 	}
 
-	private handleMessage(message: string){
+	private handleMessage(message: string) {
 		console.log('Received message: ' + message);
 	}
 
@@ -32,12 +31,10 @@ export class WsService {
 		try {
 			if (this.ws?.readyState === this.OPEN) {
 				this.ws.send(message);
-				console.log("Message was sent: ", message);
+				console.log('Message was sent: ', message);
 			}
 		} catch (error) {
-			console.log("Error sending WS message");
+			console.log('Error sending WS message');
 		}
-
 	}
-
 }

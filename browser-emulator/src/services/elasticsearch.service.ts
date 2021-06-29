@@ -1,4 +1,3 @@
-
 import { ApiResponse, Client, ClientOptions } from '@elastic/elasticsearch';
 import { Index } from '@elastic/elasticsearch/api/requestParams';
 import { APPLICATION_MODE } from '../config';
@@ -6,7 +5,6 @@ import { JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type';
 import { ApplicationMode } from '../types/config.type';
 
 export class ElasticSearchService {
-
 	indexName: string = '';
 
 	private client: Client;
@@ -14,7 +12,7 @@ export class ElasticSearchService {
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
 	protected static instance: ElasticSearchService;
 
-	private constructor() {	}
+	private constructor() {}
 
 	static getInstance(): ElasticSearchService {
 		if (!ElasticSearchService.instance) {
@@ -23,49 +21,49 @@ export class ElasticSearchService {
 		return ElasticSearchService.instance;
 	}
 
-	async initialize(){
-		if(this.needToBeConfigured()) {
+	async initialize() {
+		if (this.needToBeConfigured()) {
 			console.log('Initializing ElasticSearch');
 			const clientOptions: ClientOptions = {
 				node: process.env.ELASTICSEARCH_HOSTNAME,
 				maxRetries: 5,
 				requestTimeout: 10000,
 				ssl: {
-					rejectUnauthorized: false
-				}
+					rejectUnauthorized: false,
+				},
 			};
 
-			if(this.isSecured()) {
+			if (this.isSecured()) {
 				clientOptions.auth = {
 					username: process.env.ELASTICSEARCH_USERNAME,
-					password: process.env.ELASTICSEARCH_PASSWORD
+					password: process.env.ELASTICSEARCH_PASSWORD,
 				};
 			}
 			try {
-				console.log("Connecting with ElasticSearch ...");
+				console.log('Connecting with ElasticSearch ...');
 				this.client = new Client(clientOptions);
 				const pingSuccess = await this.client.ping();
 				this.pingSuccess = pingSuccess.body;
-				if(this.pingSuccess) {
+				if (this.pingSuccess) {
 					await this.createElasticSearchIndex();
 				}
 			} catch (error) {
-				console.error("Error connecting with ElasticSearch: ", error);
+				console.error('Error connecting with ElasticSearch: ', error);
 				throw error;
 			}
 		}
 	}
 
 	async sendJson(json: JSONStatsResponse | JSONStreamsInfo) {
-		if(this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
+		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
 			let indexData: Index<Record<string, any>> = {
 				index: this.indexName,
-				body: {}
+				body: {},
 			};
-			Object.keys(json).forEach(key => {
+			Object.keys(json).forEach((key) => {
 				indexData.body[key] = json[key];
 			});
-			if(!!Object.keys(indexData.body).length) {
+			if (!!Object.keys(indexData.body).length) {
 				try {
 					await this.client.index(indexData);
 				} catch (error) {
@@ -80,7 +78,7 @@ export class ElasticSearchService {
 	}
 
 	needToBeConfigured(): boolean {
- 		return this.isHostnameAvailable() && !this.client;
+		return this.isHostnameAvailable() && !this.client;
 	}
 
 	async clean() {
@@ -92,10 +90,12 @@ export class ElasticSearchService {
 	}
 
 	private isSecured(): boolean {
-		return !!process.env.ELASTICSEARCH_USERNAME &&
-				process.env.ELASTICSEARCH_USERNAM !== 'undefined' &&
-				!!process.env.ELASTICSEARCH_PASSWORD &&
-				process.env.ELASTICSEARCH_PASSWORD !== 'undefined';
+		return (
+			!!process.env.ELASTICSEARCH_USERNAME &&
+			process.env.ELASTICSEARCH_USERNAM !== 'undefined' &&
+			!!process.env.ELASTICSEARCH_PASSWORD &&
+			process.env.ELASTICSEARCH_PASSWORD !== 'undefined'
+		);
 	}
 
 	private async createElasticSearchIndex(): Promise<void> {
@@ -117,7 +117,9 @@ export class ElasticSearchService {
 
 	private generateNewIndexName(): string {
 		const date = new Date();
-		const timestamp = `${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}-${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`;
+		const timestamp = `${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}-${date.getDate()}-${
+			date.getMonth() + 1
+		}-${date.getFullYear()}`;
 		this.indexName = this.LOADTEST_INDEX + '-' + timestamp + '-' + new Date().getTime();
 		return this.indexName;
 	}

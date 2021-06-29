@@ -6,37 +6,37 @@ import { MediaStreamTracksResponse } from '../../types/emulate-webrtc.type';
 import { IEmulateWebrtc } from './emulate-webrtc.interface';
 
 interface CustomMediaStream {
-	url: string,
-	track: wrtc.MediaStreamTrack,
-	options: string[],
-	kind: string,
-	width?: number,
-	height?:number
-};
+	url: string;
+	track: wrtc.MediaStreamTrack;
+	options: string[];
+	kind: string;
+	width?: number;
+	height?: number;
+}
 
 export class FfmpegService implements IEmulateWebrtc {
-
 	private videoTrack: wrtc.MediaStreamTrack | boolean;
 	private audioTrack: wrtc.MediaStreamTrack | boolean;
 	private mediaStramTracksCreated: boolean = false;
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
 
-	constructor() {
-	}
+	constructor() {}
 
-	async createMediaStreamTracks(video: boolean, audio: boolean): Promise<MediaStreamTracksResponse> {
-		if(!this.mediaStramTracksCreated) {
-
+	async createMediaStreamTracks(
+		video: boolean,
+		audio: boolean
+	): Promise<MediaStreamTracksResponse> {
+		if (!this.mediaStramTracksCreated) {
 			this.videoTrack = video;
 			this.audioTrack = audio;
 
-			if(audio || video) {
+			if (audio || video) {
 				await this.createMediaStreamTracksFromVideoFile(video, audio);
 			}
 		}
 
-		return {videoTrack: this.videoTrack, audioTrack: this.audioTrack};
+		return { videoTrack: this.videoTrack, audioTrack: this.audioTrack };
 	}
 
 	clean() {
@@ -45,27 +45,25 @@ export class FfmpegService implements IEmulateWebrtc {
 		this.mediaStramTracksCreated = false;
 	}
 
-	private async createMediaStreamTracksFromVideoFile(video: boolean, audio: boolean) {
-
+	private async createMediaStreamTracksFromVideoFile(
+		video: boolean,
+		audio: boolean
+	) {
 		let videoOutput = null;
 		let audioOutput = null;
 
 		const command = ffmpeg()
-							.input(`${process.env.PWD}/src/assets/mediafiles/video.mkv`)
-							.inputOptions(['-stream_loop -1', '-r 1'])
+			.input(`${process.env.PWD}/src/assets/mediafiles/video.mkv`)
+			.inputOptions(['-stream_loop -1', '-r 1']);
 
-		if(video) {
+		if (video) {
 			videoOutput = this.createVideoOutput();
-			command
-				.output(videoOutput.url)
-				.outputOptions(videoOutput.options)
+			command.output(videoOutput.url).outputOptions(videoOutput.options);
 		}
 
-		if(audio) {
+		if (audio) {
 			audioOutput = this.createAudioOutput();
-			command
-				.output(audioOutput.url)
-				.outputOptions(audioOutput.options)
+			command.output(audioOutput.url).outputOptions(audioOutput.options);
 		}
 
 		command.on('error', (err, stdout, stderr) => {
@@ -73,7 +71,6 @@ export class FfmpegService implements IEmulateWebrtc {
 			//TODO: Catch this error for decline next request
 			// this.exceptionFound = true;
 			// this.exceptionMessage = 'Exception found in ffmpeg' + err.message;
-
 		});
 
 		command.run();
@@ -84,7 +81,6 @@ export class FfmpegService implements IEmulateWebrtc {
 	}
 
 	private createVideoOutput(): CustomMediaStream {
-
 		const sourceStream = chunker(this.WIDTH * this.HEIGHT * 1.5);
 		const source = new wrtc.nonstandard.RTCVideoSource();
 		const ffmpegOptions = [
@@ -92,14 +88,14 @@ export class FfmpegService implements IEmulateWebrtc {
 			// '-c:v rawvideo',
 			`-s ${this.WIDTH}x${this.HEIGHT}`,
 			'-pix_fmt yuv420p',
-			'-r 24'
+			'-r 24',
 		];
 
 		sourceStream.on('data', (chunk) => {
 			const data = {
 				width: this.WIDTH,
 				height: this.HEIGHT,
-				data: new Uint8ClampedArray(chunk)
+				data: new Uint8ClampedArray(chunk),
 			};
 			source.onFrame(data);
 		});
@@ -115,28 +111,28 @@ export class FfmpegService implements IEmulateWebrtc {
 	}
 	private createAudioOutput(): CustomMediaStream {
 		const sampleRate = 48000;
-		const sourceStream = chunker(2 * sampleRate / 100)
+		const sourceStream = chunker((2 * sampleRate) / 100);
 		const source = new wrtc.nonstandard.RTCAudioSource();
-		const ffmpegOptions = [
-			'-f s16le',
-			'-ar 48k',
-			'-ac 1'
-		];
+		const ffmpegOptions = ['-f s16le', '-ar 48k', '-ac 1'];
 		sourceStream.on('data', (chunk) => {
 			const data = {
-				samples: new Int16Array(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.length)),
-				sampleRate
+				samples: new Int16Array(
+					chunk.buffer.slice(
+						chunk.byteOffset,
+						chunk.byteOffset + chunk.length
+					)
+				),
+				sampleRate,
 			};
 
 			source.onData(data);
 		});
 
-		const output = StreamOutput(sourceStream)
-		output.track = source.createTrack()
+		const output = StreamOutput(sourceStream);
+		output.track = source.createTrack();
 		output.options = ffmpegOptions;
 		output.kind = 'audio';
 
 		return output;
 	}
-
 }
