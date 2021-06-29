@@ -13,11 +13,15 @@ import { MediaStreamTracksResponse } from '../types/emulate-webrtc.type';
 import { ExceptionEvent } from 'openvidu-browser/lib/OpenViduInternal/Events/ExceptionEvent';
 import { WsService } from './ws.service';
 
+import * as KurentoWebRTC from "./webrtc-bindings/kurento-webrtc/KurentoWebRTC"
+
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer}> = new Map();
 	private connections: Map<string, {publishers: string[], subscribers: string[]}> = new Map();
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
+	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
+
 	constructor(
 		private httpClient: HttpClient = new HttpClient(),
 		private nodeWebrtcService: CanvasService | FfmpegService = null,
@@ -178,6 +182,7 @@ export class EmulateBrowserService {
 		let audioTrack: MediaStreamTrack | boolean = properties.audio;
 
 		if(this.isUsingKms()) {
+			await KurentoWebRTC.setPlayerEndpointPath(`${this.KMS_MEDIAFILES_PATH}/video_${properties.resolution}.mkv`);
 			return {audioTrack, videoTrack};
 		}
 

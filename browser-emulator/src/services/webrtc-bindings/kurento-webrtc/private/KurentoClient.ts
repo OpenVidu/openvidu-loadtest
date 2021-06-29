@@ -29,7 +29,6 @@ const kurento = {
  */
 export async function init(
 	kurentoUrl: string,
-	playerPath: string = "/tmp/video.mkv",
 	recorderPathPrefix: string | undefined = undefined
 ): Promise<void> {
 	console.log(
@@ -52,36 +51,51 @@ export async function init(
 		);
 	});
 
-	kurento.player = await kurento.pipeline.create("PlayerEndpoint", {
-		uri: `file://${playerPath}`,
-		useEncodedMedia: true,
-	});
-	console.log(
-		"[KurentoClient] Kurento PlayerEndpoint created, uri:",
-		await kurento.player.getUri()
-	);
-
-	kurento.player.on("Error", (event: any): void => {
-		console.error(
-			"[KurentoClient] PlayerEndpoint ERROR %d (%s): %s",
-			event.errorCode,
-			event.type,
-			event.description
-		);
-	});
-
-	kurento.player.on(
-		"EndOfStream",
-		async (_event: any): Promise<void> => {
-			console.log(
-				"[KurentoClient] PlayerEndpoint End Of Stream: play() again"
-			);
-			await kurento.player.stop();
-			await kurento.player.play();
-		}
-	);
-
 	kurento.recorderPathPrefix = recorderPathPrefix;
+}
+
+export async function setPlayerEndpointPath(videoUri: string) {
+
+	if(!kurento.player) {
+
+		kurento.player = await kurento.pipeline.create("PlayerEndpoint", {
+			uri: `file://${videoUri}`,
+			useEncodedMedia: true,
+		});
+
+		console.log(
+			"[KurentoClient] Kurento PlayerEndpoint created, uri:",
+			await kurento.player.getUri()
+		);
+
+		kurento.player.on("Error", (event: any): void => {
+			console.error(
+				"[KurentoClient] PlayerEndpoint ERROR %d (%s): %s",
+				event.errorCode,
+				event.type,
+				event.description
+			);
+		});
+
+		kurento.player.on(
+			"EndOfStream",
+			async (_event: any): Promise<void> => {
+				if(kurento.player){
+					console.log(
+						"[KurentoClient] PlayerEndpoint End Of Stream: play() again"
+					);
+					await kurento.player.stop();
+					await kurento.player.play();
+				}
+
+			}
+		);
+	}
+}
+
+export async function clean() {
+	await kurento.player.stop();
+	kurento.player = null;
 }
 
 export async function makeWebRtcEndpoint(

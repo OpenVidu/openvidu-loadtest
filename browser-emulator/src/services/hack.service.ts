@@ -23,7 +23,6 @@ import * as KurentoWebRTC from "./webrtc-bindings/kurento-webrtc/KurentoWebRTC"
 export class HackService {
 
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
-	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
 	constructor() {
 		(<any>globalThis.navigator) = {
 			userAgent: 'Node.js Testing'
@@ -39,7 +38,6 @@ export class HackService {
 
 			await KurentoWebRTC.init(
 				'ws://localhost:8888/kurento',
-				`${this.KMS_MEDIAFILES_PATH}/video.mkv`,
 				`${this.KMS_RECORDINGS_PATH}/recording`,
 			);
 
