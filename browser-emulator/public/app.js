@@ -117,8 +117,8 @@ async function joinSession() {
 				}
 
 				var publisher = OV.initPublisher(videoContainer, {
-					audioSource: undefined,
-					videoSource: undefined,
+					audioSource: AUDIO ? undefined : null,
+					videoSource: VIDEO ? undefined : null,
 					publishAudio: AUDIO,
 					publishVideo: VIDEO,
 					resolution:  RESOLUTION,
