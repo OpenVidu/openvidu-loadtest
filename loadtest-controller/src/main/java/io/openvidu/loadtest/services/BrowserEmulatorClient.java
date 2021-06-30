@@ -39,7 +39,7 @@ public class BrowserEmulatorClient {
 	
 	private static String stopReason = "Test case finished as expected";
 
-	private static final int WAIT_MS = 2000;
+	private static final int WAIT_MS = 5000;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
@@ -81,6 +81,11 @@ public class BrowserEmulatorClient {
 					null, getHeaders());
 		} catch (IOException | InterruptedException e) {
 			log.error(e.getMessage());
+
+			if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
+				System.out.println("Retrying");
+				return this.initializeInstance(workerUrl);
+			}
 		}
 		return null;
 	}
@@ -216,7 +221,7 @@ public class BrowserEmulatorClient {
 	}
 
 	public void disconnectAll(List<String> workerUrlList) {
-		stopReason = "Test case finished as expected";
+//		stopReason = "Test case finished as expected";
 		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
 		List<Callable<String>> callableTasks = new ArrayList<>();
 
