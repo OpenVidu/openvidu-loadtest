@@ -84,6 +84,7 @@ public class Ec2Client {
 			resultList.addAll(launchInstance(WORKERS_NUMBER_AT_THE_BEGINNING - resultList.size()));
 		}
 
+		this.sleep(WAIT_RUNNING_STATE_MS);		
 		return resultList;
 	}
 
@@ -224,9 +225,9 @@ public class Ec2Client {
 		return new Filter().withName("instance-state-name").withValues(state.toString());
 	}
 	
-	private void sleep(int seconds) {
+	private void sleep(int ms) {
 		try {
-			Thread.sleep(seconds);
+			Thread.sleep(ms);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
