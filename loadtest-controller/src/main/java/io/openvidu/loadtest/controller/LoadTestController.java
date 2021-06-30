@@ -89,13 +89,13 @@ public class LoadTestController {
 		testCasesList.forEach(testCase -> {
 
 			if (testCase.is_NxN()) {
-				if (PROD_MODE) {
-					// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-					workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
-				}
-
-				this.startTime = Calendar.getInstance();
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
+
+					if (PROD_MODE) {
+						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+						workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+					}
+					
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					System.out.print("\n");
 					log.info("Starting test with N:N session typology");
@@ -103,20 +103,20 @@ public class LoadTestController {
 							testCase.getSessions() < 0 ? "infinite" : testCase.getSessions());
 					log.info("Each session will be composed by {} USERS. All of them will be PUBLISHERS",
 							participantsBySession);
-
+					this.startTime = Calendar.getInstance();
 					this.startNxNTest(participantsBySession, testCase);
-					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
+					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+					this.disconnectAllSessions();
 					this.saveResultReport(testCase, String.valueOf(participantsBySession));
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
-				if (PROD_MODE) {
-					// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-					workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
-				}
-				this.startTime = Calendar.getInstance();
-
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
+					
+					if (PROD_MODE) {
+						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+						workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+					}
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
 					int subscribers = Integer.parseInt(participants.split(":")[1]);
@@ -125,8 +125,10 @@ public class LoadTestController {
 					log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",
 							publishers + subscribers, publishers, subscribers);
 
+					this.startTime = Calendar.getInstance();
 					this.startNxMTest(publishers, subscribers, testCase);
-					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time after test finished");
+					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+					this.disconnectAllSessions();
 					this.saveResultReport(testCase, participants);
 					this.cleanEnvironment();
 				}
@@ -143,6 +145,7 @@ public class LoadTestController {
 		return resultReportList;
 
 	}
+
 
 	private void startNxNTest(int participantsBySession, TestCase testCase) {
 		int sessionsLimit = testCase.getSessions();
@@ -180,7 +183,7 @@ public class LoadTestController {
 
 				} else {
 					log.error("Response status is not 200 OK. Exit");
-					return;
+					break;
 				}
 			}
 
@@ -230,7 +233,7 @@ public class LoadTestController {
 					}
 				} else {
 					log.error("Response status is not 200 OK. Exit");
-					return;
+					break;
 				}
 			}
 
@@ -253,7 +256,7 @@ public class LoadTestController {
 						}
 					} else {
 						log.error("Response status is not 200 OK. Exit");
-						return;
+						break;
 					}
 				}
 
@@ -352,18 +355,7 @@ public class LoadTestController {
 	}
 
 	private void cleanEnvironment() {
-		List<String> workersUrl = devWorkersList;
-
-		if (PROD_MODE) {
-			for (Instance ec2 : workersList) {
-				workersUrl.add(ec2.getPublicDnsName());
-			}
-			workersList = new ArrayList<Instance>();
-		}
-		this.browserEmulatorClient.disconnectAll(workersUrl);
-//		if(PROD_MODE) {
-//			this.ec2Client.rebootInstance(workersUrl);
-//		}
+		
 		this.totalParticipants.set(0);
 		this.sessionsCompleted.set(0);
 		sessionNumber.set(0);
@@ -371,12 +363,28 @@ public class LoadTestController {
 		responseIsOk = true;
 		workersUsed = 0;
 		currentWorkerUrl = "";
+		streamsPerWorker = new ArrayList<>();
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
+	}
+	
+	private void disconnectAllSessions() {
+		List<String> workersUrl = devWorkersList;
+
+		if (PROD_MODE) {
+			// Add all ec2 instances
+			for (Instance ec2 : workersList) {
+				workersUrl.add(ec2.getPublicDnsName());
+			}
+			workersList = new ArrayList<Instance>();
+		}
+		this.browserEmulatorClient.disconnectAll(workersUrl);
+		
 	}
 
 	private void saveResultReport(TestCase testCase, String participantsBySession) {
 		Calendar endTime = Calendar.getInstance();
-
+		endTime.add(Calendar.SECOND, loadTestConfig.getSecondsToWaitBetweenTestCases());
+		
 		// Parse date to match with Kibana time filter
 		String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
 		String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T");
