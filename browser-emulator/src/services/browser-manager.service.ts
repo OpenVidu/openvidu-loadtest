@@ -94,7 +94,7 @@ export class BrowserManagerService {
 		if (this.elasticSearchService.isElasticSearchRunning()) {
 			await this.elasticSearchService.clean();
 		}
-		if (APPLICATION_MODE === ApplicationMode.PROD && this.instanceService.recordingsExist()) {
+		if (APPLICATION_MODE === ApplicationMode.PROD) {
 			return this.instanceService.uploadFilesToS3();
 		}
 	}

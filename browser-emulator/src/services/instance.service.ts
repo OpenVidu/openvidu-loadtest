@@ -136,15 +136,6 @@ export class InstanceService {
 		}
 	}
 
-	recordingsExist(): boolean {
-		const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
-		dirs.forEach((dir) => {
-			if (fs.readdirSync(dir).length > 0) {
-				return true;
-			}
-		});
-		return false;
-	}
 
 	uploadFilesToS3(): string {
 		if (fs.existsSync(this.AWS_CREDENTIALS_PATH)) {
@@ -153,25 +144,29 @@ export class InstanceService {
 			const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
 
 			dirs.forEach((dir) => {
-				fs.readdirSync(dir).forEach((file) => {
-					const data = fs.readFileSync(`${dir}/${file}`);
-					const s3Config: AWS.S3.PutObjectRequest = {
-						Bucket: this.S3_BUCKET,
-						Key: file,
-						Body: data,
-					};
+				if(fs.existsSync(dir)) {
+					fs.readdirSync(dir).forEach((file) => {
+						const data = fs.readFileSync(`${dir}/${file}`);
+						const s3Config: AWS.S3.PutObjectRequest = {
+							Bucket: this.S3_BUCKET,
+							Key: file,
+							Body: data,
+						};
 
-					s3.putObject(s3Config, (err, data) => {
-						if (err) {
-							console.log(err);
-						} else {
-							console.log(`Successfully uploaded data to ${this.S3_BUCKET} / ${file}`);
-							fs.rmSync(`${dir}/${file}`, { recursive: true, force: true });
-						}
+						s3.putObject(s3Config, (err, data) => {
+							if (err) {
+								console.log(err);
+							} else {
+								console.log(`Successfully uploaded data to ${this.S3_BUCKET} / ${file}`);
+								fs.rmSync(`${dir}/${file}`, { recursive: true, force: true });
+							}
+						});
 					});
-				});
+				}
 			});
 			return this.S3_BUCKET;
+		} else {
+			console.log(`AWS is not configured. ${this.AWS_CREDENTIALS_PATH} not found`);
 		}
 	}
 }
