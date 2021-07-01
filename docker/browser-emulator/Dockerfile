@@ -7,7 +7,7 @@ ENV IS_DOCKER_CONTAINER=true
 
 # Install curl and git
 RUN apt-get update && apt-get install -yq \
-  	wget curl git && \
+  	curl git && \
 	rm -rf /var/lib/apt/lists/*
 
 COPY browser-emulator .

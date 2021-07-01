@@ -58,4 +58,6 @@ if [ "$DOCKER_CONTAINER" = false ]; then
     "$SELF_PATH"/download_mediafiles.sh
 fi
 
+rm -rf /var/lib/apt/lists/*
+
 echo "Instance is ready"
