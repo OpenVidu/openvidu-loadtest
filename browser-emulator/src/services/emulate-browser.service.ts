@@ -36,6 +36,7 @@ export class EmulateBrowserService {
 
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
+			let session: Session = null;
 			try {
 				if (this.exceptionFound) {
 					throw { status: 500, message: this.exceptionMessage };
@@ -48,7 +49,7 @@ export class EmulateBrowserService {
 				let mediaStreamTracks: MediaStreamTracksResponse;
 				const ov: OpenVidu = new OpenVidu();
 				ov.enableProdMode();
-				const session: Session = ov.initSession();
+				session = ov.initSession();
 				this.subscriberToSessionsEvents(session);
 
 				await session.connect(token, { clientData: `${EMULATED_USER_TYPE}_${properties.userId}` });
@@ -72,8 +73,11 @@ export class EmulateBrowserService {
 				this.storeConnection(session.connection.connectionId, properties);
 				resolve(session.connection.connectionId);
 			} catch (error) {
+				if(session) {
+					this.deleteStreamManagerWithConnectionId(session?.connection?.connectionId);
+				}
 				console.log('There was an error connecting to the session:', error);
-				reject({ status: error.status, message: error.statusText || error.message || error });
+				reject({ status: error?.status, message: error?.statusText || error?.message || error });
 			}
 		});
 	}
