@@ -162,7 +162,7 @@ public class LoadTestController {
 			int suffix =  (int) (Math.random() * (10000 - 1)) + 1;
 			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
 			System.out.print("\n");
-			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
+			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
 
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
@@ -217,7 +217,7 @@ public class LoadTestController {
 			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
 
 			System.out.print("\n");
-			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
+			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
 
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
