@@ -149,6 +149,10 @@ public class BrowserEmulatorClient {
 					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
 					return false;
 				}
+				if(response.body().toString().contains("Gateway Time-out")) {
+					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
+					return false;
+				}
 				System.out.println("Retrying");
 				sleep(WAIT_MS);
 				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
@@ -196,6 +200,10 @@ public class BrowserEmulatorClient {
 				}
 
 				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
+					return false;
+				}
+				if(response.body().toString().contains("Gateway Time-out")) {
 					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
 					return false;
 				}
