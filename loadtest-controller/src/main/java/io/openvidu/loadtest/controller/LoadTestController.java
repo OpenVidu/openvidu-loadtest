@@ -384,6 +384,7 @@ public class LoadTestController {
 	private void saveResultReport(TestCase testCase, String participantsBySession) {
 		Calendar endTime = Calendar.getInstance();
 		endTime.add(Calendar.SECOND, loadTestConfig.getSecondsToWaitBetweenTestCases());
+		endTime.add(Calendar.SECOND, 10);
 		
 		// Parse date to match with Kibana time filter
 		String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
