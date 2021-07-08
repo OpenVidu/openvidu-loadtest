@@ -150,7 +150,7 @@ public class BrowserEmulatorClient {
 					return false;
 				}
 				if(response.body().toString().contains("Gateway Time-out")) {
-					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
+					stopReason = "OpenVidu Error: " + response.body();
 					return false;
 				}
 				System.out.println("Retrying");
@@ -164,7 +164,8 @@ public class BrowserEmulatorClient {
 				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
-				System.exit(1);
+				sleep(WAIT_MS);
+				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				System.out.println(e.getMessage());
 				return true;
@@ -218,7 +219,8 @@ public class BrowserEmulatorClient {
 				return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
 			} else if (e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
-				System.exit(1);
+				sleep(WAIT_MS);
+				return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				System.out.println(e.getMessage());
 				return true;
