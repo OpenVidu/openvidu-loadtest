@@ -27,6 +27,7 @@ export class HackService {
 			userAgent: 'Node.js Testing',
 		};
 		(<any>globalThis.document) = {};
+		(<any>globalThis.HTMLElement) = null;
 		globalThis.localStorage = new LocalStorage('./');
 		globalThis.fetch = fetch;
 	}
