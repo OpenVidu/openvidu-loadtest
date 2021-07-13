@@ -9,6 +9,8 @@ public class RequestBody {
 	private String elasticSearchHost = "";
 	private String elasticSearchUserName = "";
 	private String elasticSearchPassword = "";
+	private String awsAccessKey = "";
+	private String awsSecretAccessKey = "";
 	private BrowserMode browserMode = BrowserMode.EMULATE;
 	private String userId = "";
 	private String sessionName = "";
@@ -56,6 +58,14 @@ public class RequestBody {
 
 	public String getSessionName() {
 		return sessionName;
+	}
+
+	public String getAwsAccessKey() {
+		return awsAccessKey;
+	}
+
+	public String getAwsSecretAccessKey() {
+		return awsSecretAccessKey;
 	}
 
 	public String getToken() {
@@ -120,6 +130,16 @@ public class RequestBody {
 
 	public RequestBody elasticSearchPassword(String elasticSearchPassword) {
 		this.elasticSearchPassword = elasticSearchPassword;
+		return this;
+	}
+	
+	public RequestBody awsSecretAccessKey(String awsSecretAccessKey) {
+		this.awsSecretAccessKey = awsSecretAccessKey;
+		return this;
+	}
+	
+	public RequestBody awsAccessKey(String awsAccessKey) {
+		this.awsAccessKey = awsAccessKey;
 		return this;
 	}
 
@@ -191,7 +211,7 @@ public class RequestBody {
 	}
 
 	public RequestBody build() {
-		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName, elasticSearchPassword, browserMode, userId, sessionName, token, role, audio, video,
+		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName, elasticSearchPassword, awsAccessKey, awsSecretAccessKey, browserMode, userId, sessionName, token, role, audio, video,
 				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser);
 	}
 
@@ -203,6 +223,8 @@ public class RequestBody {
 		jsonBody.addProperty("elasticSearchHost", this.elasticSearchHost);
 		jsonBody.addProperty("elasticSearchUserName", this.elasticSearchUserName);
 		jsonBody.addProperty("elasticSearchPassword", this.elasticSearchPassword);
+		jsonBody.addProperty("awsAccessKey", this.awsAccessKey);
+		jsonBody.addProperty("awsSecretAccessKey", this.awsSecretAccessKey);
 		jsonBody.addProperty("browserMode", this.browserMode.getValue());
 		properties.addProperty("userId", this.userId);
 		properties.addProperty("sessionName", this.sessionName);
@@ -227,7 +249,7 @@ public class RequestBody {
 
 	}
 
-	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost, String elasticSearchUserName, String elasticSearchPassword, BrowserMode browserMode, String userId,
+	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost, String elasticSearchUserName, String elasticSearchPassword, String awsAccessKey, String awsSecretAccessKey, BrowserMode browserMode, String userId,
 			String sessionName, String token, OpenViduRole role, boolean audio, boolean video, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, int frameRate, boolean browserRecording,
 			boolean showVideoElements, boolean headlessBrowser) {
@@ -237,6 +259,8 @@ public class RequestBody {
 		this.elasticSearchHost = elasticSearchHost;
 		this.elasticSearchUserName = elasticSearchUserName;
 		this.elasticSearchPassword = elasticSearchPassword;
+		this.awsAccessKey = awsAccessKey;
+		this.awsSecretAccessKey = awsSecretAccessKey;
 		this.browserMode = browserMode;
 		this.userId = userId;
 		this.sessionName = sessionName;

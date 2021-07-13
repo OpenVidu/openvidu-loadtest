@@ -55,6 +55,8 @@ public class LoadTestConfig {
 	private boolean manualParticipantsAllocation;
 
 	private int participantsPerWorker;
+	
+	private int medianodeLoadForStartRecording;
 
 	private String elasticsearchHost;
 
@@ -64,8 +66,20 @@ public class LoadTestConfig {
 
 	private String kibanaHost;
 
+	private String awsSecretAccessKey;
+	
+	private String awsAccessKey;
+	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
+	}
+
+	public String getAwsSecretAccessKey() {
+		return awsSecretAccessKey;
+	}
+
+	public String getAwsAccessKey() {
+		return awsAccessKey;
 	}
 
 	public String getOpenViduSecret() {
@@ -160,6 +174,10 @@ public class LoadTestConfig {
 	public int getWorkerMaxLoad() {
 		return workerMaxLoad;
 	}
+	
+	public int getMedianodeLoadForRecording() {
+		return medianodeLoadForStartRecording;
+	}
 
 	public boolean isTerminateWorkers() {
 		return terminateWorkers;
@@ -189,9 +207,12 @@ public class LoadTestConfig {
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
 			workersRumpUp = asInt("WORKERS_RUMP_UP");
+			medianodeLoadForStartRecording = asInt("MEDIANODE_LOAD_FOR_START_RECORDING");
 			terminateWorkers = asBoolean("TERMINATE_WORKERS");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
+			awsSecretAccessKey = asOptionalString("AWS_SECRET_ACCESS_KEY");
+			awsAccessKey = asOptionalString("AWS_ACCESS_KEY");
 
 			this.printInfo();
 
@@ -234,6 +255,9 @@ public class LoadTestConfig {
 			System.out.printf(format, "Workers at the beginning:", workersNumberAtTheBeginning);
 			System.out.printf(format, "Worker rump up:", workersRumpUp);
 			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
+		}
+		if(medianodeLoadForStartRecording > 0) {
+			System.out.printf(format, "Start recording when medianode CPU is over:", medianodeLoadForStartRecording);
 		}
 
 		System.out.printf("\n");
@@ -298,7 +322,7 @@ public class LoadTestConfig {
 			}
 			return integerValue;
 		} catch (NumberFormatException e) {
-			return 0;
+			return -1;
 		}
 
 	}

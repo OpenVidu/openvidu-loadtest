@@ -29,6 +29,19 @@ public class TestCase {
 		this.headlessBrowser = headlessBrowser;
 		this.showBrowserVideoElements = showBrowserVideoElements;
 	}
+	
+	public TestCase(TestCase testCase) {
+		this.typology = testCase.typology;
+		this.participants = testCase.participants;
+		this.sessions = testCase.sessions;
+		this.browserMode = testCase.browserMode;
+//		this.resolution = resolution;
+		this.frameRate = testCase.frameRate;
+		this.openviduRecordingMode = testCase.openviduRecordingMode;
+		this.browserRecording = testCase.browserRecording;
+		this.headlessBrowser = testCase.headlessBrowser;
+		this.showBrowserVideoElements = testCase.showBrowserVideoElements;
+	}
 
 	public boolean is_NxN() {
 		return this.typology.getValue().equals(Typology.NxN.getValue());
@@ -86,7 +99,7 @@ public class TestCase {
 		return browserRecording && this.browserMode.equals(BrowserMode.REAL);
 	}
 
-	public void setRecording(boolean browserRecording) {
+	public void setBrowserRecording(boolean browserRecording) {
 		this.browserRecording = browserRecording;
 	}
 

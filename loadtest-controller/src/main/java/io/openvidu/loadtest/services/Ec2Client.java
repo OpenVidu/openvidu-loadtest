@@ -1,6 +1,7 @@
 package io.openvidu.loadtest.services;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
@@ -10,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -23,8 +26,6 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.ResourceType;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
@@ -43,7 +44,9 @@ public class Ec2Client {
 	private static int WORKERS_NUMBER_AT_THE_BEGINNING;
 
 	private static final Tag NAME_TAG = new Tag().withKey("Name").withValue("Worker");
+	private static final Tag RECORDING_NAME_TAG = new Tag().withKey("Name").withValue("Recording_Worker");
 	private static final Tag TYPE_TAG = new Tag().withKey("Type").withValue("OpenViduLoadTest");
+	private static final Tag RECORDING_TAG = new Tag().withKey("Type").withValue("RecordingLoadTest");
 
 	private static final int WAIT_RUNNING_STATE_MS = 5000;
 
@@ -60,7 +63,15 @@ public class Ec2Client {
 		INSTANCE_REGION = this.loadTestConfig.getWorkerInstanceRegion();
 		WORKERS_NUMBER_AT_THE_BEGINNING = this.loadTestConfig.getWorkersNumberAtTheBeginning();
 
-		ec2 = AmazonEC2ClientBuilder.standard().withRegion(INSTANCE_REGION).build();
+		if(!this.loadTestConfig.getAwsAccessKey().isBlank() && !this.loadTestConfig.getAwsSecretAccessKey().isBlank()) {
+			BasicAWSCredentials awsCreds = new BasicAWSCredentials(this.loadTestConfig.getAwsAccessKey(), this.loadTestConfig.getAwsSecretAccessKey());
+			ec2 = AmazonEC2ClientBuilder.standard().withRegion(INSTANCE_REGION).withCredentials(new AWSStaticCredentialsProvider(awsCreds)).build();
+		} else {
+			log.error("AWS credentials are empty in application.properties");
+			if(this.loadTestConfig.getWorkerUrlList().isEmpty()) {
+				System.exit(0);	
+			}
+		}
 	}
 
 	public List<Instance> launchAndCleanInitialInstances() {
@@ -88,10 +99,34 @@ public class Ec2Client {
 		return resultList;
 	}
 
-	public List<Instance> launchInstance(int number) {
+	public List<Instance> launchInstance(int number){
 
+		List<Tag> tags = new ArrayList<Tag>();
+		tags.add(NAME_TAG);
+		tags.add(TYPE_TAG);
+		
+		return this.launchInstance(number, tags);
+	}
+	
+	public List<Instance> launchRecordingInstance(int number){
+
+		List<Instance> instance = getInstanceWithFilters(getTagRecordingFilter());
+		if(instance.size() > 0) {
+			rebootInstance(Arrays.asList(instance.get(0).getInstanceId()));
+			return instance;
+		}
+
+		List<Tag> tags = new ArrayList<Tag>();
+		tags.add(RECORDING_NAME_TAG);
+		tags.add(RECORDING_TAG);
+		
+		return this.launchInstance(number, tags);
+	}
+	
+	private List<Instance> launchInstance(int number, List<Tag> tags){
+		
 		TagSpecification tagSpecification = new TagSpecification().withResourceType(ResourceType.Instance)
-				.withTags(NAME_TAG, TYPE_TAG);
+				.withTags(tags);
 
 		RunInstancesRequest ec2request = new RunInstancesRequest().withImageId(AMI_ID).withInstanceType(INSTANCE_TYPE)
 				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1);
@@ -137,7 +172,7 @@ public class Ec2Client {
 	public void rebootInstance(List<String> instanceIds) {
 
 		RebootInstancesRequest request = new RebootInstancesRequest().withInstanceIds(instanceIds);
-
+		
 		ec2.rebootInstances(request);
 		log.info("Instance {} is being rebooted", instanceIds);
 		// Avoided start test before reboot instances
@@ -219,6 +254,10 @@ public class Ec2Client {
 
 	private Filter getTagFilter() {
 		return new Filter().withName("tag:" + TYPE_TAG.getKey()).withValues(TYPE_TAG.getValue());
+	}
+	
+	private Filter getTagRecordingFilter() {
+		return new Filter().withName("tag:" + RECORDING_TAG.getKey()).withValues(RECORDING_TAG.getValue());
 	}
 
 	private Filter getInstanceStateFilter(InstanceStateName state) {

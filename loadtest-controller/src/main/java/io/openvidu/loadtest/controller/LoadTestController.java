@@ -18,6 +18,7 @@ import com.amazonaws.services.ec2.model.Instance;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
@@ -43,10 +44,14 @@ public class LoadTestController {
 	private KibanaClient kibanaClient;
 
 	@Autowired
+	private ElasticSearchClient esClient;
+
+	@Autowired
 	private Ec2Client ec2Client;
 
 	private static List<Instance> workersList = new ArrayList<Instance>();
 	private static List<String> devWorkersList = new ArrayList<String>();
+	private static List<Instance> recordingWorkersList = new ArrayList<Instance>();
 
 	private static String currentWorkerUrl = "";
 	private static int workersUsed = 0;
@@ -70,18 +75,16 @@ public class LoadTestController {
 	public void initialize() {
 		PROD_MODE = this.loadTestConfig.getWorkerUrlList().isEmpty();
 		devWorkersList = this.loadTestConfig.getWorkerUrlList();
-
 	}
 
 	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
-		
-		if(this.loadTestConfig.isTerminateWorkers()) {
+
+		if (this.loadTestConfig.isTerminateWorkers()) {
 			log.info("Terminate all EC2 instances");
 			this.ec2Client.terminateAllInstances();
 			return resultReportList;
 		}
-		
-		
+
 		if (PROD_MODE) {
 			this.kibanaClient.importDashboards();
 		}
@@ -95,7 +98,7 @@ public class LoadTestController {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
 					}
-					
+
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					System.out.print("\n");
 					log.info("Starting test with N:N session typology");
@@ -112,7 +115,7 @@ public class LoadTestController {
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-					
+
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
@@ -146,7 +149,6 @@ public class LoadTestController {
 
 	}
 
-
 	private void startNxNTest(int participantsBySession, TestCase testCase) {
 		int sessionsLimit = testCase.getSessions();
 
@@ -159,7 +161,7 @@ public class LoadTestController {
 			}
 
 			sessionNumber.getAndIncrement();
-			int suffix =  (int) (Math.random() * (10000 - 1)) + 1;
+			int suffix = (int) (Math.random() * (10000 - 1)) + 1;
 			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
 			System.out.print("\n");
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
@@ -167,19 +169,29 @@ public class LoadTestController {
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-						sessionNumberStr, testCase);
+
+				if (needRecordingParticipant()) {
+					System.out.println("Starting REAL BROWSER for quality control");
+					String uri = startRecordingInstance();
+					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(
+							uri, userNumber.get(), sessionNumberStr,
+							testCase);
+				} else {
+					System.out.println(testCase);
+					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
+							sessionNumberStr, testCase);
+				}
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
-					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
+							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
 						setAndInitializeNextWorker();
 					}
 					if (userNumber.get() < participantsBySession) {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						userNumber.getAndIncrement();
 					}
-				
 
 				} else {
 					log.error("Response status is not 200 OK. Exit");
@@ -191,7 +203,8 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0)) {
+				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit)
+						&& !this.currentWorkerHasSpace(participantsBySession, 0)) {
 					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 					setAndInitializeNextWorker();
 				}
@@ -213,7 +226,7 @@ public class LoadTestController {
 			}
 
 			sessionNumber.getAndIncrement();
-			int suffix =  (int) (Math.random() * (10000 - 1)) + 1;
+			int suffix = (int) (Math.random() * (10000 - 1)) + 1;
 			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
 
 			System.out.print("\n");
@@ -228,7 +241,8 @@ public class LoadTestController {
 				if (responseIsOk) {
 					userNumber.getAndIncrement();
 					this.totalParticipants.incrementAndGet();
-					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
+							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
 						setAndInitializeNextWorker();
 					}
 				} else {
@@ -247,7 +261,8 @@ public class LoadTestController {
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
-						if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+						if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
+								.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
 							setAndInitializeNextWorker();
 						}
 						if (userNumber.get() < totalParticipants) {
@@ -266,25 +281,42 @@ public class LoadTestController {
 					this.sessionsCompleted.incrementAndGet();
 					// TODO: in TEACHING sessions, all participants are PUBLISHERS
 					// Now, it is assuming they are PUBLISHERS and SUBSCRIBERS
-					if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(publishers, subscribers)) {
+					if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit)
+							&& !this.currentWorkerHasSpace(publishers, subscribers)) {
 						streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 						setAndInitializeNextWorker();
 					}
-				}else {
+				} else {
 					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 				}
 			}
 		}
 	}
+	
+	private String startRecordingInstance() {
+		
+		if(PROD_MODE) {
+			log.info("Starting recording EC2 instance...");
+			recordingWorkersList.addAll(this.ec2Client.launchRecordingInstance(1));
+			initializeInstance(recordingWorkersList.get(0).getPublicDnsName());
+			return recordingWorkersList.get(0).getPublicDnsName();
+		}
+		return devWorkersList.get(0);
+
+	}
 
 	private void setAndInitializeNextWorker() {
 		String nextWorkerUrl = getNextWorker();
-		boolean requireInitialize = !currentWorkerUrl.equals(nextWorkerUrl);
+		this.initializeInstance(nextWorkerUrl);
 		currentWorkerUrl = nextWorkerUrl;
-		this.browserEmulatorClient.ping(currentWorkerUrl);
-		new WebSocketClient().connect("ws://" + currentWorkerUrl + ":" + WEBSOCKET_PORT + "/events");
+	}
+	
+	private void initializeInstance(String url) {
+		boolean requireInitialize = !currentWorkerUrl.equals(url);
+		this.browserEmulatorClient.ping(url);
+		new WebSocketClient().connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
 		if (requireInitialize && this.loadTestConfig.isKibanaEstablished()) {
-			this.browserEmulatorClient.initializeInstance(currentWorkerUrl);
+			this.browserEmulatorClient.initializeInstance(url);
 		}
 	}
 
@@ -338,8 +370,13 @@ public class LoadTestController {
 
 	private boolean needCreateNewSession(int sessionsLimit) {
 		return sessionsLimit == -1 || (sessionsLimit > 0 && this.sessionsCompleted.get() < sessionsLimit);
-//		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionNumber.get() < sessionsLimit);
+	}
 
+	private boolean needRecordingParticipant() {
+		double medianodeLoadForRecording = this.loadTestConfig.getMedianodeLoadForRecording();
+
+		return medianodeLoadForRecording > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated()
+				&& this.esClient.getMediaNodeCpu() >= medianodeLoadForRecording;
 	}
 
 	private boolean currentWorkerHasSpace(int publishers, int subscribers) {
@@ -355,7 +392,7 @@ public class LoadTestController {
 	}
 
 	private void cleanEnvironment() {
-		
+
 		this.totalParticipants.set(0);
 		this.sessionsCompleted.set(0);
 		sessionNumber.set(0);
@@ -366,7 +403,7 @@ public class LoadTestController {
 		streamsPerWorker = new ArrayList<>();
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 	}
-	
+
 	private void disconnectAllSessions() {
 		List<String> workersUrl = devWorkersList;
 
@@ -375,39 +412,37 @@ public class LoadTestController {
 			for (Instance ec2 : workersList) {
 				workersUrl.add(ec2.getPublicDnsName());
 			}
+			for (Instance recordingEc2 : recordingWorkersList) {
+				workersUrl.add(recordingEc2.getPublicDnsName());
+			}
 			workersList = new ArrayList<Instance>();
+			recordingWorkersList = new ArrayList<Instance>();
 		}
 		this.browserEmulatorClient.disconnectAll(workersUrl);
-		
+
 	}
 
 	private void saveResultReport(TestCase testCase, String participantsBySession) {
 		Calendar endTime = Calendar.getInstance();
 		endTime.add(Calendar.SECOND, loadTestConfig.getSecondsToWaitBetweenTestCases());
 		endTime.add(Calendar.SECOND, 10);
-		
+
 		// Parse date to match with Kibana time filter
 		String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
 		String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T");
 		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
 
 		ResultReport rr = new ResultReport().setTotalParticipants(this.totalParticipants.get())
-				.setNumSessionsCompleted(this.sessionsCompleted.get())
-				.setNumSessionsCreated(sessionNumber.get())
-				.setWorkersUsed(workersUsed)
-				.setStreamsPerWorker(streamsPerWorker)
+				.setNumSessionsCompleted(this.sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())
+				.setWorkersUsed(workersUsed).setStreamsPerWorker(streamsPerWorker)
 				.setSessionTypology(testCase.getTopology().toString())
 				.setBrowserModeSelected(testCase.getBrowserMode().toString())
 				.setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
-				.setBrowserRecording(testCase.isBrowserRecording())
-				.setParticipantsPerSession(participantsBySession)
-				.setStopReason(this.browserEmulatorClient.getStopReason())
-				.setStartTime(this.startTime)
-				.setEndTime(endTime)
-				.setKibanaUrl(kibanaUrl)
+				.setBrowserRecording(testCase.isBrowserRecording()).setParticipantsPerSession(participantsBySession)
+				.setStopReason(this.browserEmulatorClient.getStopReason()).setStartTime(this.startTime)
+				.setEndTime(endTime).setKibanaUrl(kibanaUrl)
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
-				.setParticipantsPerWorker(loadTestConfig.getParticipantsPerWorker())
-				.build();
+				.setParticipantsPerWorker(loadTestConfig.getParticipantsPerWorker()).build();
 
 		resultReportList.add(rr);
 

@@ -36,6 +36,7 @@ public class BrowserEmulatorClient {
 	private static double workerCpuPct = 0;
 	private static int streamsInWorker = 0;
 	private static int participantsInWorker = 0;
+	private static boolean recordingParticipantCreated = false;
 	
 	private static String stopReason = "Test case finished as expected";
 
@@ -73,7 +74,10 @@ public class BrowserEmulatorClient {
 	public HttpResponse<String> initializeInstance(String workerUrl) {
 		JsonObject body = new RequestBody().elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
 				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
-				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword()).build().toJson();
+				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
+				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
+				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
+				.build().toJson();
 
 		try {
 			log.info("Initialize worker {}", workerUrl);
@@ -229,6 +233,16 @@ public class BrowserEmulatorClient {
 		}
 		return false;
 	}
+	
+	public boolean createExternalRecordingPublisher(String workerUrl, int userNumber, String sessionNumber, TestCase testCase) {
+		
+		TestCase testCaseAux = new TestCase(testCase);
+		testCaseAux.setBrowserMode(BrowserMode.REAL);
+		testCaseAux.setBrowserRecording(true);
+		log.info("Creating a participant using a REAL BROWSER for recoding");
+		recordingParticipantCreated = this.createPublisher(workerUrl, userNumber, sessionNumber, testCaseAux);
+		return recordingParticipantCreated;
+	}
 
 	public void disconnectAll(List<String> workerUrlList) {
 //		stopReason = "Test case finished as expected";
@@ -255,6 +269,7 @@ public class BrowserEmulatorClient {
 			executorService.shutdown();
 			streamsInWorker = 0;
 			participantsInWorker = 0;
+			recordingParticipantCreated = false;
 			log.info("Participants disconnected");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -275,6 +290,10 @@ public class BrowserEmulatorClient {
 	
 	public String getStopReason() {
 		return stopReason;
+	}
+	
+	public boolean isRecordingParticipantCreated() {
+		return recordingParticipantCreated;
 	}
 
 	private String disconnect(String workerUrl) {
