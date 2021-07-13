@@ -21,7 +21,6 @@ const getUserMediaWRTC = require('wrtc').getUserMedia;
 import * as KurentoWebRTC from './webrtc-bindings/kurento-webrtc/KurentoWebRTC';
 
 export class HackService {
-	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	constructor() {
 		(<any>globalThis.navigator) = {
 			userAgent: 'Node.js Testing',
@@ -36,10 +35,7 @@ export class HackService {
 		if (EMULATED_USER_TYPE === EmulatedUserType.KMS) {
 			// Implement fake RTCPeerConnection methods, to get media from Kurento.
 
-			await KurentoWebRTC.init(
-				'ws://localhost:8888/kurento',
-				`${this.KMS_RECORDINGS_PATH}/recording`
-			);
+			await KurentoWebRTC.init('ws://localhost:8888/kurento');
 
 			const globalObject = globalThis as any;
 			globalObject.navigator = KurentoWebRTC.navigator;

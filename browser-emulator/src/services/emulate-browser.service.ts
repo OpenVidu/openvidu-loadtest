@@ -21,6 +21,7 @@ export class EmulateBrowserService {
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
+	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 
 	constructor(
 		private httpClient: HttpClient = new HttpClient(),
@@ -73,7 +74,7 @@ export class EmulateBrowserService {
 				this.storeConnection(session.connection.connectionId, properties);
 				resolve(session.connection.connectionId);
 			} catch (error) {
-				if(session) {
+				if (session) {
 					this.deleteStreamManagerWithConnectionId(session?.connection?.connectionId);
 				}
 				console.log('There was an error connecting to the session:', error);
@@ -193,6 +194,9 @@ export class EmulateBrowserService {
 
 		if (this.isUsingKms()) {
 			await KurentoWebRTC.setPlayerEndpointPath(`${this.KMS_MEDIAFILES_PATH}/video_${properties.resolution}.mkv`);
+			KurentoWebRTC.setRecorderEndpointPrefix(
+				`${this.KMS_RECORDINGS_PATH}/kms_${properties.recordingMetadata}_${properties.sessionName}_${new Date().getTime()}`
+			);
 			return { audioTrack, videoTrack };
 		}
 

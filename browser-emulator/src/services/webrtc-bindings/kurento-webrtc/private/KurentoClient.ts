@@ -27,10 +27,7 @@ const kurento = {
  *
  * Recording is disabled if this parameter is undefined.
  */
-export async function init(
-	kurentoUrl: string,
-	recorderPathPrefix: string | undefined = undefined
-): Promise<void> {
+export async function init(kurentoUrl: string): Promise<void> {
 	console.log(
 		'[KurentoClient] Connect with Kurento Media Server:',
 		kurentoUrl
@@ -50,8 +47,6 @@ export async function init(
 			event.description
 		);
 	});
-
-	kurento.recorderPathPrefix = recorderPathPrefix;
 }
 
 export async function setPlayerEndpointPath(videoUri: string) {
@@ -88,6 +83,10 @@ export async function setPlayerEndpointPath(videoUri: string) {
 			}
 		);
 	}
+}
+
+export function setRecorderEndpointPrefix(recorderPathPrefix: string | undefined = undefined) {
+	kurento.recorderPathPrefix = recorderPathPrefix;
 }
 
 export async function clean() {
@@ -157,9 +156,7 @@ export async function makeWebRtcEndpoint(
 			const kurentoRecorder = await kurento.pipeline.create(
 				'RecorderEndpoint',
 				{
-					uri: `file://${
-						kurento.recorderPathPrefix
-					}_${new Date().getTime()}.webm`,
+					uri: `file://${kurento.recorderPathPrefix}.webm`,
 					stopOnEndOfStream: true,
 					mediaProfile: 'WEBM',
 				}

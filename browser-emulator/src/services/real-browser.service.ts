@@ -56,7 +56,7 @@ export class RealBrowserService {
 		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
 		this.setSeleniumRemoteURL(bindedPort);
 		try {
-			const containerName = 'container_' + properties.sessionName + '_' + new Date().getTime();
+			const containerName = `chrome_${properties.recordingMetadata}_${properties.sessionName}_${new Date().getTime()}`;
 			const options: ContainerCreateOptions = this.getChromeContainerOptions(containerName, bindedPort);
 			containerId = await this.dockerService.startContainer(options);
 			this.containerMap.set(containerId, {

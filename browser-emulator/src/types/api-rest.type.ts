@@ -40,19 +40,19 @@ export enum RecordingLayoutMode {
 
 
 export interface TestProperties {
-	userId: string,
-	sessionName: string,
-	role: OpenViduRole,
-	audio: boolean,
-	video: boolean,
-	resolution: Resolution,
-	recordingOutputMode?: RecordingOutputMode,
-	frameRate: number,
-
-	// Only with BrowserMode=REAL
-	recording?: boolean
-	showVideoElements?: boolean,
-	headless?: boolean
+	userId: string;
+	sessionName: string;
+	role: OpenViduRole;
+	audio: boolean;
+	video: boolean;
+	resolution: Resolution;
+	recordingOutputMode?: RecordingOutputMode;
+	frameRate: number;
+	// Only with BrowserMode=REAL;
+	recording?: boolean;
+	showVideoElements?: boolean;
+	headless?: boolean;
+	recordingMetadata?: string;
 }
 
 export interface LoadTestPostResponse {

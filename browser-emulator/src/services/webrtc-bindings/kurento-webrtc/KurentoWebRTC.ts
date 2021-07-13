@@ -1,4 +1,4 @@
-export { init, setPlayerEndpointPath, clean } from './private/KurentoClient';
+export { init, setPlayerEndpointPath, setRecorderEndpointPrefix, clean } from './private/KurentoClient';
 
 import { Navigator } from './private/Navigator';
 export const navigator = new Navigator();
