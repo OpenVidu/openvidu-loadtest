@@ -58,7 +58,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 			}
 		}
 
-		if (!isProdMode && !!request.awsAccessKey && !!request.awsSecretAccessKey) {
+		if (isProdMode && !!request.awsAccessKey && !!request.awsSecretAccessKey) {
 			createAWSConfigFile(request.awsAccessKey, request.awsSecretAccessKey);
 		}
 
@@ -82,10 +82,10 @@ function createAWSConfigFile(awsAccessKey: string, awsSecretAccessKey: string) {
 	const instanceService = InstanceService.getInstance();
 
 	const awsConfig = { accessKeyId: awsAccessKey, secretAccessKey: awsSecretAccessKey, region: 'us-east-1' };
-
 	if (fs.existsSync(instanceService.AWS_CREDENTIALS_PATH)) {
 		fs.rmSync(instanceService.AWS_CREDENTIALS_PATH, { recursive: true, force: true });
 	}
-	fs.writeFileSync(instanceService.AWS_CREDENTIALS_PATH, JSON.stringify(awsConfig));
+	fs.mkdirSync(instanceService.AWS_CREDENTIALS_PATH, {recursive: true});
+	fs.writeFileSync(`${instanceService.AWS_CREDENTIALS_PATH}/config.json`, JSON.stringify(awsConfig));
 	console.log('Created aws credentials file');
 }

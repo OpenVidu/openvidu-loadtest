@@ -112,8 +112,5 @@ function setEnvironmentParams(req: Request): void {
 	process.env.LOCATION_HOSTNAME = req.headers.host;
 	process.env.OPENVIDU_SECRET = request.openviduSecret;
 	process.env.OPENVIDU_URL = request.openviduUrl;
-	// process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
-	// process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
-	// process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
-	process.env.KURENTO_RECORDING_ENABLED = String(request.properties.recording);
+	process.env.KURENTO_RECORDING_ENABLED = String(request.properties.recording && request.browserMode === BrowserMode.EMULATE);
 }

@@ -22,7 +22,7 @@ export class InstanceService {
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
 	readonly S3_BUCKET = 'openvidu-loadtest-default';
-	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig/config.json`;
+	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig`;
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
 
@@ -138,8 +138,8 @@ export class InstanceService {
 
 
 	uploadFilesToS3(): string {
-		if (fs.existsSync(this.AWS_CREDENTIALS_PATH)) {
-			AWS.config.loadFromPath(this.AWS_CREDENTIALS_PATH);
+		if (fs.existsSync(`${this.AWS_CREDENTIALS_PATH}/config.json`)) {
+			AWS.config.loadFromPath(`${this.AWS_CREDENTIALS_PATH}/config.json`);
 			const s3 = new AWS.S3();
 			const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
 
@@ -166,7 +166,7 @@ export class InstanceService {
 			});
 			return this.S3_BUCKET;
 		} else {
-			console.log(`AWS is not configured. ${this.AWS_CREDENTIALS_PATH} not found`);
+			console.log(`ERROR uploading videos to S3. AWS is not configured. ${this.AWS_CREDENTIALS_PATH}/config.json not found`);
 		}
 	}
 }

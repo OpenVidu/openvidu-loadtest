@@ -37,7 +37,7 @@ export class RealBrowserService {
 	}
 
 	public async startBrowserContainer(properties: TestProperties): Promise<any> {
-		if (!this.existMediaFiles() && !process.env.IS_DOCKER_CONTAINER) {
+		if (!this.existMediaFiles(properties.resolution) && !process.env.IS_DOCKER_CONTAINER) {
 			return Promise.reject({
 				message: 'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run download_mediafiles.sh?',
 			});
@@ -307,8 +307,8 @@ export class RealBrowserService {
 		);
 	}
 
-	private existMediaFiles(): boolean {
-		const videoFile = `${process.env.PWD}/src/assets/mediafiles/fakevideo.y4m`;
+	private existMediaFiles(resolution: string): boolean {
+		const videoFile = `${process.env.PWD}/src/assets/mediafiles/fakevideo_${resolution}.y4m`;
 		const audioFile = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
 		try {
 			return fs.existsSync(videoFile) && fs.existsSync(audioFile);
