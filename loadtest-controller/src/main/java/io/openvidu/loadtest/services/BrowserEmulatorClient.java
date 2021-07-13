@@ -234,11 +234,12 @@ public class BrowserEmulatorClient {
 		return false;
 	}
 	
-	public boolean createExternalRecordingPublisher(String workerUrl, int userNumber, String sessionNumber, TestCase testCase) {
+	public boolean createExternalRecordingPublisher(String workerUrl, int userNumber, String sessionNumber, TestCase testCase, String recordingMetadata) {
 		
 		TestCase testCaseAux = new TestCase(testCase);
 		testCaseAux.setBrowserMode(BrowserMode.REAL);
 		testCaseAux.setBrowserRecording(true);
+		testCaseAux.setRecordingMetadata(recordingMetadata);
 		log.info("Creating a participant using a REAL BROWSER for recoding");
 		recordingParticipantCreated = this.createPublisher(workerUrl, userNumber, sessionNumber, testCaseAux);
 		return recordingParticipantCreated;
@@ -347,6 +348,7 @@ public class BrowserEmulatorClient {
 				.browserRecording(testCase.isBrowserRecording())
 				.showVideoElements(testCase.isShowBrowserVideoElements())
 				.headlessBrowser(testCase.isHeadlessBrowser())
+				.recordingMetadata(testCase.getRecordingMetadata())
 				.build();
 	}
 // @formatter:on

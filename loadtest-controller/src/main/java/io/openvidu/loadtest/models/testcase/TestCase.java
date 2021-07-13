@@ -14,6 +14,7 @@ public class TestCase {
 	private boolean browserRecording = false;
 	private boolean headlessBrowser = false;
 	private boolean showBrowserVideoElements = true;
+	private String recordingMetadata = "";
 
 	public TestCase(String typology, List<String> participants, int sessions, BrowserMode browserMode, int frameRate,
 			OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
@@ -86,10 +87,19 @@ public class TestCase {
 	public void setBrowserMode(BrowserMode browserMode) {
 		this.browserMode = browserMode;
 	}
+	
 
 //	public String getResolution() {
 //		return resolution;
 //	}
+
+	public String getRecordingMetadata() {
+		return recordingMetadata;
+	}
+
+	public void setRecordingMetadata(String recordingMetadata) {
+		this.recordingMetadata = recordingMetadata;
+	}
 
 	public int getFrameRate() {
 		return frameRate;

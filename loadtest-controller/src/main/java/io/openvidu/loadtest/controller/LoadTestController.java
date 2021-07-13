@@ -173,11 +173,10 @@ public class LoadTestController {
 				if (needRecordingParticipant()) {
 					System.out.println("Starting REAL BROWSER for quality control");
 					String uri = startRecordingInstance();
-					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(
-							uri, userNumber.get(), sessionNumberStr,
-							testCase);
+					String recordingMetadata = "N_N_" + participantsBySession + "PSes";
+					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
+							sessionNumberStr, testCase, recordingMetadata);
 				} else {
-					System.out.println(testCase);
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumberStr, testCase);
 				}
@@ -292,10 +291,10 @@ public class LoadTestController {
 			}
 		}
 	}
-	
+
 	private String startRecordingInstance() {
-		
-		if(PROD_MODE) {
+
+		if (PROD_MODE) {
 			log.info("Starting recording EC2 instance...");
 			recordingWorkersList.addAll(this.ec2Client.launchRecordingInstance(1));
 			initializeInstance(recordingWorkersList.get(0).getPublicDnsName());
@@ -310,7 +309,7 @@ public class LoadTestController {
 		this.initializeInstance(nextWorkerUrl);
 		currentWorkerUrl = nextWorkerUrl;
 	}
-	
+
 	private void initializeInstance(String url) {
 		boolean requireInitialize = !currentWorkerUrl.equals(url);
 		this.browserEmulatorClient.ping(url);

@@ -24,6 +24,7 @@ public class RequestBody {
 	private boolean browserRecording = false;
 	private boolean showVideoElements = true;
 	private boolean headlessBrowser = false;
+	private String recordingMetadata = "";
 
 	public RequestBody() {
 	}
@@ -209,10 +210,15 @@ public class RequestBody {
 		this.headlessBrowser = headlessBrowser;
 		return this;
 	}
+	
+	public RequestBody recordingMetadata(String recordingMetadata) {
+		this.recordingMetadata = recordingMetadata;
+		return this;
+	}
 
 	public RequestBody build() {
 		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName, elasticSearchPassword, awsAccessKey, awsSecretAccessKey, browserMode, userId, sessionName, token, role, audio, video,
-				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser);
+				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser, recordingMetadata);
 	}
 
 	public JsonObject toJson() {
@@ -244,6 +250,10 @@ public class RequestBody {
 			properties.addProperty("showVideoElements", this.showVideoElements);
 			properties.addProperty("headless", this.headlessBrowser);
 		}
+		
+		if(!this.recordingMetadata.isBlank()) {
+			properties.addProperty("recordingMetadata", this.recordingMetadata);
+		}
 		jsonBody.add("properties", properties);
 		return jsonBody;
 
@@ -252,7 +262,7 @@ public class RequestBody {
 	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost, String elasticSearchUserName, String elasticSearchPassword, String awsAccessKey, String awsSecretAccessKey, BrowserMode browserMode, String userId,
 			String sessionName, String token, OpenViduRole role, boolean audio, boolean video, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, int frameRate, boolean browserRecording,
-			boolean showVideoElements, boolean headlessBrowser) {
+			boolean showVideoElements, boolean headlessBrowser, String recordingMetadata) {
 		super();
 		this.openviduUrl = openviduUrl;
 		this.openviduSecret = openviduSecret;
@@ -274,6 +284,7 @@ public class RequestBody {
 		this.browserRecording = browserRecording;
 		this.showVideoElements = showVideoElements;
 		this.headlessBrowser = headlessBrowser;
+		this.recordingMetadata = recordingMetadata;
 	}
 
 }

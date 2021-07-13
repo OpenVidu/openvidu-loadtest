@@ -56,7 +56,7 @@ public class LoadTestConfig {
 
 	private int participantsPerWorker;
 	
-	private int medianodeLoadForStartRecording;
+	private double medianodeLoadForStartRecording;
 
 	private String elasticsearchHost;
 
@@ -175,7 +175,7 @@ public class LoadTestConfig {
 		return workerMaxLoad;
 	}
 	
-	public int getMedianodeLoadForRecording() {
+	public double getMedianodeLoadForRecording() {
 		return medianodeLoadForStartRecording;
 	}
 
@@ -207,7 +207,7 @@ public class LoadTestConfig {
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
 			workersRumpUp = asInt("WORKERS_RUMP_UP");
-			medianodeLoadForStartRecording = asInt("MEDIANODE_LOAD_FOR_START_RECORDING");
+			medianodeLoadForStartRecording = asDouble("MEDIANODE_LOAD_FOR_START_RECORDING");
 			terminateWorkers = asBoolean("TERMINATE_WORKERS");
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduSecret = asString("OPENVIDU_SECRET");
@@ -323,6 +323,19 @@ public class LoadTestConfig {
 			return integerValue;
 		} catch (NumberFormatException e) {
 			return -1;
+		}
+
+	}
+	
+	private double asDouble(String property) {
+		try {
+			Double doubleValue = Double.parseDouble(env.getProperty(property));
+			if (doubleValue < 0) {
+				return 0.0;
+			}
+			return doubleValue;
+		} catch (NumberFormatException e) {
+			return 0.0;
 		}
 
 	}
