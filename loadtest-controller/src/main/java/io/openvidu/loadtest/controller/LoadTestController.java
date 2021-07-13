@@ -235,8 +235,16 @@ public class LoadTestController {
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-				responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-						sessionNumberStr, testCase);
+				if (needRecordingParticipant()) {
+					System.out.println("Starting REAL BROWSER for quality control");
+					String uri = startRecordingInstance();
+					String recordingMetadata = "N_M_" + publishers + "_" + subscribers + "PSes";
+					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
+							sessionNumberStr, testCase, recordingMetadata);
+				} else {
+					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
+							sessionNumberStr, testCase);
+				}
 				if (responseIsOk) {
 					userNumber.getAndIncrement();
 					this.totalParticipants.incrementAndGet();
@@ -255,8 +263,17 @@ public class LoadTestController {
 				for (int i = 0; i < subscribers; i++) {
 					log.info("Creating SUBSCRIBER '{}' in session",
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-					responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
-							sessionNumberStr, testCase);
+
+					if (needRecordingParticipant()) {
+						System.out.println("Starting REAL BROWSER for quality control");
+						String uri = startRecordingInstance();
+						String recordingMetadata = "N_M_" + publishers + "_" + subscribers + "PSes";
+						responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri,
+								userNumber.get(), sessionNumberStr, testCase, recordingMetadata);
+					} else {
+						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
+								sessionNumberStr, testCase);
+					}
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
