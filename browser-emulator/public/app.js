@@ -19,8 +19,9 @@ var FRAME_RATE;
 var OV;
 var session;
 
-var lastStatGatheringTime = {};
-var lastBytesReceived = {};
+var subscriptions = 0;
+const MAX_SUBSCRIPTIONS = 5;
+
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -41,10 +42,11 @@ window.onload = () => {
 	const tokenHasBeenReceived = !!USER_ID && !!OPENVIDU_TOKEN;
 
 	if(tokenCanBeCreated || tokenHasBeenReceived){
+		showVideoRoom();
 		joinSession();
 	} else {
 		initFormValues();
-		document.getElementById('join-form').style.display = 'block';
+		showForm();
 	}
 };
 
@@ -75,11 +77,11 @@ async function joinSession() {
 
 		var subscriberContainer = insertSubscriberContainer(event);
 		var videoContainer = null;
-		if(SHOW_VIDEO_ELEMENTS){
+		if(SHOW_VIDEO_ELEMENTS && subscriptions < MAX_SUBSCRIPTIONS){
 			videoContainer = 'remote-video-publisher';
 		}
 		var subscriber = session.subscribe(event.stream, videoContainer);
-
+		subscriptions +=1;
 		subscriber.on("streamPlaying", e => {
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
 		});
@@ -138,6 +140,10 @@ async function joinSession() {
 
 function leaveSession() {
 	session.disconnect();
+	OV = null;
+	session = null;
+	OPENVIDU_TOKEN = null;
+	showForm();
 }
 
 window.onbeforeunload = () => {
@@ -172,9 +178,11 @@ function setPublisherButtonsActions(publisher) {
 			event.target.innerText = 'Unpublish';
 		}
 	}
+
 	document.getElementById('leave').onclick = () => {
-		session.disconnect();
-	}
+		leaveSession();
+	};
+
 	publisher.once("accessAllowed", e => {
 		sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
 
@@ -222,9 +230,11 @@ function joinWithForm() {
 	RESOLUTION = document.getElementById("form-resolution").value;
 	FRAME_RATE = document.getElementById("form-frameRate").value;
 	SHOW_VIDEO_ELEMENTS = document.getElementById("form-showVideoElements").checked;
-	ROLE = document.getElementById("form-role-publisher").checked ? 'PUBLISHER' : 'SUBSCRIBER';
+	ROLE = document.getElementById("form-role-subscriber").checked ? 'SUBSCRIBER' :  'PUBLISHER';
+	AUDIO = true;
+	VIDEO = true;
 
-	document.getElementById('join-form').style.display = 'none';
+	showVideoRoom();
 	joinSession();
 	return false;
 }
@@ -303,6 +313,16 @@ function sendEvent(event) {
 			});
 		});
 	}
+}
 
+function showForm() {
+	document.getElementById('join-form').style.display = 'block';
+	document.getElementById('local').style.display = 'none';
+	document.getElementById('remote').style.display = 'none';
+}
 
+function showVideoRoom() {
+	document.getElementById('join-form').style.display = 'none';
+	document.getElementById('local').style.display = 'block';
+	document.getElementById('remote').style.display = 'block';
 }

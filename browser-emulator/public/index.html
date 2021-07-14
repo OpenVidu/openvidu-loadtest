@@ -14,7 +14,7 @@
 </head>
 
 <body>
-	<div id="join-form" style="display: none">
+	<div id="join-form">
 		<form onsubmit="return joinWithForm()">
 			<input id="form-publicurl" type="text" name="publicurl" placeholder="OpenVidu url" required>
 			<input id="form-secret" type="text" name="secret" placeholder="OpenVidu secret" required>
@@ -36,13 +36,10 @@
 		</form>
 	</div>
 
-	<div id="local" style="display: inline-block">
+	<div id="local" style="display: none">
 		<h4>Local Video</h4>
 		<div id="video-publisher" class="video-container">
 			<div id="info-container">
-				<div id="rtt" class="tags info-header"></div>
-				<div id="send-bandwidth" class="tags info-header"></div>
-				<div id="bitrate" class="tags info-header"></div>
 				<div id="mute" class="tags">Mute</div>
 				<div id="unpublish" class="tags">Unpublish</div>
 				<div id="leave" class="tags">Leave</div>
@@ -50,7 +47,7 @@
 		</div>
 	</div>
 
-	<div id="remote">
+	<div id="remote" style="display: none">
 		<h4>Remote videos</h4>
 		<div id="remote-video-publisher" class="video-container">
 
