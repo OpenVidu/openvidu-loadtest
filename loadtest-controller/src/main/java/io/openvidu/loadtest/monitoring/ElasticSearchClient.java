@@ -143,7 +143,7 @@ public class ElasticSearchClient {
 			searchResponse = this.client.search(searchRequest, RequestOptions.DEFAULT);
 			JsonObject json = jsonUtils.getJson(searchResponse.getHits().getHits()[0].getSourceAsString());
 
-			double cpu = json.get("system").getAsJsonObject().get("cpu").getAsJsonObject().get("system")
+			double cpu = json.get("system").getAsJsonObject().get("cpu").getAsJsonObject().get("total")
 					.getAsJsonObject().get("norm").getAsJsonObject().get("pct").getAsDouble();
 			log.info("Media node CPU is {}", cpu * 100);
 			return Double.parseDouble(df2.format(cpu * 100));
