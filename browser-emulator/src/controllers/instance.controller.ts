@@ -59,6 +59,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		}
 
 		if (isProdMode && !!request.awsAccessKey && !!request.awsSecretAccessKey) {
+			process.env.S3_BUCKET = request.s3BucketName;
 			createAWSConfigFile(request.awsAccessKey, request.awsSecretAccessKey);
 		}
 

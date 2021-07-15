@@ -87,7 +87,7 @@ export class BrowserManagerService {
 		return await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 	}
 
-	async clean(): Promise<string> {
+	async clean(): Promise<void> {
 		this.emulateBrowserService.clean();
 		await this.realBrowserService.clean();
 
@@ -95,7 +95,7 @@ export class BrowserManagerService {
 			await this.elasticSearchService.clean();
 		}
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
-			return this.instanceService.uploadFilesToS3();
+			await this.instanceService.uploadFilesToS3();
 		}
 	}
 

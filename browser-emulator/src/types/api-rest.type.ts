@@ -16,6 +16,7 @@ export interface InitializePostRequest {
 	elasticSearchHost: string;
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;
+	s3BucketName?: string;
 }
 
 
