@@ -458,7 +458,9 @@ public class LoadTestController {
 				.setStopReason(this.browserEmulatorClient.getStopReason()).setStartTime(this.startTime)
 				.setEndTime(endTime).setKibanaUrl(kibanaUrl)
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
-				.setParticipantsPerWorker(loadTestConfig.getParticipantsPerWorker()).build();
+				.setParticipantsPerWorker(loadTestConfig.getParticipantsPerWorker())
+				.setS3BucketName("https://s3.console.aws.amazon.com/s3/buckets/" + this.browserEmulatorClient.getS3BucketName())
+				.build();
 
 		resultReportList.add(rr);
 

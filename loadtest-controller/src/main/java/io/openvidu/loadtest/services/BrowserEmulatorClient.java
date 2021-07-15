@@ -33,6 +33,7 @@ public class BrowserEmulatorClient {
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
 	private static final int HTTP_STATUS_OK = 200;
 	private static final int WORKER_PORT = 5000;
+	private static final String S3_BUCKET_NAME = "openvidu-loadtest-capacity";
 	private static double workerCpuPct = 0;
 	private static int streamsInWorker = 0;
 	private static int participantsInWorker = 0;
@@ -77,6 +78,7 @@ public class BrowserEmulatorClient {
 				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
+				.s3BucketName(S3_BUCKET_NAME)
 				.build().toJson();
 
 		try {
@@ -295,6 +297,10 @@ public class BrowserEmulatorClient {
 	
 	public boolean isRecordingParticipantCreated() {
 		return recordingParticipantCreated;
+	}
+	
+	public String getS3BucketName() {
+		return S3_BUCKET_NAME;
 	}
 
 	private String disconnect(String workerUrl) {

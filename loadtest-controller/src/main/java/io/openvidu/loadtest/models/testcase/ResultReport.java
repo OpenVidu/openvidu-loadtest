@@ -23,6 +23,7 @@ public class ResultReport {
 	private String kibanaUrl = "";
 	private boolean isManualParticipantAllocation = false;
 	private int participantsPerWorker = 0;
+	private String s3BucketName = ""; 
 
 	public ResultReport() {
 	}
@@ -32,7 +33,7 @@ public class ResultReport {
 				this.workersUsed, this.streamsPerWorker, this.sessionTypology, this.browserModeSelected,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
 				this.participantsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
-				this.kibanaUrl);
+				this.kibanaUrl, this.s3BucketName);
 	}
 
 	public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -62,6 +63,11 @@ public class ResultReport {
 
 	public ResultReport setWorkersUsed(int workersUsed) {
 		this.workersUsed = workersUsed;
+		return this;
+	}
+
+	public ResultReport setS3BucketName(String s3BucketName) {
+		this.s3BucketName = s3BucketName;
 		return this;
 	}
 
@@ -119,7 +125,7 @@ public class ResultReport {
 			List<Integer> streamsPerWorker, String sessionTypology, String browserModeSelected,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
 			int participantsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
-			Calendar endTime, String kibanaUrl) {
+			Calendar endTime, String kibanaUrl, String s3BucketName) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
 		this.numSessionsCreated = numSessionsCreated;
@@ -135,8 +141,8 @@ public class ResultReport {
 		this.stopReason = stopReason;
 		this.startTime = startTime;
 		this.endTime = endTime;
-
 		this.kibanaUrl = kibanaUrl;
+		this.s3BucketName = s3BucketName;
 	}
 
 	private String getDuration() {
@@ -178,7 +184,10 @@ public class ResultReport {
 						: "Number of streams per workers:	" + streamsPerWorker + System.getProperty("line.separator"))
 				+ "Stop reason:	" + stopReason + System.getProperty("line.separator") + "Test duration:	"
 				+ getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
-				+ System.getProperty("line.separator") + System.getProperty("line.separator")
+				+ System.getProperty("line.separator") 
+				+ "Video quality controll:	" + s3BucketName + System.getProperty("line.separator")
+				+ System.getProperty("line.separator")
+				 
 				+ "   ---------------------   ";
 	}
 

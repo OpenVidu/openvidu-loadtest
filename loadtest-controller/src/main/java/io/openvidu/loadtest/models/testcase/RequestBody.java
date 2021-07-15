@@ -25,6 +25,7 @@ public class RequestBody {
 	private boolean showVideoElements = true;
 	private boolean headlessBrowser = false;
 	private String recordingMetadata = "";
+	private String s3BucketName = "";
 
 	public RequestBody() {
 	}
@@ -215,10 +216,15 @@ public class RequestBody {
 		this.recordingMetadata = recordingMetadata;
 		return this;
 	}
+	
+	public RequestBody s3BucketName(String s3BucketName) {
+		this.s3BucketName = s3BucketName;
+		return this;
+	}
 
 	public RequestBody build() {
 		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName, elasticSearchPassword, awsAccessKey, awsSecretAccessKey, browserMode, userId, sessionName, token, role, audio, video,
-				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser, recordingMetadata);
+				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser, recordingMetadata, s3BucketName);
 	}
 
 	public JsonObject toJson() {
@@ -231,6 +237,7 @@ public class RequestBody {
 		jsonBody.addProperty("elasticSearchPassword", this.elasticSearchPassword);
 		jsonBody.addProperty("awsAccessKey", this.awsAccessKey);
 		jsonBody.addProperty("awsSecretAccessKey", this.awsSecretAccessKey);
+		jsonBody.addProperty("s3BucketName", this.s3BucketName);
 		jsonBody.addProperty("browserMode", this.browserMode.getValue());
 		properties.addProperty("userId", this.userId);
 		properties.addProperty("sessionName", this.sessionName);
@@ -239,6 +246,8 @@ public class RequestBody {
 		properties.addProperty("video", this.video);
 		properties.addProperty("resolution", this.resolution.getValue());
 		properties.addProperty("frameRate", this.frameRate);
+		
+		
 		if (!token.isEmpty()) {
 			properties.addProperty("token", this.token);
 		}
@@ -262,7 +271,7 @@ public class RequestBody {
 	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost, String elasticSearchUserName, String elasticSearchPassword, String awsAccessKey, String awsSecretAccessKey, BrowserMode browserMode, String userId,
 			String sessionName, String token, OpenViduRole role, boolean audio, boolean video, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, int frameRate, boolean browserRecording,
-			boolean showVideoElements, boolean headlessBrowser, String recordingMetadata) {
+			boolean showVideoElements, boolean headlessBrowser, String recordingMetadata, String s3BucketName) {
 		super();
 		this.openviduUrl = openviduUrl;
 		this.openviduSecret = openviduSecret;
@@ -285,6 +294,7 @@ public class RequestBody {
 		this.showVideoElements = showVideoElements;
 		this.headlessBrowser = headlessBrowser;
 		this.recordingMetadata = recordingMetadata;
+		this.s3BucketName = s3BucketName;
 	}
 
 }
