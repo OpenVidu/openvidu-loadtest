@@ -40,10 +40,7 @@ public class LoadTestApplication {
 		List<TestCase> testCasesList = io.getTestCasesFromJSON();
 		if (testCasesList.size() > 0) {
 
-			List<ResultReport> results = loadTestController.startLoadTests(testCasesList);
-			for (ResultReport result : results) {
-				io.exportResults(result);
-			}
+			loadTestController.startLoadTests(testCasesList);
 			log.info("Finished");
 		} else {
 			log.error(

@@ -23,6 +23,7 @@ import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
 import io.openvidu.loadtest.services.WebSocketClient;
+import io.openvidu.loadtest.utils.DataIO;
 
 /**
  * @author Carlos Santos
@@ -48,6 +49,9 @@ public class LoadTestController {
 
 	@Autowired
 	private Ec2Client ec2Client;
+	
+	@Autowired
+	private DataIO io;
 
 	private static List<Instance> workersList = new ArrayList<Instance>();
 	private static List<String> devWorkersList = new ArrayList<String>();
@@ -69,7 +73,6 @@ public class LoadTestController {
 	private AtomicInteger totalParticipants = new AtomicInteger(0);
 
 	private static List<Integer> streamsPerWorker = new ArrayList<>();
-	private static List<ResultReport> resultReportList = new ArrayList<ResultReport>();
 
 	@PostConstruct
 	public void initialize() {
@@ -77,12 +80,12 @@ public class LoadTestController {
 		devWorkersList = this.loadTestConfig.getWorkerUrlList();
 	}
 
-	public List<ResultReport> startLoadTests(List<TestCase> testCasesList) {
+	public void startLoadTests(List<TestCase> testCasesList) {
 
 		if (this.loadTestConfig.isTerminateWorkers()) {
 			log.info("Terminate all EC2 instances");
 			this.ec2Client.terminateAllInstances();
-			return resultReportList;
+			return;
 		}
 
 		if (PROD_MODE) {
@@ -141,12 +144,8 @@ public class LoadTestController {
 				this.ec2Client.terminateAllInstances();
 			} else {
 				log.error("Test case has wrong typology, SKIPPED.");
-				return;
 			}
 		});
-
-		return resultReportList;
-
 	}
 
 	private void startNxNTest(int participantsBySession, TestCase testCase) {
@@ -462,7 +461,7 @@ public class LoadTestController {
 				.setS3BucketName("https://s3.console.aws.amazon.com/s3/buckets/" + this.browserEmulatorClient.getS3BucketName())
 				.build();
 
-		resultReportList.add(rr);
+		this.io.exportResults(rr);
 
 	}
 
