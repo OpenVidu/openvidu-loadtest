@@ -267,7 +267,7 @@ public class LoadTestController {
 						System.out.println("Starting REAL BROWSER for quality control");
 						String uri = startRecordingInstance();
 						String recordingMetadata = "N_M_" + publishers + "_" + subscribers + "PSes";
-						responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri,
+						responseIsOk = this.browserEmulatorClient.createExternalRecordingSubscriber(uri,
 								userNumber.get(), sessionNumberStr, testCase, recordingMetadata);
 					} else {
 						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),

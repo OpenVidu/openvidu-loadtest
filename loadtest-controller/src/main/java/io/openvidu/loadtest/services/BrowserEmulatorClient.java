@@ -126,127 +126,24 @@ public class BrowserEmulatorClient {
 //		}
 //	}
 
+
 	public boolean createPublisher(String workerUrl, int userNumber, String sessionNumber, TestCase testCase) {
-
-		// Check if there was an exception on openvidu-browser
-		if (WorkerExceptionManager.getInstance().exceptionExist()) {
-			stopReason = WorkerExceptionManager.getInstance().getExceptionAndClean();
-			log.error("There was an EXCEPTION: {}", stopReason);
-			return false;
-		}
-
-		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
-		
-		try {
-			log.info("Selected worker: {}", workerUrl);
-			HttpResponse<String> response = this.httpClient.sendPost(
-					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
-					getHeaders());
-
-			if (response.statusCode() != HTTP_STATUS_OK) {
-				System.out.println("Error: " + response.body());
-				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
-						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
-					stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser" + response.body().substring(0, 100);
-					return false;
-				}
-
-				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
-					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
-					return false;
-				}
-				if(response.body().toString().contains("Gateway Time-out")) {
-					stopReason = "OpenVidu Error: " + response.body();
-					return false;
-				}
-				System.out.println("Retrying");
-				sleep(WAIT_MS);
-				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
-			}
-			return processResponse(response);
-		} catch (Exception e) {
-			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
-				sleep(WAIT_MS);
-				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
-			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
-				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
-				sleep(WAIT_MS);
-				return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
-			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
-				System.out.println(e.getMessage());
-				return true;
-			}
-			e.printStackTrace();
-		}
-		return false;
+		return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, OpenViduRole.PUBLISHER);
 	}
 
 	public boolean createSubscriber(String workerUrl, int userNumber, String sessionNumber, TestCase testCase) {
-
-		// Check if there was an exception on openvidu-browser
-		if (WorkerExceptionManager.getInstance().exceptionExist()) {
-			stopReason = WorkerExceptionManager.getInstance().getExceptionAndClean();
-			log.error("There was an EXCEPTION: {}", stopReason);
-			return false;
-		}
-
 		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
-		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
-
-		try {
-			log.info("Selected worker: {}", workerUrl);
-			HttpResponse<String> response = this.httpClient.sendPost(
-					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
-					getHeaders());
-			if (response.statusCode() != HTTP_STATUS_OK) {
-				System.out.println("Error: " + response.body());
-				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
-						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
-					stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser" + response.body().substring(0, 100);
-					return false;
-				}
-
-				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
-					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
-					return false;
-				}
-				if(response.body().toString().contains("Gateway Time-out")) {
-					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
-					return false;
-				}
-				System.out.println("Retrying");
-				sleep(WAIT_MS);
-				return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
-			}
-			return processResponse(response);
-		} catch (IOException | InterruptedException e) {
-			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
-				sleep(WAIT_MS);
-				return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
-			} else if (e.getMessage().equalsIgnoreCase("Connection refused")) {
-				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
-				sleep(WAIT_MS);
-				return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
-			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
-				System.out.println(e.getMessage());
-				return true;
-			}
-			e.printStackTrace();
-		}
-		return false;
+		return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 	}
 	
 	public boolean createExternalRecordingPublisher(String workerUrl, int userNumber, String sessionNumber, TestCase testCase, String recordingMetadata) {
-		
-		TestCase testCaseAux = new TestCase(testCase);
-		testCaseAux.setBrowserMode(BrowserMode.REAL);
-		testCaseAux.setBrowserRecording(true);
-		testCaseAux.setRecordingMetadata(recordingMetadata);
-		log.info("Creating a participant using a REAL BROWSER for recoding");
-		recordingParticipantCreated = this.createPublisher(workerUrl, userNumber, sessionNumber, testCaseAux);
-		return recordingParticipantCreated;
+		return this.createExternalRecordingParticipant(workerUrl,userNumber, sessionNumber,testCase, recordingMetadata, OpenViduRole.PUBLISHER);
 	}
-
+	
+	public boolean createExternalRecordingSubscriber(String workerUrl, int userNumber, String sessionNumber, TestCase testCase, String recordingMetadata) {
+		return this.createExternalRecordingParticipant(workerUrl,userNumber, sessionNumber,testCase, recordingMetadata, OpenViduRole.SUBSCRIBER);
+	}
+	
 	public void disconnectAll(List<String> workerUrlList) {
 //		stopReason = "Test case finished as expected";
 		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
@@ -314,6 +211,74 @@ public class BrowserEmulatorClient {
 		} catch (Exception e) {
 			return e.getMessage();
 		}
+	}
+	
+	
+	
+	private boolean createParticipant(String workerUrl, int userNumber, String sessionNumber, TestCase testCase, OpenViduRole role) {
+
+		// Check if there was an exception on openvidu-browser
+		if (WorkerExceptionManager.getInstance().exceptionExist()) {
+			stopReason = WorkerExceptionManager.getInstance().getExceptionAndClean();
+			log.error("There was an EXCEPTION: {}", stopReason);
+			return false;
+		}
+		
+		RequestBody body = this.generateRequestBody(userNumber, sessionNumber, role, testCase);
+		
+		try {
+			log.info("Selected worker: {}", workerUrl);
+			HttpResponse<String> response = this.httpClient.sendPost(
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
+					getHeaders());
+
+			if (response.statusCode() != HTTP_STATUS_OK) {
+				System.out.println("Error: " + response.body());
+				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
+						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
+					stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser" + response.body().substring(0, 100);
+					return false;
+				}
+
+				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
+					return false;
+				}
+				if(response.body().toString().contains("Gateway Time-out")) {
+					stopReason = "OpenVidu Error: " + response.body();
+					return false;
+				}
+				System.out.println("Retrying");
+				sleep(WAIT_MS);
+				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
+			}
+			return processResponse(response);
+		} catch (Exception e) {
+			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
+				sleep(WAIT_MS);
+				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
+			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
+				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+				sleep(WAIT_MS);
+				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
+			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
+				System.out.println(e.getMessage());
+				return true;
+			}
+			e.printStackTrace();
+		}
+		return false;
+	}
+	
+	private boolean createExternalRecordingParticipant(String workerUrl, int userNumber, String sessionNumber, TestCase testCase, String recordingMetadata, OpenViduRole role) {
+		
+		TestCase testCaseAux = new TestCase(testCase);
+		testCaseAux.setBrowserMode(BrowserMode.REAL);
+		testCaseAux.setBrowserRecording(true);
+		testCaseAux.setRecordingMetadata(recordingMetadata);
+		log.info("Creating a participant using a REAL BROWSER for recoding");
+		recordingParticipantCreated = this.createParticipant(workerUrl, userNumber, sessionNumber, testCaseAux, role);
+		return recordingParticipantCreated;
 	}
 
 	private boolean processResponse(HttpResponse<String> response) {
