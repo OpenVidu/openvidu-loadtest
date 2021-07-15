@@ -74,8 +74,8 @@ export class EmulateBrowserService {
 				this.storeConnection(session.connection.connectionId, properties);
 				resolve(session.connection.connectionId);
 			} catch (error) {
-				if (session) {
-					this.deleteStreamManagerWithConnectionId(session?.connection?.connectionId);
+				if(session?.sessionConnected()) {
+					session.disconnect();
 				}
 				console.log('There was an error connecting to the session:', error);
 				reject({ status: error?.status, message: error?.statusText || error?.message || error });
@@ -84,10 +84,13 @@ export class EmulateBrowserService {
 	}
 
 	deleteStreamManagerWithConnectionId(connectionId: string): void {
-		const { session, audioTrackInterval } = this.openviduMap.get(connectionId);
-		session?.disconnect();
-		clearInterval(audioTrackInterval);
-		this.openviduMap.delete(connectionId);
+		const value = this.openviduMap.get(connectionId);
+		if(!!value) {
+			const { session, audioTrackInterval } = value
+			session?.disconnect();
+			clearInterval(audioTrackInterval);
+			this.openviduMap.delete(connectionId);
+		}
 	}
 
 	deleteStreamManagerWithRole(role: OpenViduRole) {
