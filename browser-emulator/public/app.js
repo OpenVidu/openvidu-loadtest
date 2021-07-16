@@ -50,6 +50,24 @@ window.onload = () => {
 	}
 };
 
+function joinWithForm() {
+
+	OPENVIDU_SERVER_URL = document.getElementById("form-publicurl").value;
+	OPENVIDU_SERVER_SECRET = document.getElementById("form-secret").value;
+	SESSION_ID = document.getElementById("form-sessionId").value;
+	USER_ID = document.getElementById("form-userId").value;
+	RESOLUTION = document.getElementById("form-resolution").value;
+	FRAME_RATE = document.getElementById("form-frameRate").value;
+	SHOW_VIDEO_ELEMENTS = document.getElementById("form-showVideoElements").checked;
+	ROLE = document.getElementById("form-role-subscriber").checked ? 'SUBSCRIBER' :  'PUBLISHER';
+	AUDIO = true;
+	VIDEO = true;
+
+	showVideoRoom();
+	joinSession();
+	return false;
+}
+
 function appendElement(id) {
     var eventsDiv = document.getElementById('openvidu-events');
     var element = document.createElement('div');
@@ -75,14 +93,25 @@ async function joinSession() {
 	session.on("streamCreated", event => {
 		sendEvent({ event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
 
-		var subscriberContainer = insertSubscriberContainer(event);
 		var videoContainer = null;
 		if(SHOW_VIDEO_ELEMENTS && subscriptions < MAX_SUBSCRIPTIONS){
+			const subscriberContainer = insertSubscriberContainer(event);
+
 			videoContainer = 'remote-video-publisher';
 		}
-		var subscriber = session.subscribe(event.stream, videoContainer);
+
 		subscriptions +=1;
+		const subscriber = session.subscribe(event.stream, videoContainer);
+
 		subscriber.on("streamPlaying", e => {
+
+			if(ROLE === 'SUBSCRIBER'){
+				// It has been necessary mute the video because of the user gesture policies don't allow play it
+				const videoid = e.target.videos[0].video.id;
+				document.getElementById(videoid).muted = true;
+				document.getElementById(videoid).play();
+			}
+
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
 		});
 	});
@@ -93,8 +122,8 @@ async function joinSession() {
 	});
 
 	session.on("sessionDisconnected", event => {
-		document.querySelectorAll('.video-container').forEach(a => {
-			a.remove()
+		document.querySelectorAll('.video-remote-container').forEach(a => {
+			a.remove();
 		});
 		sendEvent({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local' });
 	});
@@ -128,9 +157,13 @@ async function joinSession() {
 					mirror: false
 				});
 
-				setPublisherButtonsActions(publisher);
 				session.publish(publisher);
+			} else {
+				initMainVideoThumbnail();
+
 			}
+			setPublisherButtonsActions(publisher);
+
 		})
 		.catch(error => {
 			console.log("There was an error connecting to the session:", error.code, error.message);
@@ -143,6 +176,19 @@ function leaveSession() {
 	OV = null;
 	session = null;
 	OPENVIDU_TOKEN = null;
+	OPENVIDU_SERVER_URL = null;
+	OPENVIDU_SERVER_SECRET = null;
+	OPENVIDU_TOKEN = null;
+	SESSION_ID = null;
+	USER_ID = null;
+	AUDIO = null;
+	VIDEO = null;
+	SHOW_VIDEO_ELEMENTS = null;
+	RESOLUTION = null;
+	ROLE = null;
+	RECORDING_OUTPUT_MODE = null;
+	FRAME_RATE = null;
+	window.location.href = window.location.origin;
 	showForm();
 }
 
@@ -150,57 +196,73 @@ window.onbeforeunload = () => {
 	if (session) leaveSession();
 };
 
-function setPublisherButtonsActions(publisher) {
-	document.getElementById('mute').onclick = (e) => {
-		event.target.innerText = event.target.innerText === 'Mute' ? 'Unmute' : 'Mute';
-		publisher.publishAudio(!publisher.stream.audioActive);
-		publisher.publishVideo(!publisher.stream.videoActive);
+function initMainVideoThumbnail() {
+	var container = document.getElementById('video-publisher');
+	var thumbnail = document.getElementById('subscriberThumbnail');
+	if(!thumbnail) {
+		var element = document.createElement('div');
+		element.setAttribute("id", 'subscriberThumbnail');
+		container.appendChild(element);
+		element.style.width =  '320px';
+		element.style.height = '240px';
+		element.style.background = "url('images/subscriber-msg.jpg') round";
 	}
-	document.getElementById('unpublish').onclick = () => {
-		if (event.target.innerText === 'Unpublish') {
-			session.unpublish(publisher);
-			event.target.innerText = 'Publish';
-		} else {
-			var elem = document.getElementById('video-publisher');
-			elem.parentNode.removeChild(elem);
+}
 
-			var videoContainer = null;
-			if(SHOW_VIDEO_ELEMENTS){
-				videoContainer = 'video-publisher';
-			}
-			var publisher2 = OV.initPublisher(videoContainer, {
-				 resolution: RESOLUTION,
-				 frameRate: 30,
-				 mirror: false
-			});
-			setPublisherButtonsActions(publisher2);
-			session.publish(publisher2);
-			event.target.innerText = 'Unpublish';
+function setPublisherButtonsActions(publisher) {
+	if(ROLE === 'PUBLISHER'){
+		document.getElementById('mute').onclick = (e) => {
+			event.target.innerText = event.target.innerText === 'Mute' ? 'Unmute' : 'Mute';
+			publisher.publishAudio(!publisher.stream.audioActive);
+			publisher.publishVideo(!publisher.stream.videoActive);
 		}
+		document.getElementById('unpublish').onclick = () => {
+			if (event.target.innerText === 'Unpublish') {
+				session.unpublish(publisher);
+				event.target.innerText = 'Publish';
+			} else {
+				var elem = document.getElementById('video-publisher');
+				elem.parentNode.removeChild(elem);
+
+				var videoContainer = null;
+				if(SHOW_VIDEO_ELEMENTS){
+					videoContainer = 'video-publisher';
+				}
+				var publisher2 = OV.initPublisher(videoContainer, {
+					 resolution: RESOLUTION,
+					 frameRate: 30,
+					 mirror: false
+				});
+				setPublisherButtonsActions(publisher2);
+				session.publish(publisher2);
+				event.target.innerText = 'Unpublish';
+			}
+		}
+
+		publisher.once("accessAllowed", e => {
+			sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
+
+		});
+		publisher.once("streamCreated", e => {
+			sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
+			appendElement('local-stream-created');
+		});
+		publisher.once("streamPlaying", e => {
+			sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' });
+		});
+		publisher.once("streamDestroyed", e => {
+			sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
+
+			if (e.reason !== 'unpublish') {
+				document.getElementById('video-publisher').outerHTML = "";
+			}
+		});
 	}
+
 
 	document.getElementById('leave').onclick = () => {
 		leaveSession();
 	};
-
-	publisher.once("accessAllowed", e => {
-		sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
-
-	});
-	publisher.once("streamCreated", e => {
-		sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
-		appendElement('local-stream-created');
-	});
-	publisher.once("streamPlaying", e => {
-		sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' });
-	});
-	publisher.once("streamDestroyed", e => {
-		sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
-
-		if (e.reason !== 'unpublish') {
-			document.getElementById('video-publisher').outerHTML = "";
-		}
-	});
 }
 
 function insertSubscriberContainer(event) {
@@ -222,22 +284,6 @@ function initFormValues() {
 	document.getElementById("form-frameRate").value = FRAME_RATE;
 }
 
-function joinWithForm() {
-	OPENVIDU_SERVER_URL = document.getElementById("form-publicurl").value;
-	OPENVIDU_SERVER_SECRET = document.getElementById("form-secret").value;
-	SESSION_ID = document.getElementById("form-sessionId").value;
-	USER_ID = document.getElementById("form-userId").value;
-	RESOLUTION = document.getElementById("form-resolution").value;
-	FRAME_RATE = document.getElementById("form-frameRate").value;
-	SHOW_VIDEO_ELEMENTS = document.getElementById("form-showVideoElements").checked;
-	ROLE = document.getElementById("form-role-subscriber").checked ? 'SUBSCRIBER' :  'PUBLISHER';
-	AUDIO = true;
-	VIDEO = true;
-
-	showVideoRoom();
-	joinSession();
-	return false;
-}
 
 function getToken() {
 	return createSession(SESSION_ID).then(sessionId => createToken(sessionId));
