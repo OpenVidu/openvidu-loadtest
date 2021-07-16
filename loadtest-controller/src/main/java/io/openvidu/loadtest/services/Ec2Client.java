@@ -114,16 +114,21 @@ public class Ec2Client {
 		Filter recordingFilter = getTagRecordingFilter();
 		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
 		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
-		List<Instance> instance = getInstanceWithFilters(recordingFilter, runningFilter, stoppedFilter);
-		if(instance.size() > 0) {
-			if(instance.get(0).getState().equals(InstanceStateName.Stopped)) {
-				startInstances(Arrays.asList(instance.get(0).getInstanceId()));
-			} else {
-				rebootInstance(Arrays.asList(instance.get(0).getInstanceId()));
-			}
-			return instance;
-		}
+		
+		List<Instance> runningInstance = getInstanceWithFilters(recordingFilter, runningFilter);
+		List<Instance> stoppedInstance = getInstanceWithFilters(recordingFilter, stoppedFilter);
 
+		if(runningInstance.size() > 0) {
+			rebootInstance(Arrays.asList(runningInstance.get(0).getInstanceId()));
+			this.sleep(WAIT_RUNNING_STATE_MS);		
+			return runningInstance;
+		} 
+		
+		if(stoppedInstance.size() > 0) {
+			startInstances(Arrays.asList(stoppedInstance.get(0).getInstanceId()));
+			return stoppedInstance;
+		}
+		
 		List<Tag> tags = new ArrayList<Tag>();
 		tags.add(RECORDING_NAME_TAG);
 		tags.add(RECORDING_TAG);
