@@ -26,6 +26,7 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.ResourceType;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
+import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
@@ -44,7 +45,7 @@ public class Ec2Client {
 	private static int WORKERS_NUMBER_AT_THE_BEGINNING;
 
 	private static final Tag NAME_TAG = new Tag().withKey("Name").withValue("Worker");
-	private static final Tag RECORDING_NAME_TAG = new Tag().withKey("Name").withValue("Recording_Worker");
+	private static final Tag RECORDING_NAME_TAG = new Tag().withKey("Name").withValue("Recording Worker");
 	private static final Tag TYPE_TAG = new Tag().withKey("Type").withValue("OpenViduLoadTest");
 	private static final Tag RECORDING_TAG = new Tag().withKey("Type").withValue("RecordingLoadTest");
 
@@ -110,9 +111,16 @@ public class Ec2Client {
 	
 	public List<Instance> launchRecordingInstance(int number){
 
-		List<Instance> instance = getInstanceWithFilters(getTagRecordingFilter());
+		Filter recordingFilter = getTagRecordingFilter();
+		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
+		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
+		List<Instance> instance = getInstanceWithFilters(recordingFilter, runningFilter, stoppedFilter);
 		if(instance.size() > 0) {
-			rebootInstance(Arrays.asList(instance.get(0).getInstanceId()));
+			if(instance.get(0).getState().equals(InstanceStateName.Stopped)) {
+				startInstances(Arrays.asList(instance.get(0).getInstanceId()));
+			} else {
+				rebootInstance(Arrays.asList(instance.get(0).getInstanceId()));
+			}
 			return instance;
 		}
 
@@ -176,6 +184,14 @@ public class Ec2Client {
 		ec2.rebootInstances(request);
 		log.info("Instance {} is being rebooted", instanceIds);
 		// Avoided start test before reboot instances
+		sleep(WAIT_RUNNING_STATE_MS);
+	}
+	
+	public void startInstances(List<String> instanceIds) {
+		StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instanceIds);
+		ec2.startInstances(request);
+		log.info("Instance {} is being starting", instanceIds);
+		// Avoided start test before start instances
 		sleep(WAIT_RUNNING_STATE_MS);
 	}
 
