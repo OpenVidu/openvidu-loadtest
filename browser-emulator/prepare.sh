@@ -11,6 +11,8 @@ shopt -s inherit_errexit 2>/dev/null || true
 set -o xtrace
 
 DOCKER_CONTAINER="${IS_DOCKER_CONTAINER:-false}"
+
+
 # Check Node.js
 # =============
 
@@ -57,7 +59,5 @@ if [ "$DOCKER_CONTAINER" = false ]; then
     echo "Downloading media files..."
     "$SELF_PATH"/download_mediafiles.sh
 fi
-
-rm -rf /var/lib/apt/lists/*
 
 echo "Instance is ready"
