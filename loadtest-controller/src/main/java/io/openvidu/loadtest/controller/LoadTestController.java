@@ -417,6 +417,13 @@ public class LoadTestController {
 		currentWorkerUrl = "";
 		streamsPerWorker = new ArrayList<>();
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
+		waitToMediaServerLiveAgain();
+	}
+	
+	private void waitToMediaServerLiveAgain() {
+		while(this.esClient.getMediaNodeCpu() > 5.00) {
+			this.sleep(5, "Waiting MediaServer recovers his CPU");
+		}
 	}
 
 	private void disconnectAllSessions() {
