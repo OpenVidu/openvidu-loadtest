@@ -187,6 +187,8 @@ public class LoadTestConfig {
 	private void checkConfigurationProperties() {
 
 		try {
+			openviduUrl = asString("OPENVIDU_URL");
+			openviduSecret = asString("OPENVIDU_SECRET");
 			sessionNamePrefix = asString("SESSION_NAME_PREFIX");
 			userNamePrefix = asString("USER_NAME_PREFIX");
 			secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");
@@ -200,17 +202,15 @@ public class LoadTestConfig {
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
 			kibanaHost = asOptionalURL("KIBANA_HOST");
 			workerUrlList = asOptionalStringList("WORKER_URL_LIST");
-			workerAmiId = asString("WORKER_AMI_ID");
-			workerInstanceType = asString("WORKER_INSTANCE_TYPE");
+			workerAmiId = asOptionalString("WORKER_AMI_ID");
+			workerInstanceType = asOptionalString("WORKER_INSTANCE_TYPE");
 			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
-			workerInstanceRegion = asString("WORKER_INSTANCE_REGION");
+			workerInstanceRegion = asOptionalString("WORKER_INSTANCE_REGION");
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
 			workersRumpUp = asInt("WORKERS_RUMP_UP");
 			medianodeLoadForStartRecording = asDouble("MEDIANODE_LOAD_FOR_START_RECORDING");
 			terminateWorkers = asBoolean("TERMINATE_WORKERS");
-			openviduUrl = asString("OPENVIDU_URL");
-			openviduSecret = asString("OPENVIDU_SECRET");
 			awsSecretAccessKey = asOptionalString("AWS_SECRET_ACCESS_KEY");
 			awsAccessKey = asOptionalString("AWS_ACCESS_KEY");
 
