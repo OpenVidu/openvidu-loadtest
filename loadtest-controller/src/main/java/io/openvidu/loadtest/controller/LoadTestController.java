@@ -457,7 +457,7 @@ public class LoadTestController {
 		ResultReport rr = new ResultReport().setTotalParticipants(this.totalParticipants.get())
 				.setNumSessionsCompleted(this.sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())
 				.setWorkersUsed(workersUsed).setStreamsPerWorker(streamsPerWorker)
-				.setSessionTypology(testCase.getTopology().toString())
+				.setSessionTypology(testCase.getTypology().toString())
 				.setBrowserModeSelected(testCase.getBrowserMode().toString())
 				.setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
 				.setBrowserRecording(testCase.isBrowserRecording()).setParticipantsPerSession(participantsBySession)

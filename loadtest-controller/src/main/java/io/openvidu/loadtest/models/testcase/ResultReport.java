@@ -185,9 +185,8 @@ public class ResultReport {
 				+ "Stop reason:	" + stopReason + System.getProperty("line.separator") + "Test duration:	"
 				+ getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
 				+ System.getProperty("line.separator") 
-				+ "Video quality controll:	" + s3BucketName + System.getProperty("line.separator")
+				+ "Video quality control:	" + s3BucketName + System.getProperty("line.separator")
 				+ System.getProperty("line.separator")
-				 
 				+ "   ---------------------   ";
 	}
 

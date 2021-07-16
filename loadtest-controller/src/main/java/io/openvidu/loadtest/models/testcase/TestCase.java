@@ -60,7 +60,7 @@ public class TestCase {
 		return this.typology.getValue().equals(Typology.TERMINATE.getValue());
 	}
 
-	public Typology getTopology() {
+	public Typology getTypology() {
 		return typology;
 	}
 
