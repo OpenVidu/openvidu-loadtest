@@ -105,11 +105,13 @@ async function joinSession() {
 
 		subscriber.on("streamPlaying", e => {
 
+
 			if(ROLE === 'SUBSCRIBER'){
 				// It has been necessary mute the video because of the user gesture policies don't allow play it
-				const videoid = e.target.videos[0].video.id;
-				document.getElementById(videoid).muted = true;
-				document.getElementById(videoid).play();
+				const videoId = e.target.videos[0].video.id;
+				document.getElementById(videoId).muted = true;
+				document.getElementById(videoId).play();
+				createUnmuteButton('subscriber-need-to-be-unmuted', videoId);
 			}
 
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
@@ -207,6 +209,18 @@ function initMainVideoThumbnail() {
 		element.style.height = '240px';
 		element.style.background = "url('images/subscriber-msg.jpg') round";
 	}
+}
+
+function createUnmuteButton(buttonId, videoId){
+	const container = document.getElementById('remote');
+	const button = document.createElement('button');
+	button.innerText = 'Unmute';
+	button.setAttribute('id', buttonId);
+	button.onclick = () => {
+		document.getElementById(videoId).muted = false;
+		button.remove();
+	};
+	container.appendChild(button);
 }
 
 function setPublisherButtonsActions(publisher) {

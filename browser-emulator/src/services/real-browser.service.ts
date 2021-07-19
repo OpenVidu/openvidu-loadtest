@@ -166,6 +166,12 @@ export class RealBrowserService {
 					if (request.properties.role === OpenViduRole.PUBLISHER) {
 						// Wait until publisher has been published regardless of whether the videos are shown or not
 						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), this.BROWSER_WAIT_TIMEOUT_MS);
+					} else {
+						// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
+						await chrome.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
+						await chrome.sleep(1000);
+						const buttons = await chrome.findElements(By.id('subscriber-need-to-be-unmuted'));
+						buttons.forEach(button => button.click());
 					}
 					console.log('Browser works as expected');
 					resolve();
