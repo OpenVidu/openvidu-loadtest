@@ -176,6 +176,10 @@ General  AWS parameters
 
 ```properties
 # For testing on AWS
+
+# For launching EC2 instances and allowing to workers upload recordings to S3 bucket
+AWS_ACCESS_KEY=your-aws-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
 WORKER_AMI_ID=ami-xxxxxxxxxxx
 # We recommend c5 type. https://aws.amazon.com/ec2/instance-types/
 WORKER_INSTANCE_TYPE=c5.xlarge
