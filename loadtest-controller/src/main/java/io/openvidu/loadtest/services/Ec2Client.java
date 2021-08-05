@@ -143,6 +143,10 @@ public class Ec2Client {
 
 		RunInstancesRequest ec2request = new RunInstancesRequest().withImageId(AMI_ID).withInstanceType(INSTANCE_TYPE)
 				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1);
+		
+		if(!this.loadTestConfig.getWorkerInstanceKeyPair().isBlank()) {
+			ec2request.withKeyName(this.loadTestConfig.getWorkerInstanceKeyPair());
+		}
 
 		if (!SECURITY_GROUP_ID.isEmpty()) {
 			ec2request.withSecurityGroupIds(SECURITY_GROUP_ID);

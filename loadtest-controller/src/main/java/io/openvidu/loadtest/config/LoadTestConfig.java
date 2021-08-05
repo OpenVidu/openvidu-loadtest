@@ -23,6 +23,8 @@ public class LoadTestConfig {
 	private String workerAmiId;
 
 	private String workerInstanceType;
+	
+	private String workerInstanceKeyPair;
 
 	private String workerSecurityGroupId;
 
@@ -104,6 +106,10 @@ public class LoadTestConfig {
 
 	public int getSecondsToWaitBeforeTestFinished() {
 		return secondsToWaitBeforeTestFinished;
+	}
+
+	public String getWorkerInstanceKeyPair() {
+		return workerInstanceKeyPair;
 	}
 
 	public int getSecondsToWaitBetweenTestCases() {
@@ -203,6 +209,7 @@ public class LoadTestConfig {
 			kibanaHost = asOptionalURL("KIBANA_HOST");
 			workerUrlList = asOptionalStringList("WORKER_URL_LIST");
 			workerAmiId = asOptionalString("WORKER_AMI_ID");
+			workerInstanceKeyPair = asOptionalString("WORKER_INSTANCE_KEY_PAIR_NAME");
 			workerInstanceType = asOptionalString("WORKER_INSTANCE_TYPE");
 			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
 			workerInstanceRegion = asOptionalString("WORKER_INSTANCE_REGION");
