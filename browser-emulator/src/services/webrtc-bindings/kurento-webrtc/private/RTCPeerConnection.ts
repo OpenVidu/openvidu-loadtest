@@ -234,10 +234,16 @@ export class RTCPeerConnection extends EventEmitter {
 	// https://www.w3.org/TR/webrtc-stats/
 	public async getStats(selector?: MediaStreamTrack | null): Promise<RTCStatsReport> {
 		const statsReport = new Map<string, any>();
-
+		let kurentoStatsReport: any;
 		for (const kind of ['audio', 'video']) {
 			if (!selector || selector.kind === kind) {
-				const kurentoStatsReport: any = await this.kurentoWebRtcEp.getStats(kind.toUpperCase());
+				try {
+					kurentoStatsReport = await this.kurentoWebRtcEp.getStats(kind.toUpperCase());
+				} catch (error) {
+					console.error('Error getting stats ', error)
+					throw error;
+				}
+
 				if (!kurentoStatsReport) {
 					continue;
 				}

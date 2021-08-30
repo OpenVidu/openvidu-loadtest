@@ -11,6 +11,7 @@ import { ApplicationMode } from '../types/config.type';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
+	private readonly RESPONSE_TIMEOUT = 30_000;
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
@@ -61,8 +62,13 @@ export class BrowserManagerService {
 					console.error(error);
 				}
 			}
-			// Create new stream manager using node-webrtc library, emulating a normal browser.
+			// Create new stream manager using node-webrtc or kms-webrtc library, emulating a normal browser.
+			const timeoutInterval = setInterval(() => {
+				clearInterval(timeoutInterval);
+				return Promise.reject("Timeout creating stream manager.");
+			}, this.RESPONSE_TIMEOUT);
 			connectionId = await this.emulateBrowserService.createStreamManager(request.token, request.properties);
+			clearInterval(timeoutInterval);
 		}
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
