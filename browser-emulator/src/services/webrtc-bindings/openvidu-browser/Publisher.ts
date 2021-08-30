@@ -20,7 +20,7 @@ export class PublisherOverride extends Publisher {
 
 	async getVideoDimensions(mediaStream: MediaStream): Promise<MediaTrackSettings> {
 		let constraints = { width: 480, height: 640 };
-		if (!!mediaStream.getVideoTracks()[0].getConstraints) {
+		if (!!mediaStream.getVideoTracks()[0] && !!mediaStream.getVideoTracks()[0].getConstraints) {
 			constraints = <any>mediaStream.getVideoTracks()[0]?.getConstraints();
 		}
 		return { width: constraints.width, height: constraints.height };

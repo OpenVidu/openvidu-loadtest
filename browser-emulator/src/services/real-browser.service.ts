@@ -288,7 +288,7 @@ export class RealBrowserService {
 
 	private setSeleniumRemoteURL(bindedPort: number): void {
 		// Set the SELENIUM_REMOTE_URL to the ip where the selenium webdriver will be deployed
-		process.env['SELENIUM_REMOTE_URL'] = 'http://localhost:' + bindedPort + '/wd/hub';
+		process.env['SELENIUM_REMOTE_URL'] = `http://localhost:${bindedPort}/wd/hub`;
 	}
 
 	private generateWebappUrl(token: string, properties: TestProperties): string {
