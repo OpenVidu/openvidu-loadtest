@@ -70,7 +70,7 @@ export interface JSONStatsResponse {
     platform: string,
     platform_description: string,
     stream: string,
-    webrtc_stats: any
+    webrtc_stats: IWebrtcStats
 }
 
 export interface JSONStreamsInfo {
@@ -81,33 +81,51 @@ export interface JSONStreamsInfo {
 
 }
 
-// interface IWebrtcStats {
-//     inbound: {
-//         audio: {
-//             bytesReceived: number,
-//             packetsReceived: number,
-//             packetsLost: number
-//             jitter: number,
-//             delayMs: number
-//         } | {},
-//         video: {
-//             bytesReceived: number,
-//             packetsReceived: number,
-//             packetsLost: number,
-//             framesDecoded: number,
-//             nackCount: number
-//         } | {}
-//     } | {},
-//     outbound: {
-//         audio: {
-//             bytesSent: number,
-//             packetsSent: number,
-//         } | {},
-//         video: {
-//             bytesSent: number,
-//             packetsSent: number,
-//             framesEncoded: number,
-//             nackCount: number
-//         } | {}
-//     } | {}
-// };
+interface IWebrtcStats {
+    inbound?: {
+        audio: {
+            bytesReceived: number,
+            packetsReceived: number,
+            packetsLost: number,
+            jitter: number
+        } | {},
+        video: {
+            bytesReceived: number,
+            packetsReceived: number,
+            packetsLost: number,
+            jitter?: number, // Firefox
+            jitterBufferDelay?: number, // Chrome
+            framesDecoded: number,
+            firCount: number,
+            nackCount: number,
+            pliCount: number,
+            frameHeight?: number, // Chrome
+            frameWidth?: number, // Chrome
+            framesDropped?: number, // Chrome
+            framesReceived?: number // Chrome
+        } | {}
+    },
+    outbound?: {
+        audio: {
+            bytesSent: number,
+            packetsSent: number,
+        } | {},
+        video: {
+            bytesSent: number,
+            packetsSent: number,
+            firCount: number,
+            framesEncoded: number,
+            nackCount: number,
+            pliCount: number,
+            qpSum: number,
+            frameHeight?: number, // Chrome
+            frameWidth?: number, // Chrome
+            framesSent?: number // Chrome
+        } | {}
+    },
+    candidatepair?: {
+        currentRoundTripTime?: number // Chrome
+        availableOutgoingBitrate?: number //Chrome
+        // availableIncomingBitrate?: number // No support for any browsers (https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidatePairStats/availableIncomingBitrate)
+    }
+};

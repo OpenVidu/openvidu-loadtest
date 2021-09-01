@@ -1,4 +1,4 @@
-import { ApiResponse, Client, ClientOptions } from '@elastic/elasticsearch';
+import { Client, ClientOptions } from '@elastic/elasticsearch';
 import { Index } from '@elastic/elasticsearch/api/requestParams';
 import { APPLICATION_MODE } from '../config';
 import { JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type';
