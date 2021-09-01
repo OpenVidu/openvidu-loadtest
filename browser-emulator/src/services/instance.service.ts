@@ -18,10 +18,7 @@ export class InstanceService {
 	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
 	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbeat-config/metricbeat.yml`;
-	// Image which fixes the webrtc stats with mediasoup
-	// private readonly KMS_IMAGE = 'kurento/kurento-media-server-exp:fix-rtcp-demux';
-	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
-
+	private readonly KMS_IMAGE = 'kurento/kurento-media-server-exp:fix-rtcp-demux';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
 	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig`;

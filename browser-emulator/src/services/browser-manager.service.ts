@@ -62,13 +62,8 @@ export class BrowserManagerService {
 					console.error(error);
 				}
 			}
-			// Create new stream manager using node-webrtc or kms-webrtc library, emulating a normal browser.
-			const timeoutInterval = setInterval(() => {
-				clearInterval(timeoutInterval);
-				return Promise.reject("Timeout creating stream manager.");
-			}, this.RESPONSE_TIMEOUT);
+
 			connectionId = await this.emulateBrowserService.createStreamManager(request.token, request.properties);
-			clearInterval(timeoutInterval);
 		}
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
