@@ -2,7 +2,7 @@ import { OpenViduEventsConfig, WebrtcStatsConfig } from '../types/storage-config
 
 export class WebrtcStatsService {
 	private readonly ITEM_NAME: string = 'webrtc-stats-config';
-	private readonly WEBRTC_INTERVAL: number = 5;
+	private readonly WEBRTC_INTERVAL: number = 1;
 
 	public getConfig(): string {
 		const statsConfig: WebrtcStatsConfig = {
