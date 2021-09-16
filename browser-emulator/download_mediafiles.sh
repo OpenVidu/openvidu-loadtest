@@ -29,15 +29,13 @@ fi
 if [[ ! -f "$MEDIAFILES_DIR/fakevideo_640x480.y4m" ]]; then
     curl --output "$MEDIAFILES_DIR/fakevideo_640x480.y4m" \
         --continue-at - \
-        --location "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/video_qoe_640x480.y4m"
-        # --location "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.y4m"
+        --location "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.y4m"
 
 fi
 if [[ ! -f "$MEDIAFILES_DIR/fakeaudio.wav" ]]; then
     curl --output "$MEDIAFILES_DIR/fakeaudio.wav" \
         --continue-at - \
-        --location "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/audio_qoe.wav"
-        # --location "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb.wav"
+        --location "https://s3-eu-west-1.amazonaws.com/public.openvidu.io/bbb.wav"
 
 fi
 
@@ -45,9 +43,7 @@ fi
 if [[ ! -f "$MEDIAFILES_DIR/video_640x480.mkv" ]]; then
     curl --output "$MEDIAFILES_DIR/video_640x480.mkv" \
         --continue-at - \
-        --location "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/video_qoe_640x480.mkv"
-
-        # --location "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv"
+        --location "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv"
     #"https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo_vp8_opus.mkv"
     # https://s3-eu-west-1.amazonaws.com/public.openvidu.io/fakevideo_h264_opus.mkv
 fi
