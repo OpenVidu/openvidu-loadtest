@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
@@ -41,8 +42,7 @@ public class CustomHttpClient {
 			this.client = this.createClientAllowingInsecureCert();
 		} catch (KeyManagementException | NoSuchAlgorithmException e) {
 			System.out.println("Error creating httpClient allowing insecure cert. Creating a secured one");
-			this.client = HttpClient.newHttpClient();
-			
+			this.client = HttpClient.newBuilder().build();
 		}
 	}
 
@@ -66,7 +66,7 @@ public class CustomHttpClient {
 			postBody = HttpRequest.BodyPublishers.ofString(body.toString());
 		}
 
-		HttpRequest request = requestBuilder.POST(postBody).build();
+		HttpRequest request = requestBuilder.POST(postBody).timeout(Duration.ofSeconds(30)).build();
 		return client.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
