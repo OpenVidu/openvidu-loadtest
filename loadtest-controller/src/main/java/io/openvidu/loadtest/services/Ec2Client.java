@@ -27,6 +27,7 @@ import com.amazonaws.services.ec2.model.ResourceType;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
@@ -118,11 +119,11 @@ public class Ec2Client {
 		List<Instance> runningInstance = getInstanceWithFilters(recordingFilter, runningFilter);
 		List<Instance> stoppedInstance = getInstanceWithFilters(recordingFilter, stoppedFilter);
 
-		if(runningInstance.size() > 0) {
-			rebootInstance(Arrays.asList(runningInstance.get(0).getInstanceId()));
-			this.sleep(WAIT_RUNNING_STATE_MS);		
-			return runningInstance;
-		} 
+//		if(runningInstance.size() > 0) {
+//			rebootInstance(Arrays.asList(runningInstance.get(0).getInstanceId()));
+//			this.sleep(WAIT_RUNNING_STATE_MS);		
+//			return runningInstance;
+//		} 
 		
 		if(stoppedInstance.size() > 0) {
 			startInstances(Arrays.asList(stoppedInstance.get(0).getInstanceId()));
@@ -175,16 +176,18 @@ public class Ec2Client {
 //		}
 //	}
 
-//	public void stopInstance(List<String> instanceIds) {
-//		StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);
-//
-//		ec2.stopInstances(request);
-//		log.info("Instance {} is being stopped", instanceIds);
-//
-//		for (String id : instanceIds) {
-//			waitUntilInstanceState(id, InstanceStateName.Stopped);
-//		}
-//	}
+	public void stopInstance(List<Instance> instances) {
+		
+		List<String> instanceIds = getInstanceIds(instances);
+		StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);
+
+		ec2.stopInstances(request);
+		log.info("Instance {} is being stopped", instanceIds);
+
+		for (String id : instanceIds) {
+			waitUntilInstanceState(id, InstanceStateName.Stopped);
+		}
+	}
 
 	public void rebootInstance(List<String> instanceIds) {
 

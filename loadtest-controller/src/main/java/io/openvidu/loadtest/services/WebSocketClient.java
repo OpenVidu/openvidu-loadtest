@@ -89,8 +89,8 @@ public class WebSocketClient extends Endpoint{
 
 	@OnMessage
 	public void onMessage(String message) {
-		log.info("Received message: {}", message);
 		if(message.contains("exception") || message.contains("Exception")) {
+			log.error("Received exception: {}", message);
 			WorkerExceptionManager.getInstance().setException(message);
 		}
 	}

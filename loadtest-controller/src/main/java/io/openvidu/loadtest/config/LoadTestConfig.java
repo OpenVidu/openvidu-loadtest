@@ -59,6 +59,8 @@ public class LoadTestConfig {
 	private int participantsPerWorker;
 	
 	private double medianodeLoadForStartRecording;
+	
+	private int recordingSessionGroup;
 
 	private String elasticsearchHost;
 
@@ -184,6 +186,10 @@ public class LoadTestConfig {
 	public double getMedianodeLoadForRecording() {
 		return medianodeLoadForStartRecording;
 	}
+	
+	public int getRecordingSessionGroup() {
+		return recordingSessionGroup;
+	}
 
 	public boolean isTerminateWorkers() {
 		return terminateWorkers;
@@ -217,6 +223,7 @@ public class LoadTestConfig {
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
 			workersRumpUp = asInt("WORKERS_RUMP_UP");
 			medianodeLoadForStartRecording = asDouble("MEDIANODE_LOAD_FOR_START_RECORDING");
+			recordingSessionGroup = asInt("RECORDING_SESSION_GRUPED_BY");
 			terminateWorkers = asBoolean("TERMINATE_WORKERS");
 			awsSecretAccessKey = asOptionalString("AWS_SECRET_ACCESS_KEY");
 			awsAccessKey = asOptionalString("AWS_ACCESS_KEY");
@@ -263,8 +270,12 @@ public class LoadTestConfig {
 			System.out.printf(format, "Worker rump up:", workersRumpUp);
 			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
 		}
+		
 		if(medianodeLoadForStartRecording > 0) {
 			System.out.printf(format, "Start recording when medianode CPU is over:", medianodeLoadForStartRecording);
+		}
+		if(recordingSessionGroup > 0) {
+			System.out.printf(format, "Recording starts each :", medianodeLoadForStartRecording + " session(s)");
 		}
 
 		System.out.printf("\n");

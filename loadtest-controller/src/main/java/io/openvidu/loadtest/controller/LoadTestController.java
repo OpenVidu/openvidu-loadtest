@@ -160,10 +160,8 @@ public class LoadTestController {
 			}
 
 			sessionNumber.getAndIncrement();
-			int suffix = (int) (Math.random() * (10000 - 1)) + 1;
-			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
 			System.out.print("\n");
-			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
+//			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
 
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
@@ -174,16 +172,18 @@ public class LoadTestController {
 					String uri = startRecordingInstance();
 					String recordingMetadata = "N_N_" + participantsBySession + "PSes";
 					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
-							sessionNumberStr, testCase, recordingMetadata);
+							sessionNumber.get(), testCase, recordingMetadata);
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-							sessionNumberStr, testCase);
+							sessionNumber.get(), testCase);
 				}
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
 					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
+						log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
+								.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
 						setAndInitializeNextWorker();
 					}
 					if (userNumber.get() < participantsBySession) {
@@ -201,8 +201,10 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit)
-						&& !this.currentWorkerHasSpace(participantsBySession, 0)) {
+				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0) && loadTestConfig.getWorkersRumpUp() > 0) {
+					log.warn("Worker has not space enough for new session.");
+					log.info("Worker CPU {} will be bigger than the limit: {}",this.browserEmulatorClient
+							.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
 					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 					setAndInitializeNextWorker();
 				}
@@ -224,11 +226,8 @@ public class LoadTestController {
 			}
 
 			sessionNumber.getAndIncrement();
-			int suffix = (int) (Math.random() * (10000 - 1)) + 1;
-			String sessionNumberStr = sessionNumber.get() + "-" + suffix;
-
 			System.out.print("\n");
-			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
+//			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
 
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
@@ -239,16 +238,18 @@ public class LoadTestController {
 					String uri = startRecordingInstance();
 					String recordingMetadata = "N_M_" + publishers + "_" + subscribers + "PSes";
 					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
-							sessionNumberStr, testCase, recordingMetadata);
+							sessionNumber.get(), testCase, recordingMetadata);
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-							sessionNumberStr, testCase);
+							sessionNumber.get(), testCase);
 				}
 				if (responseIsOk) {
 					userNumber.getAndIncrement();
 					this.totalParticipants.incrementAndGet();
 					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
+						log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
+								.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
 						setAndInitializeNextWorker();
 					}
 				} else {
@@ -268,16 +269,18 @@ public class LoadTestController {
 						String uri = startRecordingInstance();
 						String recordingMetadata = "N_M_" + publishers + "_" + subscribers + "PSes";
 						responseIsOk = this.browserEmulatorClient.createExternalRecordingSubscriber(uri,
-								userNumber.get(), sessionNumberStr, testCase, recordingMetadata);
+								userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
 					} else {
 						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
-								sessionNumberStr, testCase);
+								sessionNumber.get(), testCase);
 					}
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
 						if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-								.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker()) {
+								.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
+							log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
+									.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
 							setAndInitializeNextWorker();
 						}
 						if (userNumber.get() < totalParticipants) {
@@ -296,8 +299,10 @@ public class LoadTestController {
 					this.sessionsCompleted.incrementAndGet();
 					// TODO: in TEACHING sessions, all participants are PUBLISHERS
 					// Now, it is assuming they are PUBLISHERS and SUBSCRIBERS
-					if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit)
-							&& !this.currentWorkerHasSpace(publishers, subscribers)) {
+					if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(publishers, subscribers)) {
+						log.warn("Worker has not space enough for new session.");
+						log.info("Worker CPU {} will be bigger than the limit: {}",this.browserEmulatorClient
+								.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
 						streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 						setAndInitializeNextWorker();
 					}
@@ -312,9 +317,10 @@ public class LoadTestController {
 
 		if (PROD_MODE) {
 			log.info("Starting recording EC2 instance...");
-			recordingWorkersList.addAll(this.ec2Client.launchRecordingInstance(1));
+			List<Instance> newRecordingInstanceList = this.ec2Client.launchRecordingInstance(1);
+			recordingWorkersList.addAll(newRecordingInstanceList);
 			initializeInstance(recordingWorkersList.get(0).getPublicDnsName());
-			return recordingWorkersList.get(0).getPublicDnsName();
+			return newRecordingInstanceList.get(0).getPublicDnsName();
 		}
 		return devWorkersList.get(0);
 
@@ -389,9 +395,14 @@ public class LoadTestController {
 
 	private boolean needRecordingParticipant() {
 		double medianodeLoadForRecording = this.loadTestConfig.getMedianodeLoadForRecording();
+		int recordingSessionGroup = this.loadTestConfig.getRecordingSessionGroup();
 
-		return medianodeLoadForRecording > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated()
+		boolean isLoadRecordingEnabled =  medianodeLoadForRecording > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get())
 				&& this.esClient.getMediaNodeCpu() >= medianodeLoadForRecording;
+				
+		boolean isRecordingSessionGroupEnabled = recordingSessionGroup > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get()) && sessionNumber.get() % recordingSessionGroup == 0; 
+		
+		return isLoadRecordingEnabled || isRecordingSessionGroupEnabled;
 	}
 
 	private boolean currentWorkerHasSpace(int publishers, int subscribers) {
@@ -437,11 +448,14 @@ public class LoadTestController {
 			for (Instance recordingEc2 : recordingWorkersList) {
 				workersUrl.add(recordingEc2.getPublicDnsName());
 			}
+			this.browserEmulatorClient.disconnectAll(workersUrl);
+			this.ec2Client.stopInstance(recordingWorkersList);
 			workersList = new ArrayList<Instance>();
 			recordingWorkersList = new ArrayList<Instance>();
-		}
-		this.browserEmulatorClient.disconnectAll(workersUrl);
 
+		}else  {
+			this.browserEmulatorClient.disconnectAll(workersUrl);
+		}
 	}
 
 	private void saveResultReport(TestCase testCase, String participantsBySession) {
@@ -466,6 +480,7 @@ public class LoadTestController {
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
 				.setParticipantsPerWorker(loadTestConfig.getParticipantsPerWorker())
 				.setS3BucketName("https://s3.console.aws.amazon.com/s3/buckets/" + this.browserEmulatorClient.getS3BucketName())
+				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray())
 				.build();
 
 		this.io.exportResults(rr);
