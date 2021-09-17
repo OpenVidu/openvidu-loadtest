@@ -8,7 +8,7 @@ public class TestCase {
 	private List<String> participants;
 	private int sessions;
 	private BrowserMode browserMode;
-//	private String resolution;
+	private Resolution resolution;
 	private int frameRate;
 	private OpenViduRecordingMode openviduRecordingMode;
 	private boolean browserRecording = false;
@@ -16,14 +16,14 @@ public class TestCase {
 	private boolean showBrowserVideoElements = true;
 	private String recordingMetadata = "";
 
-	public TestCase(String typology, List<String> participants, int sessions, BrowserMode browserMode, int frameRate,
+	public TestCase(String typology, List<String> participants, int sessions, BrowserMode browserMode, int frameRate, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
 			boolean showBrowserVideoElements) {
 		this.typology = getTypology(typology);
 		this.participants = participants;
 		this.sessions = sessions;
 		this.browserMode = browserMode;
-//		this.resolution = resolution;
+		this.resolution = resolution;
 		this.frameRate = frameRate;
 		this.openviduRecordingMode = openviduRecordingMode;
 		this.browserRecording = browserRecording;
@@ -36,7 +36,7 @@ public class TestCase {
 		this.participants = testCase.participants;
 		this.sessions = testCase.sessions;
 		this.browserMode = testCase.browserMode;
-//		this.resolution = resolution;
+		this.resolution = testCase.resolution;
 		this.frameRate = testCase.frameRate;
 		this.openviduRecordingMode = testCase.openviduRecordingMode;
 		this.browserRecording = testCase.browserRecording;
@@ -89,9 +89,9 @@ public class TestCase {
 	}
 	
 
-//	public String getResolution() {
-//		return resolution;
-//	}
+	public Resolution getResolution() {
+		return resolution;
+	}
 
 	public String getRecordingMetadata() {
 		return recordingMetadata;
@@ -138,7 +138,7 @@ public class TestCase {
 				+ " | Participants in session: " + participants 
 				+ " | Sessions limit: "	+ sessionLimit 
 				+ " | Browser mode: " + browserMode 
-//				+ " | Resolution: " + resolution 
+				+ " | Resolution: " + resolution.getValue() 
 				+ " | Frame rate: " + frameRate 
 				+ " | Headless browser: " + isHeadlessBrowser() 
 				+ " | Browser recording: " + isBrowserRecording()

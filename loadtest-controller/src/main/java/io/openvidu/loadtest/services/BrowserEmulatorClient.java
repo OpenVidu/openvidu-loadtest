@@ -309,6 +309,7 @@ public class BrowserEmulatorClient {
 				openviduUrl(this.loadTestConfig.getOpenViduUrl())
 				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
 				.browserMode(testCase.getBrowserMode())
+				.resolution(testCase.getResolution())
 				.frameRate(testCase.getFrameRate())
 				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
 				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber)

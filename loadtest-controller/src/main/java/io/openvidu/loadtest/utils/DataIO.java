@@ -18,6 +18,7 @@ import com.google.gson.stream.JsonReader;
 
 import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
+import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Typology;
@@ -79,6 +80,7 @@ public class DataIO {
 			boolean showBrowserVideoElements = false;
 			String openviduRecordingModeStr = "";
 			int frameRate = 30;
+			Resolution resolution = Resolution.MEDIUM;
 			List<String> participants = new ArrayList<String>();
 			int sessions = 0;
 			BrowserMode browserMode = BrowserMode.EMULATE;
@@ -95,6 +97,10 @@ public class DataIO {
 
 				if(element.get("frameRate") !=null && !element.get("frameRate").getAsString().isBlank()) {
 					frameRate = element.get("frameRate").getAsInt();
+				}
+				
+				if(element.get("resolution") !=null && !element.get("resolution").getAsString().isBlank()) {
+					resolution = element.get("resolution").getAsString().equalsIgnoreCase(Resolution.HIGH.getValue()) ? Resolution.HIGH : Resolution.MEDIUM;
 				}
 
 				if(element.get("openviduRecordingMode") != null && !element.get("openviduRecordingMode").getAsString().isBlank()) {
@@ -113,13 +119,14 @@ public class DataIO {
 				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
 
 				if(browserMode.equals(BrowserMode.REAL)) {
-					browserRecording = element.get("browserRecording").getAsBoolean();
-					headlessBrowser = element.get("headlessBrowser").getAsBoolean();
-					showBrowserVideoElements = element.get("showBrowserVideoElements").getAsBoolean();
+					browserRecording = element.has("browserRecording") ? element.get("browserRecording").getAsBoolean() : false;
+					headlessBrowser = element.has("headlessBrowser") ? element.get("headlessBrowser").getAsBoolean() : false;
+					showBrowserVideoElements = element.has("showBrowserVideoElements") ? element.get("showBrowserVideoElements").getAsBoolean() : false;
+					
 				}
 			}
 
-			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, frameRate, openviduRecordingMode,
+			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, frameRate, resolution, openviduRecordingMode,
 					headlessBrowser, browserRecording, showBrowserVideoElements));
 		}
 

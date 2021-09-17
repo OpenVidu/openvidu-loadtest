@@ -4,9 +4,9 @@ public enum Resolution {
 	
 	HIGH("1280x720", "1280x720"),
 
-	MEDIUM("640x480", "640x480"),
+	MEDIUM("640x480", "640x480");
 
-	LOW("320x240", "320x240");
+//	LOW("320x240", "320x240");
 
 	private String label;
 	private String value;
