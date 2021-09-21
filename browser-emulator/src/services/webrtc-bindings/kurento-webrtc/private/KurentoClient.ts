@@ -93,8 +93,10 @@ export function setRecorderEndpointPrefix(recorderPathPrefix: string | undefined
 }
 
 export async function clean() {
-	await kurento.player.stop();
-	kurento.player = null;
+	if(kurento && kurento.player){
+		await kurento.player.stop();
+		kurento.player = null;
+	}
 }
 
 export async function makeWebRtcEndpoint(
