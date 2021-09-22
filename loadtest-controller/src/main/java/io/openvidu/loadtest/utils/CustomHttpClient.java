@@ -66,7 +66,7 @@ public class CustomHttpClient {
 			postBody = HttpRequest.BodyPublishers.ofString(body.toString());
 		}
 
-		HttpRequest request = requestBuilder.POST(postBody).timeout(Duration.ofSeconds(30)).build();
+		HttpRequest request = requestBuilder.POST(postBody).timeout(Duration.ofSeconds(60)).build();
 		return client.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
