@@ -64,13 +64,13 @@ Resources:
 
           # Create browser-emulator docker image
           cd docker/browser-emulator/
-          ./run.sh 2.1.0
+          ./run.sh 2.2.0
 
           # Create recording directories
           mkdir -p ./recordings/kms
           mkdir -p ./recordings/chrome
 
-          echo '@reboot docker run -d -it --network host -v /var/run/docker.sock:/var/run/docker.sock -v /opt/openvidu-loadtest/browser-emulator/recordings:/opt/openvidu-loadtest/browser-emulator/recordings openvidu/browser-emulator:2.1.0 > /var/log/crontab.log' | crontab
+          echo '@reboot docker run -d -it --network host -v /var/run/docker.sock:/var/run/docker.sock -v /opt/openvidu-loadtest/browser-emulator/recordings:/opt/openvidu-loadtest/browser-emulator/recordings openvidu/browser-emulator:2.2.0 > /var/log/crontab.log' | crontab
 
           # sending the finish call
           /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WaitCondition --region ${AWS::Region}
