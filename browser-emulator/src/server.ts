@@ -7,10 +7,11 @@ import { HackService } from "./services/hack.service";
 
 import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
 import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
-import {app as instanceController} from './controllers/instance.controller';
 
+import { DockerService } from './services/docker.service';
 import { InstanceService } from './services/instance.service';
-import { ApplicationMode, EmulatedUserType } from './types/config.type';
+import { ApplicationMode } from './types/config.type';
+
 
 const app = express();
 
@@ -26,18 +27,18 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/', webrtcStatsController);
 app.use('/openvidu-browser', ovBrowserController);
-app.use('/instance', instanceController);
 
 const server = https.createServer(options, app);
 
 server.listen(SERVER_PORT, async () => {
 	const hack = new HackService();
+	hack.openviduBrowser();
+	hack.webrtc();
+	hack.websocket();
+	hack.platform();
+	hack.allowSelfSignedCertificate();
 
 	createRecordingsDirectory();
-
-	process.env.ELASTICSEARCH_HOSTNAME = 'your-hostname';
-	process.env.ELASTICSEARCH_USERNAME = 'your-user';
-	process.env.ELASTICSEARCH_PASSWORD = 'your-secret';
 
 	const instanceService = InstanceService.getInstance();
 	await instanceService.cleanEnvironment();
@@ -45,22 +46,15 @@ server.listen(SERVER_PORT, async () => {
 	if(APPLICATION_MODE === ApplicationMode.PROD) {
 		console.log("Pulling Docker images needed...");
 		await instanceService.pullImagesNeeded();
-
 	}
 
-	if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
-		console.log('Starting Kurento Media Server');
-		await instanceService.launchKMS();
-	}
-
-	hack.openviduBrowser();
-	await hack.webrtc();
-	hack.websocket();
-	hack.platform();
-	hack.allowSelfSignedCertificate();
+	process.env.ELASTICSEARCH_HOSTNAME = 'your-hostname';
+	process.env.ELASTICSEARCH_USERNAME = 'your-user';
+	process.env.ELASTICSEARCH_PASSWORD = 'your-secret';
 
 	try {
 		await instanceService.launchMetricBeat();
+		console.log("metricbeat strarted");
 	} catch (error) {
 		console.log('Error starting metricbeat', error);
 		if (error.statusCode === 409 && error.message.includes('Conflict')) {
@@ -72,7 +66,7 @@ server.listen(SERVER_PORT, async () => {
 
 	console.log("---------------------------------------------------------");
 	console.log(" ");
-	console.log(`Service started in ${APPLICATION_MODE} mode`);
+	console.log(`App started in ${APPLICATION_MODE} mode`);
 	console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
 	console.log(`Listening in port ${SERVER_PORT}`);
 	console.log(" ");
@@ -83,7 +77,5 @@ function createRecordingsDirectory() {
 	var dir = `${process.env.PWD}/recordings`;
 	if (!fs.existsSync(dir)){
 		fs.mkdirSync(dir);
-		fs.mkdirSync(dir + '/kms');
-		fs.mkdirSync(dir + '/chrome');
 	}
 }

@@ -2,48 +2,32 @@ import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
 import { HttpClient } from "../utils/http-client";
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
-
-// const { RTCVideoSource, RTCAudioSource } = require('wrtc').nonstandard;
-import wrtc = require('wrtc');
-
-import { EMULATED_USER_TYPE } from '../config';
-import { EmulatedUserType } from '../types/config.type';
-
-const ffmpeg = require('fluent-ffmpeg');
-const chunker = require('stream-chunker');
-import { StreamOutput } from 'fluent-ffmpeg-multistream';
-
-
-interface CustomMediaStream {
-	url: string,
-	track: wrtc.MediaStreamTrack,
-	options: string[],
-	kind: string,
-	width?: number,
-	height?:number
-};
+const { RTCVideoSource, rgbaToI420 } = require('wrtc').nonstandard;
+import { Canvas, createCanvas, Image, loadImage } from 'canvas';
 
 export class EmulateBrowserService {
 	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
 	private readonly WIDTH = 640;
 	private readonly HEIGHT = 480;
-	private videoTrack: wrtc.MediaStreamTrack | boolean;
-	private audioTrack: wrtc.MediaStreamTrack | boolean;
-	private mediaStramTracksCreated: boolean = false;
-	private exceptionFound: boolean = false;
-	private exceptionMessage: string = '';
+	private videoSource;
+	private videoTrack: MediaStreamTrack;
+	private canvas: Canvas;
+	private context;
+	private myimg: Image;
+	private MIN = 0;
+	private canvasInterval: NodeJS.Timer;
+	private CANVAS_MAX_HEIGHT: number;
+	private CANVAS_MAX_WIDTH: number;
+
 	constructor(private httpClient: HttpClient = new HttpClient()) {
+		this.initializeVideoCanvas();
 	}
 
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
 			try {
 
-				if (this.exceptionFound) {
-					throw {status: 500, message: this.exceptionMessage};
-				}
-
-				if (!token) {
+				if(!token) {
 					token = await this.getToken(properties);
 				}
 
@@ -55,30 +39,20 @@ export class EmulateBrowserService {
 					session.subscribe(event.stream, null);
 				});
 
-				session.on('exception', (exception: any) => {
-					if (exception.name === 'ICE_CANDIDATE_ERROR') {
-						// Error on sendIceCandidate
-						console.error(exception);
-						this.exceptionFound = true;
-						this.exceptionMessage = 'Exception found in openvidu-browser';
-					}
-				});
-
 				await session.connect(token,  properties.userId);
 				if(properties.role === OpenViduRole.PUBLISHER){
-
-					await this.createMediaStreamTracks(properties);
-
+					this.stopVideoCanvasInterval();
 					const publisher: Publisher = ov.initPublisher(null, {
-						audioSource: this.audioTrack,
-						videoSource: this.videoTrack,
+						audioSource: properties.audio,
+						videoSource: properties.video ? this.videoTrack : null,
 						publishAudio: properties.audio,
 						publishVideo: properties.video,
 						resolution: this.WIDTH + 'x' + this.HEIGHT,
 						frameRate: properties.frameRate,
 					});
 					await session.publish(publisher);
-
+					const frameRateEstimation = 1000 / properties.frameRate;
+					this.startVideoCanvasInterval(frameRateEstimation);
 				}
 
 				this.storeInstances(ov, session);
@@ -88,7 +62,7 @@ export class EmulateBrowserService {
 					"There was an error connecting to the session:",
 					error
 				);
-				reject({status:error.status, message: error.statusText || error.message || error});
+				reject({status:error.status, message: error.statusText || error.message});
 			}
 		});
 	}
@@ -122,116 +96,47 @@ export class EmulateBrowserService {
 		this.openviduMap.set(session.connection.connectionId, {openvidu, session});
 	}
 
-	private async createMediaStreamTracks(properties: TestProperties): Promise<void> {
+	private async startVideoCanvasInterval(timeoutMs: number = 30) {
+		// Max 30 fps
+		timeoutMs =  timeoutMs < 30 ? 30 : timeoutMs;
+		this.context.fillStyle = '#' + Math.floor(Math.random()*16777215).toString(16);
 
-		if(!this.mediaStramTracksCreated) {
+		this.canvasInterval = setInterval(() => {
+			const x = Math.floor(Math.random() * (this.CANVAS_MAX_WIDTH - this.MIN + 1) + this.MIN);
+			const y = Math.floor(Math.random() * (this.CANVAS_MAX_HEIGHT - this.MIN + 1) + this.MIN);
 
-			this.videoTrack = properties.video;
-			this.audioTrack = properties.audio;
+			this.context.save();
+			this.context.fillRect(0, 0, this.WIDTH, this.HEIGHT);
+			this.context.drawImage(this.myimg, x, y);
+			// this.context.font = "50px Verdana";
+			// this.context.strokeText("Hello World!", 100, 100);
 
-			if(this.isUsingNodeWebrtc()) {
-				if(properties.audio || properties.video) {
-					await this.createMediaStreamTracksFromVideoFile(properties.video, properties.audio);
-				}
-			}
-		}
+			this.context.restore();
 
-	}
-
-	private async createMediaStreamTracksFromVideoFile(video: boolean, audio: boolean) {
-
-		let videoOutput = null;
-		let audioOutput = null;
-
-		const command = ffmpeg()
-							.input(`${process.env.PWD}/src/assets/mediafiles/video.mkv`)
-							.inputOptions(['-stream_loop -1', '-r 1'])
-
-		if(video) {
-			videoOutput = this.createVideoOutput();
-			command
-				.output(videoOutput.url)
-				.outputOptions(videoOutput.options)
-		}
-
-		if(audio) {
-			audioOutput = this.createAudioOutput();
-			command
-				.output(audioOutput.url)
-				.outputOptions(audioOutput.options)
-		}
-
-		command.on('error', (err, stdout, stderr) => {
-			console.error(err.message);
-			this.exceptionFound = true;
-			this.exceptionMessage = 'Exception found in ffmpeg' + err.message;
-
-		});
-
-		command.run();
-
-		this.videoTrack = videoOutput.track;
-		this.audioTrack = audioOutput.track;
-		this.mediaStramTracksCreated = true;
-	}
-
-	private createVideoOutput(): CustomMediaStream {
-
-		const sourceStream = chunker(this.WIDTH * this.HEIGHT * 1.5);
-		const source = new wrtc.nonstandard.RTCVideoSource();
-		const ffmpegOptions = [
-			'-f rawvideo',
-			// '-c:v rawvideo',
-			`-s ${this.WIDTH}x${this.HEIGHT}`,
-			'-pix_fmt yuv420p',
-			'-r 24'
-		];
-
-		sourceStream.on('data', (chunk) => {
-			const data = {
+			const rgbaFrame = this.context.getImageData(0, 0, this.WIDTH, this.HEIGHT);
+			const i420Frame = {
 				width: this.WIDTH,
 				height: this.HEIGHT,
-				data: new Uint8ClampedArray(chunk)
+				data: new Uint8ClampedArray(1.5 * this.WIDTH * this.HEIGHT)
 			};
-			source.onFrame(data);
-		});
-
-		const output = StreamOutput(sourceStream);
-		output.track = source.createTrack();
-		output.options = ffmpegOptions;
-		output.kind = 'video';
-		output.width = this.WIDTH;
-		output.height = this.HEIGHT;
-
-		return output;
-	}
-	private createAudioOutput(): CustomMediaStream {
-		const sampleRate = 48000;
-		const sourceStream = chunker(2 * sampleRate / 100)
-		const source = new wrtc.nonstandard.RTCAudioSource();
-		const ffmpegOptions = [
-			'-f s16le',
-			'-ar 48k',
-			'-ac 1'
-		];
-		sourceStream.on('data', (chunk) => {
-			const data = {
-				samples: new Int16Array(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.length)),
-				sampleRate
-			};
-
-			source.onData(data);
-		});
-
-		const output = StreamOutput(sourceStream)
-		output.track = source.createTrack()
-		output.options = ffmpegOptions;
-		output.kind = 'audio';
-
-		return output;
+			rgbaToI420(rgbaFrame, i420Frame);
+			this.videoSource.onFrame(i420Frame);
+		}, timeoutMs);
 	}
 
-	private isUsingNodeWebrtc(): boolean {
-		return EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC;
+	private stopVideoCanvasInterval() {
+		clearInterval(this.canvasInterval);
+	}
+
+	private async initializeVideoCanvas(){
+		this.videoSource = new RTCVideoSource();
+		this.videoTrack = this.videoSource.createTrack();
+		this.canvas = createCanvas(this.WIDTH, this.HEIGHT);
+		this.context = this.canvas.getContext('2d');
+		this.myimg = await loadImage('src/assets/images/openvidu_logo.png');
+		this.context.fillStyle = 'black';
+		this.context.fillRect(0, 0, this.WIDTH, this.HEIGHT);
+		this.CANVAS_MAX_WIDTH = this.WIDTH - this.myimg.width;
+		this.CANVAS_MAX_HEIGHT = this.HEIGHT - this.myimg.height;
 	}
 }

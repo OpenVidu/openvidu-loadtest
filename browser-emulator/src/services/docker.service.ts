@@ -28,14 +28,6 @@ export class DockerService {
 		}
 	}
 
-	async imageExists(image: string): Promise<boolean> {
-		const imageNamesArr: string[] = [image];
-		const images = await this.docker.listImages({
-			filters: { reference: imageNamesArr },
-		});
-		return images.length > 0;
-	}
-
 	public async removeContainer(containerNameOrId: string) {
 		const container = await this.getContainerByIdOrName(containerNameOrId);
 		if (!!container) {
@@ -46,6 +38,14 @@ export class DockerService {
 				console.error('Container ' + containerNameOrId + ' does not exist');
 			}
 		}
+	}
+
+	async imageExists(image: string): Promise<boolean> {
+		const imageNamesArr: string[] = [image];
+		const images = await this.docker.listImages({
+			filters: { reference: imageNamesArr },
+		});
+		return images.length > 0;
 	}
 
 	pullImage(image: string): Promise<void> {
