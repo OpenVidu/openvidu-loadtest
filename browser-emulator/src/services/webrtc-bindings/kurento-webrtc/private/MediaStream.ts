@@ -3,7 +3,7 @@
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 
-import { MediaStreamTrack } from './MediaStreamTrack';
+import { MediaStreamTrack } from "./MediaStreamTrack";
 
 export class MediaStream {
 	// MediaStream has 3 constructors, but I don't know how to do this
@@ -20,11 +20,11 @@ export class MediaStream {
 	}
 
 	public getAudioTracks(): MediaStreamTrack[] {
-		return this.tracks.filter((track) => track.kind === 'audio');
+		return this.tracks.filter((track) => track.kind === "audio");
 	}
 
 	public getVideoTracks(): MediaStreamTrack[] {
-		return this.tracks.filter((track) => track.kind === 'video');
+		return this.tracks.filter((track) => track.kind === "video");
 	}
 
 	public getTracks(): MediaStreamTrack[] {

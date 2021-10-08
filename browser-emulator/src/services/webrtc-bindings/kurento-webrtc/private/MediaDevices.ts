@@ -3,8 +3,8 @@
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 
-import { MediaStream } from './MediaStream';
-import { MediaStreamTrack } from './MediaStreamTrack';
+import { MediaStream } from "./MediaStream";
+import { MediaStreamTrack } from "./MediaStreamTrack";
 
 // interface MediaTrackConstraintSet {
 //     aspectRatio?: ConstrainDouble;
@@ -35,19 +35,21 @@ interface MediaStreamConstraints {
 }
 
 export class MediaDevices {
-	public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
+	public async getUserMedia(
+		constraints?: MediaStreamConstraints
+	): Promise<MediaStream> {
 		const tracks: MediaStreamTrack[] = [];
 
 		if (constraints) {
 			if (constraints.audio) {
-				tracks.push(new MediaStreamTrack({ kind: 'audio' }));
+				tracks.push(new MediaStreamTrack({ kind: "audio" }));
 			}
 			if (constraints.video) {
-				tracks.push(new MediaStreamTrack({ kind: 'video' }));
+				tracks.push(new MediaStreamTrack({ kind: "video" }));
 			}
 		} else {
-			tracks.push(new MediaStreamTrack({ kind: 'audio' }));
-			tracks.push(new MediaStreamTrack({ kind: 'video' }));
+			tracks.push(new MediaStreamTrack({ kind: "audio" }));
+			tracks.push(new MediaStreamTrack({ kind: "video" }));
 		}
 
 		const stream = new MediaStream(tracks);

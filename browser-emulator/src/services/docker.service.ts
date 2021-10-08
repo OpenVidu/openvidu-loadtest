@@ -1,4 +1,4 @@
-import * as Docker from 'dockerode';
+import * as Docker from "dockerode";
 
 export class DockerService {
 	private docker: Docker;
@@ -7,7 +7,7 @@ export class DockerService {
 		this.docker = new Docker();
 	}
 
-	async startContainer(options: Docker.ContainerCreateOptions): Promise<string> {
+	async startContainer(options: Docker.ContainerCreateOptions) {
 		console.log(`Starting ${options.Image}`);
 		const container: Docker.Container = await this.docker.createContainer(options);
 		await container.start();
@@ -17,14 +17,23 @@ export class DockerService {
 
 	public async stopContainer(nameOrId: string): Promise<void> {
 		const container = await this.getContainerByIdOrName(nameOrId);
-		if (!!container) {
+	    if (!!container) {
 			try {
 				await container.stop();
-				console.log('Container ' + container.id + ' stopped');
+				await container.remove({ force: true });
+	        	console.log('Container ' + container.id + ' stopped');
 			} catch (error) {
-				console.error('KMS has already stopped. Skipping');
+
 			}
 		}
+	}
+
+	async imageExists(image: string): Promise<boolean> {
+		const imageNamesArr: string[] = [image];
+		const images = await this.docker.listImages({
+			filters: { reference: imageNamesArr },
+		});
+		return images.length > 0;
 	}
 
 	public async removeContainer(containerNameOrId: string) {
@@ -39,31 +48,25 @@ export class DockerService {
 		}
 	}
 
-	async imageExists(image: string): Promise<boolean> {
-		const imageNamesArr: string[] = [image];
-		const images = await this.docker.listImages({
-			filters: { reference: imageNamesArr },
-		});
-		return images.length > 0;
-	}
-
 	pullImage(image: string): Promise<void> {
 		return new Promise(async (resolve, reject) => {
-			console.log('Pulling image ' + image);
+			console.log("Pulling image " + image);
 			this.docker.pull(image, (err, stream) => {
 				function onFinished(err) {
 					if (!!err) {
 						reject(err);
 					} else {
-						console.log('Image ' + image + ' successfully pulled');
+						console.log("Image " + image + " successfully pulled");
 						resolve();
 					}
 				}
 				function onProgress(event) {
-					if (event.status === 'Downloading') {
-						console.log('    Downloading layer ' + event.id + ': ' + event.progress);
-					} else if (event.status === 'Download complete') {
-						console.log('    Layer ' + event.id + ' downloaded!');
+					if (event.status === "Downloading") {
+						console.log(
+							"    Downloading layer " + event.id + ": " + event.progress
+						);
+					} else if (event.status === "Download complete") {
+						console.log("    Layer " + event.id + " downloaded!");
 					}
 				}
 				try {
@@ -76,33 +79,37 @@ export class DockerService {
 	}
 
 	async runCommandInContainer(containerId: string, command: string): Promise<void> {
-		const container = this.docker.getContainer(containerId);
-		if (!!container) {
+        const container = this.docker.getContainer(containerId);
+        if (!!container) {
+
 			try {
 				const exec = await container.exec({
 					AttachStdout: true,
 					AttachStderr: true,
 					Cmd: ['/bin/bash', '-c', command],
-					Privileged: true,
+					Privileged: true
 				});
 				await exec.start({});
 				console.log('Container ' + containerId + ' successfully executed command ' + command);
+
 			} catch (error) {
 				console.error(error);
 			}
-		} else {
-			console.error('Container ' + containerId + ' does not exist');
+
+        } else {
+            console.error('Container ' + containerId + ' does not exist');
 		}
 	}
 
 	private async getContainerByIdOrName(nameOrId: string): Promise<Docker.Container> {
 		const containers: Docker.ContainerInfo[] = await this.docker.listContainers({ all: true });
 		const containerInfo = containers.find((containerInfo: Docker.ContainerInfo) => {
-			return containerInfo.Names.indexOf('/' + nameOrId) >= 0 || containerInfo.Id === nameOrId;
+			return containerInfo.Names.indexOf("/" + nameOrId) >= 0 || containerInfo.Id === nameOrId;
 		});
 
-		if (!!containerInfo && containerInfo?.Id) {
+		if(!!containerInfo && containerInfo?.Id) {
 			return this.docker.getContainer(containerInfo.Id);
 		}
 	}
+
 }

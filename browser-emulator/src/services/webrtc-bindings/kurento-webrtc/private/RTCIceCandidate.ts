@@ -3,10 +3,10 @@
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 
-type RTCIceComponent = 'rtcp' | 'rtp';
-type RTCIceProtocol = 'tcp' | 'udp';
-type RTCIceTcpCandidateType = 'active' | 'passive' | 'so';
-type RTCIceCandidateType = 'host' | 'prflx' | 'relay' | 'srflx';
+type RTCIceComponent = "rtcp" | "rtp";
+type RTCIceProtocol = "tcp" | "udp";
+type RTCIceTcpCandidateType = "active" | "passive" | "so";
+type RTCIceCandidateType = "host" | "prflx" | "relay" | "srflx";
 
 export interface RTCIceCandidateInit {
 	candidate?: string;

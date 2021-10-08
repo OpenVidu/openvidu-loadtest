@@ -7,8 +7,8 @@ metricbeat.modules:
       - network
       - filesystem
       - fsstat
-      # - process_summary
-      # - uptime
+      - process_summary
+      - uptime
     filesystem.ignore_types: [nfs, smbfs, autofs, devtmpfs, devpts, hugetlbfs, tmpfs, sysfs, securityfs, cgroup2, cgroup, pstore, debugfs, configfs, fusectl, proc, fuse.lxcfs, squashfs]
     processes: ['.*']
     processors:
@@ -25,7 +25,8 @@ metricbeat.modules:
     period: ${METRICBEAT_MONITORING_INTERVAL}s
     cpu.metrics: [normalized_percentages]
 fields:
-    worker_name: worker_${WORKER_UUID}
+    worker_name: worker_${WORKER_PORT}
+    worker_port: ${WORKER_PORT}
     node_role: browseremulator
 output:
   elasticsearch:

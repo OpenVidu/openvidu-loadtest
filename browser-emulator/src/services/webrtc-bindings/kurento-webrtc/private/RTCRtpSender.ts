@@ -3,7 +3,7 @@
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 
-import { MediaStreamTrack } from './MediaStreamTrack';
+import { MediaStreamTrack } from "./MediaStreamTrack";
 
 export class RTCRtpSender {
 	readonly track: MediaStreamTrack | null = null;

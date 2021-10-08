@@ -1,31 +1,33 @@
-import fs = require('fs');
-import * as os from 'node-os-utils';
-import { ContainerCreateOptions } from 'dockerode';
+import * as os  from 'node-os-utils';
+import { ContainerCreateOptions } from "dockerode";
 
-import { EMULATED_USER_TYPE } from '../config';
-import { EmulatedUserType } from '../types/config.type';
+import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT } from '../config';
+import { ApplicationMode, EmulatedUserType } from '../types/config.type';
 import { DockerService } from './docker.service';
 import { LocalStorageService } from './local-storage.service';
-import { WebrtcStatsService } from './config-storage.service';
-import { ContainerName } from '../types/container-info.type';
-
-import * as AWS from 'aws-sdk';
+import { WebrtcStatsService } from './webrtc-stats-storage.service';
 
 export class InstanceService {
+
 	private static instance: InstanceService;
-	private isinstanceInitialized: boolean = false;
+	private metricbeatContainerId: string;
+	private kmsContainerId: string;
+
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
+	private readonly METRICBEAT_CONTAINER_NAME = 'metricbeat';
 	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
-	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
-	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbeat-config/metricbeat.yml`;
+	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.8.0';
+	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbet-config/metricbeat.yml`;
+
+	private readonly KMS_CONTAINER_NAME = 'kms';
 	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
-	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig`;
 
-	readonly WORKER_UUID: string = new Date().getTime().toString();
+	private constructor(
+		private dockerService: DockerService = new DockerService()
 
-	private constructor(private dockerService: DockerService = new DockerService()) {}
+	) {}
 
 	static getInstance(): InstanceService {
 		if (!InstanceService.instance) {
@@ -34,89 +36,94 @@ export class InstanceService {
 		return InstanceService.instance;
 	}
 
-	isInstanceInitialized() {
-		return this.isinstanceInitialized;
-	}
-
-	instanceInitialized() {
-		this.isinstanceInitialized = true;
-	}
-
 	async cleanEnvironment() {
-		await this.dockerService.stopContainer(ContainerName.KMS);
-		await this.dockerService.removeContainer(ContainerName.KMS);
+		await this.dockerService.stopContainer(this.METRICBEAT_CONTAINER_NAME);
+		await this.dockerService.stopContainer(this.KMS_CONTAINER_NAME);
 		new LocalStorageService().clear(new WebrtcStatsService().getItemName());
 	}
 
+
 	async getCpuUsage(): Promise<number> {
-		return await os.cpu.usage();
+		const cpuUsage: number = await os.cpu.usage();
+		return cpuUsage;
 	}
 
 	async launchMetricBeat() {
-		const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
-		const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
-		const options: ContainerCreateOptions = {
-			Image: this.METRICBEAT_IMAGE,
-			name: ContainerName.METRICBEAT,
-			User: 'root',
-			Env: [
-				`ELASTICSEARCH_HOSTNAME=${process.env.ELASTICSEARCH_HOSTNAME}`,
-				`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
-				`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
-				`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
-				`WORKER_UUID=${this.WORKER_UUID}`,
-			],
-			Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
-			HostConfig: {
-				Binds: [
-					`/var/run/docker.sock:/var/run/docker.sock`,
-					`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
-					'/proc:/hostfs/proc:ro',
-					'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
-					'/:/hostfs:ro',
+		if(!this.isMetricbeatStarted()) {
+			const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
+			const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
+			const options: ContainerCreateOptions = {
+				Image: this.METRICBEAT_IMAGE,
+				name: this.METRICBEAT_CONTAINER_NAME,
+				User: 'root',
+				Env: [
+					`ELASTICSEARCH_HOSTNAME=${process.env.ELASTICSEARCH_HOSTNAME}`,
+					`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
+					`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
+					`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
+					`WORKER_PORT=${SERVER_PORT}`,
 				],
-				NetworkMode: 'host',
-			},
-		};
-		await this.dockerService.startContainer(options);
+				Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
+				HostConfig:  {
+					Binds: [
+						`/var/run/docker.sock:/var/run/docker.sock`,
+						`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
+						'/proc:/hostfs/proc:ro',
+						'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
+						'/:/hostfs:ro'
+					],
+					NetworkMode: 'host'
+				},
+			};
+			this.metricbeatContainerId = await this.dockerService.startContainer(options);
+
+		}
 	}
 
 	async launchKMS(): Promise<void> {
 		try {
 			const options: ContainerCreateOptions = {
 				Image: this.KMS_IMAGE,
-				name: ContainerName.KMS,
+				name: this.KMS_CONTAINER_NAME,
 				User: 'root',
-				Env: ['KMS_MIN_PORT=40000', 'KMS_MAX_PORT=65535', `KURENTO_RECORDING_ENABLED=${process.env.KURENTO_RECORDING_ENABLED}`],
-				HostConfig: {
+				Env: [
+					'KMS_MIN_PORT=40000',
+     				'KMS_MAX_PORT=65535',
+					`KURENTO_RECORDING_ENABLED=${process.env.KURENTO_RECORDING_ENABLED}`
+				],
+				HostConfig:  {
 					Binds: [
 						`${process.env.PWD}/recordings/kms:${this.KMS_RECORDINGS_PATH}`,
-						`${process.env.PWD}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`,
+						`${process.env.PWD}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`
 					],
 					AutoRemove: false,
 					NetworkMode: 'host',
 					RestartPolicy: {
-						Name: 'always',
-					},
+						"Name": "always"
+					}
 				},
 			};
 
 			// Debug logging variables:
 			// GST_DEBUG is used directly by the Kurento Docker image.
-			if ('GST_DEBUG' in process.env) {
+			if ("GST_DEBUG" in process.env) {
 				options.Env.push(`GST_DEBUG=${process.env.GST_DEBUG}`);
 			}
 			// KMS_DOCKER_ENV_GST_DEBUG is used by .env files of OpenVidu.
-			if ('KMS_DOCKER_ENV_GST_DEBUG' in process.env) {
+			if ("KMS_DOCKER_ENV_GST_DEBUG" in process.env) {
 				options.Env.push(`GST_DEBUG=${process.env.KMS_DOCKER_ENV_GST_DEBUG}`);
 			}
 
-			await this.dockerService.startContainer(options);
+			this.kmsContainerId = await this.dockerService.startContainer(options);
 		} catch (error) {
 			console.error(error);
-			// this.dockerService.stopContainer(ContainerName.KMS);
-			// this.dockerService.removeContainer(ContainerName.KMS);
+			this.dockerService.stopContainer(this.kmsContainerId);
+			this.kmsContainerId = '';
 		}
+	}
+
+	isMetricbeatStarted(): boolean {
+		return !!this.metricbeatContainerId;
 	}
 
 	async removeContainer(containerNameOrId: string) {
@@ -135,81 +142,4 @@ export class InstanceService {
 		}
 	}
 
-
-	async uploadFilesToS3(): Promise<void> {
-		if (fs.existsSync(`${this.AWS_CREDENTIALS_PATH}/config.json`)) {
-			AWS.config.loadFromPath(`${this.AWS_CREDENTIALS_PATH}/config.json`);
-			const s3 = new AWS.S3();
-			const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`];
-
-			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
-				await this.createS3Bucket(process.env.S3_BUCKET);
-			}
-			dirs.forEach((dir) => {
-				if(fs.existsSync(dir)) {
-					fs.readdirSync(dir).forEach((file) => {
-						const data = fs.readFileSync(`${dir}/${file}`);
-						const s3Config: AWS.S3.PutObjectRequest = {
-							Bucket: process.env.S3_BUCKET,
-							Key: file,
-							Body: data,
-						};
-
-						s3.putObject(s3Config, (err, data) => {
-							if (err) {
-								console.log(err);
-							} else {
-								console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
-								fs.rmSync(`${dir}/${file}`, { recursive: true, force: true });
-							}
-						});
-					});
-				}
-			});
-		} else {
-			console.log(`ERROR uploading videos to S3. AWS is not configured. ${this.AWS_CREDENTIALS_PATH}/config.json not found`);
-		}
-	}
-
-	private isBucketCreated(s3BucketName: string): Promise<boolean> {
-
-		return new Promise((resolve, reject) => {
-			const s3 = new AWS.S3();
-			let bucketFound: boolean = false;
-			// Call S3 to list the buckets
-
-			s3.listBuckets((err, data) => {
-				if (err) {
-					console.log("Error", err);
-					return reject(err);
-				}
-				bucketFound = !!data.Buckets.find(b => {return b.Name === s3BucketName});
-				resolve(bucketFound);
-			});
-		});
-	}
-
-	private createS3Bucket(bucketName: string): Promise<any> {
-
-		return new Promise((resolve, reject) => {
-			const s3 = new AWS.S3();
-
-			const bucketParams = {
-				Bucket : bucketName
-			};
-
-			// call S3 to create the bucket
-			s3.createBucket(bucketParams, function(err, data) {
-				if (err) {
-				  console.log("Error", err);
-				  return reject(err);
-				}
-
-				console.log("Success", data.Location);
-				resolve('');
-
-			});
-		});
-
-	}
 }

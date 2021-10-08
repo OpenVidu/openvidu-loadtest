@@ -1,299 +1,237 @@
-import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent } from 'openvidu-browser';
-import { HttpClient } from '../utils/http-client';
+import { OpenVidu, Publisher, Session, StreamEvent } from "openvidu-browser";
+import { HttpClient } from "../utils/http-client";
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
 
-import { MediaStreamTrack } from 'wrtc';
+// const { RTCVideoSource, RTCAudioSource } = require('wrtc').nonstandard;
+import wrtc = require('wrtc');
 
 import { EMULATED_USER_TYPE } from '../config';
 import { EmulatedUserType } from '../types/config.type';
-import { CanvasService } from './emulated/canvas.service';
-import { FfmpegService } from './emulated/ffmpeg.service';
-import { MediaStreamTracksResponse } from '../types/emulate-webrtc.type';
-import { ExceptionEvent } from 'openvidu-browser/lib/OpenViduInternal/Events/ExceptionEvent';
-import { WsService } from './ws.service';
 
-import * as KurentoWebRTC from './webrtc-bindings/kurento-webrtc/KurentoWebRTC';
+const ffmpeg = require('fluent-ffmpeg');
+const chunker = require('stream-chunker');
+import { StreamOutput } from 'fluent-ffmpeg-multistream';
+
+
+interface CustomMediaStream {
+	url: string,
+	track: wrtc.MediaStreamTrack,
+	options: string[],
+	kind: string,
+	width?: number,
+	height?:number
+};
 
 export class EmulateBrowserService {
-	private openviduMap: Map<string, { openvidu: OpenVidu; session: Session; audioTrackInterval: NodeJS.Timer }> = new Map();
-	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
+	private openviduMap: Map<string, {openvidu: OpenVidu, session: Session}> = new Map();
+	private readonly WIDTH = 640;
+	private readonly HEIGHT = 480;
+	private videoTrack: wrtc.MediaStreamTrack | boolean;
+	private audioTrack: wrtc.MediaStreamTrack | boolean;
+	private mediaStramTracksCreated: boolean = false;
 	private exceptionFound: boolean = false;
 	private exceptionMessage: string = '';
-	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
-	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
-
-	constructor(
-		private httpClient: HttpClient = new HttpClient(),
-		private nodeWebrtcService: CanvasService | FfmpegService = null,
-		private wsService: WsService = WsService.getInstance()
-	) {
-		if (this.isUsingNodeWebrtcCanvas()) {
-			this.nodeWebrtcService = new CanvasService();
-		} else if (this.isUsingNodeWebrtcFfmpeg()) {
-			this.nodeWebrtcService = new FfmpegService();
-		}
+	constructor(private httpClient: HttpClient = new HttpClient()) {
 	}
 
 	async createStreamManager(token: string, properties: TestProperties): Promise<string> {
 		return new Promise(async (resolve, reject) => {
-			let session: Session = null;
 			try {
+
 				if (this.exceptionFound) {
-					throw { status: 500, message: this.exceptionMessage };
+					throw {status: 500, message: this.exceptionMessage};
 				}
 
 				if (!token) {
 					token = await this.getToken(properties);
 				}
 
-				let mediaStreamTracks: MediaStreamTracksResponse;
 				const ov: OpenVidu = new OpenVidu();
 				ov.enableProdMode();
-				session = ov.initSession();
-				this.subscriberToSessionsEvents(session);
+				const session: Session = ov.initSession();
 
-				await session.connect(token, { clientData: `${EMULATED_USER_TYPE}_${properties.userId}` });
-				if (properties.role === OpenViduRole.PUBLISHER) {
-					mediaStreamTracks = await this.createMediaStreamTracks(properties);
+				session.on("streamCreated", (event: StreamEvent) => {
+					session.subscribe(event.stream, null);
+				});
+
+				session.on('exception', (exception: any) => {
+					if (exception.name === 'ICE_CANDIDATE_ERROR') {
+						// Error on sendIceCandidate
+						console.error(exception);
+						this.exceptionFound = true;
+						this.exceptionMessage = 'Exception found in openvidu-browser';
+					}
+				});
+
+				await session.connect(token,  properties.userId);
+				if(properties.role === OpenViduRole.PUBLISHER){
+
+					await this.createMediaStreamTracks(properties);
 
 					const publisher: Publisher = ov.initPublisher(null, {
-						audioSource: mediaStreamTracks.audioTrack,
-						videoSource: mediaStreamTracks.videoTrack,
+						audioSource: this.audioTrack,
+						videoSource: this.videoTrack,
 						publishAudio: properties.audio,
 						publishVideo: properties.video,
-						resolution: properties.resolution,
+						resolution: this.WIDTH + 'x' + this.HEIGHT,
 						frameRate: properties.frameRate,
 					});
-
-					this.subscriberToPublisherEvents(publisher);
 					await session.publish(publisher);
+
 				}
 
-				this.storeInstances(ov, session, mediaStreamTracks?.audioTrackInterval);
-				this.storeConnection(session.connection.connectionId, properties);
+				this.storeInstances(ov, session);
 				resolve(session.connection.connectionId);
 			} catch (error) {
-				if(session?.sessionConnected()) {
-					session.disconnect();
-				}
-				console.log('There was an error connecting to the session:', error);
-				reject({ status: error?.status, message: error?.statusText || error?.message || error });
+				console.log(
+					"There was an error connecting to the session:",
+					error
+				);
+				reject({status:error.status, message: error.statusText || error.message || error});
 			}
 		});
 	}
 
-	deleteStreamManagerWithConnectionId(connectionId: string): void {
-		const value = this.openviduMap.get(connectionId);
-		if(!!value) {
-			const { session, audioTrackInterval } = value
-			session?.disconnect();
-			clearInterval(audioTrackInterval);
-			this.openviduMap.delete(connectionId);
-		}
+	deleteStreamManagerWithConnectionId(connectionId: string) {
+		const {session} = this.openviduMap.get(connectionId);
+		session?.disconnect();
+		this.openviduMap.delete(connectionId);
 	}
 
 	deleteStreamManagerWithRole(role: OpenViduRole) {
 		const connectionsToDelete = [];
-		this.openviduMap.forEach(
-			(value: { session: Session; openvidu: OpenVidu; audioTrackInterval: NodeJS.Timer }, connectionId: string) => {
-				if (value.session.connection.role === role) {
-					value.session.disconnect();
-					clearInterval(value.audioTrackInterval);
-					connectionsToDelete.push(connectionId);
-				}
+		this.openviduMap.forEach((value: {session: Session, openvidu: OpenVidu}, connectionId: string) => {
+			if (value.session.connection.role === role) {
+				value.session.disconnect();
+				connectionsToDelete.push(connectionId);
 			}
-		);
+		});
 
-		connectionsToDelete.forEach((connectionId) => {
+		connectionsToDelete.forEach(connectionId => {
 			this.openviduMap.delete(connectionId);
 		});
-	}
-
-	clean() {
-		this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER);
-		this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER);
-		if (this.nodeWebrtcService) {
-			this.nodeWebrtcService.clean();
-		}
-
-		if (this.isUsingKms()) {
-			KurentoWebRTC.clean();
-		}
-	}
-
-	getStreamsCreated(): number {
-		let result = 0;
-
-		this.connections.forEach((value: { publishers: string[]; subscribers: string[] }) => {
-			let streamsSent = value.publishers.length;
-			let streamsReceived = 0;
-
-			if (value.publishers.length > 1) {
-				// Add all streams subscribed by publishers
-				streamsReceived = value.publishers.length * (value.publishers.length - 1);
-			}
-
-			streamsReceived += value.subscribers.length * value.publishers.length;
-			result += streamsSent + streamsReceived;
-		});
-
-		return result;
-	}
-
-	getParticipantsCreated(): number {
-		return this.openviduMap.size;
 	}
 
 	private async getToken(properties: TestProperties): Promise<string> {
 		return this.httpClient.getToken(properties);
 	}
 
-	private storeInstances(openvidu: OpenVidu, session: Session, audioTrackInterval: NodeJS.Timer) {
+	private storeInstances(openvidu: OpenVidu, session: Session) {
 		// Store the OV and Session objects into a map
-		this.openviduMap.set(session.connection.connectionId, { openvidu, session, audioTrackInterval });
+		this.openviduMap.set(session.connection.connectionId, {openvidu, session});
 	}
 
-	private storeConnection(connectionId: string, properties: TestProperties) {
-		if (this.connections.has(properties.sessionName)) {
-			if (properties.role === OpenViduRole.PUBLISHER) {
-				this.connections.get(properties.sessionName).publishers.push(connectionId);
-			} else {
-				this.connections.get(properties.sessionName).subscribers.push(connectionId);
-			}
-		} else {
-			const subscribers = [];
-			const publishers = [];
-			if (properties.role === OpenViduRole.PUBLISHER) {
-				publishers.push(connectionId);
-			} else {
-				subscribers.push(connectionId);
-			}
-			this.connections.set(properties.sessionName, { publishers, subscribers });
-		}
-	}
+	private async createMediaStreamTracks(properties: TestProperties): Promise<void> {
 
-	private deleteConnection(sessionName: string, connectionId: string, role: OpenViduRole) {
-		const value = this.connections.get(sessionName);
-		let index = -1;
-		if (!!value) {
-			if (role === OpenViduRole.PUBLISHER) {
-				index = value.publishers.indexOf(connectionId, 0);
-				if (index >= 0) {
-					value.publishers.splice(index, 1);
-				}
-			} else {
-				index = value.subscribers.indexOf(connectionId, 0);
-				if (index >= 0) {
-					value.subscribers.splice(index, 1);
+		if(!this.mediaStramTracksCreated) {
+
+			this.videoTrack = properties.video;
+			this.audioTrack = properties.audio;
+
+			if(this.isUsingNodeWebrtc()) {
+				if(properties.audio || properties.video) {
+					await this.createMediaStreamTracksFromVideoFile(properties.video, properties.audio);
 				}
 			}
 		}
+
 	}
 
-	private async createMediaStreamTracks(properties: TestProperties): Promise<MediaStreamTracksResponse> {
-		let videoTrack: MediaStreamTrack | boolean = properties.video;
-		let audioTrack: MediaStreamTrack | boolean = properties.audio;
+	private async createMediaStreamTracksFromVideoFile(video: boolean, audio: boolean) {
 
-		if (this.isUsingKms()) {
-			await KurentoWebRTC.setPlayerEndpointPath(`${this.KMS_MEDIAFILES_PATH}/video_${properties.resolution}.mkv`);
-			KurentoWebRTC.setRecorderEndpointPrefix(
-				`${this.KMS_RECORDINGS_PATH}/kms_${properties.recordingMetadata}_${properties.sessionName}_${new Date().getTime()}`
-			);
-			return { audioTrack, videoTrack };
+		let videoOutput = null;
+		let audioOutput = null;
+
+		const command = ffmpeg()
+							.input(`${process.env.PWD}/src/assets/mediafiles/video.mkv`)
+							.inputOptions(['-stream_loop -1', '-r 1'])
+
+		if(video) {
+			videoOutput = this.createVideoOutput();
+			command
+				.output(videoOutput.url)
+				.outputOptions(videoOutput.options)
 		}
 
-		// Using NODE_WEBRTC_CANVAS or NODE_WEBRTC_FFMPEG
-		return await this.nodeWebrtcService.createMediaStreamTracks(properties.video, properties.audio);
+		if(audio) {
+			audioOutput = this.createAudioOutput();
+			command
+				.output(audioOutput.url)
+				.outputOptions(audioOutput.options)
+		}
+
+		command.on('error', (err, stdout, stderr) => {
+			console.error(err.message);
+			this.exceptionFound = true;
+			this.exceptionMessage = 'Exception found in ffmpeg' + err.message;
+
+		});
+
+		command.run();
+
+		this.videoTrack = videoOutput.track;
+		this.audioTrack = audioOutput.track;
+		this.mediaStramTracksCreated = true;
 	}
 
-	private isUsingKms(): boolean {
-		return EMULATED_USER_TYPE === EmulatedUserType.KMS;
+	private createVideoOutput(): CustomMediaStream {
+
+		const sourceStream = chunker(this.WIDTH * this.HEIGHT * 1.5);
+		const source = new wrtc.nonstandard.RTCVideoSource();
+		const ffmpegOptions = [
+			'-f rawvideo',
+			// '-c:v rawvideo',
+			`-s ${this.WIDTH}x${this.HEIGHT}`,
+			'-pix_fmt yuv420p',
+			'-r 24'
+		];
+
+		sourceStream.on('data', (chunk) => {
+			const data = {
+				width: this.WIDTH,
+				height: this.HEIGHT,
+				data: new Uint8ClampedArray(chunk)
+			};
+			source.onFrame(data);
+		});
+
+		const output = StreamOutput(sourceStream);
+		output.track = source.createTrack();
+		output.options = ffmpegOptions;
+		output.kind = 'video';
+		output.width = this.WIDTH;
+		output.height = this.HEIGHT;
+
+		return output;
+	}
+	private createAudioOutput(): CustomMediaStream {
+		const sampleRate = 48000;
+		const sourceStream = chunker(2 * sampleRate / 100)
+		const source = new wrtc.nonstandard.RTCAudioSource();
+		const ffmpegOptions = [
+			'-f s16le',
+			'-ar 48k',
+			'-ac 1'
+		];
+		sourceStream.on('data', (chunk) => {
+			const data = {
+				samples: new Int16Array(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.length)),
+				sampleRate
+			};
+
+			source.onData(data);
+		});
+
+		const output = StreamOutput(sourceStream)
+		output.track = source.createTrack()
+		output.options = ffmpegOptions;
+		output.kind = 'audio';
+
+		return output;
 	}
 
-	private isUsingNodeWebrtcFfmpeg(): boolean {
-		return EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC_FFMPEG;
-	}
-
-	private isUsingNodeWebrtcCanvas(): boolean {
-		return EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC_CANVAS;
-	}
-
-	private subscriberToSessionsEvents(session: Session) {
-		session.on('connectionCreated', (event: ConnectionEvent) => {
-			var connectionType = 'remote';
-			if (event.connection.connectionId === session.connection.connectionId) {
-				connectionType = 'local';
-			}
-			const message: string = JSON.stringify({
-				event: 'connectionCreated',
-				connectionId: event.connection.connectionId,
-				connection: connectionType,
-			});
-			this.wsService.send(message);
-		});
-
-		session.on('streamCreated', (event: StreamEvent) => {
-			const message: string = JSON.stringify({ event: 'streamCreated', connectionId: event.stream.streamId, connection: 'remote' });
-			this.wsService.send(message);
-			const subscriber = session.subscribe(event.stream, null);
-
-			subscriber.on('streamPlaying', (e: StreamEvent) => {
-				const message: string = JSON.stringify({
-					event: 'streamPlaying',
-					connectionId: event.stream.streamId,
-					connection: 'remote',
-				});
-				this.wsService.send(message);
-			});
-		});
-
-		session.on('streamDestroyed', (event: StreamEvent) => {
-			const message: string = JSON.stringify({ event: 'streamDestroyed', connectionId: event.stream.streamId, connection: 'remote' });
-			this.wsService.send(message);
-		});
-
-		session.on('sessionDisconnected', (event: SessionDisconnectedEvent) => {
-			const message: string = JSON.stringify({
-				event: 'sessionDisconnected',
-				connectionId: session.connection.connectionId,
-				reason: event.reason,
-				connection: 'local',
-			});
-			this.wsService.send(message);
-			console.log(session.connection.role);
-			this.deleteConnection(session.sessionId, session.connection.connectionId, <OpenViduRole>session.connection.role);
-		});
-
-		session.on('exception', (exception: ExceptionEvent) => {
-			if (exception.name === 'ICE_CANDIDATE_ERROR') {
-				// Error on sendIceCandidate
-				console.error(exception);
-				this.exceptionFound = true;
-				this.exceptionMessage = 'Exception found in openvidu-browser';
-				const connectionId = (<any>exception.origin).connection.connectionId;
-				const message: string = JSON.stringify({ event: 'exception', connectionId, reason: exception.message });
-				this.wsService.send(message);
-			}
-		});
-	}
-
-	private subscriberToPublisherEvents(publisher: Publisher) {
-		publisher.once('accessAllowed', (e) => {
-			const message: string = JSON.stringify({ event: 'accessAllowed', connectionId: '', connection: 'local' });
-			this.wsService.send(message);
-		});
-		publisher.once('streamCreated', (e: StreamEvent) => {
-			const message: string = JSON.stringify({ event: 'streamCreated', connectionId: e.stream.streamId, connection: 'local' });
-			this.wsService.send(message);
-		});
-		publisher.once('streamPlaying', (e) => {
-			const message: string = JSON.stringify({ event: 'streamPlaying', connectionId: '', connection: 'local' });
-			this.wsService.send(message);
-		});
-		publisher.once('streamDestroyed', (e: StreamEvent) => {
-			const message: string = JSON.stringify({ event: 'streamDestroyed', connectionId: e.stream.streamId, connection: 'local' });
-			this.wsService.send(message);
-		});
+	private isUsingNodeWebrtc(): boolean {
+		return EMULATED_USER_TYPE === EmulatedUserType.NODE_WEBRTC;
 	}
 }

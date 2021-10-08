@@ -3,12 +3,12 @@
  * TypeScript DOM types can be found in `typescript/lib/lib.dom.d.ts`.
  */
 
-import { MediaDevices } from './MediaDevices';
+import { MediaDevices } from "./MediaDevices";
 
 export class Navigator {
 	// interface NavigatorID
 	// =====================
-	public readonly userAgent: string = 'KurentoWebRTC';
+	public readonly userAgent: string = "KurentoWebRTC";
 
 	// interface Navigator
 	// ===================

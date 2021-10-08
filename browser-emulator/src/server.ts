@@ -1,20 +1,18 @@
 import fs = require('fs');
 import https = require('https');
-import * as express from 'express';
-import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT } from './config';
-import { HackService } from './services/hack.service';
+import * as express from "express";
 
-import { app as ovBrowserController } from './controllers/openvidu-browser.controller';
-import { app as eventsController } from './controllers/events.controller';
-import { app as instanceController } from './controllers/instance.controller';
+import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT } from "./config";
+import { HackService } from "./services/hack.service";
+
+import {app as ovBrowserController} from './controllers/openvidu-browser.controller';
+import {app as webrtcStatsController} from './controllers/webrtc-stats.controller';
+import {app as instanceController} from './controllers/instance.controller';
 
 import { InstanceService } from './services/instance.service';
 import { ApplicationMode, EmulatedUserType } from './types/config.type';
-import { WsService } from './services/ws.service';
-import WebSocket = require('ws');
 
-const app: any = express();
-const ws = new WebSocket.Server({ port: WEBSOCKET_PORT, path: '/events' });
+const app = express();
 
 app.use(express.static('public'));
 
@@ -23,16 +21,10 @@ const options = {
 	cert: fs.readFileSync('public/cert.pem', 'utf8'),
 };
 
-app.use((req, res, next) => {
-	res.header('Access-Control-Allow-Origin', '*');
-	res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-	next();
-});
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/', eventsController);
+app.use('/', webrtcStatsController);
 app.use('/openvidu-browser', ovBrowserController);
 app.use('/instance', instanceController);
 
@@ -40,39 +32,58 @@ const server = https.createServer(options, app);
 
 server.listen(SERVER_PORT, async () => {
 	const hack = new HackService();
+
+	createRecordingsDirectory();
+
+	process.env.ELASTICSEARCH_HOSTNAME = 'your-hostname';
+	process.env.ELASTICSEARCH_USERNAME = 'your-user';
+	process.env.ELASTICSEARCH_PASSWORD = 'your-secret';
+
 	const instanceService = InstanceService.getInstance();
+	await instanceService.cleanEnvironment();
+
+	if(APPLICATION_MODE === ApplicationMode.PROD) {
+		console.log("Pulling Docker images needed...");
+		await instanceService.pullImagesNeeded();
+
+	}
+
+	if(EMULATED_USER_TYPE === EmulatedUserType.KMS) {
+		console.log('Starting Kurento Media Server');
+		await instanceService.launchKMS();
+	}
+
+	hack.openviduBrowser();
+	await hack.webrtc();
+	hack.websocket();
+	hack.platform();
+	hack.allowSelfSignedCertificate();
 
 	try {
-		if (APPLICATION_MODE === ApplicationMode.PROD) {
-			console.log('Pulling Docker images needed...');
-			await instanceService.pullImagesNeeded();
-		}
-
-		if (EMULATED_USER_TYPE === EmulatedUserType.KMS) {
-			await instanceService.cleanEnvironment();
-			await instanceService.launchKMS();
-		}
-
-		hack.openviduBrowser();
-		await hack.webrtc();
-		hack.websocket();
-		hack.platform();
-		hack.allowSelfSignedCertificate();
-
-		console.log('---------------------------------------------------------');
-		console.log(' ');
-		console.log(`Service started in ${APPLICATION_MODE} mode`);
-		console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
-		console.log(`API REST is listening in port ${SERVER_PORT}`);
-		console.log(`WebSocket is listening in port ${WEBSOCKET_PORT}`);
-		console.log(' ');
-		console.log('---------------------------------------------------------');
-		instanceService.instanceInitialized();
+		await instanceService.launchMetricBeat();
 	} catch (error) {
-		console.error(error);
+		console.log('Error starting metricbeat', error);
+		if (error.statusCode === 409 && error.message.includes('Conflict')) {
+			console.log('Retrying ...');
+			await instanceService.removeContainer('metricbeat');
+			await instanceService.launchMetricBeat();
+		}
 	}
+
+	console.log("---------------------------------------------------------");
+	console.log(" ");
+	console.log(`Service started in ${APPLICATION_MODE} mode`);
+	console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
+	console.log(`Listening in port ${SERVER_PORT}`);
+	console.log(" ");
+	console.log("---------------------------------------------------------");
 });
 
-ws.on('connection', (ws: WebSocket) => {
-	WsService.getInstance().setWebsocket(ws);
-});
+function createRecordingsDirectory() {
+	var dir = `${process.env.PWD}/recordings`;
+	if (!fs.existsSync(dir)){
+		fs.mkdirSync(dir);
+		fs.mkdirSync(dir + '/kms');
+		fs.mkdirSync(dir + '/chrome');
+	}
+}
