@@ -43,10 +43,10 @@ public class BrowserEmulatorClient {
 	
 	private static String stopReason = "Test case finished as expected";
 	private static List<String> lastResponses = new ArrayList<String>();
-	private static final int RETRY_TIMES = 10;
+	private static final int RETRY_TIMES = 5;
 
 	private static final int WAIT_MS = 5000;
-	private static final boolean IS_RETRY_MODE = true;
+	private static final boolean IS_RETRY_MODE = false;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
@@ -319,8 +319,8 @@ public class BrowserEmulatorClient {
 			JsonObject jsonResponse = jsonUtils.getJson(response.body());
 			String connectionId = jsonResponse.get("connectionId").getAsString();
 			workerCpuPct = jsonResponse.get("workerCpuUsage").getAsDouble();
-			streamsInWorker = jsonResponse.get("streams").getAsInt(); 
-			participantsInWorker = jsonResponse.get("participants").getAsInt();
+			streamsInWorker = 0;//jsonResponse.get("streams").getAsInt(); 
+			participantsInWorker = 0; // jsonResponse.get("participants").getAsInt();
 			log.info("Connection {} created", connectionId);
 			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
 			log.info("Worker STREAMS CREATED: {} ", streamsInWorker);

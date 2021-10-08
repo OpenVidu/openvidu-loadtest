@@ -22,7 +22,7 @@ import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
-import io.openvidu.loadtest.services.WebSocketClient;
+//import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.utils.DataIO;
 
 /**
@@ -180,11 +180,16 @@ public class LoadTestController {
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
-					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
-						log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
-								.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
-						setAndInitializeNextWorker();
+					boolean areParticipantsCreatedReached = this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker();
+					if (loadTestConfig.isManualParticipantsAllocation() && loadTestConfig.getWorkersRumpUp() > 0) {
+						boolean recordingHasBeenCreated = this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
+						// Checking if participants created number has been reached.
+						// If external recording  participant has been created, the worker will have one less participant
+						if(areParticipantsCreatedReached || recordingHasBeenCreated && this.browserEmulatorClient.getParticipantsInWorker() + 1 == loadTestConfig.getParticipantsPerWorker()) {
+							log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
+									.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
+							setAndInitializeNextWorker();
+						}
 					}
 					if (userNumber.get() < participantsBySession) {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
@@ -201,7 +206,8 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0) && loadTestConfig.getWorkersRumpUp() > 0) {
+//				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0) && loadTestConfig.getWorkersRumpUp() > 0) {
+				if(sessionNumber.get() % 11 == 0) {
 					log.warn("Worker has not space enough for new session.");
 					log.info("Worker CPU {} will be bigger than the limit: {}",this.browserEmulatorClient
 							.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
@@ -245,12 +251,16 @@ public class LoadTestController {
 				}
 				if (responseIsOk) {
 					userNumber.getAndIncrement();
-					this.totalParticipants.incrementAndGet();
-					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
-						log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
-								.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
-						setAndInitializeNextWorker();
+					boolean areParticipantsCreatedReached = this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker();
+					if (loadTestConfig.isManualParticipantsAllocation() && loadTestConfig.getWorkersRumpUp() > 0) {
+						boolean recordingHasBeenCreated = this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
+						// Checking if participants created number has been reached.
+						// If external recording  participant has been created, the worker will have one less participant
+						if(areParticipantsCreatedReached || recordingHasBeenCreated && this.browserEmulatorClient.getParticipantsInWorker() + 1 == loadTestConfig.getParticipantsPerWorker()) {
+							log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
+									.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
+							setAndInitializeNextWorker();
+						}
 					}
 				} else {
 					log.error("Response status is not 200 OK. Exit");
@@ -277,11 +287,16 @@ public class LoadTestController {
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
-						if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-								.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
-							log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
-									.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
-							setAndInitializeNextWorker();
+						boolean areParticipantsCreatedReached = this.browserEmulatorClient.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker();
+						if (loadTestConfig.isManualParticipantsAllocation() && loadTestConfig.getWorkersRumpUp() > 0) {
+							boolean recordingHasBeenCreated = this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
+							// Checking if participants created number has been reached.
+							// If external recording  participant has been created, the worker will have one less participant
+							if(areParticipantsCreatedReached || recordingHasBeenCreated && this.browserEmulatorClient.getParticipantsInWorker() + 1 == loadTestConfig.getParticipantsPerWorker()) {
+								log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
+										.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
+								setAndInitializeNextWorker();
+							}
 						}
 						if (userNumber.get() < totalParticipants) {
 							userNumber.getAndIncrement();
@@ -319,7 +334,7 @@ public class LoadTestController {
 			log.info("Starting recording EC2 instance...");
 			List<Instance> newRecordingInstanceList = this.ec2Client.launchRecordingInstance(1);
 			recordingWorkersList.addAll(newRecordingInstanceList);
-			initializeInstance(recordingWorkersList.get(0).getPublicDnsName());
+			initializeInstance(newRecordingInstanceList.get(0).getPublicDnsName());
 			return newRecordingInstanceList.get(0).getPublicDnsName();
 		}
 		return devWorkersList.get(0);
@@ -335,7 +350,7 @@ public class LoadTestController {
 	private void initializeInstance(String url) {
 		boolean requireInitialize = !currentWorkerUrl.equals(url);
 		this.browserEmulatorClient.ping(url);
-		new WebSocketClient().connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
+//		new WebSocketClient().connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
 		if (requireInitialize && this.loadTestConfig.isKibanaEstablished()) {
 			this.browserEmulatorClient.initializeInstance(url);
 		}
@@ -400,7 +415,7 @@ public class LoadTestController {
 		boolean isLoadRecordingEnabled =  medianodeLoadForRecording > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get())
 				&& this.esClient.getMediaNodeCpu() >= medianodeLoadForRecording;
 				
-		boolean isRecordingSessionGroupEnabled = recordingSessionGroup > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get()) && sessionNumber.get() % recordingSessionGroup == 0; 
+		boolean isRecordingSessionGroupEnabled = recordingSessionGroup > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());//sessionNumber.get() % recordingSessionGroup == 0; 
 		
 		return isLoadRecordingEnabled || isRecordingSessionGroupEnabled;
 	}
@@ -412,9 +427,10 @@ public class LoadTestController {
 		double cpuPerStream = this.browserEmulatorClient.getWorkerCpuPct()
 				/ this.browserEmulatorClient.getStreamsInWorker();
 		double cpuIncrementForNextSession = streamsForNextSessions * cpuPerStream;
-
-		return this.browserEmulatorClient.getWorkerCpuPct() + cpuIncrementForNextSession <= this.loadTestConfig
-				.getWorkerMaxLoad();
+		
+		System.out.println("La siguiente sesion costara un: " + cpuIncrementForNextSession);
+		System.out.println("La estimación de CPU con la siguiente sesion es de: " + (this.browserEmulatorClient.getWorkerCpuPct() + cpuIncrementForNextSession));
+		return this.browserEmulatorClient.getWorkerCpuPct() + cpuIncrementForNextSession <= this.loadTestConfig.getWorkerMaxLoad();
 	}
 
 	private void cleanEnvironment() {
@@ -450,6 +466,7 @@ public class LoadTestController {
 			}
 			this.browserEmulatorClient.disconnectAll(workersUrl);
 			this.ec2Client.stopInstance(recordingWorkersList);
+			this.ec2Client.stopInstance(workersList);
 			workersList = new ArrayList<Instance>();
 			recordingWorkersList = new ArrayList<Instance>();
 
