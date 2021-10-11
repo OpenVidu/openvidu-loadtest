@@ -15,7 +15,7 @@ export class InstanceService {
 	private static instance: InstanceService;
 	private isinstanceInitialized: boolean = false;
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
-	private readonly METRICBEAT_MONITORING_INTERVAL = 1;
+	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbeat-config/metricbeat.yml`;
 	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
