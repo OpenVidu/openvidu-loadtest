@@ -43,7 +43,7 @@ Resources:
           }
           command -v docker >/dev/null || {
             echo "Installing Docker CE"
-            apt-get install --no-install-recommends --yes \
+             apt-get install --no-install-recommends --yes \
                 apt-transport-https \
                 ca-certificates \
                 curl \
@@ -60,7 +60,7 @@ Resources:
           cd /opt/openvidu-loadtest/
 
           # Download media files
-          ./browser-emulator/download_mediafiles.sh
+          ./browser-emulator/prepare.sh
 
           # Create browser-emulator docker image
           cd docker/browser-emulator/
