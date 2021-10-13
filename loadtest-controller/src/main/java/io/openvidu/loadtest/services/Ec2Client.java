@@ -47,7 +47,7 @@ public class Ec2Client {
 
 	private static final Tag NAME_TAG = new Tag().withKey("Name").withValue("Worker");
 	private static final Tag RECORDING_NAME_TAG = new Tag().withKey("Name").withValue("Recording Worker");
-	private static final Tag TYPE_TAG = new Tag().withKey("Type").withValue("OpenViduLoadTest");
+	private static final Tag LOADTEST_WORKER_TAG = new Tag().withKey("Type").withValue("OpenViduLoadTest");
 	private static final Tag RECORDING_TAG = new Tag().withKey("Type").withValue("RecordingLoadTest");
 
 	private static final int WAIT_RUNNING_STATE_MS = 5000;
@@ -78,9 +78,31 @@ public class Ec2Client {
 
 	public List<Instance> launchAndCleanInitialInstances() {
 		List<Instance> resultList = new ArrayList<Instance>();
-		Filter tagFilter = getTagFilter();
-		Filter stateFilter = getInstanceStateFilter(InstanceStateName.Running);
-		resultList.addAll(getInstanceWithFilters(tagFilter, stateFilter));
+		Filter workerTagFilter = getTagWorkerFilter();
+		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
+		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
+		List<Instance> runningInstances = getInstanceWithFilters(workerTagFilter, runningFilter);
+		List<Instance> stoppedInstances = getInstanceWithFilters(workerTagFilter, stoppedFilter);
+		
+		if(runningInstances.size() > 0) {
+			resultList.addAll(runningInstances);
+		}
+		
+		if(stoppedInstances.size() > 0 && resultList.size() < WORKERS_NUMBER_AT_THE_BEGINNING) {
+			List<Instance> subList = new ArrayList<Instance>();
+			if((stoppedInstances.size() + resultList.size()) > WORKERS_NUMBER_AT_THE_BEGINNING) {
+				for(int i = 0; i < WORKERS_NUMBER_AT_THE_BEGINNING; i++) {
+					subList.add(stoppedInstances.get(i));
+				}
+			} else {
+				subList = stoppedInstances;
+			}
+			startInstances(getInstanceIds(subList));
+			for(int i = 0; i < subList.size(); i++)  {
+				resultList.add(waitUntilInstanceState(subList.get(i).getInstanceId(), InstanceStateName.Running));
+			}
+		}
+		
 		List<String> instanceIds = getInstanceIds(resultList);
 		log.info("{} EC2 instances found", resultList.size());
 
@@ -103,20 +125,47 @@ public class Ec2Client {
 
 	public List<Instance> launchInstance(int number){
 
-		List<Tag> tags = new ArrayList<Tag>();
-		tags.add(NAME_TAG);
-		tags.add(TYPE_TAG);
+		Filter workerTagFilter = getTagWorkerFilter();
+		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
+		List<Instance> stoppedInstances = getInstanceWithFilters(workerTagFilter, stoppedFilter);
 		
-		return this.launchInstance(number, tags);
+		if(stoppedInstances.size() == number) {
+			startInstances(getInstanceIds(stoppedInstances));
+			return Arrays.asList(waitUntilInstanceState(stoppedInstances.get(0).getInstanceId(), InstanceStateName.Running));
+
+		} else if(stoppedInstances.size() > number) {
+			List<Instance> subList = new ArrayList<Instance>();
+			List<Instance> result = new ArrayList<Instance>();
+			for(int i = 0; i < number; i++) {
+				subList.add(stoppedInstances.get(i));
+			}
+			startInstances(getInstanceIds(subList));
+			for(Instance instance : subList) {
+				result.add(waitUntilInstanceState(instance.getInstanceId(), InstanceStateName.Running));
+			}
+			return result;
+			
+		} else {
+			startInstances(getInstanceIds(stoppedInstances));
+			
+			List<Tag> tags = new ArrayList<Tag>();
+			tags.add(NAME_TAG);
+			tags.add(LOADTEST_WORKER_TAG);
+			List<Instance> result = this.launchInstance(number-stoppedInstances.size(), tags);
+			result.addAll(stoppedInstances);
+			return result;
+		}
+		
+		
 	}
 	
 	public List<Instance> launchRecordingInstance(int number){
 
 		Filter recordingFilter = getTagRecordingFilter();
-		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
+//		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
 		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
 		
-		List<Instance> runningInstance = getInstanceWithFilters(recordingFilter, runningFilter);
+//		List<Instance> runningInstance = getInstanceWithFilters(recordingFilter, runningFilter);
 		List<Instance> stoppedInstance = getInstanceWithFilters(recordingFilter, stoppedFilter);
 
 //		if(runningInstance.size() > 0) {
@@ -127,7 +176,8 @@ public class Ec2Client {
 		
 		if(stoppedInstance.size() > 0) {
 			startInstances(Arrays.asList(stoppedInstance.get(0).getInstanceId()));
-			return stoppedInstance;
+			Instance instanceReady = waitUntilInstanceState(stoppedInstance.get(0).getInstanceId(), InstanceStateName.Running);
+			return Arrays.asList(instanceReady);
 		}
 		
 		List<Tag> tags = new ArrayList<Tag>();
@@ -178,14 +228,18 @@ public class Ec2Client {
 
 	public void stopInstance(List<Instance> instances) {
 		
-		List<String> instanceIds = getInstanceIds(instances);
-		StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);
+		System.out.println("stopping instances => " + instances);
+		
+		if(instances.size() > 0) {
+			List<String> instanceIds = getInstanceIds(instances);
+			StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);
 
-		ec2.stopInstances(request);
-		log.info("Instance {} is being stopped", instanceIds);
+			ec2.stopInstances(request);
+			log.info("Instance {} is being stopped", instanceIds);
 
-		for (String id : instanceIds) {
-			waitUntilInstanceState(id, InstanceStateName.Stopped);
+			for (String id : instanceIds) {
+				waitUntilInstanceState(id, InstanceStateName.Stopped);
+			}
 		}
 	}
 
@@ -200,16 +254,18 @@ public class Ec2Client {
 	}
 	
 	public void startInstances(List<String> instanceIds) {
-		StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instanceIds);
-		ec2.startInstances(request);
-		log.info("Instance {} is being starting", instanceIds);
-		// Avoided start test before start instances
-		sleep(WAIT_RUNNING_STATE_MS);
+		if(instanceIds.size() > 0) {
+			StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instanceIds);
+			ec2.startInstances(request);
+			log.info("Instance {} is being starting", instanceIds);
+			// Avoided start test before start instances
+			sleep(WAIT_RUNNING_STATE_MS);
+		}
 	}
 
 	public void terminateAllInstances() {
-		Filter tagFilter = getTagFilter();
-		List<Instance> instancesToTerminate = getInstanceWithFilters(tagFilter);
+		Filter workerTagFilter = getTagWorkerFilter();
+		List<Instance> instancesToTerminate = getInstanceWithFilters(workerTagFilter);
 		List<String> instancesToTerminateIds = getInstanceIds(instancesToTerminate);
 		terminateInstance(instancesToTerminateIds);
 	}
@@ -280,8 +336,8 @@ public class Ec2Client {
 		return instance;
 	}
 
-	private Filter getTagFilter() {
-		return new Filter().withName("tag:" + TYPE_TAG.getKey()).withValues(TYPE_TAG.getValue());
+	private Filter getTagWorkerFilter() {
+		return new Filter().withName("tag:" + LOADTEST_WORKER_TAG.getKey()).withValues(LOADTEST_WORKER_TAG.getValue());
 	}
 	
 	private Filter getTagRecordingFilter() {
