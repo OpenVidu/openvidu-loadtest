@@ -74,6 +74,12 @@ public class LoadTestConfig {
 	
 	private String awsAccessKey;
 	
+	private String s3bucketName;
+	
+	private boolean retryMode;
+	
+	private int retryTimes;
+	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
 	}
@@ -190,11 +196,23 @@ public class LoadTestConfig {
 	public int getRecordingSessionGroup() {
 		return recordingSessionGroup;
 	}
+	
+	public String getS3BucketName() {
+		return s3bucketName;
+	}
 
 	public boolean isTerminateWorkers() {
 		return terminateWorkers;
 	}
+	
+	public boolean isRetryMode() {
+		return retryMode;
+	}
 
+	public int getRetryTimes() {
+		return retryTimes;
+	}
+	
 	@PostConstruct
 	private void checkConfigurationProperties() {
 
@@ -227,7 +245,9 @@ public class LoadTestConfig {
 			terminateWorkers = asBoolean("TERMINATE_WORKERS");
 			awsSecretAccessKey = asOptionalString("AWS_SECRET_ACCESS_KEY");
 			awsAccessKey = asOptionalString("AWS_ACCESS_KEY");
-
+			s3bucketName = asOptionalString("S3_BUCKET_NAME");
+			retryMode = asBoolean("RETRY_MODE");
+			retryTimes = asInt("RETRY_TIMES");
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -252,6 +272,14 @@ public class LoadTestConfig {
 				System.out.printf(format, "Sessions per worker:", sessionsPerWorker);
 			} else {
 				System.err.printf(format, "sessionsPerWorker is not defined");
+				System.exit(1);
+			}
+		}
+		
+		if(retryMode) {
+			System.out.printf(format, "Controller started in RETRY MODE");
+			if(retryTimes < 1) {
+				System.err.printf(format, "Retry times is undefined");
 				System.exit(1);
 			}
 		}
@@ -281,6 +309,10 @@ public class LoadTestConfig {
 		}
 		if(recordingSessionGroup > 0) {
 			System.out.printf(format, "Recording starts each :", medianodeLoadForStartRecording + " session(s)");
+			if(s3bucketName.isBlank()) {
+				System.err.printf(format, "S3 Bucket Name is not defined");
+				System.exit(1);
+			}
 		}
 
 		System.out.printf("\n");

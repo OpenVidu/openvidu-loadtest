@@ -228,8 +228,6 @@ public class Ec2Client {
 
 	public void stopInstance(List<Instance> instances) {
 		
-		System.out.println("stopping instances => " + instances);
-		
 		if(instances.size() > 0) {
 			List<String> instanceIds = getInstanceIds(instances);
 			StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);

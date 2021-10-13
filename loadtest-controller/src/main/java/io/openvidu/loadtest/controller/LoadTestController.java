@@ -474,7 +474,7 @@ public class LoadTestController {
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
 				.setSessionsPerWorker(loadTestConfig.getSessionsPerWorker())
 				.setS3BucketName(
-						"https://s3.console.aws.amazon.com/s3/buckets/" + this.browserEmulatorClient.getS3BucketName())
+						"https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName())
 				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray()).build();
 
 		this.io.exportResults(rr);

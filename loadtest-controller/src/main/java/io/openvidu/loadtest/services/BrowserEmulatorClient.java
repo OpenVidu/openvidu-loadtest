@@ -33,20 +33,16 @@ public class BrowserEmulatorClient {
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
 	private static final int HTTP_STATUS_OK = 200;
 	private static final int WORKER_PORT = 5000;
-	private static final String S3_BUCKET_NAME = "openvidu-loadtest-capacity";
 	private static double workerCpuPct = 0;
 	private static int streamsInWorker = 0;
 	private static int participantsInWorker = 0;
 	private static int lastSessionNumber = 0;
 	private static String sessionSufix = "";
 	private static List<Integer> recordingParticipantCreated = new ArrayList<Integer>();
-	
+
 	private static String stopReason = "Test case finished as expected";
 	private static List<String> lastResponses = new ArrayList<String>();
-	private static final int RETRY_TIMES = 10;
-
 	private static final int WAIT_MS = 5000;
-	private static final boolean IS_RETRY_MODE = true;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
@@ -59,6 +55,7 @@ public class BrowserEmulatorClient {
 
 	public void ping(String workerUrl) {
 		try {
+			sleep(WAIT_MS);
 			log.info("Pinging to {} ...", workerUrl);
 			HttpResponse<String> response = this.httpClient
 					.sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
@@ -72,7 +69,6 @@ public class BrowserEmulatorClient {
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			log.error("Error doing ping. Retry...");
-			sleep(WAIT_MS);
 			ping(workerUrl);
 		}
 	}
@@ -83,8 +79,7 @@ public class BrowserEmulatorClient {
 				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
-				.s3BucketName(S3_BUCKET_NAME)
-				.build().toJson();
+				.s3BucketName(loadTestConfig.getS3BucketName()).build().toJson();
 		lastResponses = new ArrayList<String>();
 
 		try {
@@ -93,7 +88,7 @@ public class BrowserEmulatorClient {
 					null, getHeaders());
 		} catch (IOException | InterruptedException e) {
 			log.error(e.getMessage());
-
+			this.sleep(WAIT_MS);
 			if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				System.out.println("Retrying");
 				return this.initializeInstance(workerUrl);
@@ -132,11 +127,11 @@ public class BrowserEmulatorClient {
 //		}
 //	}
 
-
 	public boolean createPublisher(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
-		boolean success =  this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, OpenViduRole.PUBLISHER);
-		
-		if(!success && IS_RETRY_MODE && !isResponseLimitReached()) {
+		boolean success = this.createParticipant(workerUrl, userNumber, sessionNumber, testCase,
+				OpenViduRole.PUBLISHER);
+
+		if (!success && loadTestConfig.isRetryMode() && !isResponseLimitReached()) {
 			return this.createPublisher(workerUrl, userNumber, sessionNumber, testCase);
 		}
 		return success;
@@ -145,21 +140,25 @@ public class BrowserEmulatorClient {
 	public boolean createSubscriber(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
 		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
 		boolean success = this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
-		
-		if(!success && IS_RETRY_MODE && !isResponseLimitReached()) {
+
+		if (!success && loadTestConfig.isRetryMode() && !isResponseLimitReached()) {
 			return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
 		}
 		return success;
 	}
-	
-	public boolean createExternalRecordingPublisher(String workerUrl, int userNumber, int sessionNumber, TestCase testCase, String recordingMetadata) {
-		return this.createExternalRecordingParticipant(workerUrl,userNumber, sessionNumber,testCase, recordingMetadata, OpenViduRole.PUBLISHER);
+
+	public boolean createExternalRecordingPublisher(String workerUrl, int userNumber, int sessionNumber,
+			TestCase testCase, String recordingMetadata) {
+		return this.createExternalRecordingParticipant(workerUrl, userNumber, sessionNumber, testCase,
+				recordingMetadata, OpenViduRole.PUBLISHER);
 	}
-	
-	public boolean createExternalRecordingSubscriber(String workerUrl, int userNumber, int sessionNumber, TestCase testCase, String recordingMetadata) {
-		return this.createExternalRecordingParticipant(workerUrl,userNumber, sessionNumber,testCase, recordingMetadata, OpenViduRole.SUBSCRIBER);
+
+	public boolean createExternalRecordingSubscriber(String workerUrl, int userNumber, int sessionNumber,
+			TestCase testCase, String recordingMetadata) {
+		return this.createExternalRecordingParticipant(workerUrl, userNumber, sessionNumber, testCase,
+				recordingMetadata, OpenViduRole.SUBSCRIBER);
 	}
-	
+
 	public void disconnectAll(List<String> workerUrlList) {
 		ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
 		List<Callable<String>> callableTasks = new ArrayList<>();
@@ -194,27 +193,23 @@ public class BrowserEmulatorClient {
 	public double getWorkerCpuPct() {
 		return workerCpuPct;
 	}
-	
+
 	public int getStreamsInWorker() {
 		return streamsInWorker;
 	}
-	
+
 	public int getParticipantsInWorker() {
 		return participantsInWorker;
 	}
-	
+
 	public String getStopReason() {
 		return stopReason;
 	}
-	
+
 	public boolean isRecordingParticipantCreated(int sessionNumber) {
 		return recordingParticipantCreated.contains(sessionNumber);
 	}
-	
-	public String getS3BucketName() {
-		return S3_BUCKET_NAME;
-	}
-	
+
 	public List<String> getLastResponsesArray() {
 		return lastResponses;
 	}
@@ -231,8 +226,9 @@ public class BrowserEmulatorClient {
 			return e.getMessage();
 		}
 	}
-	
-	private boolean createParticipant(String workerUrl, int userNumber, int sessionNumber, TestCase testCase, OpenViduRole role) {
+
+	private boolean createParticipant(String workerUrl, int userNumber, int sessionNumber, TestCase testCase,
+			OpenViduRole role) {
 
 		// Check if there was an exception on openvidu-browser
 		if (WorkerExceptionManager.getInstance().exceptionExist()) {
@@ -241,15 +237,15 @@ public class BrowserEmulatorClient {
 			log.error("There was an EXCEPTION: {}", stopReason);
 			return false;
 		}
-		
-		if(sessionNumber != lastSessionNumber) {
+
+		if (sessionNumber != lastSessionNumber) {
 			lastSessionNumber = sessionNumber;
-			sessionSufix = sessionNumber + "-" + (int) (Math.random() * (10000 - 1)) + 1 ;
+			sessionSufix = sessionNumber + "-" + (int) (Math.random() * (10000 - 1)) + 1;
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionSufix);
 		}
-		
+
 		RequestBody body = this.generateRequestBody(userNumber, sessionSufix, role, testCase);
-		
+
 		try {
 			log.info("Selected worker: {}", workerUrl);
 			HttpResponse<String> response = this.httpClient.sendPost(
@@ -261,20 +257,21 @@ public class BrowserEmulatorClient {
 				lastResponses.add("Failure");
 				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
 						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
-					stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser" + response.body().substring(0, 100);
+					stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser"
+							+ response.body().substring(0, 100);
 					return false;
 				}
 				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
 					stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
 					return false;
 				}
-				if(response.body().toString().contains("Gateway Time-out")) {
+				if (response.body().toString().contains("Gateway Time-out")) {
 					stopReason = "OpenVidu Error: " + response.body();
 					return false;
 				}
 				System.out.println("Retrying");
 				sleep(WAIT_MS);
-				if(IS_RETRY_MODE && isResponseLimitReached()) {
+				if (loadTestConfig.isRetryMode() && isResponseLimitReached()) {
 					return false;
 				}
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
@@ -296,18 +293,19 @@ public class BrowserEmulatorClient {
 			e.printStackTrace();
 			return false;
 		}
-		
+
 	}
-	
-	private boolean createExternalRecordingParticipant(String workerUrl, int userNumber, int sessionNumber, TestCase testCase, String recordingMetadata, OpenViduRole role) {
-		
+
+	private boolean createExternalRecordingParticipant(String workerUrl, int userNumber, int sessionNumber,
+			TestCase testCase, String recordingMetadata, OpenViduRole role) {
+
 		TestCase testCaseAux = new TestCase(testCase);
 		testCaseAux.setBrowserMode(BrowserMode.REAL);
 		testCaseAux.setBrowserRecording(true);
 		testCaseAux.setRecordingMetadata(recordingMetadata);
 		log.info("Creating a participant using a REAL BROWSER for recoding");
 		boolean okResponse = this.createParticipant(workerUrl, userNumber, sessionNumber, testCaseAux, role);
-		if(okResponse) {
+		if (okResponse) {
 			recordingParticipantCreated.add(sessionNumber);
 		}
 		return okResponse;
@@ -319,13 +317,13 @@ public class BrowserEmulatorClient {
 			JsonObject jsonResponse = jsonUtils.getJson(response.body());
 			String connectionId = jsonResponse.get("connectionId").getAsString();
 			workerCpuPct = jsonResponse.get("workerCpuUsage").getAsDouble();
-			streamsInWorker = jsonResponse.get("streams").getAsInt(); 
+			streamsInWorker = jsonResponse.get("streams").getAsInt();
 			participantsInWorker = jsonResponse.get("participants").getAsInt();
 			log.info("Connection {} created", connectionId);
 			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
 			log.info("Worker STREAMS CREATED: {} ", streamsInWorker);
 			log.info("Worker PARTICIPANTS CREATED: {} ", participantsInWorker);
-			if(IS_RETRY_MODE) {
+			if (loadTestConfig.isRetryMode()) {
 				lastResponses.add("Success");
 			}
 			return true;
@@ -333,25 +331,26 @@ public class BrowserEmulatorClient {
 		log.error("Error. Http Status Response {} ", response.statusCode());
 		log.error("Response message {} ", response.body());
 		stopReason = response.body().substring(0, 100);
-		if(IS_RETRY_MODE) {
+		if (loadTestConfig.isRetryMode()) {
 			lastResponses.add("Failure");
 		}
 		return false;
 	}
-	
+
 	private boolean isResponseLimitReached() {
 		List<String> sublist = lastResponses;
 		int counter = 0;
 		System.out.println("responses " + sublist);
-		if(lastResponses.size() > RETRY_TIMES) {
-			sublist = lastResponses.subList(lastResponses.size() - RETRY_TIMES, lastResponses.size());
-			
-			for(int i = 0; i < sublist.size(); i++) {
-				if(sublist.get(i).equals("Failure")){
+		if (lastResponses.size() > loadTestConfig.getRetryTimes()) {
+			sublist = lastResponses.subList(lastResponses.size() - loadTestConfig.getRetryTimes(),
+					lastResponses.size());
+
+			for (int i = 0; i < sublist.size(); i++) {
+				if (sublist.get(i).equals("Failure")) {
 					counter++;
 				}
 			}
-			return counter == RETRY_TIMES;
+			return counter == loadTestConfig.getRetryTimes();
 		} else {
 			return false;
 		}
