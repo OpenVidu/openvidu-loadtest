@@ -213,12 +213,20 @@ PARTICIPANTS_PER_WORKER=
 
 #### Monitoring parameters
 
+>WARNING: **The experiments we made have been tested with Elasticsearch 7.8.0 version. A deployment with a different version could cause errors**.
+
 ```properties
 # Monitoring Parameters (Optional)
 ELASTICSEARCH_USERNAME=elasticusername
 ELASTICSEARCH_PASSWORD=password
 KIBANA_HOST=https://kibanahost
 ```
+
+| Make sure your OpenVidu Configuration has the following properties for a good monitoring:
+
+- `OPENVIDU_PRO_STATS_MONITORING_INTERVAL=1`
+- `OPENVIDU_PRO_STATS_WEBRTC_INTERVAL=1`
+
 
 #### 3. Configure session typology
 
