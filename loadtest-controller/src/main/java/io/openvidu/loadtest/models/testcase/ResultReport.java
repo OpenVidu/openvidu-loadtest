@@ -22,8 +22,8 @@ public class ResultReport {
 	private Calendar endTime;
 	private String kibanaUrl = "";
 	private boolean isManualParticipantAllocation = false;
-	private int participantsPerWorker = 0;
-	private String s3BucketName = ""; 
+	private int sessionsPerWorker = 0;
+	private String s3BucketName = "";
 	private List<String> lastResponsesArray = new ArrayList<String>();
 
 	public ResultReport() {
@@ -33,8 +33,8 @@ public class ResultReport {
 		return new ResultReport(this.totalParticipants, this.numSessionsCompleted, this.numSessionsCreated,
 				this.workersUsed, this.streamsPerWorker, this.sessionTypology, this.browserModeSelected,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
-				this.participantsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
-				this.kibanaUrl, this.s3BucketName,this.lastResponsesArray);
+				this.sessionsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
+				this.kibanaUrl, this.s3BucketName, this.lastResponsesArray);
 	}
 
 	public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -52,8 +52,8 @@ public class ResultReport {
 		return this;
 	}
 
-	public ResultReport setParticipantsPerWorker(int participantsPerWorker) {
-		this.participantsPerWorker = participantsPerWorker;
+	public ResultReport setSessionsPerWorker(int sessionsPerWorker) {
+		this.sessionsPerWorker = sessionsPerWorker;
 		return this;
 	}
 
@@ -121,7 +121,7 @@ public class ResultReport {
 		this.kibanaUrl = kibanaUrl;
 		return this;
 	}
-	
+
 	public ResultReport setLastResponses(List<String> lastResponsesArray) {
 		this.lastResponsesArray = lastResponsesArray;
 		return this;
@@ -130,7 +130,7 @@ public class ResultReport {
 	private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
 			List<Integer> streamsPerWorker, String sessionTypology, String browserModeSelected,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
-			int participantsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
+			int sessionsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
 			Calendar endTime, String kibanaUrl, String s3BucketName, List<String> lastResponsesArray) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
@@ -142,7 +142,7 @@ public class ResultReport {
 		this.browserModeSelected = browserModeSelected;
 		this.browserRecording = browserRecording;
 		this.isManualParticipantAllocation = manualParticipantsAllocation;
-		this.participantsPerWorker = participantsPerWorker;
+		this.sessionsPerWorker = sessionsPerWorker;
 		this.participantsPerSession = participantsPerSession;
 		this.stopReason = stopReason;
 		this.startTime = startTime;
@@ -173,7 +173,9 @@ public class ResultReport {
 
 		return " ----- Test Case Report " + startTime.getTime() + " ----- " + System.getProperty("line.separator")
 				+ "Browser approach:	" + browserModeSelected + System.getProperty("line.separator")
-				+ (browserModeSelected.equals(BrowserMode.REAL) ? "Browser with recording:	" + browserRecording + System.getProperty("line.separator") : "")
+				+ (browserModeSelected.equals(BrowserMode.REAL)
+						? "Browser with recording:	" + browserRecording + System.getProperty("line.separator")
+						: "")
 				+ "OpenVidu recording:	" + openviduRecording + System.getProperty("line.separator")
 				+ "Session typology:	" + sessionTypology + System.getProperty("line.separator")
 				+ "Participants per session:	" + participantsPerSession + System.getProperty("line.separator")
@@ -184,21 +186,17 @@ public class ResultReport {
 				+ "Is manual participants allocation:	" + isManualParticipantAllocation
 				+ System.getProperty("line.separator")
 				+ (isManualParticipantAllocation
-						? "Number of participants per worker:	" + participantsPerWorker
-								+ System.getProperty("line.separator")
+						? "Number of sessions per worker:	" + sessionsPerWorker + System.getProperty("line.separator")
 						: "")
 				+ (isManualParticipantAllocation ? ""
 						: "Number of streams per workers:	" + streamsPerWorker + System.getProperty("line.separator"))
 				+ "Stop reason:	" + stopReason + System.getProperty("line.separator") + "Test duration:	"
 				+ (lastResponsesArray.size() == 0 ? ""
-								: "Last responses array:	" + lastResponsesArray + System.getProperty("line.separator"))
+						: "Last responses array:	" + lastResponsesArray + System.getProperty("line.separator"))
 				+ getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
-				+ System.getProperty("line.separator") 
-				+ "Video quality control:	" + s3BucketName + System.getProperty("line.separator")
-				+ System.getProperty("line.separator")
+				+ System.getProperty("line.separator") + "Video quality control:	" + s3BucketName
+				+ System.getProperty("line.separator") + System.getProperty("line.separator")
 				+ "   ---------------------   ";
 	}
-
-
 
 }

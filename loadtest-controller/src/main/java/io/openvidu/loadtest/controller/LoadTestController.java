@@ -49,11 +49,11 @@ public class LoadTestController {
 
 	@Autowired
 	private Ec2Client ec2Client;
-	
+
 	@Autowired
 	private DataIO io;
 
-	private static List<Instance> workersList = new ArrayList<Instance>();
+	private static List<Instance> awsWorkersList = new ArrayList<Instance>();
 	private static List<String> devWorkersList = new ArrayList<String>();
 	private static List<Instance> recordingWorkersList = new ArrayList<Instance>();
 
@@ -99,7 +99,7 @@ public class LoadTestController {
 
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-						workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
 					}
 
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
@@ -121,7 +121,7 @@ public class LoadTestController {
 
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-						workersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
 					}
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
@@ -149,11 +149,11 @@ public class LoadTestController {
 	}
 
 	private void startNxNTest(int participantsBySession, TestCase testCase) {
-		int sessionsLimit = testCase.getSessions();
+		int testCaseSessionsLimit = testCase.getSessions();
 
 		setAndInitializeNextWorker();
 
-		while (responseIsOk && needCreateNewSession(sessionsLimit)) {
+		while (responseIsOk && needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (responseIsOk && sessionNumber.get() > 0) {
 				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
@@ -180,17 +180,10 @@ public class LoadTestController {
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
-					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
-						log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
-								.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
-						setAndInitializeNextWorker();
-					}
 					if (userNumber.get() < participantsBySession) {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						userNumber.getAndIncrement();
 					}
-
 				} else {
 					log.error("Response status is not 200 OK. Exit");
 					break;
@@ -201,13 +194,7 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(participantsBySession, 0) && loadTestConfig.getWorkersRumpUp() > 0) {
-					log.warn("Worker has not space enough for new session.");
-					log.info("Worker CPU {} will be bigger than the limit: {}",this.browserEmulatorClient
-							.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
-					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
-					setAndInitializeNextWorker();
-				}
+				this.inititalizeNewWorkerIfNecessary(testCaseSessionsLimit, participantsBySession, 0);
 			} else {
 				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 			}
@@ -216,11 +203,11 @@ public class LoadTestController {
 
 	private void startNxMTest(int publishers, int subscribers, TestCase testCase) {
 		int totalParticipants = subscribers + publishers;
-		int sessionsLimit = testCase.getSessions();
+		int testCaseSessionsLimit = testCase.getSessions();
 		setAndInitializeNextWorker();
-		while (responseIsOk && needCreateNewSession(sessionsLimit)) {
+		while (responseIsOk && needCreateNewSession(testCaseSessionsLimit)) {
 
-			if (responseIsOk && sessionNumber.get() > 0) {
+			if (sessionNumber.get() > 0) {
 				// Waiting time between sessions
 				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
 			}
@@ -231,8 +218,7 @@ public class LoadTestController {
 
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
-				log.info("Creating PUBLISHER '{}' in session",
-						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
+				log.info("Creating PUBLISHER '{}' in session", loadTestConfig.getUserNamePrefix() + userNumber.get());
 				if (needRecordingParticipant()) {
 					System.out.println("Starting REAL BROWSER for quality control");
 					String uri = startRecordingInstance();
@@ -245,13 +231,6 @@ public class LoadTestController {
 				}
 				if (responseIsOk) {
 					userNumber.getAndIncrement();
-					this.totalParticipants.incrementAndGet();
-					if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-							.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
-						log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
-								.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
-						setAndInitializeNextWorker();
-					}
 				} else {
 					log.error("Response status is not 200 OK. Exit");
 					break;
@@ -277,12 +256,6 @@ public class LoadTestController {
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
-						if (loadTestConfig.isManualParticipantsAllocation() && this.browserEmulatorClient
-								.getParticipantsInWorker() == loadTestConfig.getParticipantsPerWorker() && loadTestConfig.getWorkersRumpUp() > 0) {
-							log.warn("Participants in worker: {} is equals than limit: {}",this.browserEmulatorClient
-									.getParticipantsInWorker() ,loadTestConfig.getParticipantsPerWorker());
-							setAndInitializeNextWorker();
-						}
 						if (userNumber.get() < totalParticipants) {
 							userNumber.getAndIncrement();
 							sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
@@ -299,16 +272,31 @@ public class LoadTestController {
 					this.sessionsCompleted.incrementAndGet();
 					// TODO: in TEACHING sessions, all participants are PUBLISHERS
 					// Now, it is assuming they are PUBLISHERS and SUBSCRIBERS
-					if (!loadTestConfig.isManualParticipantsAllocation() && needCreateNewSession(sessionsLimit) && !this.currentWorkerHasSpace(publishers, subscribers)) {
-						log.warn("Worker has not space enough for new session.");
-						log.info("Worker CPU {} will be bigger than the limit: {}",this.browserEmulatorClient
-								.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
-						streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
-						setAndInitializeNextWorker();
-					}
+					this.inititalizeNewWorkerIfNecessary(testCaseSessionsLimit, publishers, subscribers);
 				} else {
 					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 				}
+			}
+		}
+	}
+
+	private void inititalizeNewWorkerIfNecessary(int testCaseSessionsLimit, int publishersNum, int subscribersNum) {
+		if (loadTestConfig.isManualParticipantsAllocation()) {
+			boolean areSessionsPerWorkerReached = sessionNumber.get() == loadTestConfig.getSessionsPerWorker();
+			if (areSessionsPerWorkerReached && loadTestConfig.getWorkersRumpUp() > 0) {
+				log.warn("Sessions in worker: {} is equals than limit: {}", sessionNumber.get(),
+						loadTestConfig.getSessionsPerWorker());
+				setAndInitializeNextWorker();
+			}
+		} else {
+			if (needCreateNewSession(testCaseSessionsLimit)
+					&& !willBeWorkerMaxLoadReached(publishersNum, subscribersNum)
+					&& loadTestConfig.getWorkersRumpUp() > 0) {
+				log.warn("Worker has not space enough for new session.");
+				log.info("Worker CPU {} will be bigger than the limit: {}",
+						this.browserEmulatorClient.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
+				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
+				setAndInitializeNextWorker();
 			}
 		}
 	}
@@ -319,7 +307,7 @@ public class LoadTestController {
 			log.info("Starting recording EC2 instance...");
 			List<Instance> newRecordingInstanceList = this.ec2Client.launchRecordingInstance(1);
 			recordingWorkersList.addAll(newRecordingInstanceList);
-			initializeInstance(recordingWorkersList.get(0).getPublicDnsName());
+			initializeInstance(newRecordingInstanceList.get(0).getPublicDnsName());
 			return newRecordingInstanceList.get(0).getPublicDnsName();
 		}
 		return devWorkersList.get(0);
@@ -346,25 +334,25 @@ public class LoadTestController {
 			workersUsed++;
 			String newWorkerUrl = "";
 			if (currentWorkerUrl.isBlank()) {
-				newWorkerUrl = workersList.get(0).getPublicDnsName();
+				newWorkerUrl = awsWorkersList.get(0).getPublicDnsName();
 				log.info("Getting new worker already launched: {}", newWorkerUrl);
 			} else {
 				int index = 0;
 				Instance nextInstance;
 
 				// Search last used instance
-				for (int i = 0; i < workersList.size(); i++) {
-					if (currentWorkerUrl.equals(workersList.get(i).getPublicDnsName())) {
+				for (int i = 0; i < awsWorkersList.size(); i++) {
+					if (currentWorkerUrl.equals(awsWorkersList.get(i).getPublicDnsName())) {
 						index = i;
 						break;
 					}
 				}
-				nextInstance = index + 1 >= workersList.size() ? null : workersList.get(index + 1);
+				nextInstance = index + 1 >= awsWorkersList.size() ? null : awsWorkersList.get(index + 1);
 				if (nextInstance == null) {
 					log.info("Launching a new Ec2 instance... ");
 					List<Instance> nextInstanceList = this.ec2Client
 							.launchInstance(this.loadTestConfig.getWorkersRumpUp());
-					workersList.addAll(nextInstanceList);
+					awsWorkersList.addAll(nextInstanceList);
 					newWorkerUrl = nextInstanceList.get(0).getPublicDnsName();
 					log.info("New worker has been launched: {}", newWorkerUrl);
 
@@ -397,15 +385,17 @@ public class LoadTestController {
 		double medianodeLoadForRecording = this.loadTestConfig.getMedianodeLoadForRecording();
 		int recordingSessionGroup = this.loadTestConfig.getRecordingSessionGroup();
 
-		boolean isLoadRecordingEnabled =  medianodeLoadForRecording > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get())
+		boolean isLoadRecordingEnabled = medianodeLoadForRecording > 0
+				&& !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get())
 				&& this.esClient.getMediaNodeCpu() >= medianodeLoadForRecording;
-				
-		boolean isRecordingSessionGroupEnabled = recordingSessionGroup > 0 && !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get()) && sessionNumber.get() % recordingSessionGroup == 0; 
-		
+
+		boolean isRecordingSessionGroupEnabled = recordingSessionGroup > 0
+				&& !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
+
 		return isLoadRecordingEnabled || isRecordingSessionGroupEnabled;
 	}
 
-	private boolean currentWorkerHasSpace(int publishers, int subscribers) {
+	private boolean willBeWorkerMaxLoadReached(int publishers, int subscribers) {
 		int streamsSent = publishers;
 		int streamsReceived = publishers * (publishers - 1) + subscribers * publishers;
 		int streamsForNextSessions = streamsSent + streamsReceived;
@@ -413,6 +403,9 @@ public class LoadTestController {
 				/ this.browserEmulatorClient.getStreamsInWorker();
 		double cpuIncrementForNextSession = streamsForNextSessions * cpuPerStream;
 
+		System.out.println("La siguiente sesion costara un: " + cpuIncrementForNextSession);
+		System.out.println("La estimación de CPU con la siguiente sesion es de: "
+				+ (this.browserEmulatorClient.getWorkerCpuPct() + cpuIncrementForNextSession));
 		return this.browserEmulatorClient.getWorkerCpuPct() + cpuIncrementForNextSession <= this.loadTestConfig
 				.getWorkerMaxLoad();
 	}
@@ -430,9 +423,9 @@ public class LoadTestController {
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 		waitToMediaServerLiveAgain();
 	}
-	
+
 	private void waitToMediaServerLiveAgain() {
-		while(this.esClient.getMediaNodeCpu() > 5.00) {
+		while (this.esClient.getMediaNodeCpu() > 5.00) {
 			this.sleep(5, "Waiting MediaServer recovers his CPU");
 		}
 	}
@@ -442,7 +435,7 @@ public class LoadTestController {
 
 		if (PROD_MODE) {
 			// Add all ec2 instances
-			for (Instance ec2 : workersList) {
+			for (Instance ec2 : awsWorkersList) {
 				workersUrl.add(ec2.getPublicDnsName());
 			}
 			for (Instance recordingEc2 : recordingWorkersList) {
@@ -450,10 +443,11 @@ public class LoadTestController {
 			}
 			this.browserEmulatorClient.disconnectAll(workersUrl);
 			this.ec2Client.stopInstance(recordingWorkersList);
-			workersList = new ArrayList<Instance>();
+			this.ec2Client.stopInstance(awsWorkersList);
+			awsWorkersList = new ArrayList<Instance>();
 			recordingWorkersList = new ArrayList<Instance>();
 
-		}else  {
+		} else {
 			this.browserEmulatorClient.disconnectAll(workersUrl);
 		}
 	}
@@ -478,10 +472,10 @@ public class LoadTestController {
 				.setStopReason(this.browserEmulatorClient.getStopReason()).setStartTime(this.startTime)
 				.setEndTime(endTime).setKibanaUrl(kibanaUrl)
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
-				.setParticipantsPerWorker(loadTestConfig.getParticipantsPerWorker())
-				.setS3BucketName("https://s3.console.aws.amazon.com/s3/buckets/" + this.browserEmulatorClient.getS3BucketName())
-				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray())
-				.build();
+				.setSessionsPerWorker(loadTestConfig.getSessionsPerWorker())
+				.setS3BucketName(
+						"https://s3.console.aws.amazon.com/s3/buckets/" + this.browserEmulatorClient.getS3BucketName())
+				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray()).build();
 
 		this.io.exportResults(rr);
 

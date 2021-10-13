@@ -56,7 +56,7 @@ public class LoadTestConfig {
 
 	private boolean manualParticipantsAllocation;
 
-	private int participantsPerWorker;
+	private int sessionsPerWorker;
 	
 	private double medianodeLoadForStartRecording;
 	
@@ -134,8 +134,8 @@ public class LoadTestConfig {
 		return manualParticipantsAllocation;
 	}
 
-	public int getParticipantsPerWorker() {
-		return participantsPerWorker;
+	public int getSessionsPerWorker() {
+		return sessionsPerWorker;
 	}
 
 	public String getElasticsearchPassword() {
@@ -208,7 +208,7 @@ public class LoadTestConfig {
 			secondsToWaitBeforeTestFinished = asInt("SECONDS_TO_WAIT_BEFORE_TEST_FINISHED");
 			secondsToWaitBetweenTestCases = asInt("SECONDS_TO_WAIT_BETWEEN_TEST_CASES");
 			manualParticipantsAllocation = asBoolean("MANUAL_PARTICIPANTS_ALLOCATION");
-			participantsPerWorker = asInt("PARTICIPANTS_PER_WORKER");
+			sessionsPerWorker= asInt("SESSIONS_PER_WORKER");
 			elasticsearchHost = asOptionalString("ELASTICSEARCH_HOST");
 			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
@@ -248,7 +248,12 @@ public class LoadTestConfig {
 		System.out.printf(format, "Seconds between sessions:", secondsToWaitBetweenSession);
 		System.out.printf(format, "Is manual participant allocation:", manualParticipantsAllocation);
 		if(manualParticipantsAllocation) {
-			System.out.printf(format, "Participants per worker:", participantsPerWorker);
+			if(sessionsPerWorker > 0) {
+				System.out.printf(format, "Sessions per worker:", sessionsPerWorker);
+			} else {
+				System.err.printf(format, "sessionsPerWorker is not defined");
+				System.exit(1);
+			}
 		}
 		
 		System.out.printf("\n");
