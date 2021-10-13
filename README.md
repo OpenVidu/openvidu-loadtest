@@ -210,6 +210,31 @@ MANUAL_PARTICIPANTS_ALLOCATION=false
 PARTICIPANTS_PER_WORKER=
 ```
 
+##### For video quality control
+These properties allow record a participant (launching an external chrome browser) for check the received video quality.
+
+When test finishes, it will saved in the S3 Bucket.
+
+
+```properties
+# For video quality control
+# If testing on AWS, It'll start a new ec2 instance where a new participant will be connected using a real Chrome Browser
+# and it will start to record the session when media node has archieved this value
+MEDIANODE_LOAD_FOR_START_RECORDING=0
+# it will start to record the sessions gruped by the specifyed value.
+# 0: Recording disabled, 1 recording starts each session, 2 recording starts each two session ...
+RECORDING_SESSION_GRUPED_BY=0
+# Bucket name where the recordings will be saved
+S3_BUCKET_NAME=openvidu-loadtest-capacity
+```
+
+#### For retrying the participant creation
+
+These properties allow retry the participant creation when it fails
+```properties
+RETRY_MODE=false
+RETRY_TIMES=5
+```
 
 #### Monitoring parameters
 
