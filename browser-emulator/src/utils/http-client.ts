@@ -36,7 +36,7 @@ export class HttpClient {
 						rejectUnauthorized: false,
 					}),
 				})
-				.then((response) => {
+				.then((response: any) => {
 					resolve(response.data.id);
 				})
 				.catch((response) => {
@@ -68,7 +68,7 @@ export class HttpClient {
 						rejectUnauthorized: false,
 					}),
 				})
-				.then((response) => {
+				.then((response: any) => {
 					resolve(response.data.token);
 				})
 				.catch((error) => reject(error.response));
