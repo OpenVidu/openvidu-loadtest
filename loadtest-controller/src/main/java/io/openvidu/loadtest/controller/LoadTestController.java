@@ -168,11 +168,7 @@ public class LoadTestController {
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 
 				if (needRecordingParticipant()) {
-					System.out.println("Starting REAL BROWSER for quality control");
-					String uri = startRecordingInstance();
-					String recordingMetadata = "N_N_" + participantsBySession + "PSes";
-					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
-							sessionNumber.get(), testCase, recordingMetadata);
+					responseIsOk = this.launchRecordingParticipant(testCase, Integer.toString(participantsBySession));
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
@@ -220,11 +216,7 @@ public class LoadTestController {
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session", loadTestConfig.getUserNamePrefix() + userNumber.get());
 				if (needRecordingParticipant()) {
-					System.out.println("Starting REAL BROWSER for quality control");
-					String uri = startRecordingInstance();
-					String recordingMetadata = "N_M_" + publishers + "_" + subscribers + "PSes";
-					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
-							sessionNumber.get(), testCase, recordingMetadata);
+					responseIsOk = this.launchRecordingParticipant(testCase, publishers + "_" + subscribers);
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
@@ -244,11 +236,8 @@ public class LoadTestController {
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 
 					if (needRecordingParticipant()) {
-						System.out.println("Starting REAL BROWSER for quality control");
-						String uri = startRecordingInstance();
-						String recordingMetadata = "N_M_" + publishers + "_" + subscribers + "PSes";
-						responseIsOk = this.browserEmulatorClient.createExternalRecordingSubscriber(uri,
-								userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
+						responseIsOk = this.launchRecordingParticipant(testCase, publishers + "_" + subscribers);
+
 					} else {
 						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
 								sessionNumber.get(), testCase);
@@ -299,19 +288,6 @@ public class LoadTestController {
 				setAndInitializeNextWorker();
 			}
 		}
-	}
-
-	private String startRecordingInstance() {
-
-		if (PROD_MODE) {
-			log.info("Starting recording EC2 instance...");
-			List<Instance> newRecordingInstanceList = this.ec2Client.launchRecordingInstance(1);
-			recordingWorkersList.addAll(newRecordingInstanceList);
-			initializeInstance(newRecordingInstanceList.get(0).getPublicDnsName());
-			return newRecordingInstanceList.get(0).getPublicDnsName();
-		}
-		return devWorkersList.get(0);
-
 	}
 
 	private void setAndInitializeNextWorker() {
@@ -393,6 +369,24 @@ public class LoadTestController {
 				&& !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
 
 		return isLoadRecordingEnabled || isRecordingSessionGroupEnabled;
+	}
+	
+	private boolean launchRecordingParticipant(TestCase testCase, String participants) {
+		System.out.println("Starting REAL BROWSER for quality control");
+		String uri = "";
+		
+		if (PROD_MODE) {
+			log.info("Starting recording EC2 instance...");
+			List<Instance> newRecordingInstanceList = this.ec2Client.launchRecordingInstance(1);
+			recordingWorkersList.addAll(newRecordingInstanceList);
+			initializeInstance(newRecordingInstanceList.get(0).getPublicDnsName());
+			uri = newRecordingInstanceList.get(0).getPublicDnsName();
+		} else {
+			uri = devWorkersList.get(0);
+		}
+		String recordingMetadata = testCase.getBrowserMode() + "_N-N_" + participants + "PSes";
+		return this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
+				sessionNumber.get(), testCase, recordingMetadata);
 	}
 
 	private boolean willBeWorkerMaxLoadReached(int publishers, int subscribers) {
