@@ -192,7 +192,7 @@ _Delete all participants with the specified ROLE_
 
 * #### URL:  https://localhost:5000/openvidu-browser/streamManager/role/{{ROLE}}
 
-### **DELETE PARTICIPANTS** _(by ROLE: `PUBLISHER` or `SUBSCRIBER`)_
+### **DELETE PARTICIPANTS**
 
 _Delete all participants_
 
