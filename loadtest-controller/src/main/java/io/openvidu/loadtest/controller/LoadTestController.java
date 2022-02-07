@@ -384,7 +384,7 @@ public class LoadTestController {
 		} else {
 			uri = devWorkersList.get(0);
 		}
-		String recordingMetadata = testCase.getBrowserMode() + "_N-N_" + participants + "PSes";
+		String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_" + participants + "PSes";
 		return this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
 				sessionNumber.get(), testCase, recordingMetadata);
 	}
