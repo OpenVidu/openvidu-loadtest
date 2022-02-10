@@ -67,6 +67,7 @@ export class RealBrowserService {
 			});
 			await this.enableMediaFileAccess(containerId);
 			if (isRecording) {
+				await this.enableRecordingAccess(containerId);
 				console.log('Starting browser recording');
 				await this.startRecordingInContainer(containerId, containerName);
 			}
@@ -245,6 +246,11 @@ export class RealBrowserService {
 
 	private async enableMediaFileAccess(containerId: string) {
 		const command = `sudo chmod 777 ${this.MEDIA_FILES_PATH}`;
+		await this.dockerService.runCommandInContainer(containerId, command);
+	}
+
+	private async enableRecordingAccess(containerId: string) {
+		const command = `sudo chmod -R 777 ${this.RECORDINGS_PATH}`;
 		await this.dockerService.runCommandInContainer(containerId, command);
 	}
 
