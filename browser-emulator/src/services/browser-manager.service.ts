@@ -47,7 +47,7 @@ export class BrowserManagerService {
 				const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
 				const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName() };
 				const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig() };
-				await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
+				await this.realBrowserService.launchBrowser(connectionId, request, storageNameObject, storageValueObject);
 				this.realBrowserService.storeConnection(connectionId, request.properties);
 			} catch (error) {
 				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);

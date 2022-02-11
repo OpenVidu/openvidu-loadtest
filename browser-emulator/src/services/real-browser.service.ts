@@ -23,6 +23,7 @@ export class RealBrowserService {
 	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
 	private readonly VIDEO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakevideo';
 	private readonly AUDIO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakeaudio.wav';
+	private keepAliveIntervals = new Map();
 
 	constructor(private dockerService: DockerService = new DockerService(), private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
 		this.chromeOptions.addArguments(
@@ -136,6 +137,7 @@ export class RealBrowserService {
 	}
 
 	async launchBrowser(
+		connectionId: string,
 		request: LoadTestPostRequest,
 		storageNameObj?: StorageNameObject,
 		storageValueObj?: StorageValueObject,
@@ -175,6 +177,14 @@ export class RealBrowserService {
 						buttons.forEach(button => button.click());
 					}
 					console.log('Browser works as expected');
+					// Workaround, currently browsers timeout after 1h unless we send an HTTP request to Selenium
+					// set interval each minute to send a request to Selenium
+					const keepAliveInterval = setInterval(() => {
+						chrome.executeScript(() => {
+							return true;
+						});
+					}, 60000);
+					this.keepAliveIntervals.set(connectionId, keepAliveInterval);
 					resolve();
 				} catch (error) {
 					console.log(error);
@@ -241,6 +251,11 @@ export class RealBrowserService {
 					value.subscribers.splice(index, 1);
 				}
 			}
+		}
+		const keepAliveInterval = this.keepAliveIntervals.get(connectionId);
+		if (!!keepAliveInterval) {
+			clearInterval(keepAliveInterval);
+			this.keepAliveIntervals.delete(connectionId);
 		}
 	}
 
