@@ -307,8 +307,8 @@ public class LoadTestConfig {
 		if(medianodeLoadForStartRecording > 0) {
 			System.out.printf(format, "Start recording when medianode CPU is over:", medianodeLoadForStartRecording);
 		}
-		if(recordingSessionGroup > 0) {
-			System.out.printf(format, "Recording starts each :", medianodeLoadForStartRecording + " session(s)");
+		if (recordingSessionGroup > 0) {
+			System.out.printf(format, "Recording starts each :", recordingSessionGroup + " session(s)");
 			if(s3bucketName.isBlank()) {
 				System.err.printf(format, "S3 Bucket Name is not defined");
 				System.exit(1);
