@@ -128,7 +128,12 @@ public class BrowserEmulatorClient {
 //	}
 
 	public boolean createPublisher(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
-		boolean success = this.createParticipant(workerUrl, userNumber, sessionNumber, testCase,
+		TestCase finalTestCase = testCase;
+		if (testCase.isBrowserRecording()) {
+			finalTestCase = new TestCase(testCase);
+			finalTestCase.setBrowserRecording(false);
+		}
+		boolean success = this.createParticipant(workerUrl, userNumber, sessionNumber, finalTestCase,
 				OpenViduRole.PUBLISHER);
 
 		if (!success && loadTestConfig.isRetryMode() && !isResponseLimitReached()) {
@@ -138,8 +143,13 @@ public class BrowserEmulatorClient {
 	}
 
 	public boolean createSubscriber(String workerUrl, int userNumber, int sessionNumber, TestCase testCase) {
+		TestCase finalTestCase = testCase;
+		if (testCase.isBrowserRecording()) {
+			finalTestCase = new TestCase(testCase);
+			finalTestCase.setBrowserRecording(false);
+		}
 		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
-		boolean success = this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
+		boolean success = this.createParticipant(workerUrl, userNumber, sessionNumber, finalTestCase, role);
 
 		if (!success && loadTestConfig.isRetryMode() && !isResponseLimitReached()) {
 			return this.createSubscriber(workerUrl, userNumber, sessionNumber, testCase);
