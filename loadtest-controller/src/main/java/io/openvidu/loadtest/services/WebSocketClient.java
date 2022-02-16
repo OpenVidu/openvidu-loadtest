@@ -30,14 +30,15 @@ public class WebSocketClient extends Endpoint{
 	private static WebSocketContainer wsClient = ContainerProvider.getWebSocketContainer();
 	private static final int RETRY_TIME_MS = 4000;
 	private static final int MAX_ATTEMPT = 5;
-	private static String wsEndpoint = "";
+	private String wsEndpoint = "";
 	private static AtomicInteger attempts = new AtomicInteger(1);
+	private Session session;
 	
 	public void connect(String endpointURI) {
 		wsEndpoint = endpointURI;
 
 		try {
-			wsClient.connectToServer(this, new URI(endpointURI));
+			this.session = wsClient.connectToServer(this, new URI(endpointURI));
 
 		} catch (DeploymentException | IOException e) {
 			log.error(e.getMessage());
@@ -62,7 +63,12 @@ public class WebSocketClient extends Endpoint{
 	public String getEndpoint() {
 		return wsEndpoint;
 	}
-	
+
+	public void close() throws IOException {
+		if ((session != null) && (session.isOpen())) {
+			session.close(new CloseReason(CloseCodes.NORMAL_CLOSURE, "Closing session"));
+		}
+	}
 	
 	@OnClose
 	public void onClose(Session session, CloseReason reason) {

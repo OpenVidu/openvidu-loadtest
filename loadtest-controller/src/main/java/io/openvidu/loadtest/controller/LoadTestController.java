@@ -1,5 +1,6 @@
 package io.openvidu.loadtest.controller;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -58,6 +59,7 @@ public class LoadTestController {
 	private static List<Instance> awsWorkersList = new ArrayList<Instance>();
 	private static List<String> devWorkersList = new ArrayList<String>();
 	private static List<Instance> recordingWorkersList = new ArrayList<Instance>();
+	private static List<WebSocketClient> wsSessions = new ArrayList<WebSocketClient>();
 
 	private static String currentWorkerUrl = "";
 	private static int workersUsed = 0;
@@ -303,7 +305,9 @@ public class LoadTestController {
 	private void initializeInstance(String url) {
 		boolean requireInitialize = !currentWorkerUrl.equals(url);
 		this.browserEmulatorClient.ping(url);
-		new WebSocketClient().connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
+		WebSocketClient ws = new WebSocketClient();
+		ws.connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
+		wsSessions.add(ws);
 		if (requireInitialize && this.loadTestConfig.isKibanaEstablished()) {
 			this.browserEmulatorClient.initializeInstance(url);
 		}
@@ -376,7 +380,7 @@ public class LoadTestController {
 	}
 	
 	private boolean launchRecordingParticipant(TestCase testCase, String participants) {
-		System.out.println("Starting REAL BROWSER for quality control");
+		log.info("Starting REAL BROWSER for quality control");
 		String uri = "";
 		
 		if (PROD_MODE) {
@@ -458,7 +462,14 @@ public class LoadTestController {
 
 	private void disconnectAllSessions() {
 		List<String> workersUrl = devWorkersList;
-
+		for (WebSocketClient ws : wsSessions) {
+			try {
+				ws.close();
+			} catch (IOException e) {
+				log.error("Couldn't cleanly close websocket connection: {}", e.getMessage());
+			}
+		}
+		wsSessions.clear();
 		if (PROD_MODE) {
 			// Add all ec2 instances
 			for (Instance ec2 : awsWorkersList) {
