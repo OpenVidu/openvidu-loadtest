@@ -409,14 +409,9 @@ public class LoadTestController {
 		int streamsReceived = publishers * (publishers - 1) + subscribers * publishers;
 		int streamsForNextParticipant = streamsSent + streamsReceived;
 
-		// Simple heuristic used for first 2 cases, after that we have enough data for simple regression
-		double cpuPerStream = this.browserEmulatorClient.getWorkerCpuPct()
-				/ this.browserEmulatorClient.getStreamsInWorker();
-		double cpuForNextParticipant = streamsForNextParticipant * cpuPerStream;
-
 		double streams = this.browserEmulatorClient.getStreamsInWorker();
 		double cpu = this.browserEmulatorClient.getWorkerCpuPct();
-		log.info("Adding data to regression: streams: {}, cpu: {}", streams, cpu);
+		log.debug("Adding data to regression: streams: {}, cpu: {}", streams, cpu);
 		regression.addData(streams, cpu);
 		if (cpu >= this.loadTestConfig.getWorkerMaxLoad()) {
 			log.info("Worker max load reached: {}", cpu);
@@ -424,19 +419,21 @@ public class LoadTestController {
 		} 
 		double prediction = regression.predict(streamsForNextParticipant);
 		if (prediction != prediction) {
-			log.info("Using only heuristic prediction");
+			// Simple heuristic used for first 2 cases, after that we have enough data for simple regression
+			double cpuPerStream = this.browserEmulatorClient.getWorkerCpuPct()
+					/ this.browserEmulatorClient.getStreamsInWorker();
+			double cpuForNextParticipant = streamsForNextParticipant * cpuPerStream;
+			log.info("Using heuristic prediction");
 			log.info("Predicting for {} streams, using {}% cpu per stream", streamsForNextParticipant, cpuPerStream);
 			log.info("Current CPU: {}%", cpu);
 			log.info("CPU estimated cost for next session (heuristic): {}%", cpuForNextParticipant);
 			return cpuForNextParticipant <= this.loadTestConfig.getWorkerMaxLoad();
 		} else {
-			log.info("Using regression and heuristic prediction");
-			log.info("Predicting for {} streams, using {}% cpu per stream", streamsForNextParticipant, cpuPerStream);
+			log.info("Using regression prediction");
+			log.info("Predicting for {} streams", streamsForNextParticipant);
 			log.info("Current CPU: {}%", cpu);
 			log.info("CPU estimated cost for next session (regression): {}%", prediction);
-			log.info("CPU estimated cost for next session (heuristic): {}%", cpuForNextParticipant);
-			return (cpuForNextParticipant <= this.loadTestConfig.getWorkerMaxLoad())
-					&& (prediction <= this.loadTestConfig.getWorkerMaxLoad());
+			return prediction <= this.loadTestConfig.getWorkerMaxLoad();
 		}
 	}
 
