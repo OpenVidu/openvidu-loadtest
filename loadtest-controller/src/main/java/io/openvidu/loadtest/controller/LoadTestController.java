@@ -1,6 +1,5 @@
 package io.openvidu.loadtest.controller;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -460,11 +459,7 @@ public class LoadTestController {
 	private void disconnectAllSessions() {
 		List<String> workersUrl = devWorkersList;
 		for (WebSocketClient ws : wsSessions) {
-			try {
-				ws.close();
-			} catch (IOException e) {
-				log.error("Couldn't cleanly close websocket connection: {}", e.getMessage());
-			}
+			ws.close();
 		}
 		wsSessions.clear();
 		if (PROD_MODE) {
