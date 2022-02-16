@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.PostConstruct;
 
+import org.apache.commons.math.stat.regression.SimpleRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Controller;
 import com.amazonaws.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
@@ -73,6 +75,8 @@ public class LoadTestController {
 	private AtomicInteger totalParticipants = new AtomicInteger(0);
 
 	private static List<Integer> streamsPerWorker = new ArrayList<>();
+
+	private static SimpleRegression regression = new SimpleRegression();
 
 	@PostConstruct
 	public void initialize() {
@@ -172,6 +176,7 @@ public class LoadTestController {
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
+					this.inititalizeNewWorkerIfNecessary(testCase, OpenViduRole.PUBLISHER);
 				}
 
 				if (responseIsOk) {
@@ -190,7 +195,6 @@ public class LoadTestController {
 				log.info("Session number {} has been succesfully created ", sessionNumber.get());
 				this.sessionsCompleted.incrementAndGet();
 				userNumber.set(1);
-				this.inititalizeNewWorkerIfNecessary(testCaseSessionsLimit, participantsBySession, 0);
 			} else {
 				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 			}
@@ -220,6 +224,8 @@ public class LoadTestController {
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
+					OpenViduRole nextRoleToAdd = i == publishers - 1 ? OpenViduRole.SUBSCRIBER : OpenViduRole.PUBLISHER;
+					this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd);
 				}
 				if (responseIsOk) {
 					userNumber.getAndIncrement();
@@ -241,6 +247,8 @@ public class LoadTestController {
 					} else {
 						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
 								sessionNumber.get(), testCase);
+						OpenViduRole nextRoleToAdd = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
+						this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd);
 					}
 
 					if (responseIsOk) {
@@ -259,9 +267,6 @@ public class LoadTestController {
 					log.info("Session number {} has been succesfully created ", sessionNumber.get());
 					userNumber.set(1);
 					this.sessionsCompleted.incrementAndGet();
-					// TODO: in TEACHING sessions, all participants are PUBLISHERS
-					// Now, it is assuming they are PUBLISHERS and SUBSCRIBERS
-					this.inititalizeNewWorkerIfNecessary(testCaseSessionsLimit, publishers, subscribers);
 				} else {
 					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 				}
@@ -269,7 +274,7 @@ public class LoadTestController {
 		}
 	}
 
-	private void inititalizeNewWorkerIfNecessary(int testCaseSessionsLimit, int publishersNum, int subscribersNum) {
+	private void inititalizeNewWorkerIfNecessary(TestCase testCase, OpenViduRole nextRoleToAdd) {
 		if (loadTestConfig.isManualParticipantsAllocation()) {
 			boolean areSessionsPerWorkerReached = sessionNumber.get() == loadTestConfig.getSessionsPerWorker();
 			if (areSessionsPerWorkerReached && loadTestConfig.getWorkersRumpUp() > 0) {
@@ -278,10 +283,9 @@ public class LoadTestController {
 				setAndInitializeNextWorker();
 			}
 		} else {
-			if (needCreateNewSession(testCaseSessionsLimit)
-					&& !willBeWorkerMaxLoadReached(publishersNum, subscribersNum)
+			if (!willBeWorkerMaxLoadReached(nextRoleToAdd)
 					&& loadTestConfig.getWorkersRumpUp() > 0) {
-				log.warn("Worker has not space enough for new session.");
+				log.warn("Worker has not space enough for new participants.");
 				log.info("Worker CPU {} will be bigger than the limit: {}",
 						this.browserEmulatorClient.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
 				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
@@ -389,19 +393,47 @@ public class LoadTestController {
 				sessionNumber.get(), testCase, recordingMetadata);
 	}
 
-	private boolean willBeWorkerMaxLoadReached(int publishers, int subscribers) {
+	private boolean willBeWorkerMaxLoadReached(OpenViduRole nextRoleToAdd) {
+		int publishers = this.browserEmulatorClient.getRoleInWorker(currentWorkerUrl, OpenViduRole.PUBLISHER);
+		int subscribers = this.browserEmulatorClient.getRoleInWorker(currentWorkerUrl, OpenViduRole.SUBSCRIBER);
+		if (nextRoleToAdd.equals(OpenViduRole.PUBLISHER)) {
+			publishers++;
+		} else {
+			subscribers++;
+		}
 		int streamsSent = publishers;
 		int streamsReceived = publishers * (publishers - 1) + subscribers * publishers;
-		int streamsForNextSessions = streamsSent + streamsReceived;
+		int streamsForNextParticipant = streamsSent + streamsReceived;
+
+		// Simple heuristic used for first 2 cases, after that we have enough data for simple regression
 		double cpuPerStream = this.browserEmulatorClient.getWorkerCpuPct()
 				/ this.browserEmulatorClient.getStreamsInWorker();
-		double cpuIncrementForNextSession = streamsForNextSessions * cpuPerStream;
+		double cpuForNextParticipant = streamsForNextParticipant * cpuPerStream;
 
-		System.out.println("La siguiente sesion costara un: " + cpuIncrementForNextSession);
-		System.out.println("La estimación de CPU con la siguiente sesion es de: "
-				+ (this.browserEmulatorClient.getWorkerCpuPct() + cpuIncrementForNextSession));
-		return this.browserEmulatorClient.getWorkerCpuPct() + cpuIncrementForNextSession <= this.loadTestConfig
-				.getWorkerMaxLoad();
+		double streams = this.browserEmulatorClient.getStreamsInWorker();
+		double cpu = this.browserEmulatorClient.getWorkerCpuPct();
+		log.info("Adding data to regression: streams: {}, cpu: {}", streams, cpu);
+		regression.addData(streams, cpu);
+		if (cpu >= this.loadTestConfig.getWorkerMaxLoad()) {
+			log.info("Worker max load reached: {}", cpu);
+			return true;
+		} 
+		double prediction = regression.predict(streamsForNextParticipant);
+		if (prediction != prediction) {
+			log.info("Using only heuristic prediction");
+			log.info("Predicting for {} streams, using {}% cpu per stream", streamsForNextParticipant, cpuPerStream);
+			log.info("Current CPU: {}%", cpu);
+			log.info("CPU estimated cost for next session (heuristic): {}%", cpuForNextParticipant);
+			return cpuForNextParticipant <= this.loadTestConfig.getWorkerMaxLoad();
+		} else {
+			log.info("Using regression and heuristic prediction");
+			log.info("Predicting for {} streams, using {}% cpu per stream", streamsForNextParticipant, cpuPerStream);
+			log.info("Current CPU: {}%", cpu);
+			log.info("CPU estimated cost for next session (regression): {}%", prediction);
+			log.info("CPU estimated cost for next session (heuristic): {}%", cpuForNextParticipant);
+			return (cpuForNextParticipant <= this.loadTestConfig.getWorkerMaxLoad())
+					&& (prediction <= this.loadTestConfig.getWorkerMaxLoad());
+		}
 	}
 
 	private void cleanEnvironment() {
