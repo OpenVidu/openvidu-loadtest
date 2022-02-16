@@ -33,6 +33,7 @@ public class WebSocketClient extends Endpoint{
 	private String wsEndpoint = "";
 	private static AtomicInteger attempts = new AtomicInteger(1);
 	private Session session;
+	private AtomicInteger attemptsClose = new AtomicInteger(1);
 	
 	public void connect(String endpointURI) {
 		wsEndpoint = endpointURI;
@@ -66,7 +67,24 @@ public class WebSocketClient extends Endpoint{
 
 	public void close() throws IOException {
 		if ((session != null) && (session.isOpen())) {
-			session.close(new CloseReason(CloseCodes.NORMAL_CLOSURE, "Closing session"));
+			try {
+				log.info("Closing websocket session: {}", wsEndpoint);
+				session.close(new CloseReason(CloseCodes.NORMAL_CLOSURE, "Closing session"));
+			} catch (IOException e) {
+				log.error(e.getMessage());
+				log.info("Retrying ...");
+				try {
+					Thread.sleep(RETRY_TIME_MS);
+				} catch (InterruptedException e1) {
+					e1.printStackTrace();
+				}
+				if(attemptsClose.getAndIncrement() < MAX_ATTEMPT) {
+					this.close();
+				} else {
+					attemptsClose.set(1);
+					log.error("Could not close websocket connection");
+				}
+			}
 		}
 	}
 	
