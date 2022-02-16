@@ -39,6 +39,7 @@ public class BrowserEmulatorClient {
 	private static int lastSessionNumber = 0;
 	private static String sessionSufix = "";
 	private static List<Integer> recordingParticipantCreated = new ArrayList<Integer>();
+	private static Map<String, int[]> publishersAndSubscribersInWorker = new HashMap<String, int[]>(); 
 
 	private static String stopReason = "Test case finished as expected";
 	private static List<String> lastResponses = new ArrayList<String>();
@@ -148,7 +149,7 @@ public class BrowserEmulatorClient {
 			finalTestCase = new TestCase(testCase);
 			finalTestCase.setBrowserRecording(false);
 		}
-		OpenViduRole role = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
+		OpenViduRole role = OpenViduRole.SUBSCRIBER;
 		boolean success = this.createParticipant(workerUrl, userNumber, sessionNumber, finalTestCase, role);
 
 		if (!success && loadTestConfig.isRetryMode() && !isResponseLimitReached()) {
@@ -285,6 +286,8 @@ public class BrowserEmulatorClient {
 					return false;
 				}
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
+			} else {
+				this.saveParticipantData(workerUrl, testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role);
 			}
 			return processResponse(response);
 		} catch (Exception e) {
@@ -304,6 +307,17 @@ public class BrowserEmulatorClient {
 			return false;
 		}
 
+	}
+
+	private void saveParticipantData(String workerUrl, OpenViduRole role) {
+		int[] initialArray = {0, 0};
+		BrowserEmulatorClient.publishersAndSubscribersInWorker.putIfAbsent(workerUrl, initialArray);
+		int[] list = BrowserEmulatorClient.publishersAndSubscribersInWorker.get(workerUrl);
+		if (role.equals(OpenViduRole.PUBLISHER)) {
+			list[0] = list[0] + 1;
+		} else {
+			list[1] = list[1] + 1;
+		}
 	}
 
 	private boolean createExternalRecordingParticipant(String workerUrl, int userNumber, int sessionNumber,
@@ -369,6 +383,7 @@ public class BrowserEmulatorClient {
 // @formatter:off
 	private RequestBody generateRequestBody(int userNumber, String sessionNumber, OpenViduRole role, TestCase testCase) {
 		boolean video = (testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.is_TEACHING();
+		OpenViduRole actualRole = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role;
 		
 		return new RequestBody().
 				openviduUrl(this.loadTestConfig.getOpenViduUrl())
@@ -380,7 +395,7 @@ public class BrowserEmulatorClient {
 				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber)
 				.audio(true)
 				.video(video)
-				.role(role)
+				.role(actualRole)
 				.openviduRecordingMode(testCase.getOpenviduRecordingMode())
 				.browserRecording(testCase.isBrowserRecording())
 				.showVideoElements(testCase.isShowBrowserVideoElements())
@@ -402,6 +417,11 @@ public class BrowserEmulatorClient {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public int getRoleInWorker(String currentWorkerUrl, OpenViduRole role) {
+		Integer idx = role.equals(OpenViduRole.PUBLISHER) ? 0 : 1;
+		return BrowserEmulatorClient.publishersAndSubscribersInWorker.get(currentWorkerUrl)[idx];
 	}
 
 }
