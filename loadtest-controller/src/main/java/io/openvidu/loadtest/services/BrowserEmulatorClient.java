@@ -345,7 +345,7 @@ public class BrowserEmulatorClient {
 			participantsInWorker = jsonResponse.get("participants").getAsInt();
 			log.info("Connection {} created", connectionId);
 			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
-			log.info("Worker STREAMS CREATED: {} ", streamsInWorker);
+			log.info("Worker STREAMS PROCESSED: {} ", streamsInWorker);
 			log.info("Worker PARTICIPANTS CREATED: {} ", participantsInWorker);
 			if (loadTestConfig.isRetryMode()) {
 				lastResponses.add("Success");
