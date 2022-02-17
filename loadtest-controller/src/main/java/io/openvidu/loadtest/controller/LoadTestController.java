@@ -177,7 +177,7 @@ public class LoadTestController {
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
-					int totalCurrentPublishers = (sessionNumber.get() - 1) * participantsBySession + (i + 1);
+					int totalCurrentPublishers = i + 1;
 					this.inititalizeNewWorkerIfNecessary(testCase, OpenViduRole.PUBLISHER, totalCurrentPublishers);
 				}
 
@@ -227,7 +227,7 @@ public class LoadTestController {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
 					OpenViduRole nextRoleToAdd = i == publishers - 1 ? OpenViduRole.SUBSCRIBER : OpenViduRole.PUBLISHER;
-					int totalCurrentPublishers = (sessionNumber.get() - 1) * publishers + (i + 1);
+					int totalCurrentPublishers = i + 1;
 					this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, totalCurrentPublishers);
 				}
 				if (responseIsOk) {
@@ -251,8 +251,7 @@ public class LoadTestController {
 						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
 								sessionNumber.get(), testCase);
 						OpenViduRole nextRoleToAdd = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
-						int totalCurrentPublishers = publishers * sessionNumber.get();
-						this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, totalCurrentPublishers);
+						this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, publishers);
 					}
 
 					if (responseIsOk) {
