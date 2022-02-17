@@ -421,7 +421,7 @@ public class LoadTestController {
 		regression.addData(streams, cpu);
 		if (cpu >= this.loadTestConfig.getWorkerMaxLoad()) {
 			log.info("Worker max load reached: {}", cpu);
-			return true;
+			return false;
 		} 
 		double prediction = regression.predict(streamsForNextParticipant);
 		if (prediction != prediction) {
