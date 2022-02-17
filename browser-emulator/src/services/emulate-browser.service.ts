@@ -1,4 +1,4 @@
-import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent } from 'openvidu-browser';
+import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent, StreamManager } from 'openvidu-browser';
 import { HttpClient } from '../utils/http-client';
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
@@ -22,6 +22,7 @@ export class EmulateBrowserService {
 	private exceptionMessage: string = '';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
+	private totalPublishers: number = 0;
 
 	constructor(
 		private httpClient: HttpClient = new HttpClient(),
@@ -54,6 +55,13 @@ export class EmulateBrowserService {
 				this.subscriberToSessionsEvents(session);
 
 				await session.connect(token, { clientData: `${EMULATED_USER_TYPE}_${properties.userId}` });
+				let currentPublishers = 0;
+				session.streamManagers.forEach((sm: StreamManager) => {
+					if (sm.stream.connection.role === OpenViduRole.PUBLISHER) {
+						currentPublishers;
+					}
+				})
+				this.totalPublishers = currentPublishers;
 				if (properties.role === OpenViduRole.PUBLISHER) {
 					mediaStreamTracks = await this.createMediaStreamTracks(properties);
 
@@ -68,6 +76,7 @@ export class EmulateBrowserService {
 
 					this.subscriberToPublisherEvents(publisher);
 					await session.publish(publisher);
+					this.totalPublishers++;
 				}
 
 				this.storeInstances(ov, session, mediaStreamTracks?.audioTrackInterval);
@@ -131,10 +140,10 @@ export class EmulateBrowserService {
 
 			if (value.publishers.length > 1) {
 				// Add all streams subscribed by publishers
-				streamsReceived = value.publishers.length * (value.publishers.length - 1);
+				streamsReceived = this.totalPublishers * (value.publishers.length - 1);
 			}
 
-			streamsReceived += value.subscribers.length * value.publishers.length;
+			streamsReceived += value.subscribers.length * this.totalPublishers;
 			result += streamsSent + streamsReceived;
 		});
 

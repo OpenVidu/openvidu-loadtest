@@ -24,6 +24,7 @@ export class RealBrowserService {
 	private readonly VIDEO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakevideo';
 	private readonly AUDIO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakeaudio.wav';
 	private keepAliveIntervals = new Map();
+	private totalPublishers: number = 0;
 
 	constructor(private dockerService: DockerService = new DockerService(), private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
 		this.chromeOptions.addArguments(
@@ -166,9 +167,11 @@ export class RealBrowserService {
 
 					// Wait until connection has been created
 					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), this.BROWSER_WAIT_TIMEOUT_MS);
+					let currentPublishers = 0;
 					if (request.properties.role === OpenViduRole.PUBLISHER) {
 						// Wait until publisher has been published regardless of whether the videos are shown or not
 						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), this.BROWSER_WAIT_TIMEOUT_MS);
+						currentPublishers++;
 					} else {
 						// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
 						await chrome.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
@@ -177,6 +180,8 @@ export class RealBrowserService {
 						buttons.forEach(button => button.click());
 					}
 					console.log('Browser works as expected');
+					const publisherVideos = await chrome.findElements(By.css("[id^=\"remote-video-str\"]"))
+					this.totalPublishers = currentPublishers + publisherVideos.length;
 					// Workaround, currently browsers timeout after 1h unless we send an HTTP request to Selenium
 					// set interval each minute to send a request to Selenium
 					const keepAliveInterval = setInterval(() => {
@@ -203,10 +208,10 @@ export class RealBrowserService {
 
 			if (value.publishers.length > 1) {
 				// Add all streams subscribed by publishers
-				streamsReceived = value.publishers.length * (value.publishers.length - 1);
+				streamsReceived = this.totalPublishers * (value.publishers.length - 1);
 			}
 
-			streamsReceived += value.subscribers.length * value.publishers.length;
+			streamsReceived += value.subscribers.length * this.totalPublishers;
 			result += streamsSent + streamsReceived;
 		});
 
