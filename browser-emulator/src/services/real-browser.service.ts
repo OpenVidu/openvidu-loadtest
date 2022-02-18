@@ -204,13 +204,13 @@ export class RealBrowserService {
 		this.connections.forEach((value: { publishers: string[]; subscribers: string[] }, key: string) => {
 			let streamsSent = value.publishers.length;
 			let streamsReceived = 0;
-
-			if ((this.totalPublishers > 0) && (value.publishers.length > 0)) {
-				// Add all streams subscribed by publishers
-				const externalPublishers = this.totalPublishers - value.publishers.length;
-				const publishersInWorker = value.publishers.length;
-				streamsReceived = publishersInWorker * externalPublishers + publishersInWorker * (publishersInWorker - 1);
+			const publishersInWorker = value.publishers.length;
+			let externalPublishers = this.totalPublishers - publishersInWorker;
+			if (externalPublishers < 0) {
+				externalPublishers = 0;
 			}
+			// Add all streams subscribed by publishers
+			streamsReceived = publishersInWorker * externalPublishers + publishersInWorker * (publishersInWorker - 1);
 
 			streamsReceived += value.subscribers.length * this.totalPublishers;
 			result += streamsSent + streamsReceived;
