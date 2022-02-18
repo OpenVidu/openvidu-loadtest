@@ -421,6 +421,8 @@ public class BrowserEmulatorClient {
 
 	public int getRoleInWorker(String currentWorkerUrl, OpenViduRole role) {
 		Integer idx = role.equals(OpenViduRole.PUBLISHER) ? 0 : 1;
+		int[] initialArray = {0, 0};
+		BrowserEmulatorClient.publishersAndSubscribersInWorker.putIfAbsent(currentWorkerUrl, initialArray);
 		return BrowserEmulatorClient.publishersAndSubscribersInWorker.get(currentWorkerUrl)[idx];
 	}
 
