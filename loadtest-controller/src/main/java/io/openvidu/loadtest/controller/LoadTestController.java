@@ -177,13 +177,13 @@ public class LoadTestController {
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
-					int totalCurrentPublishers = i + 1;
-					this.inititalizeNewWorkerIfNecessary(testCase, OpenViduRole.PUBLISHER, totalCurrentPublishers);
 				}
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
 					if (userNumber.get() < participantsBySession) {
+						int totalCurrentPublishers = i + 1;
+						this.inititalizeNewWorkerIfNecessary(testCase, OpenViduRole.PUBLISHER, totalCurrentPublishers);
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 						userNumber.getAndIncrement();
 					}
@@ -226,11 +226,11 @@ public class LoadTestController {
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
+				}
+				if (responseIsOk) {
 					OpenViduRole nextRoleToAdd = i == publishers - 1 ? OpenViduRole.SUBSCRIBER : OpenViduRole.PUBLISHER;
 					int totalCurrentPublishers = i + 1;
 					this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, totalCurrentPublishers);
-				}
-				if (responseIsOk) {
 					userNumber.getAndIncrement();
 				} else {
 					log.error("Response status is not 200 OK. Exit");
@@ -250,15 +250,16 @@ public class LoadTestController {
 					} else {
 						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
 								sessionNumber.get(), testCase);
-						OpenViduRole nextRoleToAdd = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
-						this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, publishers);
 					}
 
 					if (responseIsOk) {
 						this.totalParticipants.incrementAndGet();
 						if (userNumber.get() < totalParticipants) {
-							userNumber.getAndIncrement();
+							OpenViduRole nextRoleToAdd = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
+							int totalCurrentPublishers = testCase.is_TEACHING() ? publishers + i + 1: publishers;
+							this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, totalCurrentPublishers);
 							sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+							userNumber.getAndIncrement();
 						}
 					} else {
 						log.error("Response status is not 200 OK. Exit");
