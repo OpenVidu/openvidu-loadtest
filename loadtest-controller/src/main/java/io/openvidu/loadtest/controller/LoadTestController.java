@@ -409,9 +409,11 @@ public class LoadTestController {
 		}
 		int streamsSent = publishersInWorker;
 		int streamsReceived = 0;
-		if (publishersInWorker > 1) {
-			streamsReceived += totalPublishers * (publishersInWorker - 1);
+		int externalPublishers = totalPublishers - publishersInWorker;
+		if (externalPublishers < 0) {
+			externalPublishers = 0;
 		}
+		streamsReceived += externalPublishers * publishersInWorker + publishersInWorker * (publishersInWorker - 1);
 		streamsReceived += subscribersInWorker * totalPublishers;
 		int streamsForNextParticipant = streamsSent + streamsReceived;
 
