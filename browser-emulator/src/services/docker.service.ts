@@ -67,6 +67,12 @@ export class DockerService {
 					}
 				}
 				try {
+					if (!!err) {
+						reject(err);
+					}
+					if (stream === null) {
+						reject('No stream');
+					}
 					this.docker.modem.followProgress(stream, onFinished, onProgress);
 				} catch (error) {
 					reject(error);

@@ -24,6 +24,7 @@ export class InstanceService {
 	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig`;
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
+	private pullImagesRetries: number = 0;
 
 	private constructor(private dockerService: DockerService = new DockerService()) {}
 
@@ -124,14 +125,28 @@ export class InstanceService {
 	}
 
 	async pullImagesNeeded(): Promise<void> {
-		if (!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))) {
-			await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
-		}
-		if (!(await this.dockerService.imageExists(this.CHROME_BROWSER_IMAGE))) {
-			await this.dockerService.pullImage(this.CHROME_BROWSER_IMAGE);
-		}
-		if (!(await this.dockerService.imageExists(this.KMS_IMAGE)) && EMULATED_USER_TYPE === EmulatedUserType.KMS) {
-			await this.dockerService.pullImage(this.KMS_IMAGE);
+		try {
+			if (!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))) {
+				await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
+			}
+			if (!(await this.dockerService.imageExists(this.CHROME_BROWSER_IMAGE))) {
+				await this.dockerService.pullImage(this.CHROME_BROWSER_IMAGE);
+			}
+			if (!(await this.dockerService.imageExists(this.KMS_IMAGE)) && EMULATED_USER_TYPE === EmulatedUserType.KMS) {
+				await this.dockerService.pullImage(this.KMS_IMAGE);
+			}
+		} catch (err) {
+			console.error("Error pulling images: ");
+			console.error(err);
+			console.log("Retrying...");
+			// retry 5 times
+			if (this.pullImagesRetries < 5) {
+				this.pullImagesRetries++;
+				await this.pullImagesNeeded();
+			} else {
+				this.pullImagesRetries = 0;
+				throw err;
+			}
 		}
 	}
 
