@@ -21,9 +21,10 @@ export class ElasticSearchService {
 		return ElasticSearchService.instance;
 	}
 
-	async initialize() {
+	async initialize(indexName: string = '') {
 		if (this.needToBeConfigured()) {
 			console.log('Initializing ElasticSearch');
+			this.indexName = indexName;
 			const clientOptions: ClientOptions = {
 				node: process.env.ELASTICSEARCH_HOSTNAME,
 				maxRetries: 5,
@@ -44,7 +45,7 @@ export class ElasticSearchService {
 				this.client = new Client(clientOptions);
 				const pingSuccess = await this.client.ping();
 				this.pingSuccess = pingSuccess.body;
-				if (this.pingSuccess) {
+				if (this.pingSuccess && !this.indexName) {
 					await this.createElasticSearchIndex();
 				}
 			} catch (error) {

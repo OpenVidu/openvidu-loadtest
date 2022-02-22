@@ -29,20 +29,21 @@ This services also is listening for a **WebSocket communication** on `ws:browser
 ### PING INSTANCE
 
 * #### METHOD: **GET**
-* #### URL:  https://localhost:5000/openvidu-browser/instance/ping
+* #### URL:  https://localhost:5000/instance/ping
 
 
 
 ### INITIALIZE INSTANCE
 
 * #### METHOD: **POST**
-* #### URL:  https://localhost:5000/openvidu-browser/instance/initialize
+* #### URL:  https://localhost:5000/instance/initialize
 * #### BODY
 ```json
 {
 	"elasticSearchHost": "your-elasticsearch-hostname",
 	"elasticSearchUserName": "your-username",
 	"elasticSearchPassword": "your-password",
+	"elasticSearchIndex": "your-optional-index",
 	"awsAccessKey": "your-AWS-access-key",
 	"awsSecretAccessKey": "your-AWS-secret-key"
 

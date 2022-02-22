@@ -45,7 +45,10 @@ app.post('/initialize', async (req: Request, res: Response) => {
 			process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
 			process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
 			process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
-			await elasticSearchService.initialize();
+			if (!!request.elasticSearchIndex) {
+				process.env.ELASTICSEARCH_INDEX = request.elasticSearchIndex;
+			}
+			await elasticSearchService.initialize(process.env.ELASTICSEARCH_INDEX);
 			try {
 				await instanceService.launchMetricBeat();
 			} catch (error) {
