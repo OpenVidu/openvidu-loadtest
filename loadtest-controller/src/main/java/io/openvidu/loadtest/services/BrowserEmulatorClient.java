@@ -82,7 +82,8 @@ public class BrowserEmulatorClient {
 				.elasticSearchIndex(LOADTEST_INDEX)
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
-				.s3BucketName(loadTestConfig.getS3BucketName()).build().toJson();
+				.s3BucketName(loadTestConfig.getS3BucketName())
+				.qoeAnalysis(loadTestConfig.isQoeAnalysis()).build().toJson();
 		lastResponses = new ArrayList<String>();
 
 		try {

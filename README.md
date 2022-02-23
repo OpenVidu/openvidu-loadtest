@@ -225,6 +225,8 @@ MEDIANODE_LOAD_FOR_START_RECORDING=0
 # 0: Recording disabled, 1 recording starts each session, 2 recording starts each two session ...
 RECORDING_SESSION_GRUPED_BY=0
 # Bucket name where the recordings will be saved
+# Record each MediaStream in each worker for Quality of Experience analysis
+QOE_ANALYSIS=true
 S3_BUCKET_NAME=openvidu-loadtest-capacity
 ```
 

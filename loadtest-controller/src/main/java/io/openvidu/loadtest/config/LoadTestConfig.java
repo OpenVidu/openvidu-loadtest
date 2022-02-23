@@ -79,6 +79,8 @@ public class LoadTestConfig {
 	private boolean retryMode;
 	
 	private int retryTimes;
+
+	private boolean qoeAnalysis;
 	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -212,6 +214,10 @@ public class LoadTestConfig {
 	public int getRetryTimes() {
 		return retryTimes;
 	}
+
+	public boolean isQoeAnalysis() {
+		return qoeAnalysis;
+	}
 	
 	@PostConstruct
 	private void checkConfigurationProperties() {
@@ -248,6 +254,7 @@ public class LoadTestConfig {
 			s3bucketName = asOptionalString("S3_BUCKET_NAME");
 			retryMode = asBoolean("RETRY_MODE");
 			retryTimes = asInt("RETRY_TIMES");
+			qoeAnalysis = asBoolean("QOE_ANALYSIS");
 			this.printInfo();
 
 		} catch (Exception e) {

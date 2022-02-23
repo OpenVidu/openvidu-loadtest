@@ -27,6 +27,11 @@ public class RequestBody {
 	private boolean headlessBrowser = false;
 	private String recordingMetadata = "";
 	private String s3BucketName = "";
+	private boolean qoeAnalysis = false;
+
+	public boolean isQoeAnalysis() {
+		return qoeAnalysis;
+	}
 
 	public RequestBody() {
 	}
@@ -113,6 +118,11 @@ public class RequestBody {
 
 	public boolean isHeadlessBrowser() {
 		return headlessBrowser;
+	}
+
+	public RequestBody qoeAnalysis(boolean qoeAnalysis) {
+		this.qoeAnalysis = qoeAnalysis;
+		return this;
 	}
 
 	public RequestBody openviduUrl(String openviduUrl) {
@@ -234,7 +244,7 @@ public class RequestBody {
 
 	public RequestBody build() {
 		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName, elasticSearchPassword, elasticSearchIndex, awsAccessKey, awsSecretAccessKey, browserMode, userId, sessionName, token, role, audio, video,
-				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser, recordingMetadata, s3BucketName);
+				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser, recordingMetadata, s3BucketName, qoeAnalysis);
 	}
 
 	public JsonObject toJson() {
@@ -250,6 +260,7 @@ public class RequestBody {
 		jsonBody.addProperty("awsSecretAccessKey", this.awsSecretAccessKey);
 		jsonBody.addProperty("s3BucketName", this.s3BucketName);
 		jsonBody.addProperty("browserMode", this.browserMode.getValue());
+		jsonBody.addProperty("qoeAnalysis", this.qoeAnalysis);
 		properties.addProperty("userId", this.userId);
 		properties.addProperty("sessionName", this.sessionName);
 		properties.addProperty("role", this.role.getValue());
@@ -282,7 +293,7 @@ public class RequestBody {
 	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost, String elasticSearchUserName, String elasticSearchPassword, String elasticSearchIndex, String awsAccessKey, String awsSecretAccessKey, BrowserMode browserMode, String userId,
 			String sessionName, String token, OpenViduRole role, boolean audio, boolean video, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, int frameRate, boolean browserRecording,
-			boolean showVideoElements, boolean headlessBrowser, String recordingMetadata, String s3BucketName) {
+			boolean showVideoElements, boolean headlessBrowser, String recordingMetadata, String s3BucketName, boolean qoeAnalysis) {
 		super();
 		this.openviduUrl = openviduUrl;
 		this.openviduSecret = openviduSecret;
@@ -307,6 +318,7 @@ public class RequestBody {
 		this.headlessBrowser = headlessBrowser;
 		this.recordingMetadata = recordingMetadata;
 		this.s3BucketName = s3BucketName;
+		this.qoeAnalysis = qoeAnalysis;
 	}
 
 }
