@@ -33,6 +33,7 @@ public class BrowserEmulatorClient {
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
 	private static final int HTTP_STATUS_OK = 200;
 	private static final int WORKER_PORT = 5000;
+	private static final String LOADTEST_INDEX = "loadtest-webrtc-stats-" + System.currentTimeMillis();
 	private static double workerCpuPct = 0;
 	private static int streamsInWorker = 0;
 	private static int participantsInWorker = 0;
@@ -78,6 +79,7 @@ public class BrowserEmulatorClient {
 		JsonObject body = new RequestBody().elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
 				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
 				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
+				.elasticSearchIndex(LOADTEST_INDEX)
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
 				.s3BucketName(loadTestConfig.getS3BucketName()).build().toJson();
