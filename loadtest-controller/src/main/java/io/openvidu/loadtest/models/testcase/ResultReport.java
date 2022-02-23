@@ -12,6 +12,8 @@ public class ResultReport {
 	private int numSessionsCreated = 0;
 	private int workersUsed = 0;
 	private List<Integer> streamsPerWorker = new ArrayList<>();
+	private List<Long> timePerWorker = new ArrayList<>();
+	private List<Long> timePerRecordingWorker = new ArrayList<>();
 	private String sessionTypology;
 	private String browserModeSelected;
 	private boolean browserRecording;
@@ -34,7 +36,7 @@ public class ResultReport {
 				this.workersUsed, this.streamsPerWorker, this.sessionTypology, this.browserModeSelected,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
 				this.sessionsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
-				this.kibanaUrl, this.s3BucketName, this.lastResponsesArray);
+				this.kibanaUrl, this.s3BucketName, this.lastResponsesArray, this.timePerWorker, this.timePerRecordingWorker);
 	}
 
 	public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -127,11 +129,22 @@ public class ResultReport {
 		return this;
 	}
 
+	public ResultReport setTimePerWorker(List<Long> timePerWorker) {
+		this.timePerWorker = timePerWorker;
+		return this;
+	}
+
+	public ResultReport setTimePerRecordingWorker(List<Long> timePerRecordingWorker) {
+		this.timePerRecordingWorker = timePerRecordingWorker;
+		return this;
+	}
+
 	private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
 			List<Integer> streamsPerWorker, String sessionTypology, String browserModeSelected,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
 			int sessionsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
-			Calendar endTime, String kibanaUrl, String s3BucketName, List<String> lastResponsesArray) {
+			Calendar endTime, String kibanaUrl, String s3BucketName, List<String> lastResponsesArray, List<Long> timePerWorker,
+			List<Long> timePerRecordingWorker) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
 		this.numSessionsCreated = numSessionsCreated;
@@ -150,6 +163,8 @@ public class ResultReport {
 		this.kibanaUrl = kibanaUrl;
 		this.s3BucketName = s3BucketName;
 		this.lastResponsesArray = lastResponsesArray;
+		this.timePerWorker = timePerWorker;
+		this.timePerRecordingWorker = timePerRecordingWorker;
 	}
 
 	private String getDuration() {
@@ -190,10 +205,14 @@ public class ResultReport {
 						: "")
 				+ (isManualParticipantAllocation ? ""
 						: "Number of streams per workers:	" + streamsPerWorker + System.getProperty("line.separator"))
-				+ "Stop reason:	" + stopReason + System.getProperty("line.separator") + "Test duration:	"
+				+ "Stop reason:	" + stopReason + System.getProperty("line.separator")
+				+ (timePerWorker.size() == 0 ? "" : 
+					"Time each worker has been alive (minutes):	" + timePerWorker + System.getProperty("line.separator"))
+				+ (timePerRecordingWorker.size() == 0 ? "" :
+					"Time each worker has been alive (minutes, recording workers):	" + timePerRecordingWorker + System.getProperty("line.separator"))
 				+ (lastResponsesArray.size() == 0 ? ""
 						: "Last responses array:	" + lastResponsesArray + System.getProperty("line.separator"))
-				+ getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
+				+ "Test duration:	" + getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
 				+ System.getProperty("line.separator") + "Video quality control:	" + s3BucketName
 				+ System.getProperty("line.separator") + System.getProperty("line.separator")
 				+ "   ---------------------   ";

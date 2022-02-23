@@ -3,8 +3,11 @@ package io.openvidu.loadtest.controller;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
@@ -59,6 +62,11 @@ public class LoadTestController {
 	private static List<String> devWorkersList = new ArrayList<String>();
 	private static List<Instance> recordingWorkersList = new ArrayList<Instance>();
 	private static List<WebSocketClient> wsSessions = new ArrayList<WebSocketClient>();
+	
+	private static List<Date> workerStartTimes = new ArrayList<>();
+	private static List<Date> recordingWorkerStartTimes = new ArrayList<>();
+	private static List<Long> workerTimes = new ArrayList<>();
+	private static List<Long> recordingWorkerTimes = new ArrayList<>();
 
 	private static String currentWorkerUrl = "";
 	private static int workersUsed = 0;
@@ -105,6 +113,8 @@ public class LoadTestController {
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
 					}
 
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
@@ -127,6 +137,8 @@ public class LoadTestController {
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
+						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
 					}
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
@@ -339,6 +351,7 @@ public class LoadTestController {
 					List<Instance> nextInstanceList = this.ec2Client
 							.launchInstance(this.loadTestConfig.getWorkersRumpUp());
 					awsWorkersList.addAll(nextInstanceList);
+					workerStartTimes.addAll(nextInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
 					newWorkerUrl = nextInstanceList.get(0).getPublicDnsName();
 					log.info("New worker has been launched: {}", newWorkerUrl);
 
@@ -388,6 +401,7 @@ public class LoadTestController {
 		if (PROD_MODE) {
 			log.info("Starting recording EC2 instance...");
 			List<Instance> newRecordingInstanceList = this.ec2Client.launchRecordingInstance(1);
+			recordingWorkerStartTimes.addAll(newRecordingInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
 			recordingWorkersList.addAll(newRecordingInstanceList);
 			initializeInstance(newRecordingInstanceList.get(0).getPublicDnsName());
 			uri = newRecordingInstanceList.get(0).getPublicDnsName();
@@ -458,6 +472,10 @@ public class LoadTestController {
 		workersUsed = 0;
 		currentWorkerUrl = "";
 		streamsPerWorker = new ArrayList<>();
+		workerStartTimes = new ArrayList<>();
+		recordingWorkerStartTimes = new ArrayList<>();
+		workerTimes = new ArrayList<>();
+		recordingWorkerTimes = new ArrayList<>();
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 		waitToMediaServerLiveAgain();
 	}
@@ -485,6 +503,14 @@ public class LoadTestController {
 			this.browserEmulatorClient.disconnectAll(workersUrl);
 			this.ec2Client.stopInstance(recordingWorkersList);
 			this.ec2Client.stopInstance(awsWorkersList);
+
+			Date stopDate = new Date();
+			workerTimes = workerStartTimes.stream()
+				.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(), TimeUnit.MILLISECONDS))
+				.collect(Collectors.toList());
+			recordingWorkerTimes = recordingWorkerStartTimes.stream()
+					.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(), TimeUnit.MILLISECONDS))
+					.collect(Collectors.toList());
 			awsWorkersList = new ArrayList<Instance>();
 			recordingWorkersList = new ArrayList<Instance>();
 
@@ -516,7 +542,9 @@ public class LoadTestController {
 				.setSessionsPerWorker(loadTestConfig.getSessionsPerWorker())
 				.setS3BucketName(
 						"https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName())
-				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray()).build();
+				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray())
+				.setTimePerWorker(workerTimes)
+				.setTimePerRecordingWorker(recordingWorkerTimes).build();
 
 		this.io.exportResults(rr);
 
