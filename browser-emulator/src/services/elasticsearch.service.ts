@@ -83,7 +83,7 @@ export class ElasticSearchService {
 	}
 
 	async clean() {
-		await this.createElasticSearchIndex();
+		// await this.createElasticSearchIndex();
 	}
 
 	private isHostnameAvailable(): boolean {
