@@ -22,6 +22,7 @@ export class RealBrowserService {
 	private driverMap: Map<string, WebDriver> = new Map();
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
 	private readonly RECORDINGS_PATH = '/home/ubuntu/recordings';
+	private readonly QOE_RECORDINGS_PATH = '/home/ubuntu/qoe';
 	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
 	private readonly VIDEO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakevideo';
 	private readonly AUDIO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakeaudio.wav';
@@ -305,6 +306,7 @@ export class RealBrowserService {
 			HostConfig: {
 				Binds: [
 					`${process.env.PWD}/recordings/chrome:${this.RECORDINGS_PATH}`,
+					`${process.env.PWD}/recordings/qoe:${this.QOE_RECORDINGS_PATH}`,
 					`${process.env.PWD}/src/assets/mediafiles:${this.MEDIA_FILES_PATH}`,
 				],
 				PortBindings: {
