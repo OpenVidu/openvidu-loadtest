@@ -289,7 +289,8 @@ export class RealBrowserService {
 
 	private async enableRecordingAccess(containerId: string) {
 		const command = `sudo chmod -R 777 ${this.RECORDINGS_PATH}`;
-		await this.dockerService.runCommandInContainer(containerId, command);
+		const command2 = `sudo chmod -R 777 ${this.QOE_RECORDINGS_PATH}`;
+		await Promise.all([this.dockerService.runCommandInContainer(containerId, command), this.dockerService.runCommandInContainer(containerId, command2)]);
 	}
 
 	private getChromeContainerOptions(containerName: string, hostPort: number): ContainerCreateOptions {
