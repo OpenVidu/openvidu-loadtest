@@ -4,7 +4,7 @@ import { InstanceService } from './instance.service';
 import { RealBrowserService } from './real-browser.service';
 import { ElasticSearchService } from './elasticsearch.service';
 import { LocalStorageService } from './local-storage.service';
-import { OpenViduEventsService, WebrtcStatsService } from './config-storage.service';
+import { OpenViduEventsService, QoERecordingsService, WebrtcStatsService } from './config-storage.service';
 import { OpenViduRole } from '../types/openvidu.type';
 import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
@@ -45,8 +45,9 @@ export class BrowserManagerService {
 			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
 			try {
 				const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
-				const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName() };
-				const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig() };
+				const qoeService: QoERecordingsService = new QoERecordingsService();
+				const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName(), qoeStorageName: qoeService.getItemName() };
+				const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig(), qoeStorageValue: qoeService.getConfig() };
 				await this.realBrowserService.launchBrowser(connectionId, request, storageNameObject, storageValueObject);
 				this.realBrowserService.storeConnection(connectionId, request.properties);
 			} catch (error) {

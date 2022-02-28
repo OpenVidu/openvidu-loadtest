@@ -15,6 +15,7 @@ var RESOLUTION;
 var ROLE;
 var RECORDING_OUTPUT_MODE;
 var FRAME_RATE;
+var QOE_ANALYSIS;
 
 var OV;
 var session;
@@ -22,6 +23,8 @@ var session;
 var subscriptions = 0;
 const MAX_SUBSCRIPTIONS = 5;
 
+var remoteControls = new Map();
+var recordingBlobs = [];
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -36,6 +39,7 @@ window.onload = () => {
 	ROLE = url.searchParams.get("role");
 	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
 	FRAME_RATE = url.searchParams.get("frameRate");
+	QOE_ANALYSIS = url.searchParams.get("qoeAnalysis");
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 
 	const tokenCanBeCreated = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL && !!OPENVIDU_SERVER_SECRET;
@@ -113,6 +117,12 @@ async function joinSession() {
 				document.getElementById(videoId).play();
 				createUnmuteButton('subscriber-need-to-be-unmuted', videoId);
 			}
+				
+			if (!!QOE_ANALYSIS) {
+				var remoteControl = new ElasTestRemoteControl();
+				remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE);
+				remoteControls.set(event.stream.streamId, remoteControl);
+			}
 
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
 		});
@@ -120,7 +130,16 @@ async function joinSession() {
 
 	session.on("streamDestroyed", event => {
 		sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
-
+		if (!!QOE_ANALYSIS) {
+			var remoteControl = remoteControls.get(event.stream.streamId);
+			remoteControl.stopRecording().then(() => {
+				console.log("Recording stopped because of streamDestroyed");
+				return remoteControl.recordingToData()
+			}).then((blob) => {
+				recordingBlobs.push(blob);
+				console.log("Blob created");
+			})
+		}
 	});
 
 	session.on("sessionDisconnected", event => {
@@ -385,4 +404,47 @@ function showVideoRoom() {
 	document.getElementById('join-form').style.display = 'none';
 	document.getElementById('local').style.display = 'block';
 	document.getElementById('remote').style.display = 'block';
+}
+
+async function getRecordings(fileNamePrefix) {
+	const blobArray = [];
+	for (const remoteControlEntry of remoteControls.entries()) {
+		const remoteControl = remoteControlEntry[1];
+		console.debug("Stopping recording...");
+		await remoteControl.stopRecording();
+		console.debug("Recording stopped, getting blob...");
+		const blob = await remoteControl.recordingToData();
+		console.log(blob);
+		blobArray.push(blob);
+		if (!!blob) {
+			console.debug("Blob saved: " + blob.size + " bytes");
+		} else {
+			console.warn("Blob is null");
+		}
+	}
+	blobArray.push(...recordingBlobs);
+	return Promise.all(blobArray.map((blob, index) => sendBlob(blob, fileNamePrefix, index)));
+}
+
+function sendBlob(blob, fileNamePrefix, index) {
+	var ITEM_NAME = 'ov-qoe-config';
+
+	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
+	if (url) {
+		return new Promise((resolve, reject) => {
+			const formData = new FormData();
+			formData.append('file', blob, fileNamePrefix + '_' + index + '.webm');
+			$.ajax({
+				type: 'POST',
+				url: url.httpEndpoint,
+				data: formData,
+				processData: false,
+				contentType: false,
+				success: (response) => resolve(),
+				error: (error) => reject(error)
+			});
+		});
+	} else {
+		return Promise.resolve();
+	}
 }

@@ -10,7 +10,7 @@ export interface LoadTestPostRequest {
 }
 
 export interface InitializePostRequest {
-
+	qoeAnalysis?: string;
     elasticSearchPassword: string;
 	elasticSearchUserName: string;
 	elasticSearchHost: string;

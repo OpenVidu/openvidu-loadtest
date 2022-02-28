@@ -16,3 +16,7 @@ export interface StorageValueObject {
     webrtcStorageValue: string,
     ovEventStorageValue: string
 }
+
+export interface QoeRecordingsConfig {
+    httpEndpoint: string
+}

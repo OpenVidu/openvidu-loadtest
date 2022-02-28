@@ -41,6 +41,10 @@ app.post('/initialize', async (req: Request, res: Response) => {
 
 		console.log('Initialize browser-emulator');
 
+		if (isProdMode && !!request.qoeAnalysis) {
+			process.env.QOE_ANALYSIS = request.qoeAnalysis;
+		}
+
 		if (isProdMode && !elasticSearchService.isElasticSearchRunning()) {
 			process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
 			process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
@@ -79,6 +83,7 @@ function createRecordingsDirectory() {
 		fs.mkdirSync(dir);
 		fs.mkdirSync(dir + '/kms');
 		fs.mkdirSync(dir + '/chrome');
+		fs.mkdirSync(dir + '/qoe');
 	}
 }
 

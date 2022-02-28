@@ -24,6 +24,7 @@ export class EmulateBrowserService {
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private totalPublishers: number = 0;
 
+	// TODO: Implement QoE Analysis
 	constructor(
 		private httpClient: HttpClient = new HttpClient(),
 		private nodeWebrtcService: CanvasService | FfmpegService = null,

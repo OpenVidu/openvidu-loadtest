@@ -7,6 +7,7 @@ import { HackService } from './services/hack.service';
 import { app as ovBrowserController } from './controllers/openvidu-browser.controller';
 import { app as eventsController } from './controllers/events.controller';
 import { app as instanceController } from './controllers/instance.controller';
+import { app as qoeController } from './controllers/qoe.controller';
 
 import { InstanceService } from './services/instance.service';
 import { ApplicationMode, EmulatedUserType } from './types/config.type';
@@ -35,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/', eventsController);
 app.use('/openvidu-browser', ovBrowserController);
 app.use('/instance', instanceController);
+app.use('/qoe', qoeController);
 
 const server = https.createServer(options, app);
 

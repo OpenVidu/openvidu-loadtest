@@ -1,5 +1,6 @@
 import fs = require('fs');
-import { Builder, By, Capabilities, until, WebDriver } from 'selenium-webdriver';
+const fetch = require('node-fetch');
+import { Builder, By, Capabilities, until, WebDriver, logging } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
 import { LoadTestPostRequest, TestProperties } from '../types/api-rest.type';
 import { BrowserContainerInfo } from '../types/container-info.type';
@@ -18,6 +19,7 @@ export class RealBrowserService {
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
 	private containerMap: Map<string, BrowserContainerInfo> = new Map();
+	private driverMap: Map<string, WebDriver> = new Map();
 	private readonly CHROME_BROWSER_IMAGE = 'elastestbrowsers/chrome';
 	private readonly RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
@@ -35,6 +37,9 @@ export class RealBrowserService {
 			'--allow-file-access-from-files',
 			`--use-file-for-fake-audio-capture=${this.AUDIO_FILE_LOCATION}`
 		);
+		const prefs = new logging.Preferences();
+		prefs.setLevel(logging.Type.BROWSER, logging.Level.DEBUG);
+		this.chromeCapabilities.setLoggingPrefs(prefs);
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
 	}
 
@@ -62,14 +67,15 @@ export class RealBrowserService {
 			const options: ContainerCreateOptions = this.getChromeContainerOptions(containerName, bindedPort);
 			containerId = await this.dockerService.startContainer(options);
 			this.containerMap.set(containerId, {
+				containerName,
 				connectionRole: properties.role,
 				bindedPort,
 				isRecording,
 				sessionName: properties.sessionName,
 			});
 			await this.enableMediaFileAccess(containerId);
+			await this.enableRecordingAccess(containerId);
 			if (isRecording) {
-				await this.enableRecordingAccess(containerId);
 				console.log('Starting browser recording');
 				await this.startRecordingInContainer(containerId, containerName);
 			}
@@ -102,6 +108,7 @@ export class RealBrowserService {
 	async deleteStreamManagerWithConnectionId(containerId: string): Promise<void> {
 		console.log('Removing and stopping container ', containerId);
 		const value = this.containerMap.get(containerId);
+		await this.saveQoERecordings(containerId, value.containerName);
 		await this.stopBrowserContainer(containerId, value?.isRecording);
 		this.containerMap.delete(containerId);
 		this.deleteConnection(value?.sessionName, containerId, value?.connectionRole);
@@ -109,16 +116,22 @@ export class RealBrowserService {
 
 	deleteStreamManagerWithRole(role: any): Promise<void> {
 		return new Promise(async (resolve, reject) => {
-			const containersToDelete: { containerId: string; isRecording: boolean }[] = [];
+			const containersToDelete: { containerId: string; containerName: string; isRecording: boolean }[] = [];
 			const promisesToResolve: Promise<void>[] = [];
-			this.containerMap.forEach((info: BrowserContainerInfo, containerId: string) => {
+			const recordingPromises: Promise<void>[] = [];
+			this.containerMap.forEach(async (info: BrowserContainerInfo, containerId: string) => {
 				if (info.connectionRole === role) {
-					containersToDelete.push({ containerId, isRecording: info.isRecording });
+					recordingPromises.push(this.saveQoERecordings(containerId, info.containerName))
+					containersToDelete.push({ containerId, containerName: info.containerName, isRecording: info.isRecording });
 					this.deleteConnection(info.sessionName, containerId, info.connectionRole);
 				}
 			});
-
-			containersToDelete.forEach(async (value: { containerId: string; isRecording: boolean }) => {
+			try {
+				await Promise.all(recordingPromises);
+			} catch (error) {
+				reject(error);
+			}
+			containersToDelete.forEach(async (value: { containerId: string; containerName: string; isRecording: boolean }) => {
 				promisesToResolve.push(this.stopBrowserContainer(value.containerId, value.isRecording));
 				this.containerMap.delete(value.containerId);
 			});
@@ -151,6 +164,7 @@ export class RealBrowserService {
 					console.log(webappUrl);
 
 					let chrome = await this.getChromeDriver();
+					this.driverMap.set(connectionId, chrome);
 					await chrome.get(webappUrl);
 
 					if (!!storageNameObj && !!storageValueObj) {
@@ -159,6 +173,7 @@ export class RealBrowserService {
 							() => {
 								localStorage.setItem(arguments[0].webrtcStorageName, arguments[1].webrtcStorageValue);
 								localStorage.setItem(arguments[0].ovEventStorageName, arguments[1].ovEventStorageValue);
+								localStorage.setItem(arguments[0].qoeStorageName, arguments[1].qoeStorageValue);
 							},
 							storageNameObj,
 							storageValueObj
@@ -193,6 +208,7 @@ export class RealBrowserService {
 					resolve();
 				} catch (error) {
 					console.log(error);
+					this.printBrowserLogs(connectionId);
 					reject(this.errorGenerator.generateError(error));
 				}
 			}, timeout);
@@ -281,6 +297,9 @@ export class RealBrowserService {
 			name: containerName,
 			ExposedPorts: {
 				'4444/tcp': {},
+				// VNC service password for 'elastestbrowsers/chrome' image is 'selenoid'
+				// '6080/tcp': {},
+				// '5900/tcp': {},
 			},
 			Env: [`DBUS_SESSION_BUS_ADDRESS=/dev/null`],
 			HostConfig: {
@@ -288,7 +307,11 @@ export class RealBrowserService {
 					`${process.env.PWD}/recordings/chrome:${this.RECORDINGS_PATH}`,
 					`${process.env.PWD}/src/assets/mediafiles:${this.MEDIA_FILES_PATH}`,
 				],
-				PortBindings: { '4444/tcp': [{ HostPort: hostPort.toString(), HostIp: '0.0.0.0' }] },
+				PortBindings: {
+					'4444/tcp': [{ HostPort: hostPort.toString(), HostIp: '0.0.0.0' }],
+					// '6080/tcp': [{ HostPort: (6000 + this.containerMap.size).toString(), HostIp: '0.0.0.0' }],
+					// '5900/tcp': [{ HostPort: (5900 + this.containerMap.size).toString(), HostIp: '0.0.0.0' }],
+				},
 				CapAdd: ['SYS_ADMIN'],
 			},
 		};
@@ -323,6 +346,7 @@ export class RealBrowserService {
 		const secret = !!process.env.OPENVIDU_SECRET ? `secret=${process.env.OPENVIDU_SECRET}&` : '';
 		const recordingMode = !!properties.recordingOutputMode ? `recordingmode=${properties.recordingOutputMode}&` : '';
 		const tokenParam = !!token ? `token=${token}` : '';
+		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
 			`https://${process.env.LOCATION_HOSTNAME}/?` +
 			publicUrl +
@@ -336,7 +360,8 @@ export class RealBrowserService {
 			`video=${properties.video}&` +
 			`resolution=${properties.resolution}&` +
 			`showVideoElements=${properties.showVideoElements}&` +
-			`frameRate=${properties.frameRate}`
+			`frameRate=${properties.frameRate}&` +
+			`qoeAnalysis=${qoeAnalysis}`
 		);
 	}
 
@@ -347,6 +372,47 @@ export class RealBrowserService {
 			return fs.existsSync(videoFile) && fs.existsSync(audioFile);
 		} catch (error) {
 			return false;
+		}
+	}
+
+	private async saveQoERecordings(containerId: string, containerName: string) {
+		if (!!process.env.QOE_ANALYSIS) {
+			console.log("Saving QoE Recordings for container " + containerName);
+			const chrome = this.driverMap.get(containerId);
+			if (!!chrome) {
+				console.log("Executing getRecordings for container " + containerName);
+				const fileNamePrefix = `QOE_${containerName}`;
+				try {
+					await chrome.executeAsyncScript(`
+						const callback = arguments[arguments.length - 1];
+						await getRecordings('${fileNamePrefix}');
+						callback();
+					`);
+				} catch(error) {
+					console.log("Error saving QoE Recordings for container " + containerName);
+					console.log(error);
+					this.printBrowserLogs(containerId);
+				}
+				this.driverMap.delete(containerId);
+			}
+		}
+	}
+
+	private async printBrowserLogs(connectionId: string) {
+		const entries = await this.driverMap.get(connectionId)?.manage()?.logs()?.get(logging.Type.BROWSER)
+		if (!!entries) {
+			function formatTime(s: number): string {
+				const dtFormat = new Intl.DateTimeFormat('en-GB', {
+				  timeStyle: 'medium',
+				  timeZone: 'UTC'
+				});
+				
+				return dtFormat.format(new Date(s * 1e3));
+			  }
+
+			entries.forEach(function(entry) {
+				console.log('%s - [%s] %s', formatTime(entry.timestamp), entry.level.name, entry.message);
+			});
 		}
 	}
 }
