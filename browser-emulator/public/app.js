@@ -24,7 +24,7 @@ var subscriptions = 0;
 const MAX_SUBSCRIPTIONS = 5;
 
 var remoteControls = new Map();
-var recordingBlobs = [];
+var recordingBlobs = new Map();
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -121,7 +121,8 @@ async function joinSession() {
 			if (!!QOE_ANALYSIS) {
 				var remoteControl = new ElasTestRemoteControl();
 				remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE);
-				remoteControls.set(event.stream.streamId, remoteControl);
+				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+				remoteControls.set(remoteUser, remoteControl);
 			}
 
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
@@ -136,7 +137,8 @@ async function joinSession() {
 				console.log("Recording stopped because of streamDestroyed");
 				return remoteControl.recordingToData()
 			}).then((blob) => {
-				recordingBlobs.push(blob);
+				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+				recordingBlobs.set(remoteUser, blob);
 				console.log("Blob created");
 			})
 		}
@@ -407,33 +409,39 @@ function showVideoRoom() {
 }
 
 async function getRecordings(fileNamePrefix) {
-	const blobArray = [];
+	const blobMap = new Map();
 	for (const remoteControlEntry of remoteControls.entries()) {
+		const remoteUser = remoteControlEntry[0];
 		const remoteControl = remoteControlEntry[1];
 		console.debug("Stopping recording...");
 		await remoteControl.stopRecording();
 		console.debug("Recording stopped, getting blob...");
 		const blob = await remoteControl.recordingToData();
-		console.log(blob);
-		blobArray.push(blob);
+		blobMap.set(remoteUser, blob);
 		if (!!blob) {
 			console.debug("Blob saved: " + blob.size + " bytes");
 		} else {
 			console.warn("Blob is null");
 		}
 	}
-	blobArray.push(...recordingBlobs);
-	return Promise.all(blobArray.map((blob, index) => sendBlob(blob, fileNamePrefix, index)));
+	recordingBlobs.forEach((blob, remoteUser) => blobMap.set(remoteUser, blob));
+	let promises = [];
+	blobMap.forEach((blob, remoteUser) => promises.push(sendBlob(blob, fileNamePrefix, remoteUser)));
+	return Promise.all(promises);
 }
 
-function sendBlob(blob, fileNamePrefix, index) {
+function sendBlob(blob, fileNamePrefix, remoteUserId) {
 	var ITEM_NAME = 'ov-qoe-config';
 
 	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
 	if (url) {
 		return new Promise((resolve, reject) => {
 			const formData = new FormData();
-			formData.append('file', blob, fileNamePrefix + '_' + index + '.webm');
+			// Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
+			const finalSuffix = remoteUserId === USER_ID ? remoteUserId + '_' + Math.floor(Math.random() * 1000000) : remoteUserId;
+			const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
+			console.log("Sending file: " + fileName);
+			formData.append('file', blob, fileName);
 			$.ajax({
 				type: 'POST',
 				url: url.httpEndpoint,

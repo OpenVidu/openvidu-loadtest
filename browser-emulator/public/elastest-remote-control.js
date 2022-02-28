@@ -70,9 +70,7 @@ ElasTestRemoteControl.prototype.recordingToData = async function() {
 	if (!this.recordRTC) {
 		console.warn("No recording found.");
 	} else {
-		var blob = await this.recordRTC.getBlob();
-		console.log(blob);
-		return blob;
+		return await this.recordRTC.getBlob();
 	}
 }
 
