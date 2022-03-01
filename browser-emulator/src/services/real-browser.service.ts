@@ -388,8 +388,13 @@ export class RealBrowserService {
 				try {
 					await chrome.executeAsyncScript(`
 						const callback = arguments[arguments.length - 1];
-						await getRecordings('${fileNamePrefix}');
-						callback();
+						try {
+							await getRecordings('${fileNamePrefix}');
+							callback();
+						} catch (error) {
+							console.error(error);
+							throw new Error(error);
+						}
 					`);
 				} catch(error) {
 					console.log("Error saving QoE Recordings for container " + containerName);
