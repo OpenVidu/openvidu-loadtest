@@ -70,9 +70,11 @@ export class BrowserManagerService {
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
 		const streams = this.getStreamsCreated();
 		const participants = this.getParticipantsCreated();
+		const userId = request.properties.userId;
+		const sessionId = request.properties.sessionName;
 		this.sendStreamsData(streams);
 		console.log(`Participant ${connectionId} created`);
-		return { connectionId, streams, participants, workerCpuUsage };
+		return { connectionId, streams, participants, workerCpuUsage, sessionId, userId };
 	}
 
 	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {

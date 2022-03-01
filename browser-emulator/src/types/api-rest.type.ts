@@ -61,7 +61,9 @@ export interface LoadTestPostResponse {
 	connectionId: string,
 	streams: number,
 	participants: number,
- 	workerCpuUsage: number
+ 	workerCpuUsage: number,
+    sessionId: string,
+    userId: string
 }
 
 export interface JSONStatsResponse {
