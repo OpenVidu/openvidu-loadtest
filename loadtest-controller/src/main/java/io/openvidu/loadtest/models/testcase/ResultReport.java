@@ -204,7 +204,7 @@ public class ResultReport {
 						? "Number of sessions per worker:	" + sessionsPerWorker + System.getProperty("line.separator")
 						: "")
 				+ (isManualParticipantAllocation ? ""
-						: "Number of streams per workers:	" + streamsPerWorker + System.getProperty("line.separator"))
+						: "Number of streams per worker:	" + streamsPerWorker + System.getProperty("line.separator"))
 				+ "Stop reason:	" + stopReason + System.getProperty("line.separator")
 				+ (timePerWorker.size() == 0 ? "" : 
 					"Time each worker has been alive (minutes):	" + timePerWorker + System.getProperty("line.separator"))

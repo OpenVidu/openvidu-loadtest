@@ -213,6 +213,7 @@ public class LoadTestController {
 				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 			}
 		}
+		streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 	}
 
 	private void startNxMTest(int publishers, int subscribers, TestCase testCase) {
@@ -288,6 +289,7 @@ public class LoadTestController {
 				}
 			}
 		}
+		streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
 	}
 
 	private void inititalizeNewWorkerIfNecessary(TestCase testCase, OpenViduRole nextRoleToAdd, int totalPublishers) {
