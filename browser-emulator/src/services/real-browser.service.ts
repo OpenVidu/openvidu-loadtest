@@ -45,7 +45,7 @@ export class RealBrowserService {
 	}
 
 	public async startBrowserContainer(properties: TestProperties): Promise<any> {
-		if (!this.existMediaFiles(properties.resolution) && !process.env.IS_DOCKER_CONTAINER) {
+		if (!this.existMediaFiles(properties.resolution, properties.frameRate) && !process.env.IS_DOCKER_CONTAINER) {
 			return Promise.reject({
 				message: 'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run download_mediafiles.sh?',
 			});
@@ -59,7 +59,7 @@ export class RealBrowserService {
 		}
 		// Set video file path based on resolution property
 		// Resolution is not significant for audio
-		this.chromeOptions.addArguments(`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}_${properties.resolution}.y4m`);
+		this.chromeOptions.addArguments(`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`);
 
 		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
 		this.setSeleniumRemoteURL(bindedPort);
@@ -368,8 +368,8 @@ export class RealBrowserService {
 		);
 	}
 
-	private existMediaFiles(resolution: string): boolean {
-		const videoFile = `${process.env.PWD}/src/assets/mediafiles/fakevideo_${resolution}.y4m`;
+	private existMediaFiles(resolution: string, framerate: number): boolean {
+		const videoFile = `${process.env.PWD}/src/assets/mediafiles/fakevideo_${framerate}fps_${resolution}.y4m`;
 		const audioFile = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
 		try {
 			return fs.existsSync(videoFile) && fs.existsSync(audioFile);

@@ -25,6 +25,7 @@ export class EmulateBrowserService {
 	private totalPublishers: number = 0;
 
 	// TODO: Implement QoE Analysis
+	// TODO: Use new videos
 	constructor(
 		private httpClient: HttpClient = new HttpClient(),
 		private nodeWebrtcService: CanvasService | FfmpegService = null,
