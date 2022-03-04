@@ -1,4 +1,5 @@
 import fs = require('fs');
+import fsPromises = fs.promises;
 import * as os from 'node-os-utils';
 import { ContainerCreateOptions } from 'dockerode';
 
@@ -160,27 +161,38 @@ export class InstanceService {
 			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
 				await this.createS3Bucket(process.env.S3_BUCKET);
 			}
+			const promises = [];
 			dirs.forEach((dir) => {
-				if(fs.existsSync(dir)) {
-					fs.readdirSync(dir).forEach((file) => {
-						const data = fs.readFileSync(`${dir}/${file}`);
-						const s3Config: AWS.S3.PutObjectRequest = {
-							Bucket: process.env.S3_BUCKET,
-							Key: file,
-							Body: data,
-						};
-
-						s3.putObject(s3Config, (err, data) => {
-							if (err) {
-								console.log(err);
-							} else {
-								console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
-								fs.rmSync(`${dir}/${file}`, { recursive: true, force: true });
-							}
+				promises.push(
+					fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
+					.then(() => fsPromises.readdir(dir))
+					.then((files) => {
+						const uploadPromises = [];
+						files.forEach((file) => {
+							const filePath = `${dir}/${file}`;
+							const fileName = file.split('/').pop();
+							const params = {
+								Bucket: process.env.S3_BUCKET,
+								Key: fileName,
+								Body: fs.createReadStream(filePath)
+							};
+							uploadPromises.push(new Promise((resolve, reject) => {
+								s3.putObject(params, (err, data) => {
+									if (err) {
+										console.error(err);
+										return reject(err);
+									} else {
+										console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
+										return resolve(fsPromises.rm(filePath, { recursive: true, force: true }));
+									}
+								});
+							}));
 						});
-					});
-				}
+						return Promise.all(uploadPromises);
+					})
+				);
 			});
+			await Promise.all(promises);
 		} else {
 			console.log(`ERROR uploading videos to S3. AWS is not configured. ${this.AWS_CREDENTIALS_PATH}/config.json not found`);
 		}
