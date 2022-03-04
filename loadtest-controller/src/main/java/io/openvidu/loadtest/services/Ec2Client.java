@@ -15,8 +15,10 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
+import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.EbsBlockDevice;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceState;
@@ -193,7 +195,8 @@ public class Ec2Client {
 				.withTags(tags);
 
 		RunInstancesRequest ec2request = new RunInstancesRequest().withImageId(AMI_ID).withInstanceType(INSTANCE_TYPE)
-				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1);
+				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1).withBlockDeviceMappings(
+						new BlockDeviceMapping().withDeviceName("/dev/sda1").withEbs(new EbsBlockDevice().withVolumeSize(50).withDeleteOnTermination(true)));
 		
 		if(!this.loadTestConfig.getWorkerInstanceKeyPair().isBlank()) {
 			ec2request.withKeyName(this.loadTestConfig.getWorkerInstanceKeyPair());

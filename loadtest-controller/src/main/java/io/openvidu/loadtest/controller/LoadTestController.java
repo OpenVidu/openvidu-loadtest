@@ -4,7 +4,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -84,6 +86,7 @@ public class LoadTestController {
 	private AtomicInteger totalParticipants = new AtomicInteger(0);
 
 	private static List<Integer> streamsPerWorker = new ArrayList<>();
+	private static Map<Calendar, List<String>> userStartTimes = new HashMap<>(); 
 
 	private static SimpleRegression regression = new SimpleRegression();
 
@@ -193,6 +196,11 @@ public class LoadTestController {
 
 				if (responseIsOk) {
 					this.totalParticipants.incrementAndGet();
+					List<String> sessionUserList = new ArrayList<>(2);
+					Calendar startTime = Calendar.getInstance();
+					sessionUserList.add(this.browserEmulatorClient.getLastSessionIdOfWorker());
+					sessionUserList.add(this.browserEmulatorClient.getLastUserIdOfWorker());
+					userStartTimes.put(startTime, sessionUserList);
 					if (userNumber.get() < participantsBySession) {
 						int totalCurrentPublishers = i + 1;
 						this.inititalizeNewWorkerIfNecessary(testCase, OpenViduRole.PUBLISHER, totalCurrentPublishers);
@@ -545,8 +553,9 @@ public class LoadTestController {
 				.setS3BucketName(
 						"https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName())
 				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray())
-				.setTimePerWorker(workerTimes)
-				.setTimePerRecordingWorker(recordingWorkerTimes).build();
+				.setTimePerWorker(workerTimes).setTimePerRecordingWorker(recordingWorkerTimes)
+				.setUserStartTimes(userStartTimes)
+				.build();
 
 		this.io.exportResults(rr);
 

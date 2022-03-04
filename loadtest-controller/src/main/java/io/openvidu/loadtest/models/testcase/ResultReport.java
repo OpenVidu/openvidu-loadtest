@@ -3,6 +3,8 @@ package io.openvidu.loadtest.models.testcase;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 public class ResultReport {
@@ -27,6 +29,7 @@ public class ResultReport {
 	private int sessionsPerWorker = 0;
 	private String s3BucketName = "";
 	private List<String> lastResponsesArray = new ArrayList<String>();
+	private Map<Calendar, List<String>> userStartTimes = new TreeMap<>();
 
 	public ResultReport() {
 	}
@@ -36,7 +39,8 @@ public class ResultReport {
 				this.workersUsed, this.streamsPerWorker, this.sessionTypology, this.browserModeSelected,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
 				this.sessionsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
-				this.kibanaUrl, this.s3BucketName, this.lastResponsesArray, this.timePerWorker, this.timePerRecordingWorker);
+				this.kibanaUrl, this.s3BucketName, this.lastResponsesArray, this.timePerWorker, this.timePerRecordingWorker,
+				this.userStartTimes);
 	}
 
 	public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -139,12 +143,17 @@ public class ResultReport {
 		return this;
 	}
 
+	public ResultReport setUserStartTimes(Map<Calendar, List<String>> userStartTimes) {
+		this.userStartTimes.putAll(userStartTimes);
+		return this;
+	}
+
 	private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
 			List<Integer> streamsPerWorker, String sessionTypology, String browserModeSelected,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
 			int sessionsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
 			Calendar endTime, String kibanaUrl, String s3BucketName, List<String> lastResponsesArray, List<Long> timePerWorker,
-			List<Long> timePerRecordingWorker) {
+			List<Long> timePerRecordingWorker, Map<Calendar, List<String>> userStartTimes) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
 		this.numSessionsCreated = numSessionsCreated;
@@ -165,6 +174,7 @@ public class ResultReport {
 		this.lastResponsesArray = lastResponsesArray;
 		this.timePerWorker = timePerWorker;
 		this.timePerRecordingWorker = timePerRecordingWorker;
+		this.userStartTimes = userStartTimes;
 	}
 
 	private String getDuration() {
@@ -181,6 +191,23 @@ public class ResultReport {
 			minutes = minutes - (hours * 60);
 		}
 		return hours + "h " + minutes + "m " + seconds + "s ";
+	}
+
+	private String getUserStartTime() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("\n");
+		for (Calendar key : userStartTimes.keySet()) {
+			List<String> userSession = userStartTimes.get(key);
+			String session = userSession.get(0);
+			String user = userSession.get(1);
+			sb.append(key.getTime().toString())
+				.append(" | ")
+				.append(session)
+				.append(" | ")
+				.append(user)
+				.append("\n");
+		}
+		return sb.toString();
 	}
 
 	@Override
@@ -214,7 +241,9 @@ public class ResultReport {
 						: "Last responses array:	" + lastResponsesArray + System.getProperty("line.separator"))
 				+ "Test duration:	" + getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
 				+ System.getProperty("line.separator") + "Video quality control:	" + s3BucketName
-				+ System.getProperty("line.separator") + System.getProperty("line.separator")
+				+ System.getProperty("line.separator") 
+				+ (userStartTimes.size() == 0 ? "" : "User start times:	" + getUserStartTime() + System.getProperty("line.separator"))
+				+ System.getProperty("line.separator")
 				+ "   ---------------------   ";
 	}
 

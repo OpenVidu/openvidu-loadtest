@@ -4,7 +4,9 @@ public enum Resolution {
 	
 	HIGH("1280x720", "1280x720"),
 
-	MEDIUM("640x480", "640x480");
+	MEDIUM("640x480", "640x480"),
+
+	FULLHIGH("1920x1080", "1920x1080");
 
 //	LOW("320x240", "320x240");
 

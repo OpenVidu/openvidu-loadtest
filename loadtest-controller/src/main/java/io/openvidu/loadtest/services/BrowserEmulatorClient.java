@@ -38,6 +38,8 @@ public class BrowserEmulatorClient {
 	private static int streamsInWorker = 0;
 	private static int participantsInWorker = 0;
 	private static int lastSessionNumber = 0;
+	private static String userId = "";
+	private static String sessionId = "";
 	private static String sessionSufix = "";
 	private static List<Integer> recordingParticipantCreated = new ArrayList<Integer>();
 	private static Map<String, int[]> publishersAndSubscribersInWorker = new HashMap<String, int[]>(); 
@@ -198,6 +200,8 @@ public class BrowserEmulatorClient {
 			streamsInWorker = 0;
 			participantsInWorker = 0;
 			recordingParticipantCreated = new ArrayList<>();
+			sessionId = "";
+			userId = "";
 			log.info("Participants disconnected");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -210,6 +214,14 @@ public class BrowserEmulatorClient {
 
 	public int getStreamsInWorker() {
 		return streamsInWorker;
+	}
+
+	public String getLastSessionIdOfWorker() {
+		return sessionId;
+	}
+
+	public String getLastUserIdOfWorker() {
+		return userId;
 	}
 
 	public int getParticipantsInWorker() {
@@ -346,6 +358,8 @@ public class BrowserEmulatorClient {
 			workerCpuPct = jsonResponse.get("workerCpuUsage").getAsDouble();
 			streamsInWorker = jsonResponse.get("streams").getAsInt();
 			participantsInWorker = jsonResponse.get("participants").getAsInt();
+			userId = jsonResponse.get("userId").getAsString();
+			sessionId = jsonResponse.get("sessionId").getAsString();
 			log.info("Connection {} created", connectionId);
 			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
 			log.info("Worker STREAMS PROCESSED: {} ", streamsInWorker);
