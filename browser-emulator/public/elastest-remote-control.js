@@ -18,13 +18,22 @@ function ElasTestRemoteControl() {
 	this.recordRTC = null;
 }
 
-ElasTestRemoteControl.prototype.startRecording = function(stream, frameRate) {
+function calculateBitsPerSecond(frameRate, resolution) {
+	var splitted = resolution.split("x");
+	var width = parseInt(splitted[0]);
+	var height = parseInt(splitted[1]);
+	var bitsPerPixel = 24;
+	return frameRate * width * height * bitsPerPixel;
+}
+
+ElasTestRemoteControl.prototype.startRecording = function(stream, frameRate, resolution) {
 	var options = {
 		type : "video",
 		mimeType : "video/webm",
 		frameRate: !!frameRate ? frameRate : 30,
 		numberOfAudioChannels : 2,
-		sampleRate : 48000
+		sampleRate : 48000,
+		bitsPerSecond: calculateBitsPerSecond(frameRate, resolution),
 	};
 	this.recordRTC = new RecordRTCPromisesHandler(stream, options);
 	this.recordRTC.startRecording();

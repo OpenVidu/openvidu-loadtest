@@ -120,7 +120,7 @@ async function joinSession() {
 				
 			if (!!QOE_ANALYSIS) {
 				var remoteControl = new ElasTestRemoteControl();
-				remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE);
+				remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				remoteControls.set(remoteUser, remoteControl);
 			}
