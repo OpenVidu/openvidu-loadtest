@@ -25,6 +25,7 @@ import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
@@ -71,6 +72,7 @@ public class LoadTestController {
 	private static List<Long> recordingWorkerTimes = new ArrayList<>();
 
 	private static String currentWorkerUrl = "";
+	private static String currentRecordingWorkerUrl = "";
 	private static int workersUsed = 0;
 
 	private Calendar startTime;
@@ -118,6 +120,9 @@ public class LoadTestController {
 						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
 						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
+						recordingWorkersList.addAll(this.ec2Client.launchAndCleanInitialRecordingInstances());
+						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
 					}
 
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
@@ -141,6 +146,9 @@ public class LoadTestController {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
 						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
+						recordingWorkersList.addAll(this.ec2Client.launchAndCleanInitialRecordingInstances());
+						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
 					}
 					String participants = testCase.getParticipants().get(i);
@@ -188,7 +196,10 @@ public class LoadTestController {
 						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 
 				if (needRecordingParticipant()) {
-					responseIsOk = this.launchRecordingParticipant(testCase, Integer.toString(participantsBySession));
+					setAndInitializeNextRecordingWorker();
+					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_" + participantsBySession + "_" + participantsBySession + "PSes";
+					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(currentRecordingWorkerUrl,
+						userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
@@ -243,7 +254,10 @@ public class LoadTestController {
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session", loadTestConfig.getUserNamePrefix() + userNumber.get());
 				if (needRecordingParticipant()) {
-					responseIsOk = this.launchRecordingParticipant(testCase, publishers + "_" + subscribers);
+					setAndInitializeNextRecordingWorker();
+					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_" + subscribers + "PSes";
+					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(currentRecordingWorkerUrl,
+						userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
 				} else {
 					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
 							sessionNumber.get(), testCase);
@@ -266,8 +280,10 @@ public class LoadTestController {
 							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
 
 					if (needRecordingParticipant()) {
-						responseIsOk = this.launchRecordingParticipant(testCase, publishers + "_" + subscribers);
-
+						setAndInitializeNextRecordingWorker();
+						String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_" + subscribers + "PSes";
+						responseIsOk = this.browserEmulatorClient.createExternalRecordingSubscriber(currentRecordingWorkerUrl,
+							userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
 					} else {
 						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
 								sessionNumber.get(), testCase);
@@ -321,9 +337,15 @@ public class LoadTestController {
 	}
 
 	private void setAndInitializeNextWorker() {
-		String nextWorkerUrl = getNextWorker();
+		String nextWorkerUrl = getNextWorker(WorkerType.WORKER);
 		this.initializeInstance(nextWorkerUrl);
 		currentWorkerUrl = nextWorkerUrl;
+	}
+
+	private void setAndInitializeNextRecordingWorker() {
+		String nextWorkerUrl = getNextWorker(WorkerType.RECORDING_WORKER);
+		this.initializeInstance(nextWorkerUrl);
+		currentRecordingWorkerUrl = nextWorkerUrl;
 	}
 
 	private void initializeInstance(String url) {
@@ -337,38 +359,50 @@ public class LoadTestController {
 		}
 	}
 
-	private String getNextWorker() {
+	private String getNextWorker(WorkerType workerType) {
 		if (PROD_MODE) {
 			workersUsed++;
 			String newWorkerUrl = "";
-			if (currentWorkerUrl.isBlank()) {
-				newWorkerUrl = awsWorkersList.get(0).getPublicDnsName();
-				log.info("Getting new worker already launched: {}", newWorkerUrl);
+			String actualCurrentWorkerUrl = "";
+			List<Instance> actualWorkerList = null;
+			List<Date> actualWorkerStartTimes = null;
+			String workerTypeValue = workerType.getValue();
+			if (workerType.equals(WorkerType.RECORDING_WORKER)) {
+				actualCurrentWorkerUrl = currentRecordingWorkerUrl;
+				actualWorkerList = recordingWorkersList;
+				actualWorkerStartTimes = recordingWorkerStartTimes;
+			} else {
+				actualCurrentWorkerUrl = currentWorkerUrl;
+				actualWorkerList = awsWorkersList;
+				actualWorkerStartTimes = workerStartTimes;
+			}
+			if (actualCurrentWorkerUrl.isBlank()) {
+				newWorkerUrl = actualWorkerList.get(0).getPublicDnsName();
+				log.info("Getting new {} already launched: {}", workerTypeValue, newWorkerUrl);
 			} else {
 				int index = 0;
 				Instance nextInstance;
 
 				// Search last used instance
-				for (int i = 0; i < awsWorkersList.size(); i++) {
-					if (currentWorkerUrl.equals(awsWorkersList.get(i).getPublicDnsName())) {
+				for (int i = 0; i < actualWorkerList.size(); i++) {
+					if (actualCurrentWorkerUrl.equals(actualWorkerList.get(i).getPublicDnsName())) {
 						index = i;
 						break;
 					}
 				}
-				nextInstance = index + 1 >= awsWorkersList.size() ? null : awsWorkersList.get(index + 1);
+				nextInstance = index + 1 >= actualWorkerList.size() ? null : actualWorkerList.get(index + 1);
 				if (nextInstance == null) {
 					log.info("Launching a new Ec2 instance... ");
 					List<Instance> nextInstanceList = this.ec2Client
-							.launchInstance(this.loadTestConfig.getWorkersRumpUp());
-					awsWorkersList.addAll(nextInstanceList);
-					workerStartTimes.addAll(nextInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
+							.launchInstance(this.loadTestConfig.getWorkersRumpUp(), workerType);
+					actualWorkerList.addAll(nextInstanceList);
+					actualWorkerStartTimes.addAll(nextInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
 					newWorkerUrl = nextInstanceList.get(0).getPublicDnsName();
-					log.info("New worker has been launched: {}", newWorkerUrl);
+					log.info("New {} has been launched: {}", workerTypeValue, newWorkerUrl);
 
 				} else {
 					newWorkerUrl = nextInstance.getPublicDnsName();
-					log.info("Getting new worker already launched: {}", newWorkerUrl);
-
+					log.info("Getting new {} already launched: {}", workerTypeValue, newWorkerUrl);
 				}
 			}
 			return newWorkerUrl;
@@ -402,25 +436,6 @@ public class LoadTestController {
 				&& !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
 
 		return isLoadRecordingEnabled || isRecordingSessionGroupEnabled;
-	}
-	
-	private boolean launchRecordingParticipant(TestCase testCase, String participants) {
-		log.info("Starting REAL BROWSER for quality control");
-		String uri = "";
-		
-		if (PROD_MODE) {
-			log.info("Starting recording EC2 instance...");
-			List<Instance> newRecordingInstanceList = this.ec2Client.launchRecordingInstance(1);
-			recordingWorkerStartTimes.addAll(newRecordingInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
-			recordingWorkersList.addAll(newRecordingInstanceList);
-			initializeInstance(newRecordingInstanceList.get(0).getPublicDnsName());
-			uri = newRecordingInstanceList.get(0).getPublicDnsName();
-		} else {
-			uri = devWorkersList.get(0);
-		}
-		String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_" + participants + "PSes";
-		return this.browserEmulatorClient.createExternalRecordingPublisher(uri, userNumber.get(),
-				sessionNumber.get(), testCase, recordingMetadata);
 	}
 
 	private boolean willBeWorkerMaxLoadReached(OpenViduRole nextRoleToAdd, int totalPublishers) {

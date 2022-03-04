@@ -35,6 +35,7 @@ import com.amazonaws.services.ec2.model.TagSpecification;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.WorkerType;
 
 @Service
 public class Ec2Client {
@@ -46,6 +47,7 @@ public class Ec2Client {
 	private static String SECURITY_GROUP_ID = "";
 	private static String INSTANCE_REGION = "";
 	private static int WORKERS_NUMBER_AT_THE_BEGINNING;
+	private static int RECORDING_WORKERS_NUMBER_AT_THE_BEGINNING;
 
 	private static final Tag NAME_TAG = new Tag().withKey("Name").withValue("Worker");
 	private static final Tag RECORDING_NAME_TAG = new Tag().withKey("Name").withValue("Recording Worker");
@@ -66,6 +68,7 @@ public class Ec2Client {
 		SECURITY_GROUP_ID = this.loadTestConfig.getWorkerSecurityGroupId();
 		INSTANCE_REGION = this.loadTestConfig.getWorkerInstanceRegion();
 		WORKERS_NUMBER_AT_THE_BEGINNING = this.loadTestConfig.getWorkersNumberAtTheBeginning();
+		RECORDING_WORKERS_NUMBER_AT_THE_BEGINNING = this.loadTestConfig.getRecordingWorkersNumberAtTheBeginning();
 
 		if(!this.loadTestConfig.getAwsAccessKey().isBlank() && !this.loadTestConfig.getAwsSecretAccessKey().isBlank()) {
 			BasicAWSCredentials awsCreds = new BasicAWSCredentials(this.loadTestConfig.getAwsAccessKey(), this.loadTestConfig.getAwsSecretAccessKey());
@@ -78,22 +81,22 @@ public class Ec2Client {
 		}
 	}
 
-	public List<Instance> launchAndCleanInitialInstances() {
+	private List<Instance> launchAndCleanAux(WorkerType workerType, Filter tagFilter, int numberAtBeginning) {
+
 		List<Instance> resultList = new ArrayList<Instance>();
-		Filter workerTagFilter = getTagWorkerFilter();
 		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
 		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
-		List<Instance> runningInstances = getInstanceWithFilters(workerTagFilter, runningFilter);
-		List<Instance> stoppedInstances = getInstanceWithFilters(workerTagFilter, stoppedFilter);
-		
+		List<Instance> runningInstances = getInstanceWithFilters(tagFilter, runningFilter);
+		List<Instance> stoppedInstances = getInstanceWithFilters(tagFilter, stoppedFilter);
+
 		if(runningInstances.size() > 0) {
 			resultList.addAll(runningInstances);
 		}
-		
-		if(stoppedInstances.size() > 0 && resultList.size() < WORKERS_NUMBER_AT_THE_BEGINNING) {
+
+		if(stoppedInstances.size() > 0 && resultList.size() < numberAtBeginning) {
 			List<Instance> subList = new ArrayList<Instance>();
-			if((stoppedInstances.size() + resultList.size()) > WORKERS_NUMBER_AT_THE_BEGINNING) {
-				for(int i = 0; i < WORKERS_NUMBER_AT_THE_BEGINNING; i++) {
+			if((stoppedInstances.size() + resultList.size()) > numberAtBeginning) {
+				for(int i = 0; i < numberAtBeginning; i++) {
 					subList.add(stoppedInstances.get(i));
 				}
 			} else {
@@ -104,9 +107,9 @@ public class Ec2Client {
 				resultList.add(waitUntilInstanceState(subList.get(i).getInstanceId(), InstanceStateName.Running));
 			}
 		}
-		
+
 		List<String> instanceIds = getInstanceIds(resultList);
-		log.info("{} EC2 instances found", resultList.size());
+		log.info("{} EC2 instances found ({})", resultList.size(), workerType.getValue());
 
 		if(!instanceIds.isEmpty()) {
 			// Clean launched instances
@@ -116,18 +119,29 @@ public class Ec2Client {
 			}
 		}
 
-		if (resultList.size() < WORKERS_NUMBER_AT_THE_BEGINNING) {
-			log.info("Launching {} instance(s)", WORKERS_NUMBER_AT_THE_BEGINNING - resultList.size());
-			resultList.addAll(launchInstance(WORKERS_NUMBER_AT_THE_BEGINNING - resultList.size()));
+		if (resultList.size() < numberAtBeginning) {
+			log.info("Launching {} instance(s)", numberAtBeginning - resultList.size());
+			resultList.addAll(launchInstance(numberAtBeginning - resultList.size(), workerType));
 		}
-
-		this.sleep(WAIT_RUNNING_STATE_MS);		
+		this.sleep(WAIT_RUNNING_STATE_MS);
 		return resultList;
 	}
 
-	public List<Instance> launchInstance(int number){
+	public List<Instance> launchAndCleanInitialInstances() {
+		return launchAndCleanAux(WorkerType.WORKER, getTagWorkerFilter(), WORKERS_NUMBER_AT_THE_BEGINNING);
+	}
 
-		Filter workerTagFilter = getTagWorkerFilter();
+	public List<Instance> launchAndCleanInitialRecordingInstances() {
+		return launchAndCleanAux(WorkerType.RECORDING_WORKER, getTagRecordingFilter(), RECORDING_WORKERS_NUMBER_AT_THE_BEGINNING);
+	}
+
+	public List<Instance> launchInstance(int number, WorkerType workerType){
+		Filter workerTagFilter = null;
+		if(workerType == WorkerType.RECORDING_WORKER) {
+			workerTagFilter = getTagRecordingFilter();
+		} else {
+			workerTagFilter = getTagWorkerFilter();
+		}
 		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
 		List<Instance> stoppedInstances = getInstanceWithFilters(workerTagFilter, stoppedFilter);
 		
@@ -151,8 +165,13 @@ public class Ec2Client {
 			startInstances(getInstanceIds(stoppedInstances));
 			
 			List<Tag> tags = new ArrayList<Tag>();
-			tags.add(NAME_TAG);
-			tags.add(LOADTEST_WORKER_TAG);
+			if (workerType.equals(WorkerType.RECORDING_WORKER)) {
+				tags.add(RECORDING_NAME_TAG);
+				tags.add(RECORDING_TAG);
+			} else {
+				tags.add(NAME_TAG);
+				tags.add(LOADTEST_WORKER_TAG);
+			}
 			List<Instance> result = this.launchInstance(number-stoppedInstances.size(), tags);
 			result.addAll(stoppedInstances);
 			return result;

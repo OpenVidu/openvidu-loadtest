@@ -32,6 +32,8 @@ public class LoadTestConfig {
 
 	private int workersNumberAtTheBeginning;
 
+	private int recordingWorkersNumberAtTheBeginning;
+
 	private int workerMaxLoad;
 
 	private int workersRumpUp;
@@ -182,6 +184,10 @@ public class LoadTestConfig {
 	public int getWorkersNumberAtTheBeginning() {
 		return workersNumberAtTheBeginning;
 	}
+	
+    public int getRecordingWorkersNumberAtTheBeginning() {
+		return recordingWorkersNumberAtTheBeginning;
+    }
 
 	public int getWorkersRumpUp() {
 		return workersRumpUp;
@@ -244,6 +250,7 @@ public class LoadTestConfig {
 			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
 			workerInstanceRegion = asOptionalString("WORKER_INSTANCE_REGION");
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
+			recordingWorkersNumberAtTheBeginning = asInt("RECORDING_WORKERS_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
 			workersRumpUp = asInt("WORKERS_RUMP_UP");
 			medianodeLoadForStartRecording = asDouble("MEDIANODE_LOAD_FOR_START_RECORDING");
@@ -307,6 +314,7 @@ public class LoadTestConfig {
 			System.out.printf(format, "Worker instance type:", workerInstanceType);
 			System.out.printf(format, "Worker max load:", workerMaxLoad);
 			System.out.printf(format, "Workers at the beginning:", workersNumberAtTheBeginning);
+			System.out.printf(format, "Recording Workers at the beginning:", recordingWorkersNumberAtTheBeginning);
 			System.out.printf(format, "Worker rump up:", workersRumpUp);
 			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
 		}
