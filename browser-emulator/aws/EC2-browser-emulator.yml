@@ -68,6 +68,7 @@ Resources:
 
           # Create recording directories
           mkdir -p ./recordings/kms
+          mkdir -p ./recordings/chrome
           mkdir -p ./recordings/qoe
 
           echo '@reboot docker run -d -it --network host -v /var/run/docker.sock:/var/run/docker.sock -v /opt/openvidu-loadtest/browser-emulator/recordings:/opt/openvidu-loadtest/browser-emulator/recordings openvidu/browser-emulator:2.2.0 > /var/log/crontab.log' | crontab
