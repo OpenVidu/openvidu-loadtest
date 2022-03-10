@@ -10,9 +10,201 @@ export class ElasticSearchService {
 	private client: Client;
 	private pingSuccess: boolean = false;
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
+	private mappings = {
+		"properties": {
+			"@timestamp": {
+				"type": "date"
+			},
+			"node_role": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"participant_id": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"platform": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"platform_description": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"session_id": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"stream": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"streams": {
+				"type": "long"
+			},
+			"webrtc_stats": {
+				"properties": {
+					"candidatepair": {
+						"properties": {
+							"availableOutgoingBitrate": {
+								"type": "double"
+							},
+							"currentRoundTripTime": {
+								"type": "double"
+							}
+						}
+					},
+					"inbound": {
+						"properties": {
+							"audio": {
+								"properties": {
+									"bytesReceived": {
+										"type": "long"
+									},
+									"jitter": {
+										"type": "double"
+									},
+									"jitterBufferDelay": {
+										"type": "double"
+									},
+									"packetsLost": {
+										"type": "long"
+									},
+									"packetsReceived": {
+										"type": "long"
+									}
+								}
+							},
+							"video": {
+								"properties": {
+									"bytesReceived": {
+										"type": "long"
+									},
+									"firCount": {
+										"type": "long"
+									},
+									"frameHeight": {
+										"type": "long"
+									},
+									"frameWidth": {
+										"type": "long"
+									},
+									"framesDecoded": {
+										"type": "long"
+									},
+									"framesReceived": {
+										"type": "long"
+									},
+									"jitter": {
+										"type": "double"
+									},
+									"jitterBufferDelay": {
+										"type": "double"
+									},
+									"nackCount": {
+										"type": "long"
+									},
+									"packetsLost": {
+										"type": "long"
+									},
+									"packetsReceived": {
+										"type": "long"
+									},
+									"pliCount": {
+										"type": "long"
+									}
+								}
+							}
+						}
+					},
+					"outbound": {
+						"properties": {
+							"audio": {
+								"properties": {
+									"bytesSent": {
+										"type": "long"
+									},
+									"nackCount": {
+										"type": "long"
+									},
+									"packetsSent": {
+										"type": "long"
+									}
+								}
+							},
+							"video": {
+								"properties": {
+									"bytesSent": {
+										"type": "long"
+									},
+									"firCount": {
+										"type": "long"
+									},
+									"frameHeight": {
+										"type": "long"
+									},
+									"frameWidth": {
+										"type": "long"
+									},
+									"framesEncoded": {
+										"type": "long"
+									},
+									"framesSent": {
+										"type": "long"
+									},
+									"nackCount": {
+										"type": "long"
+									},
+									"packetsSent": {
+										"type": "long"
+									},
+									"pliCount": {
+										"type": "long"
+									},
+									"qpSum": {
+										"type": "long"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	protected static instance: ElasticSearchService;
 
-	private constructor() {}
+	private constructor() { }
 
 	static getInstance(): ElasticSearchService {
 		if (!ElasticSearchService.instance) {
@@ -45,8 +237,22 @@ export class ElasticSearchService {
 				this.client = new Client(clientOptions);
 				const pingSuccess = await this.client.ping();
 				this.pingSuccess = pingSuccess.body;
-				if (this.pingSuccess && !this.indexName) {
-					await this.createElasticSearchIndex();
+				if (this.pingSuccess) {
+					if (!this.indexName) {
+						await this.createElasticSearchIndex();
+					} else {
+						// Create index if it doesn't exist
+						let exists = await this.client.indices.exists({ index: this.indexName });
+						if (!exists.body) {
+							await this.client.indices.create({ 
+								index: this.indexName,
+								body: {
+									[this.indexName]: {
+										mappings: this.mappings
+									}
+								} });
+						}
+					}
 				}
 			} catch (error) {
 				console.error('Error connecting with ElasticSearch: ', error);
@@ -102,7 +308,12 @@ export class ElasticSearchService {
 	private async createElasticSearchIndex(): Promise<void> {
 		// await this.deleteIndexIfExist(index);
 		const index = this.generateNewIndexName();
-		await this.client.indices.create({ index });
+		await this.client.indices.create({ index,
+			body: {
+				[this.indexName]: {
+					mappings: this.mappings
+				}
+			} });
 	}
 
 	// private async deleteIndexIfExist(index: string): Promise<void> {
@@ -118,9 +329,8 @@ export class ElasticSearchService {
 
 	private generateNewIndexName(): string {
 		const date = new Date();
-		const timestamp = `${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}-${date.getDate()}-${
-			date.getMonth() + 1
-		}-${date.getFullYear()}`;
+		const timestamp = `${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}-${date.getDate()}-${date.getMonth() + 1
+			}-${date.getFullYear()}`;
 		this.indexName = this.LOADTEST_INDEX + '-' + timestamp + '-' + new Date().getTime();
 		return this.indexName;
 	}
