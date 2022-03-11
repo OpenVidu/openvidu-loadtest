@@ -247,9 +247,7 @@ export class ElasticSearchService {
 							await this.client.indices.create({ 
 								index: this.indexName,
 								body: {
-									[this.indexName]: {
-										mappings: this.mappings
-									}
+									mappings: this.mappings
 								} });
 						}
 					}
@@ -310,9 +308,7 @@ export class ElasticSearchService {
 		const index = this.generateNewIndexName();
 		await this.client.indices.create({ index,
 			body: {
-				[this.indexName]: {
-					mappings: this.mappings
-				}
+				mappings: this.mappings
 			} });
 	}
 
