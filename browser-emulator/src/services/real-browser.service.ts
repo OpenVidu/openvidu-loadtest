@@ -15,6 +15,7 @@ export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
 
 	private readonly BROWSER_CONTAINER_HOSTPORT = 4000;
+	private portOffset: number = 0;
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
@@ -61,7 +62,8 @@ export class RealBrowserService {
 		// Resolution is not significant for audio
 		this.chromeOptions.addArguments(`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`);
 
-		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.containerMap.size;
+		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.portOffset;
+		this.portOffset++;
 		this.setSeleniumRemoteURL(bindedPort);
 		try {
 			const containerName = `chrome_${properties.recordingMetadata}_${properties.sessionName}_${new Date().getTime()}`;
@@ -312,8 +314,8 @@ export class RealBrowserService {
 				],
 				PortBindings: {
 					'4444/tcp': [{ HostPort: hostPort.toString(), HostIp: '0.0.0.0' }],
-					// '6080/tcp': [{ HostPort: (6000 + this.containerMap.size).toString(), HostIp: '0.0.0.0' }],
-					// '5900/tcp': [{ HostPort: (5900 + this.containerMap.size).toString(), HostIp: '0.0.0.0' }],
+					// '6080/tcp': [{ HostPort: (hostPort + 2000).toString(), HostIp: '0.0.0.0' }],
+					// '5900/tcp': [{ HostPort: (hostPort + 1900).toString(), HostIp: '0.0.0.0' }],
 				},
 				CapAdd: ['SYS_ADMIN'],
 			},
