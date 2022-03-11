@@ -66,6 +66,11 @@ Resources:
           cd docker/browser-emulator/
           ./run.sh 2.2.0
 
+          # Pull images used by browser-emulator for faster initialization time
+          docker pull elastestbrowsers/chrome
+          docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
+          docker pull kurento/kurento-media-server:latest
+
           # Create recording directories
           mkdir -p ./recordings/kms
           mkdir -p ./recordings/chrome
