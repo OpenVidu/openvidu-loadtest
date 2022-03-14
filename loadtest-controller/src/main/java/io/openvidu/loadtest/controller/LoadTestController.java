@@ -4,16 +4,17 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import javax.annotation.PostConstruct;
-
-import org.apache.commons.math.stat.regression.SimpleRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Controller;
 import com.amazonaws.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
@@ -29,6 +31,7 @@ import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.CurrentWorkerService;
 import io.openvidu.loadtest.services.Ec2Client;
 import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.utils.DataIO;
@@ -43,20 +46,12 @@ public class LoadTestController {
 
 	private static final Logger log = LoggerFactory.getLogger(LoadTestController.class);
 
-	@Autowired
-	private BrowserEmulatorClient browserEmulatorClient;
-
-	@Autowired
-	private LoadTestConfig loadTestConfig;
-
-	@Autowired
-	private KibanaClient kibanaClient;
-
-	@Autowired
-	private ElasticSearchClient esClient;
-
-	@Autowired
-	private Ec2Client ec2Client;
+	private static BrowserEmulatorClient browserEmulatorClient;
+	private static LoadTestConfig loadTestConfig;
+	private static KibanaClient kibanaClient;
+	private static ElasticSearchClient esClient;
+	private static Ec2Client ec2Client;
+	private static CurrentWorkerService currentWorkers;
 
 	@Autowired
 	private DataIO io;
@@ -65,14 +60,12 @@ public class LoadTestController {
 	private static List<String> devWorkersList = new ArrayList<String>();
 	private static List<Instance> recordingWorkersList = new ArrayList<Instance>();
 	private static List<WebSocketClient> wsSessions = new ArrayList<WebSocketClient>();
-	
+
 	private static List<Date> workerStartTimes = new ArrayList<>();
 	private static List<Date> recordingWorkerStartTimes = new ArrayList<>();
 	private static List<Long> workerTimes = new ArrayList<>();
 	private static List<Long> recordingWorkerTimes = new ArrayList<>();
 
-	private static String currentWorkerUrl = "";
-	private static String currentRecordingWorkerUrl = "";
 	private static int workersUsed = 0;
 
 	private Calendar startTime;
@@ -83,296 +76,58 @@ public class LoadTestController {
 	private static boolean PROD_MODE = false;
 	private static AtomicInteger sessionNumber = new AtomicInteger(0);
 	private static AtomicInteger userNumber = new AtomicInteger(1);
-	private static boolean responseIsOk = true;
-	private AtomicInteger sessionsCompleted = new AtomicInteger(0);
-	private AtomicInteger totalParticipants = new AtomicInteger(0);
+	private static AtomicInteger sessionsCompleted = new AtomicInteger(0);
+	private static AtomicInteger totalParticipants = new AtomicInteger(0);
+
+	private static int browserEstimation = -1;
 
 	private static List<Integer> streamsPerWorker = new ArrayList<>();
-	private static Map<Calendar, List<String>> userStartTimes = new HashMap<>(); 
+	private static Map<Calendar, List<String>> userStartTimes = new ConcurrentHashMap<>();
 
-	private static SimpleRegression regression = new SimpleRegression();
+	@Autowired
+	public LoadTestController(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
+			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client,
+			CurrentWorkerService currentWorkers) {
+		LoadTestController.browserEmulatorClient = browserEmulatorClient;
+		LoadTestController.loadTestConfig = loadTestConfig;
+		LoadTestController.kibanaClient = kibanaClient;
+		LoadTestController.esClient = esClient;
+		LoadTestController.ec2Client = ec2Client;
+		LoadTestController.currentWorkers = currentWorkers;
 
-	@PostConstruct
-	public void initialize() {
-		PROD_MODE = this.loadTestConfig.getWorkerUrlList().isEmpty();
-		devWorkersList = this.loadTestConfig.getWorkerUrlList();
+		PROD_MODE = loadTestConfig.getWorkerUrlList().isEmpty();
+		devWorkersList = loadTestConfig.getWorkerUrlList();
 	}
 
-	public void startLoadTests(List<TestCase> testCasesList) {
-
-		if (this.loadTestConfig.isTerminateWorkers()) {
-			log.info("Terminate all EC2 instances");
-			this.ec2Client.terminateAllInstances();
-			return;
-		}
-
-		if (PROD_MODE) {
-			this.kibanaClient.importDashboards();
-		}
-
-		testCasesList.forEach(testCase -> {
-
-			if (testCase.is_NxN()) {
-				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-
-					if (PROD_MODE) {
-						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
-						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						recordingWorkersList.addAll(this.ec2Client.launchAndCleanInitialRecordingInstances());
-						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-					}
-
-					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
-					System.out.print("\n");
-					log.info("Starting test with N:N session typology");
-					log.info("The number of session that will be created are {}",
-							testCase.getSessions() < 0 ? "infinite" : testCase.getSessions());
-					log.info("Each session will be composed by {} USERS. All of them will be PUBLISHERS",
-							participantsBySession);
-					this.startTime = Calendar.getInstance();
-					this.startNxNTest(participantsBySession, testCase);
-					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
-					this.disconnectAllSessions();
-					this.saveResultReport(testCase, String.valueOf(participantsBySession));
-					this.cleanEnvironment();
-				}
-			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
-				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-
-					if (PROD_MODE) {
-						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-						awsWorkersList.addAll(this.ec2Client.launchAndCleanInitialInstances());
-						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						recordingWorkersList.addAll(this.ec2Client.launchAndCleanInitialRecordingInstances());
-						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-					}
-					String participants = testCase.getParticipants().get(i);
-					int publishers = Integer.parseInt(participants.split(":")[0]);
-					int subscribers = Integer.parseInt(participants.split(":")[1]);
-					log.info("Starting test with N:M session typology");
-					log.info("The number of session that will be created are {}", testCase.getSessions());
-					log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",
-							publishers + subscribers, publishers, subscribers);
-
-					this.startTime = Calendar.getInstance();
-					this.startNxMTest(publishers, subscribers, testCase);
-					sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
-					this.disconnectAllSessions();
-					this.saveResultReport(testCase, participants);
-					this.cleanEnvironment();
-				}
-
-			} else if (testCase.is_TERMINATE() && PROD_MODE) {
-				log.info("TERMINATE typology. Terminate all EC2 instances");
-				this.ec2Client.terminateAllInstances();
-			} else {
-				log.error("Test case has wrong typology, SKIPPED.");
-			}
-		});
+	private static void setAndInitializeNextWorker(WorkerType workerType) {
+		String nextWorkerUrl = getNextWorker(workerType);
+		initializeInstance(nextWorkerUrl, workerType);
+		currentWorkers.setCurrentWorkerUrl(nextWorkerUrl, workerType);
 	}
 
-	private void startNxNTest(int participantsBySession, TestCase testCase) {
-		int testCaseSessionsLimit = testCase.getSessions();
-
-		setAndInitializeNextWorker();
-
-		while (responseIsOk && needCreateNewSession(testCaseSessionsLimit)) {
-
-			if (responseIsOk && sessionNumber.get() > 0) {
-				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
-			}
-
-			sessionNumber.getAndIncrement();
-			System.out.print("\n");
-//			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
-
-			for (int i = 0; i < participantsBySession; i++) {
-				log.info("Creating PUBLISHER '{}' in session",
-						this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-
-				if (needRecordingParticipant()) {
-					setAndInitializeNextRecordingWorker();
-					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_" + participantsBySession + "_" + participantsBySession + "PSes";
-					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(currentRecordingWorkerUrl,
-						userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
-				} else {
-					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-							sessionNumber.get(), testCase);
-				}
-
-				if (responseIsOk) {
-					this.totalParticipants.incrementAndGet();
-					List<String> sessionUserList = new ArrayList<>(2);
-					Calendar startTime = Calendar.getInstance();
-					sessionUserList.add(this.browserEmulatorClient.getLastSessionIdOfWorker());
-					sessionUserList.add(this.browserEmulatorClient.getLastUserIdOfWorker());
-					userStartTimes.put(startTime, sessionUserList);
-					if (userNumber.get() < participantsBySession) {
-						int totalCurrentPublishers = i + 1;
-						this.inititalizeNewWorkerIfNecessary(testCase, OpenViduRole.PUBLISHER, totalCurrentPublishers);
-						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
-						userNumber.getAndIncrement();
-					}
-				} else {
-					log.error("Response status is not 200 OK. Exit");
-					break;
-				}
-			}
-
-			if (responseIsOk) {
-				log.info("Session number {} has been succesfully created ", sessionNumber.get());
-				this.sessionsCompleted.incrementAndGet();
-				userNumber.set(1);
-			} else {
-				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
-			}
-		}
-		streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
-	}
-
-	private void startNxMTest(int publishers, int subscribers, TestCase testCase) {
-		int totalParticipants = subscribers + publishers;
-		int testCaseSessionsLimit = testCase.getSessions();
-		setAndInitializeNextWorker();
-		while (responseIsOk && needCreateNewSession(testCaseSessionsLimit)) {
-
-			if (sessionNumber.get() > 0) {
-				// Waiting time between sessions
-				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
-			}
-
-			sessionNumber.getAndIncrement();
-			System.out.print("\n");
-//			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumberStr);
-
-			// Adding all publishers
-			for (int i = 0; i < publishers; i++) {
-				log.info("Creating PUBLISHER '{}' in session", loadTestConfig.getUserNamePrefix() + userNumber.get());
-				if (needRecordingParticipant()) {
-					setAndInitializeNextRecordingWorker();
-					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_" + subscribers + "PSes";
-					responseIsOk = this.browserEmulatorClient.createExternalRecordingPublisher(currentRecordingWorkerUrl,
-						userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
-				} else {
-					responseIsOk = this.browserEmulatorClient.createPublisher(currentWorkerUrl, userNumber.get(),
-							sessionNumber.get(), testCase);
-				}
-				if (responseIsOk) {
-					OpenViduRole nextRoleToAdd = i == publishers - 1 ? OpenViduRole.SUBSCRIBER : OpenViduRole.PUBLISHER;
-					int totalCurrentPublishers = i + 1;
-					this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, totalCurrentPublishers);
-					userNumber.getAndIncrement();
-				} else {
-					log.error("Response status is not 200 OK. Exit");
-					break;
-				}
-			}
-
-			if (responseIsOk) {
-				// Adding all subscribers
-				for (int i = 0; i < subscribers; i++) {
-					log.info("Creating SUBSCRIBER '{}' in session",
-							this.loadTestConfig.getUserNamePrefix() + userNumber.get());
-
-					if (needRecordingParticipant()) {
-						setAndInitializeNextRecordingWorker();
-						String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_" + subscribers + "PSes";
-						responseIsOk = this.browserEmulatorClient.createExternalRecordingSubscriber(currentRecordingWorkerUrl,
-							userNumber.get(), sessionNumber.get(), testCase, recordingMetadata);
-					} else {
-						responseIsOk = this.browserEmulatorClient.createSubscriber(currentWorkerUrl, userNumber.get(),
-								sessionNumber.get(), testCase);
-					}
-
-					if (responseIsOk) {
-						this.totalParticipants.incrementAndGet();
-						if (userNumber.get() < totalParticipants) {
-							OpenViduRole nextRoleToAdd = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
-							int totalCurrentPublishers = testCase.is_TEACHING() ? publishers + i + 1: publishers;
-							this.inititalizeNewWorkerIfNecessary(testCase, nextRoleToAdd, totalCurrentPublishers);
-							sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
-							userNumber.getAndIncrement();
-						}
-					} else {
-						log.error("Response status is not 200 OK. Exit");
-						break;
-					}
-				}
-
-				if (responseIsOk) {
-					log.info("Session number {} has been succesfully created ", sessionNumber.get());
-					userNumber.set(1);
-					this.sessionsCompleted.incrementAndGet();
-				} else {
-					streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
-				}
-			}
-		}
-		streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
-	}
-
-	private void inititalizeNewWorkerIfNecessary(TestCase testCase, OpenViduRole nextRoleToAdd, int totalPublishers) {
-		if (loadTestConfig.isManualParticipantsAllocation()) {
-			boolean areSessionsPerWorkerReached = sessionNumber.get() == loadTestConfig.getSessionsPerWorker();
-			if (areSessionsPerWorkerReached && loadTestConfig.getWorkersRumpUp() > 0) {
-				log.warn("Sessions in worker: {} is equals than limit: {}", sessionNumber.get(),
-						loadTestConfig.getSessionsPerWorker());
-				setAndInitializeNextWorker();
-			}
-		} else {
-			if (!willBeWorkerMaxLoadReached(nextRoleToAdd, totalPublishers)
-					&& loadTestConfig.getWorkersRumpUp() > 0) {
-				log.warn("Worker has not space enough for new participants.");
-				log.info("Worker CPU {} will be bigger than the limit: {}",
-						this.browserEmulatorClient.getWorkerCpuPct(), this.loadTestConfig.getWorkerMaxLoad());
-				streamsPerWorker.add(this.browserEmulatorClient.getStreamsInWorker());
-				setAndInitializeNextWorker();
-			}
-		}
-	}
-
-	private void setAndInitializeNextWorker() {
-		String nextWorkerUrl = getNextWorker(WorkerType.WORKER);
-		this.initializeInstance(nextWorkerUrl);
-		currentWorkerUrl = nextWorkerUrl;
-	}
-
-	private void setAndInitializeNextRecordingWorker() {
-		String nextWorkerUrl = getNextWorker(WorkerType.RECORDING_WORKER);
-		this.initializeInstance(nextWorkerUrl);
-		currentRecordingWorkerUrl = nextWorkerUrl;
-	}
-
-	private void initializeInstance(String url) {
-		boolean requireInitialize = !currentWorkerUrl.equals(url);
-		this.browserEmulatorClient.ping(url);
+	private static void initializeInstance(String url, WorkerType workerType) {
+		boolean requireInitialize = !currentWorkers.getCurrentWorkerUrl(workerType).equals(url);
+		browserEmulatorClient.ping(url);
 		WebSocketClient ws = new WebSocketClient();
 		ws.connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
 		wsSessions.add(ws);
-		if (requireInitialize && this.loadTestConfig.isKibanaEstablished()) {
-			this.browserEmulatorClient.initializeInstance(url);
+		if (requireInitialize && loadTestConfig.isKibanaEstablished()) {
+			browserEmulatorClient.initializeInstance(url);
 		}
 	}
 
-	private String getNextWorker(WorkerType workerType) {
+	private static String getNextWorker(WorkerType workerType) {
 		if (PROD_MODE) {
 			workersUsed++;
 			String newWorkerUrl = "";
-			String actualCurrentWorkerUrl = "";
+			String actualCurrentWorkerUrl = currentWorkers.getCurrentWorkerUrl(workerType);
 			List<Instance> actualWorkerList = null;
 			List<Date> actualWorkerStartTimes = null;
 			String workerTypeValue = workerType.getValue();
 			if (workerType.equals(WorkerType.RECORDING_WORKER)) {
-				actualCurrentWorkerUrl = currentRecordingWorkerUrl;
 				actualWorkerList = recordingWorkersList;
 				actualWorkerStartTimes = recordingWorkerStartTimes;
 			} else {
-				actualCurrentWorkerUrl = currentWorkerUrl;
 				actualWorkerList = awsWorkersList;
 				actualWorkerStartTimes = workerStartTimes;
 			}
@@ -393,10 +148,11 @@ public class LoadTestController {
 				nextInstance = index + 1 >= actualWorkerList.size() ? null : actualWorkerList.get(index + 1);
 				if (nextInstance == null) {
 					log.info("Launching a new Ec2 instance... ");
-					List<Instance> nextInstanceList = this.ec2Client
-							.launchInstance(this.loadTestConfig.getWorkersRumpUp(), workerType);
+					List<Instance> nextInstanceList = ec2Client
+							.launchInstance(loadTestConfig.getWorkersRumpUp(), workerType);
 					actualWorkerList.addAll(nextInstanceList);
-					actualWorkerStartTimes.addAll(nextInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
+					actualWorkerStartTimes
+							.addAll(nextInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
 					newWorkerUrl = nextInstanceList.get(0).getPublicDnsName();
 					log.info("New {} has been launched: {}", workerTypeValue, newWorkerUrl);
 
@@ -409,7 +165,7 @@ public class LoadTestController {
 		} else {
 			workersUsed = devWorkersList.size();
 			if (devWorkersList.size() > 1) {
-				int index = devWorkersList.indexOf(currentWorkerUrl);
+				int index = devWorkersList.indexOf(currentWorkers.getCurrentWorkerUrl(workerType));
 				if (index + 1 >= devWorkersList.size()) {
 					return devWorkersList.get(0);
 				}
@@ -420,82 +176,416 @@ public class LoadTestController {
 		}
 	}
 
+	private static class ParticipantTask implements Callable<CreateParticipantResponse> {
+		private int user;
+		private int session;
+		private TestCase testCase;
+		private boolean recording;
+		private String recordingMetadata;
+		private OpenViduRole role;
+
+		public ParticipantTask(int user, int session, TestCase testCase, OpenViduRole role,
+				boolean recording, String recordingMetadata) {
+			this.session = session;
+			this.user = user;
+			this.testCase = testCase;
+			this.role = role;
+			this.recording = recording;
+			this.recordingMetadata = recordingMetadata;
+		}
+
+		@Override
+		public CreateParticipantResponse call() throws Exception {
+			CreateParticipantResponse response;
+			if (recording) {
+				setAndInitializeNextWorker(WorkerType.RECORDING_WORKER);
+				if (role.equals(OpenViduRole.PUBLISHER)) {
+					response = browserEmulatorClient.createExternalRecordingPublisher(user, session, testCase,
+							recordingMetadata);
+				} else {
+					response = browserEmulatorClient.createExternalRecordingSubscriber(user, session, testCase,
+							recordingMetadata);
+				}
+			} else {
+				if (role.equals(OpenViduRole.PUBLISHER)) {
+					response = browserEmulatorClient.createPublisher(user, session, testCase);
+				} else {
+					response = browserEmulatorClient.createSubscriber(user, session, testCase);
+				}
+			}
+			if (response.isResponseOk()) {
+				Calendar startTime = Calendar.getInstance();
+				totalParticipants.incrementAndGet();
+				List<String> sessionUserList = new ArrayList<>(2);
+				sessionUserList.add(response.getSessionId());
+				sessionUserList.add(response.getUserId());
+				userStartTimes.put(startTime, sessionUserList);
+			} else {
+				log.error("Response status is not 200 OK. Exit");
+			}
+			return response;
+		}
+
+	}
+
+	private boolean estimate(String workerUrl, TestCase testCase, int publishers, int subscribers) {
+		log.info("Starting browser estimation");
+		initializeInstance(workerUrl, WorkerType.WORKER);
+		boolean overloaded = false;
+		currentWorkers.setCurrentWorkerUrl(workerUrl, WorkerType.WORKER);
+		int iteration = 0;
+		while (!overloaded) {
+			// TODO: take into account recording workers
+			for (int i = 0; i < publishers; i++) {
+				CreateParticipantResponse response = browserEmulatorClient.createPublisher(iteration + i, 0, testCase);
+				if (response.isResponseOk()) {
+					double cpu = response.getWorkerCpuPct();
+					if (cpu > loadTestConfig.getWorkerMaxLoad()) {
+						overloaded = true;
+						browserEstimation = iteration * (publishers + subscribers) + i + 1;
+						log.info("Browser estimation: {} browsers per worker.", browserEstimation);
+						break;
+					}
+				} else {
+					log.error("Response status is not 200 OK. Exiting");
+					return false;
+				}
+			}
+			if (!overloaded) {
+				for (int i = 0; i < subscribers; i++) {
+					CreateParticipantResponse response = browserEmulatorClient.createSubscriber(
+							iteration + publishers + i, 0,
+							testCase);
+					if (response.isResponseOk()) {
+						double cpu = response.getWorkerCpuPct();
+						if (cpu >= loadTestConfig.getWorkerMaxLoad()) {
+							overloaded = true;
+							browserEstimation = iteration * (publishers + subscribers) + publishers + i + 1;
+							log.info("Browser estimation: {} browsers per worker.", browserEstimation);
+							break;
+						}
+					} else {
+						log.error("Response status is not 200 OK. Exiting");
+						return false;
+					}
+				}
+			}
+			iteration++;
+		}
+		currentWorkers.setCurrentWorkerUrl("", WorkerType.WORKER);
+		browserEmulatorClient.disconnectAll(List.of(workerUrl));
+		return true;
+	}
+
+	public void startLoadTests(List<TestCase> testCasesList) {
+
+		if (loadTestConfig.isTerminateWorkers()) {
+			log.info("Terminate all EC2 instances");
+			ec2Client.terminateAllInstances();
+			return;
+		}
+
+		if (PROD_MODE) {
+			kibanaClient.importDashboards();
+		}
+
+		testCasesList.forEach(testCase -> {
+
+			if (testCase.is_NxN()) {
+				for (int i = 0; i < testCase.getParticipants().size(); i++) {
+
+					if (PROD_MODE) {
+						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
+						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
+						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
+						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
+					}
+					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
+					boolean noEstimateError = true;
+					if (loadTestConfig.isManualParticipantsAllocation()) {
+						browserEstimation = loadTestConfig.getSessionsPerWorker();
+					} else {
+						noEstimateError = estimate(
+								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+								testCase, participantsBySession, 0);
+					}
+					if (noEstimateError) {
+						log.info("Starting test with N:N session typology");
+						log.info("The number of session that will be created are {}",
+								testCase.getSessions() < 0 ? "infinite" : testCase.getSessions());
+						log.info("Each session will be composed by {} USERS. All of them will be PUBLISHERS",
+								participantsBySession);
+						this.startTime = Calendar.getInstance();
+						CreateParticipantResponse lastCPR = this.startNxNTest(participantsBySession, testCase);
+						sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+						this.saveResultReport(testCase, String.valueOf(participantsBySession), lastCPR);
+					}
+					this.disconnectAllSessions();
+					this.cleanEnvironment();
+				}
+			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
+				for (int i = 0; i < testCase.getParticipants().size(); i++) {
+
+					if (PROD_MODE) {
+						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
+						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
+						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
+						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
+					}
+					String participants = testCase.getParticipants().get(i);
+					int publishers = Integer.parseInt(participants.split(":")[0]);
+					int subscribers = Integer.parseInt(participants.split(":")[1]);
+					boolean noEstimateError = true;
+					if (loadTestConfig.isManualParticipantsAllocation()) {
+						browserEstimation = loadTestConfig.getSessionsPerWorker();
+					} else {
+						noEstimateError = estimate(
+								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+								testCase, publishers, subscribers);
+					}
+					if (noEstimateError) {
+						log.info("Starting test with N:M session typology");
+						log.info("The number of session that will be created are {}", testCase.getSessions());
+						log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",
+								publishers + subscribers, publishers, subscribers);
+
+						this.startTime = Calendar.getInstance();
+						CreateParticipantResponse lastCPR = this.startNxMTest(publishers, subscribers, testCase);
+						sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+						this.saveResultReport(testCase, participants, lastCPR);
+					}
+					this.disconnectAllSessions();
+					this.cleanEnvironment();
+				}
+
+			} else if (testCase.is_TERMINATE() && PROD_MODE) {
+				log.info("TERMINATE typology. Terminate all EC2 instances");
+				ec2Client.terminateAllInstances();
+			} else {
+				log.error("Test case has wrong typology, SKIPPED.");
+			}
+		});
+	}
+
+	private CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase) {
+		int testCaseSessionsLimit = testCase.getSessions();
+
+		setAndInitializeNextWorker(WorkerType.WORKER);
+
+		ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
+
+		CreateParticipantResponse lastResponse = null;
+		while (needCreateNewSession(testCaseSessionsLimit)) {
+
+			if (sessionNumber.get() > 0) {
+				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+			}
+
+			sessionNumber.getAndIncrement();
+			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.toString());
+			List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
+			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
+			int sessionIteration = 0;
+			for (int i = 0; i < participantsBySession; i++) {
+				log.info("Creating PUBLISHER '{}' in session",
+						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				if (needRecordingParticipant()) {
+					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_" + participantsBySession
+							+ "_"
+							+ participantsBySession + "PSes";
+					futureList.add(executorService
+							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+									OpenViduRole.PUBLISHER,
+									true, recordingMetadata)));
+				} else {
+					futureList.add(executorService
+							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+									OpenViduRole.PUBLISHER,
+									false, null)));
+				}
+				boolean isLastParticipant = i == participantsBySession - 1;
+				if (!(isLastParticipant && isLastSession)) {
+					boolean areSessionsPerWorkerReached = ((sessionIteration * participantsBySession + i + 1) % browserEstimation) == 0;
+					if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
+						log.info("Browsers in worker: {} is equal than limit: {}", (sessionIteration * participantsBySession + i + 1),
+								browserEstimation);
+						lastResponse = getLastResponse(futureList);
+						streamsPerWorker.add(lastResponse.getStreamsInWorker());
+						if (!lastResponse.isResponseOk()) {
+							return lastResponse;
+						}
+						sessionIteration = 0;
+						futureList = new ArrayList<>(browserEstimation);
+						setAndInitializeNextWorker(WorkerType.WORKER);
+					}
+					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+				} else {
+					lastResponse = getLastResponse(futureList);
+					streamsPerWorker.add(lastResponse.getStreamsInWorker());
+					if (!lastResponse.isResponseOk()) {
+						return lastResponse;
+					}
+					futureList = new ArrayList<>(browserEstimation);
+				}
+			}
+
+			log.info("Session number {} has been succesfully created ", sessionNumber.get());
+			sessionsCompleted.incrementAndGet();
+			userNumber.set(1);
+			sessionIteration++;
+		}
+		return lastResponse;
+	}
+
+	private CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase) {
+		int testCaseSessionsLimit = testCase.getSessions();
+		setAndInitializeNextWorker(WorkerType.WORKER);
+		ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
+		CreateParticipantResponse lastResponse = null;
+		while (needCreateNewSession(testCaseSessionsLimit)) {
+
+			if (sessionNumber.get() > 0) {
+				// Waiting time between sessions
+				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+			}
+
+			sessionNumber.getAndIncrement();
+			// log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() +
+			// sessionNumberStr);
+			List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
+			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
+			// Adding all publishers
+			for (int i = 0; i < publishers; i++) {
+				log.info("Creating PUBLISHER '{}' in session",
+						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				if (needRecordingParticipant()) {
+					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
+							+ subscribers + "PSes";
+					futureList.add(executorService
+							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+									OpenViduRole.PUBLISHER, true, recordingMetadata)));
+				} else {
+					futureList.add(executorService
+							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase, OpenViduRole.PUBLISHER, false, null)));
+				}
+				boolean areSessionsPerWorkerReached = ((i + 1) % browserEstimation) == 0;
+				if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
+					log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
+							browserEstimation);
+					lastResponse = getLastResponse(futureList);
+					streamsPerWorker.add(lastResponse.getStreamsInWorker());
+					if (!lastResponse.isResponseOk()) {
+						return lastResponse;
+					}
+					futureList = new ArrayList<>(browserEstimation);
+					setAndInitializeNextWorker(WorkerType.WORKER);
+				}
+				sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+			}
+
+			// Leftover not analyzed futures will be analyzed in subscribers loop
+			int leftover = publishers % browserEstimation;
+
+			// Adding all subscribers
+			for (int i = 0; i < subscribers; i++) {
+				log.info("Creating SUBSCRIBER '{}' in session",
+						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				if (needRecordingParticipant()) {
+					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
+							+ subscribers + "PSes";
+					futureList.add(executorService
+							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata)));
+				} else {
+					futureList.add(executorService
+							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase, OpenViduRole.SUBSCRIBER, false, null)));
+				}
+				leftover = 0;
+				boolean isLastParticipant = i == subscribers - 1;
+
+				if (!(isLastParticipant && isLastSession)) {
+					boolean areSessionsPerWorkerReached = ((leftover + i + 1) % browserEstimation) == 0;
+					if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
+						log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
+								browserEstimation);
+						lastResponse = getLastResponse(futureList);
+						streamsPerWorker.add(lastResponse.getStreamsInWorker());
+						if (!lastResponse.isResponseOk()) {
+							return lastResponse;
+						}
+						futureList = new ArrayList<>(browserEstimation);
+						setAndInitializeNextWorker(WorkerType.WORKER);
+					}
+					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+				} else {
+					lastResponse = getLastResponse(futureList);
+					streamsPerWorker.add(lastResponse.getStreamsInWorker());
+					if (!lastResponse.isResponseOk()) {
+						return lastResponse;
+					}
+					futureList = new ArrayList<>(browserEstimation);
+				}
+			}
+			log.info("Session number {} has been succesfully created ", sessionNumber.get());
+			sessionsCompleted.incrementAndGet();
+			userNumber.set(1);
+		}
+		return lastResponse;
+	}
+
+	private CreateParticipantResponse getLastResponse(List<Future<CreateParticipantResponse>> futureList) {
+		CreateParticipantResponse lastResponse = null;
+		for (Future<CreateParticipantResponse> future : futureList) {
+			try {
+				CreateParticipantResponse futureResponse = future.get();
+				if (!futureResponse.isResponseOk()) {
+					lastResponse = futureResponse;
+					break;
+				}
+				if ((lastResponse == null) || (futureResponse.getStreamsInWorker() >= lastResponse
+						.getStreamsInWorker())) {
+					lastResponse = futureResponse;
+				}
+			} catch (Exception e) {
+				log.error("Error while waiting for future", e);
+			}
+		}
+		return lastResponse;
+	}
+
 	private boolean needCreateNewSession(int sessionsLimit) {
-		return sessionsLimit == -1 || (sessionsLimit > 0 && this.sessionsCompleted.get() < sessionsLimit);
+		return sessionsLimit == -1 || (sessionsLimit > 0 && sessionsCompleted.get() < sessionsLimit);
 	}
 
 	private boolean needRecordingParticipant() {
-		double medianodeLoadForRecording = this.loadTestConfig.getMedianodeLoadForRecording();
-		int recordingSessionGroup = this.loadTestConfig.getRecordingSessionGroup();
+		double medianodeLoadForRecording = loadTestConfig.getMedianodeLoadForRecording();
+		int recordingSessionGroup = loadTestConfig.getRecordingSessionGroup();
 
 		boolean isLoadRecordingEnabled = medianodeLoadForRecording > 0
-				&& !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get())
-				&& this.esClient.getMediaNodeCpu() >= medianodeLoadForRecording;
+				&& !browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get())
+				&& esClient.getMediaNodeCpu() >= medianodeLoadForRecording;
 
 		boolean isRecordingSessionGroupEnabled = recordingSessionGroup > 0
-				&& !this.browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
+				&& !browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get());
 
 		return isLoadRecordingEnabled || isRecordingSessionGroupEnabled;
 	}
 
-	private boolean willBeWorkerMaxLoadReached(OpenViduRole nextRoleToAdd, int totalPublishers) {
-		int publishersInWorker = this.browserEmulatorClient.getRoleInWorker(currentWorkerUrl, OpenViduRole.PUBLISHER);
-		int subscribersInWorker = this.browserEmulatorClient.getRoleInWorker(currentWorkerUrl, OpenViduRole.SUBSCRIBER);
-		if (nextRoleToAdd.equals(OpenViduRole.PUBLISHER)) {
-			publishersInWorker++;
-		} else {
-			subscribersInWorker++;
-		}
-		int streamsSent = publishersInWorker;
-		int streamsReceived = 0;
-		int externalPublishers = totalPublishers - publishersInWorker;
-		if (externalPublishers < 0) {
-			externalPublishers = 0;
-		}
-		streamsReceived += externalPublishers * publishersInWorker + publishersInWorker * (publishersInWorker - 1);
-		streamsReceived += subscribersInWorker * totalPublishers;
-		int streamsForNextParticipant = streamsSent + streamsReceived;
-
-		double streams = this.browserEmulatorClient.getStreamsInWorker();
-		double cpu = this.browserEmulatorClient.getWorkerCpuPct();
-		log.info("Adding data to regression: streams: {}, cpu: {}", streams, cpu);
-		regression.addData(streams, cpu);
-		if (cpu >= this.loadTestConfig.getWorkerMaxLoad()) {
-			log.info("Worker max load reached: {}", cpu);
-			return false;
-		} 
-		double prediction = regression.predict(streamsForNextParticipant);
-		if (prediction != prediction) {
-			// Simple heuristic used for first 2 cases, after that we have enough data for simple regression
-			if (this.browserEmulatorClient.getStreamsInWorker() <= 0) {
-				return true;
-			}
-			double cpuPerStream = this.browserEmulatorClient.getWorkerCpuPct()
-					/ this.browserEmulatorClient.getStreamsInWorker();
-			double cpuForNextParticipant = streamsForNextParticipant * cpuPerStream;
-			log.info("Using heuristic prediction");
-			log.info("Predicting for {} streams, using {}% cpu per stream", streamsForNextParticipant, cpuPerStream);
-			log.info("Current CPU: {}%", cpu);
-			log.info("CPU estimated cost for next session (heuristic): {}%", cpuForNextParticipant);
-			return cpuForNextParticipant <= this.loadTestConfig.getWorkerMaxLoad();
-		} else {
-			log.info("Using regression prediction");
-			log.info("Predicting for {} streams", streamsForNextParticipant);
-			log.info("Current CPU: {}%", cpu);
-			log.info("CPU estimated cost for next session (regression): {}%", prediction);
-			return prediction <= this.loadTestConfig.getWorkerMaxLoad();
-		}
-	}
-
 	private void cleanEnvironment() {
 
-		this.totalParticipants.set(0);
-		this.sessionsCompleted.set(0);
+		totalParticipants.set(0);
+		sessionsCompleted.set(0);
 		sessionNumber.set(0);
 		userNumber.set(1);
-		responseIsOk = true;
 		workersUsed = 0;
-		currentWorkerUrl = "";
 		streamsPerWorker = new ArrayList<>();
 		workerStartTimes = new ArrayList<>();
 		recordingWorkerStartTimes = new ArrayList<>();
@@ -506,7 +596,7 @@ public class LoadTestController {
 	}
 
 	private void waitToMediaServerLiveAgain() {
-		while (this.esClient.getMediaNodeCpu() > 5.00) {
+		while (esClient.getMediaNodeCpu() > 5.00) {
 			this.sleep(5, "Waiting MediaServer recovers his CPU");
 		}
 	}
@@ -525,26 +615,28 @@ public class LoadTestController {
 			for (Instance recordingEc2 : recordingWorkersList) {
 				workersUrl.add(recordingEc2.getPublicDnsName());
 			}
-			this.browserEmulatorClient.disconnectAll(workersUrl);
-			this.ec2Client.stopInstance(recordingWorkersList);
-			this.ec2Client.stopInstance(awsWorkersList);
+			browserEmulatorClient.disconnectAll(workersUrl);
+			ec2Client.stopInstance(recordingWorkersList);
+			ec2Client.stopInstance(awsWorkersList);
 
 			Date stopDate = new Date();
 			workerTimes = workerStartTimes.stream()
-				.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(), TimeUnit.MILLISECONDS))
-				.collect(Collectors.toList());
+					.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(),
+							TimeUnit.MILLISECONDS))
+					.collect(Collectors.toList());
 			recordingWorkerTimes = recordingWorkerStartTimes.stream()
-					.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(), TimeUnit.MILLISECONDS))
+					.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(),
+							TimeUnit.MILLISECONDS))
 					.collect(Collectors.toList());
 			awsWorkersList = new ArrayList<Instance>();
 			recordingWorkersList = new ArrayList<Instance>();
 
 		} else {
-			this.browserEmulatorClient.disconnectAll(workersUrl);
+			browserEmulatorClient.disconnectAll(workersUrl);
 		}
 	}
 
-	private void saveResultReport(TestCase testCase, String participantsBySession) {
+	private void saveResultReport(TestCase testCase, String participantsBySession, CreateParticipantResponse lastCPR) {
 		Calendar endTime = Calendar.getInstance();
 		endTime.add(Calendar.SECOND, loadTestConfig.getSecondsToWaitBetweenTestCases());
 		endTime.add(Calendar.SECOND, 10);
@@ -552,22 +644,21 @@ public class LoadTestController {
 		// Parse date to match with Kibana time filter
 		String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
 		String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T");
-		String kibanaUrl = this.kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
+		String kibanaUrl = kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
 
-		ResultReport rr = new ResultReport().setTotalParticipants(this.totalParticipants.get())
-				.setNumSessionsCompleted(this.sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())
+		ResultReport rr = new ResultReport().setTotalParticipants(totalParticipants.get())
+				.setNumSessionsCompleted(sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())
 				.setWorkersUsed(workersUsed).setStreamsPerWorker(streamsPerWorker)
 				.setSessionTypology(testCase.getTypology().toString())
 				.setBrowserModeSelected(testCase.getBrowserMode().toString())
 				.setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
 				.setBrowserRecording(testCase.isBrowserRecording()).setParticipantsPerSession(participantsBySession)
-				.setStopReason(this.browserEmulatorClient.getStopReason()).setStartTime(this.startTime)
+				.setStopReason(lastCPR.getStopReason()).setStartTime(this.startTime)
 				.setEndTime(endTime).setKibanaUrl(kibanaUrl)
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
 				.setSessionsPerWorker(loadTestConfig.getSessionsPerWorker())
 				.setS3BucketName(
 						"https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName())
-				.setLastResponses(this.browserEmulatorClient.getLastResponsesArray())
 				.setTimePerWorker(workerTimes).setTimePerRecordingWorker(recordingWorkerTimes)
 				.setUserStartTimes(userStartTimes)
 				.build();

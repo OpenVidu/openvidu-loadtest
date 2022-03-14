@@ -28,7 +28,6 @@ public class ResultReport {
 	private boolean isManualParticipantAllocation = false;
 	private int sessionsPerWorker = 0;
 	private String s3BucketName = "";
-	private List<String> lastResponsesArray = new ArrayList<String>();
 	private Map<Calendar, List<String>> userStartTimes = new TreeMap<>();
 
 	public ResultReport() {
@@ -39,7 +38,7 @@ public class ResultReport {
 				this.workersUsed, this.streamsPerWorker, this.sessionTypology, this.browserModeSelected,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
 				this.sessionsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
-				this.kibanaUrl, this.s3BucketName, this.lastResponsesArray, this.timePerWorker, this.timePerRecordingWorker,
+				this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
 				this.userStartTimes);
 	}
 
@@ -128,11 +127,6 @@ public class ResultReport {
 		return this;
 	}
 
-	public ResultReport setLastResponses(List<String> lastResponsesArray) {
-		this.lastResponsesArray = lastResponsesArray;
-		return this;
-	}
-
 	public ResultReport setTimePerWorker(List<Long> timePerWorker) {
 		this.timePerWorker = timePerWorker;
 		return this;
@@ -152,7 +146,7 @@ public class ResultReport {
 			List<Integer> streamsPerWorker, String sessionTypology, String browserModeSelected,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
 			int sessionsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
-			Calendar endTime, String kibanaUrl, String s3BucketName, List<String> lastResponsesArray, List<Long> timePerWorker,
+			Calendar endTime, String kibanaUrl, String s3BucketName, List<Long> timePerWorker,
 			List<Long> timePerRecordingWorker, Map<Calendar, List<String>> userStartTimes) {
 		this.totalParticipants = totalParticipants;
 		this.numSessionsCompleted = numSessionsCompleted;
@@ -171,7 +165,6 @@ public class ResultReport {
 		this.endTime = endTime;
 		this.kibanaUrl = kibanaUrl;
 		this.s3BucketName = s3BucketName;
-		this.lastResponsesArray = lastResponsesArray;
 		this.timePerWorker = timePerWorker;
 		this.timePerRecordingWorker = timePerRecordingWorker;
 		this.userStartTimes = userStartTimes;
@@ -237,8 +230,6 @@ public class ResultReport {
 					"Time each worker has been alive (minutes):	" + timePerWorker + System.getProperty("line.separator"))
 				+ (timePerRecordingWorker.size() == 0 ? "" :
 					"Time each worker has been alive (minutes, recording workers):	" + timePerRecordingWorker + System.getProperty("line.separator"))
-				+ (lastResponsesArray.size() == 0 ? ""
-						: "Last responses array:	" + lastResponsesArray + System.getProperty("line.separator"))
 				+ "Test duration:	" + getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
 				+ System.getProperty("line.separator") + "Video quality control:	" + s3BucketName
 				+ System.getProperty("line.separator") 
