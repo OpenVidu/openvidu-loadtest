@@ -64,7 +64,6 @@ export class RealBrowserService {
 
 		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT + this.portOffset;
 		this.portOffset++;
-		this.setSeleniumRemoteURL(bindedPort);
 		try {
 			const containerName = `chrome_${properties.recordingMetadata}_${properties.sessionName}_${new Date().getTime()}`;
 			const options: ContainerCreateOptions = this.getChromeContainerOptions(containerName, bindedPort);
@@ -166,7 +165,7 @@ export class RealBrowserService {
 					const webappUrl = this.generateWebappUrl(request.token, request.properties);
 					console.log(webappUrl);
 
-					let chrome = await this.getChromeDriver();
+					let chrome = await this.getChromeDriver(this.containerMap.get(connectionId).bindedPort);
 					this.driverMap.set(connectionId, chrome);
 					await chrome.get(webappUrl);
 
@@ -333,17 +332,13 @@ export class RealBrowserService {
 		await this.dockerService.runCommandInContainer(containerId, stopRecordingCommand);
 	}
 
-	private async getChromeDriver(): Promise<WebDriver> {
+	private async getChromeDriver(bindedPort: number): Promise<WebDriver> {
 		return await new Builder()
 			.forBrowser('chrome')
 			.withCapabilities(this.chromeCapabilities)
 			.setChromeOptions(this.chromeOptions)
+			.usingServer(`http://localhost:${bindedPort}/wd/hub`)
 			.build();
-	}
-
-	private setSeleniumRemoteURL(bindedPort: number): void {
-		// Set the SELENIUM_REMOTE_URL to the ip where the selenium webdriver will be deployed
-		process.env['SELENIUM_REMOTE_URL'] = `http://localhost:${bindedPort}/wd/hub`;
 	}
 
 	private generateWebappUrl(token: string, properties: TestProperties): string {
