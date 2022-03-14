@@ -460,6 +460,7 @@ public class LoadTestController {
 			// sessionNumberStr);
 			List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
+			int sessionIteration = 0;
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
@@ -475,7 +476,7 @@ public class LoadTestController {
 							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.PUBLISHER, false, null)));
 				}
-				boolean areSessionsPerWorkerReached = ((i + 1) % browserEstimation) == 0;
+				boolean areSessionsPerWorkerReached = ((sessionIteration * (publishers + subscribers) + i + 1) % browserEstimation) == 0;
 				if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
 					log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
 							browserEstimation);
@@ -484,6 +485,7 @@ public class LoadTestController {
 					if (!lastResponse.isResponseOk()) {
 						return lastResponse;
 					}
+					sessionIteration = 0;
 					futureList = new ArrayList<>(browserEstimation);
 					setAndInitializeNextWorker(WorkerType.WORKER);
 				}
@@ -512,7 +514,7 @@ public class LoadTestController {
 				boolean isLastParticipant = i == subscribers - 1;
 
 				if (!(isLastParticipant && isLastSession)) {
-					boolean areSessionsPerWorkerReached = ((leftover + i + 1) % browserEstimation) == 0;
+					boolean areSessionsPerWorkerReached = (sessionIteration * (publishers + subscribers) + (leftover + i + 1) % browserEstimation) == 0;
 					if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
 						log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
 								browserEstimation);
@@ -521,6 +523,7 @@ public class LoadTestController {
 						if (!lastResponse.isResponseOk()) {
 							return lastResponse;
 						}
+						sessionIteration = 0;
 						futureList = new ArrayList<>(browserEstimation);
 						setAndInitializeNextWorker(WorkerType.WORKER);
 					}
@@ -537,6 +540,7 @@ public class LoadTestController {
 			log.info("Session number {} has been succesfully created ", sessionNumber.get());
 			sessionsCompleted.incrementAndGet();
 			userNumber.set(1);
+			sessionIteration++;
 		}
 		return lastResponse;
 	}
