@@ -44,10 +44,12 @@ export class QoeAnalyzerService {
 
     public async runQoEAnalysis() {
         const csvFile = `QOE_Analysis_${new Date().toISOString()}.csv`;
+        console.log("Running QoE Analysis, saving in " + csvFile);
         const csvPath = `${process.env.PWD}/${csvFile}`;
         const dir = `${process.env.PWD}/recordings/qoe`
         const files = await fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
             .then(() => fsPromises.readdir(dir))
+        console.log(files);
         this.filesIn['remainingFiles'] = this.filesIn['remainingFiles'] + files.length;
         const promises = [];
         files.forEach((file) => {
@@ -68,6 +70,7 @@ export class QoeAnalyzerService {
                             pesq: results[7],
                             visqol: results[8]
                         }
+                        console.log(record);
                         return record;
                     })
                     .catch(err => {
@@ -107,6 +110,7 @@ export class QoeAnalyzerService {
     }
 
     private async runScript(script: string, key: string = '') {
+        console.log(script);
         if (key) {
             this.filesIn[key]++;
         }
@@ -140,6 +144,7 @@ export class QoeAnalyzerService {
 
     // TODO: Configurable video length in align_ocr.sh
     private async preparePresenter() {
+        console.log("Preparing presenter video");
         return this.runScript(`${process.env.PWD}/qoe-scripts/remux.sh -i=${this.PRESENTER_VIDEO_FILE_LOCATION} -p=presenter -w=${this.width} -h=${this.height} -f=${this.framerate} -o=presenter-remuxed.webm`)
             .then(() => this.runScript(`${process.env.PWD}/qoe-scripts/cut.sh --presenter -a=${this.PRESENTER_AUDIO_FILE_LOCATION} -ao=presenter-audio-cut.wav -i=presenter-remuxed.webm -o=presenter-cut.webm -p=p- -w=${this.width} -h=${this.height} -f=${this.framerate}`))
             .then(() => this.runScript(`${process.env.PWD}/qoe-scripts/align_ocr.sh -i=presenter-cut.webm -a=presenter-audio-cut.wav -o=presenter-ocr.webm -p=p-ocr- -l=5 -w=${this.width} -h=${this.height} -f=${this.framerate}`))
@@ -221,6 +226,7 @@ export class QoeAnalyzerService {
                 return Promise.all(parsePromises);
             })
             .then(async (parseResults) => {
+                console.log("Cleaning up")
                 this.filesIn["analysis"]--;
                 this.filesIn["cleanup"]++;
                 await Promise.all([
