@@ -15,15 +15,15 @@ export class QoeAnalyzerService {
 
     constructor(
         private filesIn = {
-            started: 0,
+            remainingFiles: 0,
+            finished: 0,
             remux: 0,
             cut: 0,
             extractAudio: 0,
             alignOcr: 0,
             convertToYuv: 0,
             analysis: 0,
-            cleanup: 0,
-            finished: 0
+            cleanup: 0
         },
         private readonly instanceService: InstanceService = InstanceService.getInstance(),
         private readonly framerate: number = BrowserManagerService.getInstance().lastRequestInfo.properties.frameRate,
@@ -48,7 +48,7 @@ export class QoeAnalyzerService {
         const dir = `${process.env.PWD}/recordings/qoe`
         const files = await fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
             .then(() => fsPromises.readdir(dir))
-        this.filesIn['started'] = this.filesIn['started'] + files.length;
+        this.filesIn['remainingFiles'] = this.filesIn['remainingFiles'] + files.length;
         const promises = [];
         files.forEach((file) => {
             const filePath = `${dir}/${file}`;
@@ -161,7 +161,6 @@ export class QoeAnalyzerService {
         const userFrom = qoeInfo[2];
         const userTo = qoeInfo[3];
         const prefix = `v-${session}-${userFrom}-${userTo}`;
-        this.filesIn['started']--;
         return this.runScript(`${process.env.PWD}/qoe-scripts/remux.sh -i=${filePath} -p=${prefix} -w=640 -h=480 -f=30 -o=${prefix}-remuxed.webm`, "remux")
             .then(() => this.runScript(`${process.env.PWD}/qoe-scripts/cut.sh -i=${prefix}-remuxed.webm -o=${prefix}-cut -p=${prefix}- -w=640 -h=480 -f=30`, "cut"))
             .then(async () => {
@@ -239,6 +238,7 @@ export class QoeAnalyzerService {
                 ]);
                 this.filesIn["cleanup"]--;
                 this.filesIn["finished"]++;
+                this.filesIn['remainingFiles']--;
                 return parseResults
             });
     }

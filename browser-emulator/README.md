@@ -211,14 +211,14 @@ Start QoE Analysis if qoeAnalysis has been set to _true_ when instance was initi
 * #### URL:  https://localhost:5000/qoe/analysis* #### RESPONSE
 ```json
 {
-	"started": 20,
+	"remainingFiles": 20,
+	"finished": 0,
 	"remux": 0,
 	"cut": 0,
 	"extractAudio": 0,
 	"alignOcr": 0,
 	"analyze": 0,
-	"cleanup": 0,
-	"finished": 0,
+	"cleanup": 0
 }
 ```
 
@@ -235,13 +235,13 @@ Check current status of the QoE Analysis.
 * #### RESPONSE
 ```json
 {
-	"started": 1,
+	"remainingFiles": 18,
+	"finished": 1,
 	"remux": 3,
 	"cut": 13,
 	"extractAudio": 0,
 	"alignOcr": 1,
 	"analyze": 0,
-	"cleanup": 1,
-	"finished": 1,
+	"cleanup": 1
 }
 ```
