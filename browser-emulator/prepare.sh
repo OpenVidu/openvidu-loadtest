@@ -70,7 +70,8 @@ mv bazel.gpg /etc/apt/trusted.gpg.d/
 echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
 
 ## Install necessary packages
-apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv apt-transport-https curl gnupg bazel libnetpbm10-dev libjpeg-turbo-progs
+apt-get install --no-install-recommends -y apt-transport-https curl gnupg
+apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv bazel libnetpbm10-dev libjpeg-turbo-progs
 
 ## Install VMAF
 
