@@ -89,7 +89,7 @@ export VMAF_PATH=/usr/local/bin
 git clone https://github.com/Rolinh/VQMT
 cd VQMT
 make
-mv ./build/bin/Release/cqmt /usr/local/bin/vqmt
+mv ./build/bin/Release/vqmt /usr/local/bin/vqmt
 cd ..
 rm -rf VQMT
 export VQMT_PATH=/usr/local/bin
