@@ -63,4 +63,74 @@ if [ "$DOCKER_CONTAINER" = false ]; then
     "$SELF_PATH"/download_mediafiles.sh
 fi
 
+
+## Install Bazel apt repo (needed for ViSQOL)
+curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
+mv bazel.gpg /etc/apt/trusted.gpg.d/
+echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
+
+## Install necessary packages
+apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv apt-transport-https curl gnupg bazel libnetpbm10-dev libjpeg-turbo-progs
+
+## Install VMAF
+
+if [[ ! -f "/usr/local/bin/vmaf" ]]; then
+curl --output "/usr/local/bin/run_vmaf" \
+        --continue-at - \
+        --location "https://github.com/Netflix/vmaf/releases/download/v2.3.0/vmaf"
+fi
+chmod +x /usr/local/bin/run_vmaf
+export VMAF_PATH=/usr/local/bin
+
+## Install VQMT
+git clone https://github.com/Rolinh/VQMT
+cd VQMT
+make
+mv ./build/bin/Release/cqmt /usr/local/bin/vqmt
+cd ..
+rm -rf VQMT
+export VQMT_PATH=/usr/local/bin
+echo export VQMT_PATH=/usr/local/bin | tee -a /etc/profile
+
+## Install PESQ
+git clone https://github.com/dennisguse/ITU-T_pesq
+cd ITU-T_pesq
+make
+mv ./bin/itu-t-pesq2005 /usr/local/bin/pesq
+cd ..
+rm -rf ITU-T_pesq
+export PESQ_PATH=/usr/local/bin
+echo export PESQ_PATH=/usr/local/bin | tee -a /etc/profile
+
+## Install VISQOL
+curl --output "/tmp/visqol.tar.gz" \
+        --continue-at - \
+        --location "https://github.com/google/visqol/archive/refs/tags/v3.1.0.tar.gz"
+cd /tmp
+tar -xvf visqol.tar.gz
+rm visqol.tar.gz
+cd visqol-3.1.0
+bazel build :visqol -c opt
+cd ..
+mv visqol-3.1.0 /usr/local/visqol
+export VISQOL_PATH=/usr/local/visqol
+echo export VISQOL_PATH=/usr/local/visqol | tee -a /etc/profile
+cd $SELF_PATH
+
+## Install GOCR
+
+curl --output "/tmp/gocr-0.52.tar.gz" \
+        --continue-at - \
+        --location "https://www-e.ovgu.de/jschulen/ocr/gocr-0.52.tar.gz"
+cd /tmp
+tar -xvf gocr-0.52.tar.gz
+rm gocr-0.52.tar.gz
+cd gocr-0.52
+./configure
+make
+make install
+cd ..
+rm -rf gocr-0.52
+cd $SELF_PATH
+
 echo "Instance is ready"

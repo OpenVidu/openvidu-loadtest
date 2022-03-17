@@ -381,7 +381,7 @@ export class RealBrowserService {
 			const chrome = this.driverMap.get(containerId);
 			if (!!chrome) {
 				console.log("Executing getRecordings for container " + containerName);
-				const fileNamePrefix = `QOE_`;
+				const fileNamePrefix = `QOE`;
 				try {
 					await chrome.executeAsyncScript(`
 						const callback = arguments[arguments.length - 1];

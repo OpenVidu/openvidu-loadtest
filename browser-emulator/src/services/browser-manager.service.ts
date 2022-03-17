@@ -12,6 +12,8 @@ import { ApplicationMode } from '../types/config.type';
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
 	private readonly RESPONSE_TIMEOUT = 30_000;
+	private _lastRequestInfo: LoadTestPostRequest;
+
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
@@ -74,6 +76,7 @@ export class BrowserManagerService {
 		const sessionId = request.properties.sessionName;
 		this.sendStreamsData(streams);
 		console.log(`Participant ${connectionId} created`);
+		this._lastRequestInfo = request;
 		return { connectionId, streams, participants, workerCpuUsage, sessionId, userId };
 	}
 
@@ -137,5 +140,9 @@ export class BrowserManagerService {
 			`Recording Browser: ${req.properties.recording} \n` +
 			`Headless Browser: ${req.properties.headless} \n`;
 		console.log(info);
+	}
+
+	public get lastRequestInfo(): LoadTestPostRequest {
+		return this._lastRequestInfo;
 	}
 }
