@@ -73,7 +73,7 @@ echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" |
 apt-get update
 apt-get install --no-install-recommends -y apt-transport-https curl gnupg
 apt-get update
-apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv bazel libnetpbm10-dev libjpeg-turbo-progs
+apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv bazel libnetpbm10-dev libjpeg-turbo-progs ffmpeg
 
 ## Install VMAF
 
