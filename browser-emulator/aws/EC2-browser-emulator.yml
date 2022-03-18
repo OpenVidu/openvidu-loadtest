@@ -10,6 +10,10 @@ Parameters:
 Resources:
   BrowserInstance:
     Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT45M
+        Count: 1
     Properties:
       ImageId: !Ref ImageId
       InstanceType: "t3.small"
@@ -80,10 +84,3 @@ Resources:
 
           # sending the finish call
           /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WaitCondition --region ${AWS::Region}
-
-  WaitCondition:
-    Type: AWS::CloudFormation::WaitCondition
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT25M
-        Count: 1
