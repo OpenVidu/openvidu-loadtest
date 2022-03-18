@@ -2,10 +2,10 @@ import { exec } from 'child_process';
 import fs = require('fs');
 import { BrowserManagerService } from './browser-manager.service';
 import fsPromises = fs.promises;
-import { globby } from 'globby';
+import glob = require('tiny-glob');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 import csvParser = require('csv-parser');
-import pLimit from 'p-limit';
+const pLimit = require('p-limit');
 import os = require('os');
 import { InstanceService } from './instance.service';
 
@@ -171,7 +171,7 @@ export class QoeAnalyzerService {
             .then(async () => {
                 this.filesIn["extractAudio"]++;
                 const promises = [];
-                const paths = await globby([`${prefix}-cut-*.webm`]);
+                const paths = await glob(`${prefix}-cut-*.webm`);
                 for (let i = 0; i < paths.length; i++) {
                     promises.push(this.runScript(`${process.env.PWD}/qoe-scripts/extractAudio.sh -i=${paths[i]} -o=${prefix}-cut-audio-${i}.wav`));
                 }
@@ -181,8 +181,8 @@ export class QoeAnalyzerService {
                 this.filesIn["extractAudio"]--;
                 this.filesIn["alignOcr"]++;
                 const promises = [];
-                const pathsVideo = await globby([`${prefix}-cut-*.webm`]);
-                const pathsAudio = await globby([`${prefix}-cut-audio-*.wav`]);
+                const pathsVideo = await glob(`${prefix}-cut-*.webm`);
+                const pathsAudio = await glob(`${prefix}-cut-audio-*.wav`);
                 for (let i = 0; i < pathsVideo.length; i++) {
                     promises.push(this.runScript(`${process.env.PWD}/qoe-scripts/align_ocr.sh -i=${pathsVideo[i]} -a=${pathsAudio[i]} -o=${prefix}-ocr-${i}.webm -p=${prefix}-ocr- -l=5 -w=${this.width} -h=${this.height} -f=${this.framerate}`));
                 }
@@ -192,7 +192,7 @@ export class QoeAnalyzerService {
                 this.filesIn["alignOcr"]--;
                 this.filesIn["convertToYuv"]++;
                 const promises = [];
-                const paths = await globby([`${prefix}-ocr-*.webm`]);
+                const paths = await glob(`${prefix}-ocr-*.webm`);
                 for (let i = 0; i < paths.length; i++) {
                     promises.push(this.runScript(`${process.env.PWD}/qoe-scripts/convert_to_yuv.sh -i=${prefix}-ocr-${i}.webm -o=${prefix}-${i}.yuv`))
                 }
@@ -202,7 +202,7 @@ export class QoeAnalyzerService {
                 this.filesIn["convertToYuv"]--;
                 this.filesIn["analysis"]++;
                 const promises = [];
-                const paths = await globby([`${prefix}-*.yuv`]);
+                const paths = await glob(`${prefix}-*.yuv`);
                 for (let i = 0; i < paths.length; i++) {
                     promises.push(
                         this.runScript(`${process.env.PWD}/qoe-scripts/vmaf.sh -ip=presenter.yuv -iv=${prefix}-${i}.yuv -o=${prefix}-${i} -w=${this.width} -h=${this.height}`),
@@ -213,13 +213,13 @@ export class QoeAnalyzerService {
                 }
                 await Promise.all(promises);
                 const parsePromises = [
-                    this.parseCsv(`${prefix}_vmaf.csv`, '0'),
-                    this.parseCsv(`${prefix}_vifp.csv`, 'value'),
-                    this.parseCsv(`${prefix}_ssim.csv`, 'value'),
-                    this.parseCsv(`${prefix}_psnr.csv`, 'value'),
-                    this.parseCsv(`${prefix}_msssim.csv`, 'value'),
-                    this.parseCsv(`${prefix}_psnrhvs.csv`, 'value'),
-                    this.parseCsv(`${prefix}_psnrhvsm.csv`, 'value'),
+                    this.parseCsv(`${prefix}_vmaf.csv`, '0', false),
+                    this.parseCsv(`${prefix}_vifp.csv`, 'value', true),
+                    this.parseCsv(`${prefix}_ssim.csv`, 'value', true),
+                    this.parseCsv(`${prefix}_psnr.csv`, 'value', true),
+                    this.parseCsv(`${prefix}_msssim.csv`, 'value', true),
+                    this.parseCsv(`${prefix}_psnrhvs.csv`, 'value', true),
+                    this.parseCsv(`${prefix}_psnrhvsm.csv`, 'value', true),
                     this.parsePESQ(`${prefix}_pesq.txt`),
                     this.parseViSQOL(`${prefix}_visqol.txt`)
                 ]
@@ -249,23 +249,27 @@ export class QoeAnalyzerService {
             });
     }
 
-    private async parseCsv(file: string, column: string): Promise<number> {
-        return new Promise<number>((resolve, reject) => {
+    private async parseCsv(file: string, column: string, headers: boolean): Promise<number> {
+        return new Promise<number>(async (resolve, reject) => {
             const results = [];
-            fs.createReadStream(file)
-                .pipe(csvParser({
-                    headers: false
-                }))
-                .on("data", (data: any) => {
-                    results.push(data[column]);
-                })
-                .on("end", () => {
-                    const avg: number = results.reduce((a, b) => a + b, 0) / results.length;
-                    resolve(avg);
-                })
-                .on("error", (err: any) => {
-                    reject(err);
-                });
+            try {
+                fs.createReadStream(file)
+                    .pipe(csvParser({
+                        headers
+                    }))
+                    .on("data", (data: any) => {
+                        results.push(data[column]);
+                    })
+                    .on("end", () => {
+                        const avg: number = results.reduce((a, b) => a + b, 0) / results.length;
+                        resolve(avg);
+                    })
+                    .on("error", (err: any) => {
+                        reject(err);
+                    });
+            } catch (err) {
+                reject(err);
+            }
         })
     }
 
@@ -275,6 +279,7 @@ export class QoeAnalyzerService {
         const rawMOS: number = parseFloat(firstSplit[0].split("= ")[1]);
         const MOSLQO: number = parseFloat(firstSplit[1]);
         return (rawMOS + MOSLQO) / 2;
+
     }
 
     private async parseViSQOL(file: string): Promise<number> {
