@@ -63,6 +63,8 @@ if [ "$DOCKER_CONTAINER" = false ]; then
     "$SELF_PATH"/download_mediafiles.sh
 fi
 
+## Give execution rights to the scripts
+chmod +x "$SELF_PATH"/qoe-scripts/*.sh
 
 ## Install Bazel apt repo (needed for ViSQOL)
 curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
@@ -73,7 +75,7 @@ echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" |
 apt-get update
 apt-get install --no-install-recommends -y apt-transport-https curl gnupg
 apt-get update
-apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv bazel libnetpbm10-dev libjpeg-turbo-progs ffmpeg
+apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv bazel libnetpbm10-dev libjpeg-turbo-progs ffmpeg imagemagick-6.q16
 
 ## Install VMAF
 
@@ -84,6 +86,7 @@ curl --output "/usr/local/bin/run_vmaf" \
 fi
 chmod +x /usr/local/bin/run_vmaf
 export VMAF_PATH=/usr/local/bin
+echo export VMAF_PATH=/usr/local/bin | tee -a /etc/profile
 
 ## Install VQMT
 git clone https://github.com/Rolinh/VQMT
