@@ -83,4 +83,4 @@ Resources:
           echo '@reboot docker run -d -it --network host -v /var/run/docker.sock:/var/run/docker.sock -v /opt/openvidu-loadtest/browser-emulator/recordings:/opt/openvidu-loadtest/browser-emulator/recordings openvidu/browser-emulator:2.2.0 > /var/log/crontab.log' | crontab
 
           # sending the finish call
-          /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WaitCondition --region ${AWS::Region}
+          /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource BrowserInstance --region ${AWS::Region}
