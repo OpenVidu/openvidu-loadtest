@@ -75,18 +75,38 @@ echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" |
 apt-get update
 apt-get install --no-install-recommends -y apt-transport-https curl gnupg
 apt-get update
-apt-get install --no-install-recommends -y bc make cmake build-essential git libopencv-dev python3-opencv bazel libnetpbm10-dev libjpeg-turbo-progs ffmpeg imagemagick-6.q16
+apt-get install --no-install-recommends -y build-essential bc make cmake git libopencv-dev python3-opencv bazel libnetpbm10-dev \
+    libjpeg-turbo-progs imagemagick-6.q16 jq automake ca-certificates g++ libtool libleptonica-dev pkg-config nasm ninja-build \
+    meson doxygen libx264-dev libx265-dev libnuma-dev
+pkg-config --cflags --libs opencv4
 
 ## Install VMAF
-
 if [[ ! -f "/usr/local/bin/vmaf" ]]; then
-curl --output "/usr/local/bin/run_vmaf" \
+curl --output "/tmp/vmaf.tar.gz" \
         --continue-at - \
-        --location "https://github.com/Netflix/vmaf/releases/download/v2.3.0/vmaf"
+        --location "https://github.com/Netflix/vmaf/archive/refs/tags/v2.3.0.tar.gz"
 fi
-chmod +x /usr/local/bin/run_vmaf
+cd /tmp
+tar -xvf vmaf.tar.gz
+cd vmaf-2.3.0/libvmaf/
+meson build --buildtype release
+ninja -vC build
+ninja -vC build install
+cp /usr/local/lib/x86_64-linux-gnu/libvmaf.* /usr/local/lib/
+cd ../..
+rm -rf vmaf-2.3.0
+rm vmaf.tar.gz
 export VMAF_PATH=/usr/local/bin
 echo export VMAF_PATH=/usr/local/bin | tee -a /etc/profile
+
+## Install ffmpeg
+git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
+cd ffmpeg
+./configure --enable-gpl --enable-libx264 --enable-libx265 --enable-libvmaf --enable-version3
+make -j4
+make install
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+echo export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib | tee -a /etc/profile
 
 ## Install VQMT
 git clone https://github.com/Rolinh/VQMT
@@ -97,6 +117,7 @@ cd ..
 rm -rf VQMT
 export VQMT_PATH=/usr/local/bin
 echo export VQMT_PATH=/usr/local/bin | tee -a /etc/profile
+cd $SELF_PATH
 
 ## Install PESQ
 git clone https://github.com/dennisguse/ITU-T_pesq
@@ -121,22 +142,46 @@ cd ..
 mv visqol-3.1.0 /usr/local/visqol
 export VISQOL_PATH=/usr/local/visqol
 echo export VISQOL_PATH=/usr/local/visqol | tee -a /etc/profile
+rm -rf visqol-3.1.0
 cd $SELF_PATH
 
 ## Install GOCR
 
-curl --output "/tmp/gocr-0.52.tar.gz" \
+# curl --output "/tmp/gocr-0.52.tar.gz" \
+#         --continue-at - \
+#         --location "https://www-e.ovgu.de/jschulen/ocr/gocr-0.52.tar.gz"
+# cd /tmp
+# tar -xvf gocr-0.52.tar.gz
+# rm gocr-0.52.tar.gz
+# cd gocr-0.52
+# ./configure
+# make
+# make install
+# cd ..
+# rm -rf gocr-0.52
+# cd $SELF_PATH
+
+## Install tesseract
+## Building tesseract ST for better performance, check https://tesseract-ocr.github.io/tessdoc/Compiling-%E2%80%93-GitInstallation.html#release-builds-for-mass-production
+curl --output "/tmp/tesseract.tar.gz" \
         --continue-at - \
-        --location "https://www-e.ovgu.de/jschulen/ocr/gocr-0.52.tar.gz"
+        --location "https://github.com/tesseract-ocr/tesseract/archive/refs/tags/4.1.3.tar.gz"
 cd /tmp
-tar -xvf gocr-0.52.tar.gz
-rm gocr-0.52.tar.gz
-cd gocr-0.52
-./configure
+tar -xvf tesseract.tar.gz
+rm tesseract.tar.gz
+cd tesseract-4.1.3
+./autogen.sh
+mkdir -p bin/release
+cd bin/release
+../../configure --disable-openmp --disable-shared 'CXXFLAGS=-g -O2 -fno-math-errno -Wall -Wextra -Wpedantic'
 make
 make install
-cd ..
-rm -rf gocr-0.52
+ldconfig
+cd ../../..
+rm -rf tesseract-4.1.3
 cd $SELF_PATH
+curl --output "/usr/local/share/tessdata/eng.traineddata" \
+        --continue-at - \
+        --location "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
 
 echo "Instance is ready"

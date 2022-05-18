@@ -44,5 +44,5 @@ done
 ##########
 if [[ ! -f ${OUTPUT}_msssim.csv || ! -f ${OUTPUT}_psnr.csv || ! -f ${OUTPUT}_psnrhvs.csv || ! -f ${OUTPUT}_psnrhvsm.csv || ! -f ${OUTPUT}_ssim.csv || ! -f ${OUTPUT}_vifp.csv ]] ; then
     echo "Running VQMT on $INPUT_PRESENTER and $INPUT_VIEWER"
-    $VQMT_PATH/vqmt $PWD/$INPUT_PRESENTER $PWD/$INPUT_VIEWER $HEIGHT $WIDTH 1500 1 $OUTPUT PSNR SSIM VIFP MSSSIM PSNRHVS PSNRHVSM >> /dev/null 2>&1
+    $VQMT_PATH/vqmt $INPUT_PRESENTER $INPUT_VIEWER $HEIGHT $WIDTH 1500 1 $OUTPUT PSNR SSIM VIFP MSSSIM PSNRHVS PSNRHVSM >> /dev/null 2>&1
 fi
