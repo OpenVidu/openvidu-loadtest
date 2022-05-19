@@ -46,6 +46,7 @@ browser-emulator/recordings/
 browser-emulator/webrtc-stats-config
 
 *.txt
+!requirements.txt
 
 browser-emulator/.awsconfig/
 
