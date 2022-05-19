@@ -183,5 +183,8 @@ cd $SELF_PATH
 curl --output "/usr/local/share/tessdata/eng.traineddata" \
         --continue-at - \
         --location "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
+		
+## Install python dependencies
+pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe-scripts/requirements.txt
 
 echo "Instance is ready"
