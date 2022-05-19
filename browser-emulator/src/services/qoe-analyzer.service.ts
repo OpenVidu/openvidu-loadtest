@@ -169,10 +169,10 @@ export class QoeAnalyzerService {
                     shell: "/bin/bash",
                 });
                 execProcess.stdout.on('data', (data) => {
-                    console.log(data);
+                    console.log(data.toString());
                 });
                 execProcess.stderr.on('data', (data) => {
-                    console.error(data);
+                    console.error(data.toString());
                 });
                 execProcess.on('exit', (code) => {
                     if (code !== 0) {
