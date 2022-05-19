@@ -105,8 +105,8 @@ cd ffmpeg
 ./configure --enable-gpl --enable-libx264 --enable-libx265 --enable-libvmaf --enable-version3
 make -j4
 make install
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-echo export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib | tee -a /etc/profile
+export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+echo export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} | tee -a /etc/profile
 
 ## Install VQMT
 git clone https://github.com/Rolinh/VQMT
