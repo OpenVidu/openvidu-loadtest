@@ -43,6 +43,12 @@ command -v docker >/dev/null || {
     # newgrp docker
 }
 
+# Check Pip3
+# ==========
+command -v python3-pip >/dev/null || {
+    apt-get install -y python3-pip
+}
+
 
 # Check FFmpeg
 # ============
