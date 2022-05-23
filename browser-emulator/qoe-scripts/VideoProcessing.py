@@ -115,7 +115,7 @@ def write_video(cut_frames, cut_index):
     ffmpeg_process = sp.Popen(ffmpeg_command_to_save, stdout=out, stdin=sp.PIPE, stderr=errout, shell=True)
     for frame in cut_frames:
         try:
-            ffmpeg_process.stdin.write(cv2.imencode('.jpg', frame)[1].tostring())
+            ffmpeg_process.stdin.write(cv2.imencode('.jpg', frame)[1].tobytes())
         except (OSError, IOError) as e:
             logger.error("Failed to write to ffmpeg process")
             logger.error(e)
