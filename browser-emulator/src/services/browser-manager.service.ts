@@ -74,7 +74,7 @@ export class BrowserManagerService {
 		const participants = this.getParticipantsCreated();
 		const userId = request.properties.userId;
 		const sessionId = request.properties.sessionName;
-		this.sendStreamsData(streams);
+		await this.sendStreamsData(streams, userId, sessionId);
 		console.log(`Participant ${connectionId} created`);
 		this._lastRequestInfo = request;
 		return { connectionId, streams, participants, workerCpuUsage, sessionId, userId };
@@ -114,12 +114,14 @@ export class BrowserManagerService {
 		return this.emulateBrowserService.getParticipantsCreated() + this.realBrowserService.getParticipantsCreated();
 	}
 
-	private async sendStreamsData(streams: number) {
+	private async sendStreamsData(streams: number, new_participant_id: string, new_participant_session: string) {
 		const json: JSONStreamsInfo = {
 			'@timestamp': new Date().toISOString(),
 			streams,
 			node_role: 'browseremulator',
 			worker_name: `worker_${this.instanceService.WORKER_UUID}`,
+			new_participant_id,
+			new_participant_session
 		};
 		try {
 			await this.elasticSearchService.sendJson(json);

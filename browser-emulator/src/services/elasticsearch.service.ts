@@ -1,7 +1,7 @@
 import { Client, ClientOptions } from '@elastic/elasticsearch';
 import { Index } from '@elastic/elasticsearch/api/requestParams';
 import { APPLICATION_MODE } from '../config';
-import { JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type';
+import { JSONQoEInfo, JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type';
 import { ApplicationMode } from '../types/config.type';
 
 export class ElasticSearchService {
@@ -259,7 +259,7 @@ export class ElasticSearchService {
 		}
 	}
 
-	async sendJson(json: JSONStatsResponse | JSONStreamsInfo) {
+	async sendJson(json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo) {
 		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
 			let indexData: Index<Record<string, any>> = {
 				index: this.indexName,
@@ -274,6 +274,17 @@ export class ElasticSearchService {
 				} catch (error) {
 					console.error(error);
 				}
+			}
+		}
+	}
+
+	async sendBulkJsons(jsons: JSONStatsResponse[] | JSONStreamsInfo[] | JSONQoEInfo[]) {
+		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
+			try {
+				const operations = jsons.flatMap((json) => [{ index: { _index: this.indexName } }, json])
+				const bulkResponse = await this.client.bulk({ refresh: true, body: operations });
+			} catch (error) {
+				console.error(error);
 			}
 		}
 	}
@@ -329,5 +340,33 @@ export class ElasticSearchService {
 			}-${date.getFullYear()}`;
 		this.indexName = this.LOADTEST_INDEX + '-' + timestamp + '-' + new Date().getTime();
 		return this.indexName;
+	}
+
+	async getStartTimes(): Promise<JSONStreamsInfo[]> {
+		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
+			const result = await this.client.search({
+				index: this.indexName,
+				body: {
+					query: {
+						exists: {
+							field: 'new_participant_id'
+						}
+					}
+				}
+			})
+			return result.body.hits.hits.map(hit => {
+				const json: JSONStreamsInfo = {
+					"@timestamp": hit._source["@timestamp"],
+					new_participant_id: hit._source["new_participant_id"],
+					new_participant_session: hit._source["new_participant_session"],
+					node_role: hit._source["node_role"],
+					streams: hit._source["streams"],
+					worker_name: hit._source["worker_name"],
+				}
+				return json;
+			})
+		} else {
+			return []
+		}
 	}
 }

@@ -3,11 +3,12 @@ import fs = require('fs');
 import { BrowserManagerService } from './browser-manager.service';
 import fsPromises = fs.promises;
 import glob = require('tiny-glob');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 import csvParser = require('csv-parser');
 const pLimit = require('p-limit');
 import os = require('os');
 import { InstanceService } from './instance.service';
+import { ElasticSearchService } from './elasticsearch.service';
+import { JSONQoEInfo } from '../types/api-rest.type';
 
 export class QoeAnalyzerService {
 
@@ -22,6 +23,7 @@ export class QoeAnalyzerService {
             remainingFiles: 0,
         },
         private readonly instanceService: InstanceService = InstanceService.getInstance(),
+        private readonly elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
         private readonly framerate: number = BrowserManagerService.getInstance().lastRequestInfo.properties.frameRate,
         private readonly width: string = BrowserManagerService.getInstance().lastRequestInfo.properties.resolution.split("x")[0],
         private readonly height: string = BrowserManagerService.getInstance().lastRequestInfo.properties.resolution.split("x")[1],
@@ -48,6 +50,7 @@ export class QoeAnalyzerService {
             .then(() => fsPromises.readdir(dir))
         console.log(files);
         this.filesIn['remainingFiles'] = this.filesIn['remainingFiles'] + files.length;
+        const timestamps = await this.elasticSearchService.getStartTimes()
         const promises = [];
         files.forEach((file) => {
             const filePath = `${dir}/${file}`;
@@ -56,22 +59,39 @@ export class QoeAnalyzerService {
             promises.push(
                 this.runSingleAnalysis(filePath, fileName)
                     .then((results: number[]) => {
+                        const qoeInfo = prefix.split('_');
+                        const session = qoeInfo[1];
+                        const userFrom = qoeInfo[2];
+                        const userTo = qoeInfo[3];
+                        // TODO: change these hardcoded durations
+                        const padding = 1;
+                        const fragment_duration_sec = 5;
                         const records = []
-                        for (let i = 0; i < (results.length / 9); i++) {
-                            const record = {
-                                cut: prefix + "-" + i,
-                                vmaf: results[i % 9],
-                                vifp: results[i % 9 + 1],
-                                ssim: results[i % 9 + 2],
-                                psnr: results[i % 9 + 3],
-                                msssin: results[i % 9 + 4],
-                                psnrhvs: results[i % 9 + 5],
-                                psnrhvsm: results[i % 9 + 6],
-                                pesq: results[i % 9 + 7],
-                                visqol: results[i % 9 + 8]
+                        const timestampObjArr = timestamps.filter(t => (t.new_participant_session === session) && (t.new_participant_id === userFrom))
+                        if (timestampObjArr.length > 0) {
+                            const timestampObj = timestampObjArr[0];
+                            const timestamp = new Date(timestampObj['@timestamp'])
+                            for (let i = 0; i < (results.length / 9); i++) {
+                                const cutTimestamp = new Date(timestamp.getTime())
+                                cutTimestamp.setSeconds(cutTimestamp.getSeconds() + ((i + 1) * fragment_duration_sec) + ((i + 1) * padding * 2));
+                                const record: JSONQoEInfo = {
+                                    "@timestamp": cutTimestamp.toString(),
+                                    "session": session,
+                                    "userFrom": userFrom,
+                                    "userTo": userTo,
+                                    vmaf: results[i % 9],
+                                    vifp: results[i % 9 + 1],
+                                    ssim: results[i % 9 + 2],
+                                    psnr: results[i % 9 + 3],
+                                    msssin: results[i % 9 + 4],
+                                    psnrhvs: results[i % 9 + 5],
+                                    psnrhvsm: results[i % 9 + 6],
+                                    pesq: results[i % 9 + 7],
+                                    visqol: results[i % 9 + 8]
+                                }
+                                console.log(record);
+                                records.push(record)
                             }
-                            console.log(record);
-                            records.push(record)
                         }
                         return records;
                     })
@@ -85,24 +105,8 @@ export class QoeAnalyzerService {
             .then((records) => {
                 const flattenedRecords = records.flat();
                 // Create final CSV file
-                const csvWriter = createCsvWriter({
-                    path: csvPath,
-                    header: [
-                        { id: 'cut', title: 'File fragment' },
-                        { id: 'vmaf', title: 'VMAF' },
-                        { id: 'vifp', title: 'VIFp' },
-                        { id: 'ssim', title: 'SSIM' },
-                        { id: 'psnr', title: 'PSNR' },
-                        { id: 'msssin', title: 'MS-SSIM' },
-                        { id: 'psnrhvs', title: 'PSNR-HVS' },
-                        { id: 'psnrhvsm', title: 'PSNR-HVS-M' },
-                        { id: 'pesq', title: 'PESQ' },
-                        { id: 'visqol', title: 'ViSQOL' }
-                    ]
-                })
-                return csvWriter.writeRecords(flattenedRecords);
+                return this.elasticSearchService.sendBulkJsons(flattenedRecords)
             })
-            .then(() => this.instanceService.uploadQoeAnalysisToS3(csvFile))
             .then(async () => {
                 const filesToDelete = await Promise.all([
                     glob(`QOE_*.csv`),
