@@ -2,11 +2,7 @@ import { spawn } from 'child_process';
 import fs = require('fs');
 import { BrowserManagerService } from './browser-manager.service';
 import fsPromises = fs.promises;
-import glob = require('tiny-glob');
-import csvParser = require('csv-parser');
 const pLimit = require('p-limit');
-import os = require('os');
-import { InstanceService } from './instance.service';
 import { ElasticSearchService } from './elasticsearch.service';
 import { JSONQoEInfo } from '../types/api-rest.type';
 
@@ -16,13 +12,9 @@ export class QoeAnalyzerService {
 
     constructor(
         private filesIn = {
-            "video-processing": 0,
-            "analysis": 0,
-            cleanup: 0,
             finished: 0,
             remainingFiles: 0,
         },
-        private readonly instanceService: InstanceService = InstanceService.getInstance(),
         private readonly elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
         private readonly framerate: number = BrowserManagerService.getInstance().lastRequestInfo.properties.frameRate,
         private readonly width: string = BrowserManagerService.getInstance().lastRequestInfo.properties.resolution.split("x")[0],
@@ -30,8 +22,10 @@ export class QoeAnalyzerService {
         private readonly PRESENTER_VIDEO_FILE_LOCATION =
             `${process.env.PWD}/src/assets/mediafiles/fakevideo_${framerate}fps_${BrowserManagerService.getInstance().lastRequestInfo.properties.resolution}.y4m`,
         private readonly PRESENTER_AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`,
-        private readonly limitProcessing = pLimit(1), // Scripts are already multithreaded
-        private readonly limitAnalysis = pLimit(os.cpus().length - 1)
+        private readonly limit = pLimit(1), // Scripts are already multithreaded
+        // TODO: Configurable video length
+        private readonly FRAGMENT_DURATION: number = 5,
+        private readonly PADDING_DURATION: number = 1, 
     ) { }
 
     static getInstance() {
@@ -42,9 +36,6 @@ export class QoeAnalyzerService {
     }
 
     public async runQoEAnalysis() {
-        const csvFile = `QOE_Analysis_${new Date().toISOString()}.csv`;
-        console.log("Running QoE Analysis, saving in " + csvFile);
-        const csvPath = `${process.env.PWD}/${csvFile}`;
         const dir = `${process.env.PWD}/recordings/qoe`
         const files = await fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
             .then(() => fsPromises.readdir(dir))
@@ -56,74 +47,42 @@ export class QoeAnalyzerService {
             const filePath = `${dir}/${file}`;
             const fileName = file.split('/').pop();
             const prefix = fileName.split('.')[0];
-            promises.push(
-                this.runSingleAnalysis(filePath, fileName)
-                    .then((results: number[]) => {
-                        const qoeInfo = prefix.split('_');
-                        const session = qoeInfo[1];
-                        const userFrom = qoeInfo[2];
-                        const userTo = qoeInfo[3];
-                        // TODO: change these hardcoded durations
-                        const padding = 1;
-                        const fragment_duration_sec = 5;
-                        const records = []
-                        const timestampObjArr = timestamps.filter(t => (t.new_participant_session === session) && (t.new_participant_id === userFrom))
-                        if (timestampObjArr.length > 0) {
-                            const timestampObj = timestampObjArr[0];
-                            const timestamp = new Date(timestampObj['@timestamp'])
-                            for (let i = 0; i < (results.length / 9); i++) {
-                                const cutTimestamp = new Date(timestamp.getTime())
-                                cutTimestamp.setSeconds(cutTimestamp.getSeconds() + ((i + 1) * fragment_duration_sec) + ((i + 1) * padding * 2));
-                                const record: JSONQoEInfo = {
-                                    "@timestamp": cutTimestamp.toString(),
-                                    "session": session,
-                                    "userFrom": userFrom,
-                                    "userTo": userTo,
-                                    vmaf: results[i % 9],
-                                    vifp: results[i % 9 + 1],
-                                    ssim: results[i % 9 + 2],
-                                    psnr: results[i % 9 + 3],
-                                    msssin: results[i % 9 + 4],
-                                    psnrhvs: results[i % 9 + 5],
-                                    psnrhvsm: results[i % 9 + 6],
-                                    pesq: results[i % 9 + 7],
-                                    visqol: results[i % 9 + 8]
-                                }
-                                console.log(record);
-                                records.push(record)
-                            }
-                        }
-                        return records;
-                    })
-                    .catch(err => {
-                        this.filesIn[err.key]--;
-                        console.error(err)
-                    })
-            );
-        });
-        this.preparePresenter().then(() => Promise.all(promises))
-            .then((records) => {
-                const flattenedRecords = records.flat();
-                // Create final CSV file
-                return this.elasticSearchService.sendBulkJsons(flattenedRecords)
-            })
+            promises.push(this.limit(() => this.runSingleAnalysis(filePath, fileName)
             .then(async () => {
-                const filesToDelete = await Promise.all([
-                    glob(`QOE_*.csv`),
-                    glob(`QOE_*.txt`)
-                ])
-                const promises = filesToDelete.flat().map(a => fsPromises.unlink(a));
-                return Promise.all(promises)
-            });
+                const qoeInfo = prefix.split('_');
+                const session = qoeInfo[1];
+                const userFrom = qoeInfo[2];
+                const userTo = qoeInfo[3];
+                const jsonText = await fsPromises.readFile(prefix, 'utf-8')
+                return [session, userFrom, userTo, jsonText]
+            }).catch(err => {
+                console.error(err)
+            })))
+        });
+        await Promise.all(promises).then((info) => {
+            const jsonsELK: JSONQoEInfo[] = info.map(infoArray => {
+                const session = infoArray[0];
+                const userFrom = infoArray[1];
+                const userTo = infoArray[2];
+                const jsonText = infoArray[3];
+                const json = JSON.parse(jsonText);
+                json["session"] = session;
+                json["userFrom"] = userFrom;
+                json["userTo"] = userTo;
+                const timestampString: string = timestamps.find(timestamp => timestamp.new_participant_session === session && timestamp.new_participant_id === userFrom)[0];
+                const timestampDate = new Date(timestampString);
+                timestampDate.setSeconds(timestampDate.getSeconds() + 2 * this.PADDING_DURATION * (json.cutIndex + 1) + this.FRAGMENT_DURATION * (json.cutIndex + 1));
+                json["timestamp"] = timestampDate.toString();
+                return json
+            })
+            return this.elasticSearchService.sendBulkJsons(jsonsELK)
+        })
 
         return this.getStatus();
     }
 
-    private async runScript(script: string, processing = false, key: string = '') {
+    private async runScript(script: string) {
         console.log(script);
-        if (key) {
-            this.filesIn[key]++;
-        }
         const promise = new Promise((resolve, reject) => {
             const execProcess = spawn(script, [], {
                 cwd: `${process.env.PWD}`,
@@ -137,184 +96,31 @@ export class QoeAnalyzerService {
             });
             execProcess.on('exit', (code) => {
                 if (code !== 0) {
-                    // TODO: Remove this when vqmt is fixed
-                    if (script.includes("vqmt")) {
-                        if (key) {
-                            this.filesIn[key]--;
-                        }
-                        return resolve("");
-                    }
                     console.error(`exit code ${code}`);
                     return reject({
-                        error: code,
-                        key
+                        error: code
                     });
                 } else {
-                    if (key) {
-                        this.filesIn[key]--;
-                    }
                     return resolve("");
                 }
             });
         })
-        if (processing) {
-            return this.limitProcessing(() => promise)
-        } else {
-            return this.limitAnalysis(() => promise)
-        }
-    }
-
-    private async runFfmpeg(args: string, output: string) {
-        return fsPromises.access(output).catch(() => {
-            console.log("ffmpeg " + args + " " + output);
-            return this.limitProcessing(() => new Promise((resolve, reject) => {
-                const execProcess = spawn("ffmpeg " + args + " " + output, [], {
-                    cwd: `${process.env.PWD}`,
-                    shell: "/bin/bash",
-                });
-                execProcess.stdout.on('data', (data) => {
-                    console.log(data.toString());
-                });
-                execProcess.stderr.on('data', (data) => {
-                    console.error(data.toString());
-                });
-                execProcess.on('exit', (code) => {
-                    if (code !== 0) {
-                        console.error(`exit code ${code}`);
-                        return reject({
-                            error: code
-                        });
-                    } else {
-                        return resolve("");
-                    }
-                });
-            }))
-        })
+        return promise
     }
 
     // TODO: Configurable video length
-    private async preparePresenter() {
-        console.log("Preparing presenter video");
-        return this.runFfmpeg(`-i ${this.PRESENTER_VIDEO_FILE_LOCATION} -ss 1 -to 6`, "presenter.yuv")
-            .then(() => this.runFfmpeg(`-i ${this.PRESENTER_AUDIO_FILE_LOCATION} -ss 1 -to 6 -async 1`, "presenter.wav"))
-            .then(() => this.runFfmpeg(`-i ${this.PRESENTER_AUDIO_FILE_LOCATION} -ar 16000 -ss 1 -to 6 -async 1`, "presenter-pesq.wav"))
-    }
-
-    // TODO: Configurable video length
-    private async runSingleAnalysis(filePath: string, fileName: string): Promise<number[]> {
+    private async runSingleAnalysis(filePath: string, fileName: string): Promise<void> {
         const qoeInfo = fileName.split('.')[0].split('_');
         const session = qoeInfo[1];
         const userFrom = qoeInfo[2];
         const userTo = qoeInfo[3];
         const prefix = `v-${session}-${userFrom}-${userTo}`;
-        return this.runScript(`python3 ${process.env.PWD}/qoe-scripts/VideoProcessing.py --viewer=${filePath} --prefix=${prefix} --fragment_duration_sec=5 --width=${this.width} --height=${this.height} --fps=${this.framerate}`, true, "video-processing")
-            //return Promise.resolve("")
+        return this.runScript(`python3 ${process.env.PWD}/qoe-scripts/VideoProcessing.py --presenter=${this.PRESENTER_VIDEO_FILE_LOCATION} --presenter_audio=${this.PRESENTER_AUDIO_FILE_LOCATION} --viewer=${filePath} --prefix=${prefix} --fragment_duration_secs=${this.FRAGMENT_DURATION} --padding_duration_secs=${this.PADDING_DURATION} --width=${this.width} --height=${this.height} --fps=${this.framerate}`)
+        //return Promise.resolve("")
             .then(() => {
-                this.filesIn["analysis"]++;
-                console.log("new analysis")
-                return glob(`${process.env.PWD}/outputs/${prefix}_*.y4m`);
-            })
-            .then((paths) => {
-                const promises = [];
-                for (let i = 0; i < paths.length; i++) {
-                    promises.push(
-                        this.runScript(`${process.env.PWD}/qoe-scripts/vmaf.sh -ip=presenter.yuv -iv=${process.env.PWD}/outputs/${prefix}_${i}.y4m -o=${prefix}-${i} -w=${this.width} -h=${this.height}`),
-                        this.runScript(`${process.env.PWD}/qoe-scripts/vqmt.sh -ip=presenter.yuv -iv=${process.env.PWD}/outputs/${prefix}_${i}.y4m -o=${prefix}-${i} -w=${this.width} -h=${this.height}`),
-                        this.runScript(`${process.env.PWD}/qoe-scripts/pesq.sh -ip=presenter-pesq.wav -iv=${process.env.PWD}/outputs_audio/${prefix}_pesq_${i}.wav -o=${prefix}-${i}`),
-                        this.runScript(`${process.env.PWD}/qoe-scripts/visqol.sh -ip=presenter.wav -iv=${process.env.PWD}/outputs_audio/${prefix}_${i}.wav -o=${prefix}-${i}`)
-                    );
-                }
-                return Promise.all(promises);
-            })
-            .then((results) => {
-                console.log("parsing analysis")
-                const parsePromises = []
-                // 4 scripts ran per file
-                for (let i = 0; i < (results.length / 4); i++) {
-                    parsePromises.push(
-                        this.parseCsv(`${prefix}-${i}_vmaf.csv`, '0', false),
-                        this.parseCsv(`${prefix}-${i}_vifp.csv`, 'value', true),
-                        this.parseCsv(`${prefix}-${i}_ssim.csv`, 'value', true),
-                        this.parseCsv(`${prefix}-${i}_psnr.csv`, 'value', true),
-                        this.parseCsv(`${prefix}-${i}_msssim.csv`, 'value', true),
-                        this.parseCsv(`${prefix}-${i}_psnrhvs.csv`, 'value', true),
-                        this.parseCsv(`${prefix}-${i}_psnrhvsm.csv`, 'value', true),
-                        this.parsePESQ(`${prefix}-${i}_pesq.txt`),
-                        this.parseViSQOL(`${prefix}-${i}_visqol.txt`)
-                    )
-                }
-                return Promise.all(parsePromises);
-            })
-            .then(async (parseResults: number[]) => {
-                console.log("Cleaning up")
-                this.filesIn["analysis"]--;
-                this.filesIn["cleanup"]++;
-                console.log("new cleanup")
-                const filesToDelete = await Promise.all([
-                    glob(`${process.env.PWD}/outputs/${prefix}_*.y4m`),
-                    glob(`${process.env.PWD}/outputs_audio/${prefix}_*.y4m`),
-                    glob(`*_vmaf.json`),
-                    glob(`*.csv`),
-                    glob(`*.txt`)
-                ])
-                const promises = filesToDelete.flat().map(a => fsPromises.unlink(a));
-                //const promises = []
-                return Promise.all([Promise.resolve(parseResults), Promise.all(promises)]);
-            })
-            .then((promiseResults) => {
-                const parseResults: number[] = promiseResults[0];
-                this.filesIn["cleanup"]--;
                 this.filesIn["finished"]++;
-                console.log("new finished")
                 this.filesIn['remainingFiles']--;
-                return parseResults
             });
-    }
-
-    private async parseCsv(file: string, column: string, headers: boolean): Promise<number> {
-        console.log("parsing " + file)
-        return new Promise<number>((resolve, reject) => {
-            const results = [];
-            try {
-                const options = {}
-                if (!headers) {
-                    options['headers'] = false;
-                }
-                fs.createReadStream(file)
-                    .pipe(csvParser(options))
-                    .on("data", (data: any) => {
-                        const numberData = Number(data[column])
-                        if (!isNaN(numberData)) {
-                            results.push(data[column]);
-                        }
-                    })
-                    .on("end", () => {
-                        const avg: number = results.reduce((a, b) => Number(a) + Number(b), 0) / results.length;
-                        resolve(avg);
-                    })
-                    .on("error", (err: any) => {
-                        reject(err);
-                    });
-            } catch (err) {
-                reject(err);
-            }
-        })
-    }
-
-    private async parsePESQ(file: string): Promise<number> {
-        console.log("parsing " + file)
-        const text = await fsPromises.readFile(file, 'utf8');
-        const firstSplit = text.split("\t");
-        const rawMOS: number = parseFloat(firstSplit[0].split("= ")[1]);
-        const MOSLQO: number = parseFloat(firstSplit[1]);
-        return (rawMOS + MOSLQO) / 2;
-
-    }
-
-    private async parseViSQOL(file: string): Promise<number> {
-        console.log("parsing " + file)
-        const text = await fsPromises.readFile(file, 'utf8');
-        return parseFloat(text.split("MOS-LQO:		")[1]);
     }
 
     public getStatus() {
