@@ -193,7 +193,7 @@ def write_video(cut_frames, cut_index):
     for frame in cut_frames:
         try:
             ffmpeg_process.stdin.write(
-                cv2.imencode('.jpg', frame)[1].tostring())
+                cv2.imencode('.jpg', frame)[1].tobytes())
         except (OSError, IOError) as e:
             logger.error("Failed to write to ffmpeg process")
             logger.error(e)
