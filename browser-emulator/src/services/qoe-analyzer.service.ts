@@ -59,7 +59,7 @@ export class QoeAnalyzerService {
                 console.error(err)
             })))
         });
-        await Promise.all(promises).then((info) => {
+        Promise.all(promises).then((info) => {
             const jsonsELK: JSONQoEInfo[] = info.map(infoArray => {
                 const session = infoArray[0];
                 const userFrom = infoArray[1];
