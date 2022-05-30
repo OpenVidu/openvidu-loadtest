@@ -44,5 +44,5 @@ done
 ##########
 if [ ! -f ${OUTPUT}_vmaf.csv ]; then
     echo "Running VMAF on $INPUT_PRESENTER and $INPUT_VIEWER"
-    $VMAF_PATH/vmaf -p 420 -w $WIDTH -h $HEIGHT -b 8 -r $INPUT_PRESENTER -d $INPUT_VIEWER --json -o $PWD/${OUTPUT}_vmaf.json && cat $PWD/${OUTPUT}_vmaf.json | jq '.frames[].metrics.vmaf' > $PWD/${OUTPUT}_vmaf.csv
+    $VMAF_PATH/vmaf -p 420 -w $WIDTH -h $HEIGHT -b 8 -r $INPUT_PRESENTER -d $INPUT_VIEWER -m path=/usr/local/share/vmaf/models/vmaf_v0.6.1.json --json -o $PWD/${OUTPUT}_vmaf.json && cat $PWD/${OUTPUT}_vmaf.json | jq '.frames[].metrics.vmaf' > $PWD/${OUTPUT}_vmaf.csv
 fi

@@ -99,7 +99,10 @@ meson build --buildtype release
 ninja -vC build
 ninja -vC build install
 cp /usr/local/lib/x86_64-linux-gnu/libvmaf.* /usr/local/lib/
-cd ../..
+cd ..
+mkdir -p /usr/local/share/vmaf/models/
+cp model/* /usr/local/share/vmaf/models/
+cd ..
 rm -rf vmaf-2.3.0
 rm vmaf.tar.gz
 export VMAF_PATH=/usr/local/bin
