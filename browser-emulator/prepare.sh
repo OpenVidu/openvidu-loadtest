@@ -101,7 +101,7 @@ ninja -vC build install
 cp /usr/local/lib/x86_64-linux-gnu/libvmaf.* /usr/local/lib/
 cd ..
 mkdir -p /usr/local/share/vmaf/models/
-cp model/* /usr/local/share/vmaf/models/
+cp -r model/* /usr/local/share/vmaf/models/
 cd ..
 rm -rf vmaf-2.3.0
 rm vmaf.tar.gz
