@@ -320,12 +320,13 @@ def main():
         else:
             is_begin_padding = match_image(frame, pool)
             if is_begin_padding:
-                logger.info("Padding found on frame %d", i)
-                result = pool.submit(process_cut_frames,
-                                     frames_for_cut, cut_index)
-                async_results.append(result)
-                cut_index += 1
-                frames_for_cut = []
+                if len(frames_for_cut) > 0:
+                    logger.info("Padding found on frame %d", i)
+                    result = pool.submit(process_cut_frames,
+                                        frames_for_cut, cut_index)
+                    async_results.append(result)
+                    cut_index += 1
+                    frames_for_cut = []
             else:
                 frames_for_cut.append(frame)
 
