@@ -38,6 +38,6 @@ if [ ! -f ${OUTPUT}_visqol.txt ]; then
     echo "Running ViSQOL on $INPUT_PRESENTER and $INPUT_VIEWER"
     ORIG_PWD=$PWD
     cd $VISQOL_PATH
-            ./bazel-bin/visqol --reference_file $ORIG_PWD/$INPUT_PRESENTER --degraded_file $INPUT_VIEWER --verbose | grep MOS-LQO > $ORIG_PWD/${OUTPUT}_visqol.txt
+            ./bazel-bin/visqol --reference_file $ORIG_PWD/$INPUT_PRESENTER --degraded_file $ORIG_PWD/$INPUT_VIEWER --verbose | grep MOS-LQO > $ORIG_PWD/${OUTPUT}_visqol.txt
     cd $ORIG_PWD
 fi

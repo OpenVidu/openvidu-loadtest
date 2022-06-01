@@ -39,6 +39,6 @@ if [ ! -f ${OUTPUT}_pesq.txt ]; then
     echo "Running PESQ on resampled_${INPUT_PRESENTER} and resampled_${INPUT_VIEWER}"
     ORIG_PWD=$PWD
     cd $PESQ_PATH
-    ./pesq +$PESQ_AUDIO_SAMPLE_RATE $ORIG_PWD/${INPUT_PRESENTER} ${INPUT_VIEWER} | tail -n 1 > $ORIG_PWD/${OUTPUT}_pesq.txt
+    ./pesq +$PESQ_AUDIO_SAMPLE_RATE $ORIG_PWD/${INPUT_PRESENTER} $ORIG_PWD/${INPUT_VIEWER} | tail -n 1 > $ORIG_PWD/${OUTPUT}_pesq.txt
     cd $ORIG_PWD
 fi
