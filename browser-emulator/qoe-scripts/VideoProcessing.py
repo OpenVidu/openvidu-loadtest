@@ -49,7 +49,7 @@ logger = get_logger("VideoProcessing", debug)
 
 dim = (width, height)
 
-cpus = len(os.sched_getaffinity(0))
+cpus = len(os.sched_getaffinity(0)) + 1
 if cpus < 2:
     cpus = 2
 
