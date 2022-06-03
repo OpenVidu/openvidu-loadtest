@@ -7,6 +7,15 @@ debug = False
 
 logger = get_logger("PaddingMatcher", debug)
 
+colors_rgb = np.array([
+    [0, 255, 255],  # cyan
+    [255, 0, 255],  # magenta
+    [0, 0, 255],  # blue
+    [255, 255, 0],  # yellow
+    [0, 255, 0],  # green
+    [255, 0, 0]  # red
+])
+
 
 def match_color(frame, width, height, threshold, expected):
     logger.debug("match_color: %d, %d -- %s", width, height, str(expected))
@@ -15,7 +24,8 @@ def match_color(frame, width, height, threshold, expected):
     red = frame[height - 1, width - 1, 2]
     rgb_section = np.array([red, green, blue])
     solution = np.allclose(rgb_section, expected, rtol=0, atol=threshold)
-    logger.debug("match_color return: %s", str(solution))
+    # Logging constantly seems to be the only way to make running this script in AWS not hang (maybe because of low number of cpus?)
+    logger.info("match_color return %s for color %s", str(solution), str(expected))
     return solution
 
 
@@ -29,16 +39,6 @@ def match_image(frame, pool, threshold=50):
     colors_widths = np.array([math.floor(halfbar + (bar * x))
                              for x in range(1, 7)])
     logger.debug("coords: %s", str(colors_widths))
-
-    colors_rgb = np.array([
-        [0, 255, 255],  # cyan
-        [255, 0, 255],  # magenta
-        [0, 0, 255],  # blue
-        [255, 255, 0],  # yellow
-        [0, 255, 0],  # green
-        [255, 0, 0]  # red
-    ])
-
     resolved_tasks = pool.map(match_color,
                               repeat(frame),
                               colors_widths,
@@ -46,9 +46,7 @@ def match_image(frame, pool, threshold=50):
                               repeat(threshold),
                               colors_rgb
                               )
-    results = []
-    for result in resolved_tasks:
-        results.append(result)
+    results = list(resolved_tasks)
 
     logger.debug("results: %s", str(results))
     return np.all(results)
