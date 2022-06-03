@@ -53,7 +53,7 @@ export class QoeAnalyzerService {
                 const session = qoeInfo[1];
                 const userFrom = qoeInfo[2];
                 const userTo = qoeInfo[3];
-                const jsonText = await fsPromises.readFile(prefix, 'utf-8')
+                const jsonText = await fsPromises.readFile(prefix + "_cuts.json", 'utf-8')
                 return [session, userFrom, userTo, jsonText]
             }).catch(err => {
                 console.error(err)
