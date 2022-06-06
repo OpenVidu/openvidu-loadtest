@@ -17,7 +17,7 @@
   "license": "Apache 2.0",
   "dependencies": {
     "@elastic/elasticsearch": "7.14.1",
-    "aws-sdk": "2.1006.0",
+    "aws-sdk": "^2.1148.0",
     "axios": "0.23.0",
     "btoa": "1.2.1",
     "canvas": "2.8.0",
