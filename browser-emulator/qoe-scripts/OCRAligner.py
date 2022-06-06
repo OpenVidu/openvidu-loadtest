@@ -12,7 +12,7 @@ def is_int(n):
     try:
         return int(n)
     except ValueError:
-        return n
+        return ''
 
 
 class OCRAligner:

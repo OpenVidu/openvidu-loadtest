@@ -83,10 +83,9 @@ def prepare_presenter():
     logger.info("Starting preparing presenter files")
     if debug:
         out = sp.PIPE
-        errout = None
     else:
         out = sp.DEVNULL
-        errout = sp.STDOUT
+    errout = sp.STDOUT
     ffmpeg_command_to_save = ' '.join([
         ffmpeg_path, "-n", "-threads", "1",
         "-i", presenter, "-ss", str(padding_duration_secs), "-to", str(padding_duration_secs + fragment_duration_secs), "presenter.yuv"])
@@ -183,11 +182,10 @@ def write_video(cut_frames, cut_index):
         "-i", "pipe:0", "-b:v", "3M", "-pix_fmt", "yuv420p", "outputs/%s_%d.y4m" % (prefix, cut_index)])
     if debug:
         out = sp.PIPE
-        errout = None
         logger.debug("Executing FFmpeg command: %s", ffmpeg_command_to_save)
     else:
         out = sp.DEVNULL
-        errout = sp.STDOUT
+    errout = sp.STDOUT
     ffmpeg_process = sp.Popen(
         ffmpeg_command_to_save, stdout=out, stdin=sp.PIPE, stderr=errout, shell=True)
     for frame in cut_frames:
@@ -254,12 +252,11 @@ def remove_files(files):
 
 def run_analysis_command(command):
     if debug:
-        out = sp.STDOUT
-        errout = None
+        out = sp.PIPE
         logger.debug("Executing QoE command: %s", command)
     else:
         out = sp.DEVNULL
-        errout = sp.STDOUT
+    errout = sp.STDOUT
     result = sp.call(command, stdout=out, stderr=errout, shell=True)
     logger.info("Exit code for QoE command %s: %d", command, result)
     return result
