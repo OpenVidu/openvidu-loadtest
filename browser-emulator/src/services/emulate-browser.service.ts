@@ -1,4 +1,4 @@
-import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent, StreamManager } from 'openvidu-browser';
+import { ConnectionEvent, OpenVidu, Publisher, Session, SessionDisconnectedEvent, StreamEvent, StreamManager, StreamManagerEvent } from 'openvidu-browser';
 import { HttpClient } from '../utils/http-client';
 import { OpenViduRole } from '../types/openvidu.type';
 import { TestProperties } from '../types/api-rest.type';
@@ -250,7 +250,7 @@ export class EmulateBrowserService {
 			this.wsService.send(message);
 			const subscriber = session.subscribe(event.stream, null);
 
-			subscriber.on('streamPlaying', (e: StreamEvent) => {
+			subscriber.on('streamPlaying', (e: StreamManagerEvent) => {
 				const message: string = JSON.stringify({
 					event: 'streamPlaying',
 					connectionId: event.stream.streamId,
