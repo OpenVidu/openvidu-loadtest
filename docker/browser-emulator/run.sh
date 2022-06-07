@@ -17,6 +17,6 @@ printf '\n       Creating browser-emulator docker image'
 printf '\n     -------------------------------------------------------------'
 printf '\n'
 
-docker build --rm=true -t openvidu/browser-emulator:${RELEASE_VERSION} .
+DOCKER_BUILDKIT=1 docker build --rm=true -t openvidu/browser-emulator:${RELEASE_VERSION} .
 
 rm -rf ./browser-emulator
