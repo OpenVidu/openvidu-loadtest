@@ -18,8 +18,9 @@ export class PublisherOverride extends Publisher {
 		}
 	}
 
-	async getVideoDimensions(mediaStream: MediaStream): Promise<MediaTrackSettings> {
+	async getVideoDimensions(): Promise<MediaTrackSettings> {
 		let constraints = { width: 480, height: 640 };
+	    let mediaStream = await this.openvidu.getUserMedia(this.properties);
 		if (!!mediaStream.getVideoTracks()[0] && !!mediaStream.getVideoTracks()[0].getConstraints) {
 			constraints = <any>mediaStream.getVideoTracks()[0]?.getConstraints();
 		}
