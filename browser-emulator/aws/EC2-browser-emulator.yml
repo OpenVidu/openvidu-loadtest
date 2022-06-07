@@ -20,6 +20,8 @@ Resources:
       Tags:
       - Key: Name
         Value: !Ref AWS::StackName
+    # Add KeyName: [your ssh key] to be able to access this instance
+    # KeyName:
       BlockDeviceMappings:
       - DeviceName: "/dev/sda1"
         Ebs:
@@ -64,7 +66,7 @@ Resources:
           cd /opt/openvidu-loadtest/
 
           # Download media files
-          ./browser-emulator/prepare.sh
+          ./browser-emulator/download_mediafiles.sh
 
           # Create browser-emulator docker image
           cd docker/browser-emulator/
