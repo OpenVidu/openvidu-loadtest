@@ -24,8 +24,7 @@ def match_color(frame, width, height, threshold, expected):
     red = frame[height - 1, width - 1, 2]
     rgb_section = np.array([red, green, blue])
     solution = np.allclose(rgb_section, expected, rtol=0, atol=threshold)
-    # Logging constantly seems to be the only way to make running this script in AWS not hang (maybe because of low number of cpus?)
-    logger.info("match_color return %s for color %s", str(solution), str(expected))
+    logger.debug("match_color return %s for color %s", str(solution), str(expected))
     return solution
 
 
