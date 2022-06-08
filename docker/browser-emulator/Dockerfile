@@ -134,10 +134,15 @@ RUN curl --output "/usr/local/share/tessdata/eng.traineddata" \
         --continue-at - \
         --location "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
 
-COPY browser-emulator .
+COPY ["browser-emulator/package.json", "browser-emulator/package-lock.json*", "./"]
+RUN npm install
+
+COPY ["browser-emulator/qoe-scripts/requirements.txt", "./"]
+
 ## Install python dependencies
 RUN pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe-scripts/requirements.txt
-RUN npm install
+
+COPY browser-emulator/ .
 RUN npm run build
 
 RUN chmod +x ./qoe-scripts/*.sh
