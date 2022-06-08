@@ -137,7 +137,7 @@ RUN curl --output "/usr/local/share/tessdata/eng.traineddata" \
 COPY ["browser-emulator/package.json", "browser-emulator/package-lock.json*", "./"]
 RUN npm install
 
-COPY ["browser-emulator/qoe-scripts/requirements.txt", "./"]
+COPY ["browser-emulator/qoe-scripts/requirements.txt", "./qoe-scripts/"]
 
 ## Install python dependencies
 RUN pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe-scripts/requirements.txt
