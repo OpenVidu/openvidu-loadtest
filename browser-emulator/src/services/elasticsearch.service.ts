@@ -283,6 +283,9 @@ export class ElasticSearchService {
 			try {
 				const operations = jsons.flatMap((json) => [{ index: { _index: this.indexName } }, json])
 				const bulkResponse = await this.client.bulk({ refresh: true, body: operations });
+				if (bulkResponse.body.errors) {
+					throw new Error(bulkResponse.body.items[0].index.error.reason);
+				}
 			} catch (error) {
 				console.error(error);
 			}

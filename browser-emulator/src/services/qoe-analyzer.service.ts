@@ -49,34 +49,55 @@ export class QoeAnalyzerService {
             const prefix = fileName.split('.')[0];
             promises.push(this.limit(() => this.runSingleAnalysis(filePath, fileName)
             .then(async () => {
+                console.log("Finished running script, reading JSON file...")
                 const qoeInfo = prefix.split('_');
                 const session = qoeInfo[1];
                 const userFrom = qoeInfo[2];
                 const userTo = qoeInfo[3];
                 const filePrefix = `v-${session}-${userFrom}-${userTo}`;
                 const jsonText = await fsPromises.readFile(filePrefix + "_cuts.json", 'utf-8')
+                console.log("JSON read")
                 return [session, userFrom, userTo, jsonText]
             }).catch(err => {
                 console.error(err)
             })))
         });
         Promise.all(promises).then((info) => {
-            const jsonsELK: JSONQoEInfo[] = info.map(infoArray => {
+            console.log("Finished running all scripts, processing results for ELK...")
+            const userStartMap = {}
+            for (const timestamp of timestamps) {
+                const timestampSession = timestamp.new_participant_session;
+                const timestampUserFrom = timestamp.new_participant_id;
+                const timestampDate = new Date(timestamp["@timestamp"])
+                if (!userStartMap[timestampSession]) {
+                    userStartMap[timestampSession] = {}
+                }
+                userStartMap[timestampSession][timestampUserFrom] = timestampDate;
+            }
+            const jsonsELK: JSONQoEInfo[] = info.flatMap(infoArray => {
                 const session = infoArray[0];
                 const userFrom = infoArray[1];
                 const userTo = infoArray[2];
                 const jsonText = infoArray[3];
                 const json = JSON.parse(jsonText);
-                json["session"] = session;
-                json["userFrom"] = userFrom;
-                json["userTo"] = userTo;
-                const timestampString: string = timestamps.find(timestamp => timestamp.new_participant_session === session && timestamp.new_participant_id === userFrom)[0];
-                const timestampDate = new Date(timestampString);
-                timestampDate.setSeconds(timestampDate.getSeconds() + 2 * this.PADDING_DURATION * (json.cutIndex + 1) + this.FRAGMENT_DURATION * (json.cutIndex + 1));
-                json["timestamp"] = timestampDate.toString();
+                // Video starts when the latest of the 2 users enters the session
+                const userFromDate = userStartMap[session][userFrom].getTime()
+                const userToDate = userStartMap[session][userTo].getTime()
+                const videoStart = Math.max(userFromDate, userToDate);
+                for (const cut of json) { 
+                    cut["session"] = session;
+                    cut["userFrom"] = userFrom;
+                    cut["userTo"] = userTo;
+                    const timestampDate = new Date(videoStart);
+                    timestampDate.setSeconds(timestampDate.getSeconds() + 2 * this.PADDING_DURATION * (cut.cut_index + 1) + this.FRAGMENT_DURATION * (cut.cut_index + 1));
+                    cut["@timestamp"] = timestampDate.toISOString();
+                }
                 return json
             })
+            console.log("Finished processing results for ELK, writing to ElasticSearch...")
             return this.elasticSearchService.sendBulkJsons(jsonsELK)
+        }).then(() => {
+            console.log("Finished uploading results to ELK")
         })
 
         return this.getStatus();
