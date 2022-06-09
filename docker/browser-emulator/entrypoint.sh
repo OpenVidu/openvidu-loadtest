@@ -1,4 +1,4 @@
 #!/bin/sh
 
-cd /opt/browser-emulator
+cd /opt/openvidu-loadtest/browser-emulator
 npm run start:prod
