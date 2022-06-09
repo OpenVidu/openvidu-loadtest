@@ -4,8 +4,8 @@ Description: Browser Emulator
 Parameters:
   ImageId:
     Type: AWS::EC2::Image::Id
-    Description: An Amazon EC2 image ID, such as ami-09e67e426f25ce0d7.
-    Default: ami-09e67e426f25ce0d7
+    Description: An Amazon EC2 image ID, such as ami-09d56f8956ab235b3.
+    Default: ami-09d56f8956ab235b3
 
 Resources:
   BrowserInstance:
@@ -21,7 +21,7 @@ Resources:
       - Key: Name
         Value: !Ref AWS::StackName
     # Add KeyName: [your ssh key] to be able to access this instance
-    # KeyName:
+      KeyName: ivan-aws-virginia
       BlockDeviceMappings:
       - DeviceName: "/dev/sda1"
         Ebs:
@@ -40,8 +40,9 @@ Resources:
           # Trace all commands.
           set -o xtrace
 
+          DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt -y upgrade
+          apt-get -yq upgrade
           command -v python3-pip >/dev/null || {
             apt-get install -y python3-pip
             pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
@@ -78,9 +79,9 @@ Resources:
           docker pull kurento/kurento-media-server:latest
 
           # Create recording directories
-          mkdir -p ./recordings/kms
-          mkdir -p ./recordings/chrome
-          mkdir -p ./recordings/qoe
+          mkdir -p ../../browser-emulator/recordings/kms
+          mkdir -p ../../browser-emulator/recordings/chrome
+          mkdir -p ../../browser-emulator/recordings/qoe
 
           echo '@reboot docker run -d -it --network host -v /var/run/docker.sock:/var/run/docker.sock -v /opt/openvidu-loadtest/browser-emulator/recordings:/opt/openvidu-loadtest/browser-emulator/recordings -v /opt/openvidu-loadtest/browser-emulator/src/assets/mediafiles:/opt/openvidu-loadtest/browser-emulator/src/assets/mediafiles openvidu/browser-emulator:2.2.0 > /var/log/crontab.log' | crontab
 
