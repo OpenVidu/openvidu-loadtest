@@ -11,13 +11,10 @@ import qoe_scripts.analysis_tasks as at
 from qoe_scripts.padding_matcher import match_image
 from qoe_scripts.ocr_aligner import align_ocr
 import ray
-from multiprocessing import cpu_count
 import time
 start_time = time.time()
 
-cpus = max(cpu_count() - 1, 1)
-
-ray.init(num_cpus=cpus)
+ray.init()
 
 debug = ar.debug
 remux = ar.remux
