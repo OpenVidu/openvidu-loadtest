@@ -119,6 +119,7 @@ COPY --from=vqmt /tmp/VQMT/build/bin/Release/vqmt /usr/local/bin/vqmt
 COPY --from=pesq /tmp/ITU-T_pesq/bin/itu-t-pesq2005 /usr/local/bin/pesq
 
 # Get VISQOL
+COPY --from=visqol /root/.cache/bazel/ /root/.cache/bazel/
 COPY --from=visqol /tmp/visqol-3.1.0 /usr/local/visqol
 
 # Install dependencies
