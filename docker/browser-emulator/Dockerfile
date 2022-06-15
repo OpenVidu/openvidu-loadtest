@@ -146,8 +146,6 @@ RUN pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirem
 COPY browser-emulator/ .
 RUN npm run build
 
-RUN chmod +x ./qoe_scripts/*.sh
-
 # Entrypoint
 COPY ./entrypoint.sh /usr/local/bin
 RUN chmod +x /usr/local/bin/entrypoint.sh
