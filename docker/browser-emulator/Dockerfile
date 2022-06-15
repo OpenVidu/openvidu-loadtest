@@ -79,6 +79,7 @@ ENV VQMT_PATH=/usr/local/bin
 ENV PESQ_PATH=/usr/local/bin
 ENV VISQOL_PATH=/usr/local/visqol
 ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV PYTHONPATH=/opt/openvidu-loadtest/browser-emulator
 
 # Get libraries
 COPY --from=base /usr/local/bin/ /usr/local/bin/
@@ -137,15 +138,15 @@ RUN curl --output "/usr/local/share/tessdata/eng.traineddata" \
 COPY ["browser-emulator/package.json", "browser-emulator/package-lock.json*", "./"]
 RUN npm install
 
-COPY ["browser-emulator/qoe-scripts/requirements.txt", "./qoe-scripts/"]
+COPY ["browser-emulator/qoe_scripts/requirements.txt", "./qoe_scripts/"]
 
 ## Install python dependencies
-RUN pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe-scripts/requirements.txt
+RUN pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
 
 COPY browser-emulator/ .
 RUN npm run build
 
-RUN chmod +x ./qoe-scripts/*.sh
+RUN chmod +x ./qoe_scripts/*.sh
 
 # Entrypoint
 COPY ./entrypoint.sh /usr/local/bin

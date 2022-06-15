@@ -25,7 +25,7 @@ export class QoeAnalyzerService {
         private readonly limit = pLimit(1), // Scripts are already multithreaded
         // TODO: Configurable video length
         private readonly FRAGMENT_DURATION: number = 5,
-        private readonly PADDING_DURATION: number = 1, 
+        private readonly PADDING_DURATION: number = 1,
     ) { }
 
     static getInstance() {
@@ -48,19 +48,19 @@ export class QoeAnalyzerService {
             const fileName = file.split('/').pop();
             const prefix = fileName.split('.')[0];
             promises.push(this.limit(() => this.runSingleAnalysis(filePath, fileName)
-            .then(async () => {
-                console.log("Finished running script, reading JSON file...")
-                const qoeInfo = prefix.split('_');
-                const session = qoeInfo[1];
-                const userFrom = qoeInfo[2];
-                const userTo = qoeInfo[3];
-                const filePrefix = `v-${session}-${userFrom}-${userTo}`;
-                const jsonText = await fsPromises.readFile(filePrefix + "_cuts.json", 'utf-8')
-                console.log("JSON read")
-                return [session, userFrom, userTo, jsonText]
-            }).catch(err => {
-                console.error(err)
-            })))
+                .then(async () => {
+                    console.log("Finished running script, reading JSON file...")
+                    const qoeInfo = prefix.split('_');
+                    const session = qoeInfo[1];
+                    const userFrom = qoeInfo[2];
+                    const userTo = qoeInfo[3];
+                    const filePrefix = `v-${session}-${userFrom}-${userTo}`;
+                    const jsonText = await fsPromises.readFile(filePrefix + "_cuts.json", 'utf-8')
+                    console.log("JSON read")
+                    return [session, userFrom, userTo, jsonText]
+                }).catch(err => {
+                    console.error(err)
+                })))
         });
         Promise.all(promises).then((info) => {
             console.log("Finished running all scripts, processing results for ELK...")
@@ -84,7 +84,7 @@ export class QoeAnalyzerService {
                 const userFromDate = userStartMap[session][userFrom].getTime()
                 const userToDate = userStartMap[session][userTo].getTime()
                 const videoStart = Math.max(userFromDate, userToDate);
-                for (const cut of json) { 
+                for (const cut of json) {
                     cut["session"] = session;
                     cut["userFrom"] = userFrom;
                     cut["userTo"] = userTo;
@@ -137,8 +137,8 @@ export class QoeAnalyzerService {
         const userFrom = qoeInfo[2];
         const userTo = qoeInfo[3];
         const prefix = `v-${session}-${userFrom}-${userTo}`;
-        return this.runScript(`python3 ${process.env.PWD}/qoe-scripts/VideoProcessing.py --presenter=${this.PRESENTER_VIDEO_FILE_LOCATION} --presenter_audio=${this.PRESENTER_AUDIO_FILE_LOCATION} --viewer=${filePath} --prefix=${prefix} --fragment_duration_secs=${this.FRAGMENT_DURATION} --padding_duration_secs=${this.PADDING_DURATION} --width=${this.width} --height=${this.height} --fps=${this.framerate}`)
-        //return Promise.resolve("")
+        return this.runScript(`python3 ${process.env.PWD}/qoe_scripts/qoe_analyzer.py --presenter=${this.PRESENTER_VIDEO_FILE_LOCATION} --presenter_audio=${this.PRESENTER_AUDIO_FILE_LOCATION} --viewer=${filePath} --prefix=${prefix} --fragment_duration_secs=${this.FRAGMENT_DURATION} --padding_duration_secs=${this.PADDING_DURATION} --width=${this.width} --height=${this.height} --fps=${this.framerate}`)
+            //return Promise.resolve("")
             .then(() => {
                 this.filesIn["finished"]++;
                 this.filesIn['remainingFiles']--;

@@ -70,7 +70,7 @@ if [ "$DOCKER_CONTAINER" = false ]; then
 fi
 
 ## Give execution rights to the scripts
-chmod +x "$SELF_PATH"/qoe-scripts/*.sh
+chmod +x "$SELF_PATH"/qoe_scripts/*.sh
 
 ## Install Bazel apt repo (needed for ViSQOL)
 curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
@@ -194,6 +194,6 @@ curl --output "/usr/local/share/tessdata/eng.traineddata" \
         --location "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
 		
 ## Install python dependencies
-pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe-scripts/requirements.txt
+pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
 
 echo "Instance is ready"
