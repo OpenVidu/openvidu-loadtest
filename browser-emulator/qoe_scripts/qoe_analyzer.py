@@ -97,10 +97,14 @@ def main():
         else:
             is_begin_padding = match_image(frame)
             if is_begin_padding:
-                if len(frames_for_cut) > 0:
+                len_frames = len(frames_for_cut)
+                if len_frames > 0:
                     logger.info("Padding found on frame %d", i)
-                    tasks = process_cut_frames(frames_for_cut, cut_index)
-                    async_tasks.append(tasks)
+                    if len_frames > (ar.fragment_duration_secs * ar.fps):
+                        logger.warn("Fragment is longer than expected, skipping...")
+                    else:
+                        tasks = process_cut_frames(frames_for_cut, cut_index)
+                        async_tasks.append(tasks)
                     cut_index += 1
                     frames_for_cut = []
             else:
