@@ -14,10 +14,11 @@ import ray
 import time
 start_time = time.time()
 
-ray.init(ignore_reinit_error=True)
-
 debug = ar.debug
 remux = ar.remux
+
+if not ray.is_initialized():
+    ray.init(ignore_reinit_error=True, include_dashboard=debug)
 
 PESQ_AUDIO_SAMPLE_RATE = "16000"
 
