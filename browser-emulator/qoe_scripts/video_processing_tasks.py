@@ -45,7 +45,7 @@ def extract_audio(cut_index, fragment_duration_secs, viewer, prefix, PESQ_AUDIO_
     ffmpeg_command_to_save_audio = [
         "-y", "-threads", "1", "-i", viewer, "-ss", start_cut, "-to", end_cut, "-async", "1", "outputs_audio/%s_%d.wav" % (
             prefix, cut_index),
-        "-ar", str(PESQ_AUDIO_SAMPLE_RATE), "outputs_audio/%s_pesq_%d.wav" % (
+        "-ss", start_cut, "-to", end_cut, "-async", "1", "-ar", str(PESQ_AUDIO_SAMPLE_RATE), "outputs_audio/%s_pesq_%d.wav" % (
             prefix, cut_index)
     ]
     logger.info(ffmpeg_command_to_save_audio)
@@ -86,4 +86,5 @@ def write_video(cut_frames, cut_index, ffmpeg_path, width, height, fps, prefix, 
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()
     logger.info("Finished writing cut %d", cut_index)
+    del cut_frames
     return "outputs/%s_%d.yuv" % (prefix, cut_index)
