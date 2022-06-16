@@ -161,7 +161,7 @@ def parse_pesq(analysis_results):
     with open(file, 'r') as f:
         text = f.read()
         if text == '':
-            return 0
+            return 0, [file]
         first_split = text.split("\t")
         rawMOS = float(first_split[0].split("= ")[1])
         MOSLQO = float(first_split[1])
@@ -174,5 +174,5 @@ def parse_visqol(analysis_results):
     with open(file, 'r') as f:
         text = f.read()
         if text == '':
-            return 0
+            return 0, [file]
         return (float(text.split("MOS-LQO:		")[1])), [file]
