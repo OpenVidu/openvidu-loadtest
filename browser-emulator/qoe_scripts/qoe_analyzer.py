@@ -115,21 +115,30 @@ def main():
         i += 1
 
     video.stop()
-    logger.info("Finished reading frames. Finishing processing cut fragments...")
+    logger.info("Finished reading frames. Finishing processing cut fragments and normalizing data...")
     results_list = []
+    VMAF_MAX = 100
+    VMAF_MIN = 0
+    VMAF_RANGE = VMAF_MAX - VMAF_MIN
+    PSNR_MAX = 60
+    PSNR_MIN = 20
+    PSNR_RANGE = PSNR_MAX - PSNR_MIN
+    AUDIO_MAX = 5
+    AUDIO_MIN = 1
+    AUDIO_RANGE = AUDIO_MAX - AUDIO_MIN
     for tasks in async_tasks:
         cut_results = ray.get(tasks[1:])
         analysis_results_dict = {
             "cut_index": tasks[0],
-            "vmaf": cut_results[0][0],
+            "vmaf": (cut_results[0][0] - VMAF_MIN) / VMAF_RANGE,
             "msssim": cut_results[1][0][0],
-            "psnr": cut_results[1][0][1],
-            "psnrhvs": cut_results[1][0][2],
+            "psnr": (cut_results[1][0][1] - PSNR_MIN) / PSNR_RANGE,
+            "psnrhvs": (cut_results[1][0][2] - PSNR_MIN) / PSNR_RANGE,
             "ssim": cut_results[1][0][3],
             "vifp": cut_results[1][0][4],
-            "psnrhvsm": cut_results[1][0][5],
-            "pesq": cut_results[2][0],
-            "visqol": cut_results[3][0]
+            "psnrhvsm": (cut_results[1][0][5] - PSNR_MIN) / PSNR_RANGE,
+            "pesq": (cut_results[2][0] - AUDIO_MIN) / AUDIO_RANGE,
+            "visqol": (cut_results[3][0] - AUDIO_MIN) / AUDIO_RANGE
         }
         results_list.append(analysis_results_dict)
     with open(ar.prefix + "_cuts.json", 'w') as f:
