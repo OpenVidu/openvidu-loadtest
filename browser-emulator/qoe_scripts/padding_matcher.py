@@ -15,8 +15,9 @@ colors_rgb = np.array([
     [255, 0, 0]  # red
 ])
 
+threshold = ray.put(50)
 
-def match_image(frame, threshold=50):
+def match_image(frame):
     height = frame.shape[0]
     width = frame.shape[1]
     match_height = math.floor(height / 3)
@@ -34,6 +35,7 @@ def match_image(frame, threshold=50):
     #                         colors_rgb
     #                         )
     put_frame = ray.put(frame)
+    match_height_ref = ray.put(match_height)
     # batch match color calls by splitting into half the array and creating a task per half instead of creating a task per color
     color_widths_split = np.array_split(colors_widths, 2)
     color_rgb_split = np.array_split(colors_rgb, 2)
@@ -42,7 +44,7 @@ def match_image(frame, threshold=50):
         color_widths_chunk = color_widths_split[x]
         color_rgb_chunk = color_rgb_split[x]
         tasks.append(match_color.remote(put_frame, color_widths_chunk,
-                     match_height, threshold, color_rgb_chunk))
+                     match_height_ref, threshold, color_rgb_chunk))
     results = ray.get(tasks)
 
     logger.debug("results: %s", str(results))

@@ -14,7 +14,7 @@ import ray
 import time
 start_time = time.time()
 
-ray.init()
+ray.init(ignore_reinit_error=True)
 
 debug = ar.debug
 remux = ar.remux
@@ -26,22 +26,33 @@ logger = get_logger(__name__, debug)
 dim = (ar.width, ar.height)
 ffmpeg_path = get_valid_ffmpeg_path()
 
+# put into ray shared memory objects that are reused frequently between tasks so that ray doesn't have to put and get them everytime
+fds_ref = ray.put(ar.fragment_duration_secs)
+fps_ref = ray.put(ar.fps)
+prefix_ref = ray.put(ar.prefix)
+pesq_ref = ray.put(PESQ_AUDIO_SAMPLE_RATE)
+debug_ref = ray.put(debug)
+width_ref = ray.put(ar.width)
+height_ref = ray.put(ar.height)
+ffmpeg_path_ref = ray.put(ffmpeg_path)
+
 presenter_prepared = vpt.prepare_presenter.remote(
-    ffmpeg_path, ar.presenter, ar.padding_duration_secs, ar.fragment_duration_secs, ar.presenter_audio, PESQ_AUDIO_SAMPLE_RATE, debug)
+    ffmpeg_path, ar.presenter, ar.padding_duration_secs, fds_ref, ar.presenter_audio, pesq_ref, debug_ref)
 
 
 def process_cut_frames(cut_frames, cut_index):
     # Remux step has been removed
+    cut_index_ref = ray.put(cut_index)
     extract_audio_task = vpt.extract_audio.remote(
-        cut_index, ar.fragment_duration_secs, ar.viewer, ar.prefix, PESQ_AUDIO_SAMPLE_RATE, debug)
+        cut_index_ref, fds_ref, ar.viewer, prefix_ref, pesq_ref, debug_ref)
     ocr_task = align_ocr(
-        cut_frames, ar.fragment_duration_secs, ar.fps, cut_index)
+        cut_frames, fds_ref, fps_ref, cut_index_ref)
     write_video_task = vpt.write_video.remote(
-        ocr_task, cut_index, ffmpeg_path, dim, ar.fps, ar.prefix, presenter_prepared, debug)
-    vmaf_task = at.run_vmaf.remote(write_video_task, ar.prefix, cut_index, ar.width, ar.height, debug)
-    vqmt_task = at.run_vqmt.remote(write_video_task, ar.prefix, cut_index, ar.width, ar.height, debug)
-    pesq_task = at.run_pesq.remote(extract_audio_task, ar.prefix, cut_index, PESQ_AUDIO_SAMPLE_RATE, debug)
-    visqol_task = at.run_visqol.remote(extract_audio_task, ar.prefix, cut_index, debug)
+        ocr_task, cut_index_ref, ffmpeg_path_ref, width_ref, height_ref, fps_ref, prefix_ref, presenter_prepared, debug_ref)
+    vmaf_task = at.run_vmaf.remote(write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
+    vqmt_task = at.run_vqmt.remote(write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
+    pesq_task = at.run_pesq.remote(extract_audio_task, prefix_ref, cut_index_ref, pesq_ref, debug_ref)
+    visqol_task = at.run_visqol.remote(extract_audio_task, prefix_ref, cut_index_ref, debug_ref)
     if not debug:
         remove_processing_task = at.remove_processing_files.remote(
             vmaf_task, vqmt_task, pesq_task, visqol_task)

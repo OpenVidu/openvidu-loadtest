@@ -37,7 +37,8 @@ def is_int(n):
         return ''
 
 
-def align_ocr(frames, fragment_duration_secs, target_fps, cut_index):
+def align_ocr(frames, fragment_duration_secs, target_fps, cut_index_ref):
+    cut_index = ray.get(cut_index_ref)
     logger.info("Starting OCR processing of cut %d", cut_index)
     put_frames = [ray.put(frames[x]) for x in range(len(frames))]
     # batch calls by splitting into half the array and creating a task per half instead of creating a task per frame
@@ -48,7 +49,7 @@ def align_ocr(frames, fragment_duration_secs, target_fps, cut_index):
         put_frames_chunk = put_frames_split[x]
         tasks.append(get_ocr.remote(put_frames_chunk,
                      fragment_duration_secs, target_fps))
-    return align_ocr_alg.remote(tasks, frames, fragment_duration_secs, target_fps, cut_index)
+    return align_ocr_alg.remote(tasks, put_frames, fragment_duration_secs, target_fps, cut_index_ref)
 
 
 @ray.remote
@@ -124,7 +125,7 @@ def get_ocr(frames_refs, fragment_duration_secs, target_fps):
 
 
 @ray.remote
-def align_ocr_alg(frame_numbers_tasks, frames, fragment_duration_secs, target_fps, cut_index):
+def align_ocr_alg(frame_numbers_tasks, frames_refs, fragment_duration_secs, target_fps, cut_index):
     # flatten ocr_results
     frame_numbers = list(chain.from_iterable(ray.get(frame_numbers_tasks)))
     # logger.info(str(frame_numbers))
@@ -137,6 +138,7 @@ def align_ocr_alg(frame_numbers_tasks, frames, fragment_duration_secs, target_fp
     error_ocr = 0
     counter_frames = fragment_duration_secs * target_fps
     tmp_frames = np.empty(shape=counter_frames, dtype=np.ndarray)
+    frames = ray.get(frames_refs)
     for i in reversed(range(len(frames))):
         frame_number = frame_numbers[i]
         if (type(frame_number) is int) and (frame_number > -1):

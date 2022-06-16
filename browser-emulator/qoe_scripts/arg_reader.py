@@ -3,14 +3,14 @@ import getopt
 
 debug = False
 remux = False
-viewer = "viewer.y4m"
+viewer = "viewer.yuv"
 prefix = "qoe_"
 fragment_duration_secs = 5
 padding_duration_secs = 1
 width = 640
 height = 480
 fps = 30
-presenter = "presenter.y4m"
+presenter = "presenter.yuv"
 presenter_audio = "presenter.wav"
 
 try:

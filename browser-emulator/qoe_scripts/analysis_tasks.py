@@ -46,9 +46,10 @@ if not os.path.exists(os.path.join(visqol_path, 'bazel-bin/visqol')):
 @ray.remote
 def remove_processing_files(*args):
     logger.info("Remove processed files")
-    files = map(lambda x: x[0], args)
+    files = map(lambda x: os.path.abspath(x[0]), args)
     logger.info(str(list(files)))
-    return [os.remove(x) for x in files]
+    for file in files:
+        os.remove(file)
 
 
 @ray.remote
@@ -57,16 +58,17 @@ def remove_analysis_files(*args):
     logger.info("Remove analysis files")
     for arg in args:
         for file in arg[1]:
-            files.append(file)
+            files.append(os.path.abspath(file))
     logger.info(str(files))
-    return [os.remove(x) for x in files]
+    for file in files:
+        os.remove(file)
 
 
 @ray.remote
 def run_vmaf(vid_file, prefix, cut_index, width, height, debug):
     logger.info("Starting VMAF Analysis of cut %d", cut_index)
     prefix_with_index = prefix + '-' + str(cut_index)
-    vmaf_command = "%s -p 420 -w %d -h %d -b 8 -r presenter.yuv -d %s -m path=/usr/local/share/vmaf/models/vmaf_v0.6.1.json --json -o $PWD/%s_vmaf.json && cat $PWD/%s_vmaf.json | jq '.frames[].metrics.vmaf' > $PWD/%s_vmaf.csv" % (
+    vmaf_command = "%s --threads 1 -p 420 -w %d -h %d -b 8 -r presenter.yuv -d %s -m path=/usr/local/share/vmaf/models/vmaf_v0.6.1.json --json -o $PWD/%s_vmaf.json && cat $PWD/%s_vmaf.json | jq '.frames[].metrics.vmaf' > $PWD/%s_vmaf.csv" % (
         vmaf_path, width, height, vid_file, prefix_with_index, prefix_with_index, prefix_with_index)
     return run_analysis_command(vmaf_command, [
         vid_file, "%s-%d_vmaf.csv" % (prefix, cut_index), "%s-%d_vmaf.json" % (prefix, cut_index)],
