@@ -46,10 +46,13 @@ if not os.path.exists(os.path.join(visqol_path, 'bazel-bin/visqol')):
 @ray.remote
 def remove_processing_files(*args):
     logger.info("Remove processed files")
-    files = map(lambda x: os.path.abspath(x[0]), args)
-    logger.info(str(list(files)))
+    files = list(map(lambda x: x[0], args))
+    logger.info(str(files))
     for file in files:
-        os.remove(file)
+        if os.path.isfile(file):
+            os.remove(file)
+        else:
+            logger.warn("File not found: %s", file)
 
 
 @ray.remote
@@ -58,10 +61,13 @@ def remove_analysis_files(*args):
     logger.info("Remove analysis files")
     for arg in args:
         for file in arg[1]:
-            files.append(os.path.abspath(file))
+            files.append(file)
     logger.info(str(files))
     for file in files:
-        os.remove(file)
+        if os.path.isfile(file):
+            os.remove(file)
+        else:
+            logger.warn("File not found: %s", file)
 
 
 @ray.remote
