@@ -46,7 +46,7 @@ if not os.path.exists(os.path.join(visqol_path, 'bazel-bin/visqol')):
 @ray.remote
 def remove_processing_files(*args):
     logger.info("Remove processed files")
-    files = list(map(lambda x: x[0], args))
+    files = list(map(lambda x: x[0], args[1:]))
     logger.info(str(files))
     for file in files:
         if os.path.isfile(file):
