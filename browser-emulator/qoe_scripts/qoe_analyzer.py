@@ -128,6 +128,8 @@ def main():
     AUDIO_MIN = 1
     AUDIO_RANGE = AUDIO_MAX - AUDIO_MIN
     for tasks in async_tasks:
+        if len(tasks) <= 0:
+            continue
         cut_results = ray.get(tasks[1:])
         analysis_results_dict = {
             "cut_index": tasks[0],

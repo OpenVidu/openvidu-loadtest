@@ -155,8 +155,10 @@ def align_ocr_alg(frame_numbers_tasks, frames_refs, fragment_duration_secs, targ
             counter_frames = frame_number - 1
         else:
             error_ocr += 1
-    first_frame_number = frame_numbers[0]
-    first_frame = frames[0]
+    # find first frame which number is not -1
+    first_frame_number_idx = np.where(np.array(frame_numbers) > -1)[0][0]
+    first_frame_number = frame_numbers[first_frame_number_idx]
+    first_frame = frames[first_frame_number_idx]
     for j in range(1, first_frame_number):
         tmp_frames[j - 1] = first_frame
         logger.debug(
@@ -167,4 +169,8 @@ def align_ocr_alg(frame_numbers_tasks, frames_refs, fragment_duration_secs, targ
     logger.info("Finished OCR Alignment for cut %d", cut_index)
     logger.debug("Skipped frames: %d", skipped_frames)
     logger.debug("Error OCR: %d", error_ocr)
+    del frames_refs
+    del frames
+    del frame_numbers_tasks
+    del frame_numbers
     return tmp_frames
