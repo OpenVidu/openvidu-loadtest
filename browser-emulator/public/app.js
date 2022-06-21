@@ -54,6 +54,14 @@ window.onload = () => {
 	}
 };
 
+function calculateBitsPerSecond(frameRate, resolution) {
+	var splitted = resolution.split("x");
+	var width = parseInt(splitted[0]);
+	var height = parseInt(splitted[1]);
+	var bitsPerPixel = 24;
+	return frameRate * width * height * bitsPerPixel;
+}
+
 function joinWithForm() {
 
 	OPENVIDU_SERVER_URL = document.getElementById("form-publicurl").value;
@@ -119,10 +127,19 @@ async function joinSession() {
 			}
 				
 			if (!!QOE_ANALYSIS) {
-				var remoteControl = new ElasTestRemoteControl();
-				remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
+				// var remoteControl = new ElasTestRemoteControl();
+				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
-				remoteControls.set(remoteUser, remoteControl);
+				var remoteControl = OV.initLocalRecorder(event.stream);
+				while(remoteControl.state != "READY") {
+				}
+				remoteControl.record({
+					mimeType : "video/webm",
+					audioBitsPerSecond : 48000,
+					videoBitsPerSecond: calculateBitsPerSecond(FRAME_RATE, RESOLUTION),
+				}).then(() => {
+					remoteControls.set(remoteUser, remoteControl);
+				})
 			}
 
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
@@ -133,9 +150,9 @@ async function joinSession() {
 		sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
 		if (!!QOE_ANALYSIS) {
 			var remoteControl = remoteControls.get(event.stream.streamId);
-			remoteControl.stopRecording().then(() => {
+			remoteControl.stop().then(() => {
 				console.log("Recording stopped because of streamDestroyed");
-				return remoteControl.recordingToData()
+				return remoteControl.getBlob()
 			}).then((blob) => {
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				recordingBlobs.set(remoteUser, blob);
@@ -414,9 +431,9 @@ async function getRecordings(fileNamePrefix) {
 		const remoteUser = remoteControlEntry[0];
 		const remoteControl = remoteControlEntry[1];
 		console.debug("Stopping recording...");
-		await remoteControl.stopRecording();
+		await remoteControl.stop();
 		console.debug("Recording stopped, getting blob...");
-		const blob = await remoteControl.recordingToData();
+		const blob = await remoteControl.getBlob();
 		blobMap.set(remoteUser, blob);
 		if (!!blob) {
 			console.debug("Blob saved: " + blob.size + " bytes");
