@@ -15,8 +15,6 @@ colors_rgb = np.array([
     [255, 0, 0]  # red
 ])
 
-threshold = ray.put(50)
-
 def match_image(frame):
     height = frame.shape[0]
     width = frame.shape[1]
@@ -44,7 +42,7 @@ def match_image(frame):
         color_widths_chunk = color_widths_split[x]
         color_rgb_chunk = color_rgb_split[x]
         tasks.append(match_color.remote(put_frame, color_widths_chunk,
-                     match_height_ref, threshold, color_rgb_chunk))
+                     match_height_ref, color_rgb_chunk))
     results = ray.get(tasks)
 
     logger.debug("results: %s", str(results))
@@ -52,7 +50,7 @@ def match_image(frame):
 
 
 @ray.remote
-def match_color(frame, width_locations, height, threshold, expected_colors):
+def match_color(frame, width_locations, height, expected_colors):
     solutions = []
     for x in range(len(width_locations)):
         width = width_locations[x]
@@ -63,7 +61,7 @@ def match_color(frame, width_locations, height, threshold, expected_colors):
         red = frame[height - 1, width - 1, 2]
         rgb_section = np.array([red, green, blue])
         solutions.append(np.allclose(
-            rgb_section, expected, rtol=0, atol=threshold))
+            rgb_section, expected, rtol=0, atol=50)) # 50 is the threshold
     logger.debug("match_color return %s for colors %s",
                  str(solutions), str(expected))
     return np.all(solutions)
