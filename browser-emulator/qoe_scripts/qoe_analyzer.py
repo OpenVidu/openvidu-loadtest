@@ -1,6 +1,4 @@
-from asyncore import write
-from vidgear.gears import CamGear
-from vidgear.gears.helper import get_valid_ffmpeg_path
+from qoe_scripts.get_ffmpeg_path import get_valid_ffmpeg_path
 from qoe_scripts.logger_handler import get_logger
 import cv2
 import os
@@ -41,11 +39,11 @@ presenter_prepared = vpt.prepare_presenter.remote(
     ffmpeg_path, ar.presenter, ar.padding_duration_secs, fds_ref, ar.presenter_audio, pesq_ref, debug_ref)
 
 
-def process_cut_frames(cut_frames, cut_index):
+def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_time):
     # Remux step has been removed
     cut_index_ref = ray.put(cut_index)
     extract_audio_task = vpt.extract_audio.remote(
-        cut_index_ref, fds_ref, ar.viewer, prefix_ref, pesq_ref, debug_ref)
+        cut_index_ref, ffmpeg_path_ref, start_fragment_time, end_fragment_time, ar.viewer, prefix_ref, pesq_ref, debug_ref)
     ocr_task = align_ocr(
         cut_frames, fds_ref, fps_ref, cut_index_ref)
     write_video_task = vpt.write_video.remote(
@@ -78,15 +76,18 @@ def main():
     os.makedirs("./ocr", exist_ok=True)
     os.makedirs("./frames", exist_ok=True)
     logger.info("Starting video processing")
-    video = CamGear(source=ar.viewer, logging=debug).start()
+    cap = cv2.VideoCapture(ar.viewer)
     i = 0
     is_begin_padding = False
+    is_beginning_video = True
     frames_for_cut = []
     cut_index = 0
     async_tasks = []
-    while True:
-        frame = video.read()
-        if frame is None:
+    start_fragment_time = None
+    end_fragment_time = None
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
             # video ended
             break
         frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
@@ -94,28 +95,31 @@ def main():
             if not match_image(frame):
                 # padding ended
                 is_begin_padding = False
+                start_fragment_time = (cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
                 frames_for_cut.append(frame)
         else:
             is_begin_padding = match_image(frame)
             if is_begin_padding:
+                is_beginning_video = False
                 len_frames = len(frames_for_cut)
                 if len_frames > 0:
                     logger.info("Padding found on frame %d", i)
                     if len_frames > (ar.fragment_duration_secs * ar.fps):
                         logger.warn("Fragment is longer than expected, skipping...")
                     else:
-                        tasks = process_cut_frames(frames_for_cut, cut_index)
+                        end_fragment_time = (cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
+                        tasks = process_cut_frames(frames_for_cut, cut_index, start_fragment_time, end_fragment_time)
                         async_tasks.append(tasks)
                     cut_index += 1
                     frames_for_cut = []
-            else:
+            elif not is_beginning_video: # this ignores the first fragment as it is incomplete and QoE stats would be wrong
                 frames_for_cut.append(frame)
 
         if debug:
             cv2.imwrite("frames/" + ar.viewer + str(i) + ".jpg", frame)
         i += 1
 
-    video.stop()
+    cap.release()
     logger.info("Finished reading frames. Finishing processing cut fragments and normalizing data...")
     results_list = []
     VMAF_MAX = 100
