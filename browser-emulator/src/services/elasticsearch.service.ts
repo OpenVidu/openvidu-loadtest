@@ -11,7 +11,7 @@ export class ElasticSearchService {
 	private client: Client;
 	private pingSuccess: boolean = false;
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
-	private mappings = JSON.parse(fs.readFileSync(`${process.env.PWD}/src/services/elasticsearch.service.mappings.json`, 'utf8'));
+	private mappings = JSON.parse(fs.readFileSync(`${process.env.PWD}/src/services/index-mappings.json`, 'utf8'));
 	protected static instance: ElasticSearchService;
 
 	private constructor() { }
