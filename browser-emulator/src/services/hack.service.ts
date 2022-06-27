@@ -35,7 +35,7 @@ export class HackService {
 		if (EMULATED_USER_TYPE === EmulatedUserType.KMS) {
 			// Implement fake RTCPeerConnection methods, to get media from Kurento.
 
-			await KurentoWebRTC.init('ws://172.18.144.1:8888/kurento');
+			await KurentoWebRTC.init('ws://localhost:8888/kurento');
 
 			const globalObject = globalThis as any;
 			globalObject.navigator = KurentoWebRTC.navigator;
