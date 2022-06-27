@@ -21,7 +21,7 @@ DEFAULT_AUDIO_REF=./test-no-padding.wav
 FONT=/usr/share/fonts/truetype/msttcorefonts/Arial.ttf
 CLEANUP=true
 GET_ORIGINAL_STATS=false
-USAGE="Usage: `basename $0` [-d=duration] [-p=padding_duration_sec] [--game] [--generate_default_ref] [--no_cleanup] [--clean] [--v=video_url] [--w=width] [--h=height] [--a=audio_url] [-f=fps] [--original]"
+USAGE="Usage: `basename $0` [-d=duration] [-p=padding_duration_sec] [--game] [--generate_default_ref] [--no_cleanup] [--clean] [-v=video_url] [-w=width] [-h=height] [-a=audio_url] [-f=fps] [--original]"
 
 ##################################################################################
 # FUNCTIONS
