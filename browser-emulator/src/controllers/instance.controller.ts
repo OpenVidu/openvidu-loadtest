@@ -7,6 +7,7 @@ import { ElasticSearchService } from '../services/elasticsearch.service';
 import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
 import { ContainerName } from '../types/container-info.type';
+import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
 
 export const app = express.Router({
 	strict: true,
@@ -42,7 +43,8 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		console.log('Initialize browser-emulator');
 
 		if (isProdMode && !!request.qoeAnalysis) {
-			process.env.QOE_ANALYSIS = request.qoeAnalysis;
+			process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
+			QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
 		}
 
 		if (isProdMode && !elasticSearchService.isElasticSearchRunning()) {

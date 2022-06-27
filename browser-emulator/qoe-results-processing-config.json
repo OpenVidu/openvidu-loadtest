@@ -1,0 +1,22 @@
+{
+    "index": "loadtest-webrtc-stats",
+    "presenter_video_file_location":"/opt/openvidu-loadtest/browser-emulator/src/assets/mediafiles/fakevideo_30fps_640x480.y4m",
+    "presenter_audio_file_location": "/opt/openvidu-loadtest/browser-emulator/src/assets/mediafiles/fakeaudio.wav",
+    "width": 640,
+    "height": 480,
+    "framerate": 30,
+    "padding_duration": 1,
+    "fragment_duration": 5,
+    "timestamps": [
+        {
+            "new_participant_id": "User1",
+            "new_participant_session": "LoadTestSession1",
+            "@timestamp": "2022-06-27T09:00:00.000Z"
+        },
+        {
+            "new_participant_id": "User2",
+            "new_participant_session": "LoadTestSession1",
+            "@timestamp": "2022-06-27T09:00:05.000Z"
+        }
+    ]
+}

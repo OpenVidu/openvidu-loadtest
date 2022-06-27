@@ -337,7 +337,7 @@ export class RealBrowserService {
 			.forBrowser('chrome')
 			.withCapabilities(this.chromeCapabilities)
 			.setChromeOptions(this.chromeOptions)
-			.usingServer(`http://localhost:${bindedPort}/wd/hub`)
+			.usingServer(`http://172.18.144.1:${bindedPort}/wd/hub`)
 			.build();
 	}
 
