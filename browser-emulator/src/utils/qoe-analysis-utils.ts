@@ -58,7 +58,7 @@ async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, fi
                 console.error(err)
             })))
     });
-    Promise.all(promises).then((info) => {
+    return Promise.all(promises).then((info) => {
         console.log("Finished running all scripts, processing results for ELK...")
         const userStartMap = {}
         for (const timestamp of timestamps) {
