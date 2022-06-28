@@ -12,7 +12,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -250,6 +254,7 @@ public class LoadTestController {
 					log.error("Response status is not 200 OK. Exiting");
 					return false;
 				}
+				sleep(5, "sleep between participants in estimation");
 			}
 			if (!overloaded) {
 				for (int i = 0; i < subscribers; i++) {
@@ -268,6 +273,7 @@ public class LoadTestController {
 						log.error("Response status is not 200 OK. Exiting");
 						return false;
 					}
+					sleep(5, "sleep between participants in estimation");
 				}
 			}
 			iteration++;
@@ -381,6 +387,7 @@ public class LoadTestController {
 		ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
 
 		CreateParticipantResponse lastResponse = null;
+		int tasksSubmittedPerWorker = 0;
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (sessionNumber.get() > 0) {
@@ -391,7 +398,6 @@ public class LoadTestController {
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.toString());
 			List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
-			int sessionIteration = 0;
 			for (int i = 0; i < participantsBySession; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
 						loadTestConfig.getUserNamePrefix() + userNumber.get());
@@ -409,20 +415,20 @@ public class LoadTestController {
 									OpenViduRole.PUBLISHER,
 									false, null)));
 				}
+				tasksSubmittedPerWorker++;
 				boolean isLastParticipant = i == participantsBySession - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					boolean areSessionsPerWorkerReached = ((sessionIteration * participantsBySession + i + 1) % browserEstimation) == 0;
-					if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
-						log.info("Browsers in worker: {} is equal than limit: {}", (sessionIteration * participantsBySession + i + 1),
-								browserEstimation);
+					if ((tasksSubmittedPerWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
+						log.info("Browsers in worker: {} is equal than limit: {}",
+								tasksSubmittedPerWorker, browserEstimation);
 						lastResponse = getLastResponse(futureList);
 						streamsPerWorker.add(lastResponse.getStreamsInWorker());
 						if (!lastResponse.isResponseOk()) {
 							return lastResponse;
 						}
-						sessionIteration = 0;
 						futureList = new ArrayList<>(browserEstimation);
 						setAndInitializeNextWorker(WorkerType.WORKER);
+						tasksSubmittedPerWorker = 0;
 					}
 					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 				} else {
@@ -438,7 +444,6 @@ public class LoadTestController {
 			log.info("Session number {} has been succesfully created ", sessionNumber.get());
 			sessionsCompleted.incrementAndGet();
 			userNumber.set(1);
-			sessionIteration++;
 		}
 		return lastResponse;
 	}
@@ -448,6 +453,7 @@ public class LoadTestController {
 		setAndInitializeNextWorker(WorkerType.WORKER);
 		ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
 		CreateParticipantResponse lastResponse = null;
+		int tasksSubmittedPerWorker = 0;
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (sessionNumber.get() > 0) {
@@ -460,7 +466,6 @@ public class LoadTestController {
 			// sessionNumberStr);
 			List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
-			int sessionIteration = 0;
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
 				log.info("Creating PUBLISHER '{}' in session",
@@ -476,8 +481,8 @@ public class LoadTestController {
 							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.PUBLISHER, false, null)));
 				}
-				boolean areSessionsPerWorkerReached = ((sessionIteration * (publishers + subscribers) + i + 1) % browserEstimation) == 0;
-				if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
+				tasksSubmittedPerWorker++;
+				if ((tasksSubmittedPerWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
 					log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
 							browserEstimation);
 					lastResponse = getLastResponse(futureList);
@@ -485,15 +490,12 @@ public class LoadTestController {
 					if (!lastResponse.isResponseOk()) {
 						return lastResponse;
 					}
-					sessionIteration = 0;
 					futureList = new ArrayList<>(browserEstimation);
 					setAndInitializeNextWorker(WorkerType.WORKER);
+					tasksSubmittedPerWorker = 0;
 				}
 				sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 			}
-
-			// Leftover not analyzed futures will be analyzed in subscribers loop
-			int leftover = publishers % browserEstimation;
 
 			// Adding all subscribers
 			for (int i = 0; i < subscribers; i++) {
@@ -510,12 +512,10 @@ public class LoadTestController {
 							.submit(new ParticipantTask(userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.SUBSCRIBER, false, null)));
 				}
-				leftover = 0;
+				tasksSubmittedPerWorker++;
 				boolean isLastParticipant = i == subscribers - 1;
-
 				if (!(isLastParticipant && isLastSession)) {
-					boolean areSessionsPerWorkerReached = (sessionIteration * (publishers + subscribers) + (leftover + i + 1) % browserEstimation) == 0;
-					if (areSessionsPerWorkerReached && (loadTestConfig.getWorkersRumpUp() > 0)) {
+					if ((tasksSubmittedPerWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
 						log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
 								browserEstimation);
 						lastResponse = getLastResponse(futureList);
@@ -523,9 +523,9 @@ public class LoadTestController {
 						if (!lastResponse.isResponseOk()) {
 							return lastResponse;
 						}
-						sessionIteration = 0;
 						futureList = new ArrayList<>(browserEstimation);
 						setAndInitializeNextWorker(WorkerType.WORKER);
+						tasksSubmittedPerWorker = 0;
 					}
 					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 				} else {
@@ -540,7 +540,6 @@ public class LoadTestController {
 			log.info("Session number {} has been succesfully created ", sessionNumber.get());
 			sessionsCompleted.incrementAndGet();
 			userNumber.set(1);
-			sessionIteration++;
 		}
 		return lastResponse;
 	}
@@ -622,7 +621,7 @@ public class LoadTestController {
 			browserEmulatorClient.disconnectAll(workersUrl);
 
 			// Calculate QoE
-			if (loadTestConfig.isQoeAnalysis()) {
+			if (loadTestConfig.isQoeAnalysisRecordings() && loadTestConfig.isQoeAnalysisInSitu()) {
 				List<Instance> allWorkers = new ArrayList<>(awsWorkersList);
 				allWorkers.addAll(recordingWorkersList);
 				browserEmulatorClient.calculateQoe(allWorkers);

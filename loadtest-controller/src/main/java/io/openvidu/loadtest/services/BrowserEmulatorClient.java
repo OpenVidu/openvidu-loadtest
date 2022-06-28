@@ -83,7 +83,7 @@ public class BrowserEmulatorClient {
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
 				.s3BucketName(loadTestConfig.getS3BucketName())
-				.qoeAnalysis(loadTestConfig.isQoeAnalysis()).build().toJson();
+				.qoeAnalysis(loadTestConfig.isQoeAnalysisRecordings()).build().toJson();
 		try {
 			log.info("Initialize worker {}", workerUrl);
 			return this.httpClient.sendPost("https://" + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,

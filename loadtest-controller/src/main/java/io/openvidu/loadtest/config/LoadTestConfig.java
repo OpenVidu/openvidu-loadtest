@@ -82,7 +82,9 @@ public class LoadTestConfig {
 	
 	private int retryTimes;
 
-	private boolean qoeAnalysis;
+	private boolean qoeAnalysisRecordings;
+
+	private boolean qoeAnalysisInSitu;
 	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -221,8 +223,12 @@ public class LoadTestConfig {
 		return retryTimes;
 	}
 
-	public boolean isQoeAnalysis() {
-		return qoeAnalysis;
+	public boolean isQoeAnalysisRecordings() {
+		return qoeAnalysisRecordings;
+	}
+
+	public boolean isQoeAnalysisInSitu() {
+		return qoeAnalysisInSitu;
 	}
 	
 	@PostConstruct
@@ -261,7 +267,8 @@ public class LoadTestConfig {
 			s3bucketName = asOptionalString("S3_BUCKET_NAME");
 			retryMode = asBoolean("RETRY_MODE");
 			retryTimes = asInt("RETRY_TIMES");
-			qoeAnalysis = asBoolean("QOE_ANALYSIS");
+			qoeAnalysisRecordings = asBoolean("QOE_ANALYSIS_RECORDINGS");
+			qoeAnalysisInSitu = asBoolean("QOE_ANALYSIS_IN_SITU");
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -291,9 +298,9 @@ public class LoadTestConfig {
 		}
 		
 		if(retryMode) {
-			System.out.printf(format, "Controller started in RETRY MODE");
+			System.out.println("Controller started in RETRY MODE");
 			if(retryTimes < 1) {
-				System.err.printf(format, "Retry times is undefined");
+				System.err.println("Retry times is undefined");
 				System.exit(1);
 			}
 		}
