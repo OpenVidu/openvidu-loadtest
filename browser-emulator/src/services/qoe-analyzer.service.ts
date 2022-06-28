@@ -9,12 +9,7 @@ export class QoeAnalyzerService {
 
     constructor(
         private readonly elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
-        private readonly framerate: number = BrowserManagerService.getInstance().lastRequestInfo.properties.frameRate,
-        private readonly width: string = BrowserManagerService.getInstance().lastRequestInfo.properties.resolution.split("x")[0],
-        private readonly height: string = BrowserManagerService.getInstance().lastRequestInfo.properties.resolution.split("x")[1],
-        private readonly PRESENTER_VIDEO_FILE_LOCATION =
-            `${process.env.PWD}/src/assets/mediafiles/fakevideo_${framerate}fps_${BrowserManagerService.getInstance().lastRequestInfo.properties.resolution}.y4m`,
-        private readonly PRESENTER_AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`,
+        private readonly browserManagerService: BrowserManagerService = BrowserManagerService.getInstance(),
         private FRAGMENT_DURATION: number = 5,
         private PADDING_DURATION: number = 1,
     ) { }
@@ -32,16 +27,31 @@ export class QoeAnalyzerService {
     }
 
     public async runQoEAnalysis() {
-        const processingInfo: JSONQoeProcessing = {
-            index: this.elasticSearchService.indexName,
-            fragment_duration: this.FRAGMENT_DURATION,
-            padding_duration: this.PADDING_DURATION,
-            framerate: this.framerate,
-            width: this.width,
-            height: this.height,
-            presenter_audio_file_location: this.PRESENTER_AUDIO_FILE_LOCATION,
-            presenter_video_file_location: this.PRESENTER_VIDEO_FILE_LOCATION,
+        const lastRequest = this.browserManagerService.lastRequestInfo
+        if (lastRequest) {
+            const properties = lastRequest.properties
+            if (properties) {
+                const framerate: number = properties.frameRate
+                const dim: string[] = properties.resolution.split("x")
+                const width: string = dim[0]
+                const height: string = dim[1]
+                const PRESENTER_VIDEO_FILE_LOCATION =
+                    `${process.env.PWD}/src/assets/mediafiles/fakevideo_${framerate}fps_${properties.resolution}.y4m`
+                const PRESENTER_AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`
+                const processingInfo: JSONQoeProcessing = {
+                    index: this.elasticSearchService.indexName,
+                    fragment_duration: this.FRAGMENT_DURATION,
+                    padding_duration: this.PADDING_DURATION,
+                    framerate,
+                    width,
+                    height,
+                    presenter_audio_file_location: PRESENTER_AUDIO_FILE_LOCATION,
+                    presenter_video_file_location: PRESENTER_VIDEO_FILE_LOCATION,
+                }
+                await runQoEAnalysisNonBlocking(processingInfo)
+                return 'QoE analysis started'
+            }
         }
-        await runQoEAnalysisNonBlocking(processingInfo)
+        return 'No recordings to analyze'
     }
 }
