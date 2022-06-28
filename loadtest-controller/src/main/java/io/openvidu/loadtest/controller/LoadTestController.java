@@ -620,6 +620,14 @@ public class LoadTestController {
 				workersUrl.add(recordingEc2.getPublicDnsName());
 			}
 			browserEmulatorClient.disconnectAll(workersUrl);
+
+			// Calculate QoE
+			if (loadTestConfig.isQoeAnalysis()) {
+				List<Instance> allWorkers = new ArrayList<>(awsWorkersList);
+				allWorkers.addAll(recordingWorkersList);
+				browserEmulatorClient.calculateQoe(allWorkers);
+			}
+
 			ec2Client.stopInstance(recordingWorkersList);
 			ec2Client.stopInstance(awsWorkersList);
 
