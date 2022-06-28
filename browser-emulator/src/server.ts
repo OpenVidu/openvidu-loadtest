@@ -61,6 +61,13 @@ server.listen(SERVER_PORT, async () => {
 		hack.platform();
 		hack.allowSelfSignedCertificate();
 
+		const pythonpath = process.env['PYTHONPATH']
+		if (!pythonpath) {
+			process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD']
+		} else {
+			process.env['PYTHONPATH'] = process.env['PWD']
+		}
+
 		console.log('---------------------------------------------------------');
 		console.log(' ');
 		console.log(`Service started in ${APPLICATION_MODE} mode`);
