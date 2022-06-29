@@ -1,5 +1,5 @@
 colorlog==6.6.0
-numpy==1.19.3
+numpy==1.22.0
 opencv_python==4.5.5.64
 pytesseract==0.3.9
 ray==1.13.0
