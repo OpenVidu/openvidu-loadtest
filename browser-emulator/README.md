@@ -70,6 +70,9 @@ When [Delete all participant](#delete-participants) is run, all individual recor
 			```
 	- Save the individual recordings you want to analyze in `./recordings/qoe` directory.
 	- Create a `qoe-results-processing-config.json` file (there is an example file with the same name in this repo), with the following structure:
+		- elasticsearch_hostname: ELK hostname
+    	- elasticsearch_username: ELK username
+    	- elasticsearch_password: ELK password
 		- index: ELK index to save the data
 		- fragment_duration: The duration of the cut video without the paddings chosen when running *generate-mediafiles-qoe.sh*
 		- padding_duration: The duration of the padding chosen when running *generate-mediafiles-qoe.sh*

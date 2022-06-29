@@ -1,4 +1,7 @@
 {
+    "elasticsearch_hostname": "",
+    "elasticsearch_username": "",
+    "elasticsearch_password": "",
     "index": "loadtest-webrtc-stats",
     "presenter_video_file_location":"/opt/openvidu-loadtest/browser-emulator/src/assets/mediafiles/fakevideo_30fps_640x480.y4m",
     "presenter_audio_file_location": "/opt/openvidu-loadtest/browser-emulator/src/assets/mediafiles/fakeaudio.wav",
