@@ -53,9 +53,6 @@ public class BrowserEmulatorClient {
 	@Autowired
 	private JsonUtils jsonUtils;
 
-	@Autowired
-	private CurrentWorkerService currentWorkers;
-
 	public void ping(String workerUrl) {
 		try {
 			log.info("Pinging to {} ...", workerUrl);
@@ -83,7 +80,8 @@ public class BrowserEmulatorClient {
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
 				.s3BucketName(loadTestConfig.getS3BucketName())
-				.qoeAnalysis(loadTestConfig.isQoeAnalysisRecordings()).build().toJson();
+				.qoeAnalysis(loadTestConfig.isQoeAnalysisRecordings(), loadTestConfig.getPaddingDuration(), loadTestConfig.getFragmentDuration())
+				.build().toJson();
 		try {
 			log.info("Initialize worker {}", workerUrl);
 			return this.httpClient.sendPost("https://" + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
@@ -131,32 +129,32 @@ public class BrowserEmulatorClient {
 	// }
 	// }
 
-	public CreateParticipantResponse createPublisher(int userNumber, int sessionNumber, TestCase testCase) {
-		return createPublisher(userNumber, sessionNumber, testCase, 0);
+	public CreateParticipantResponse createPublisher(String worker, int userNumber, int sessionNumber, TestCase testCase) {
+		return createPublisher(worker, userNumber, sessionNumber, testCase, 0);
 	}
 
-	private CreateParticipantResponse createPublisher(int userNumber, int sessionNumber, TestCase testCase,
+	private CreateParticipantResponse createPublisher(String worker, int userNumber, int sessionNumber, TestCase testCase,
 			int failures) {
 		TestCase finalTestCase = testCase;
 		if (testCase.isBrowserRecording()) {
 			finalTestCase = new TestCase(testCase);
 			finalTestCase.setBrowserRecording(false);
 		}
-		CreateParticipantResponse success = this.createParticipant(WorkerType.WORKER, userNumber, sessionNumber,
+		CreateParticipantResponse success = this.createParticipant(worker, userNumber, sessionNumber,
 				finalTestCase,
 				OpenViduRole.PUBLISHER);
 
 		if (!success.isResponseOk() && loadTestConfig.isRetryMode() && !isResponseLimitReached(failures)) {
-			return this.createPublisher(userNumber, sessionNumber, testCase, failures + 1);
+			return this.createPublisher(worker, userNumber, sessionNumber, testCase, failures + 1);
 		}
 		return success;
 	}
 
-	public CreateParticipantResponse createSubscriber(int userNumber, int sessionNumber, TestCase testCase) {
-		return createSubscriber(userNumber, sessionNumber, testCase, 0);
+	public CreateParticipantResponse createSubscriber(String worker, int userNumber, int sessionNumber, TestCase testCase) {
+		return createSubscriber(worker, userNumber, sessionNumber, testCase, 0);
 	}
 
-	private CreateParticipantResponse createSubscriber(int userNumber, int sessionNumber, TestCase testCase,
+	private CreateParticipantResponse createSubscriber(String worker, int userNumber, int sessionNumber, TestCase testCase,
 			int failures) {
 		TestCase finalTestCase = testCase;
 		if (testCase.isBrowserRecording()) {
@@ -164,24 +162,24 @@ public class BrowserEmulatorClient {
 			finalTestCase.setBrowserRecording(false);
 		}
 		OpenViduRole role = OpenViduRole.SUBSCRIBER;
-		CreateParticipantResponse success = this.createParticipant(WorkerType.WORKER, userNumber, sessionNumber,
+		CreateParticipantResponse success = this.createParticipant(worker, userNumber, sessionNumber,
 				finalTestCase, role);
 
 		if (!success.isResponseOk() && loadTestConfig.isRetryMode() && !isResponseLimitReached(failures)) {
-			return this.createSubscriber(userNumber, sessionNumber, testCase, failures + 1);
+			return this.createSubscriber(worker, userNumber, sessionNumber, testCase, failures + 1);
 		}
 		return success;
 	}
 
-	public CreateParticipantResponse createExternalRecordingPublisher(int userNumber, int sessionNumber,
+	public CreateParticipantResponse createExternalRecordingPublisher(String worker, int userNumber, int sessionNumber,
 			TestCase testCase, String recordingMetadata) {
-		return this.createExternalRecordingParticipant(userNumber, sessionNumber, testCase,
+		return this.createExternalRecordingParticipant(worker, userNumber, sessionNumber, testCase,
 				recordingMetadata, OpenViduRole.PUBLISHER);
 	}
 
-	public CreateParticipantResponse createExternalRecordingSubscriber(int userNumber, int sessionNumber,
+	public CreateParticipantResponse createExternalRecordingSubscriber(String worker, int userNumber, int sessionNumber,
 			TestCase testCase, String recordingMetadata) {
-		return this.createExternalRecordingParticipant(userNumber, sessionNumber, testCase,
+		return this.createExternalRecordingParticipant(worker, userNumber, sessionNumber, testCase,
 				recordingMetadata, OpenViduRole.SUBSCRIBER);
 	}
 
@@ -231,7 +229,7 @@ public class BrowserEmulatorClient {
 		}
 	}
 
-	private CreateParticipantResponse createParticipant(WorkerType currentWorkerType, int userNumber, int sessionNumber,
+	private CreateParticipantResponse createParticipant(String workerUrl, int userNumber, int sessionNumber,
 			TestCase testCase,
 			OpenViduRole role) {
 		CreateParticipantResponse cpr = new CreateParticipantResponse();
@@ -247,7 +245,6 @@ public class BrowserEmulatorClient {
 
 		String sessionSuffix = String.valueOf(sessionNumber);
 		RequestBody body = this.generateRequestBody(userNumber, sessionSuffix, role, testCase);
-		String workerUrl = currentWorkers.getCurrentWorkerUrl(currentWorkerType);
 		try {
 			log.info("Selected worker: {}", workerUrl);
 			log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
@@ -278,7 +275,7 @@ public class BrowserEmulatorClient {
 				if (loadTestConfig.isRetryMode() && isResponseLimitReached(failures)) {
 					return cpr.setResponseOk(false);
 				}
-				return this.createParticipant(currentWorkerType, userNumber, sessionNumber, testCase, role);
+				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else {
 				this.saveParticipantData(workerUrl, testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role);
 			}
@@ -287,11 +284,11 @@ public class BrowserEmulatorClient {
 			// lastResponses.add("Failure");
 			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
 				sleep(WAIT_MS);
-				return this.createParticipant(currentWorkerType, userNumber, sessionNumber, testCase, role);
+				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
 				sleep(WAIT_MS);
-				return this.createParticipant(currentWorkerType, userNumber, sessionNumber, testCase, role);
+				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				System.out.println(e.getMessage());
 				return cpr.setResponseOk(true);
@@ -313,7 +310,7 @@ public class BrowserEmulatorClient {
 		}
 	}
 
-	private CreateParticipantResponse createExternalRecordingParticipant(int userNumber, int sessionNumber,
+	private CreateParticipantResponse createExternalRecordingParticipant(String worker, int userNumber, int sessionNumber,
 			TestCase testCase, String recordingMetadata, OpenViduRole role) {
 
 		TestCase testCaseAux = new TestCase(testCase);
@@ -321,7 +318,7 @@ public class BrowserEmulatorClient {
 		testCaseAux.setBrowserRecording(true);
 		testCaseAux.setRecordingMetadata(recordingMetadata);
 		log.info("Creating a participant using a REAL BROWSER for recoding");
-		CreateParticipantResponse okResponse = this.createParticipant(WorkerType.RECORDING_WORKER, userNumber,
+		CreateParticipantResponse okResponse = this.createParticipant(worker, userNumber,
 				sessionNumber, testCaseAux, role);
 		if (okResponse.isResponseOk()) {
 			recordingParticipantCreated.add(sessionNumber);
@@ -397,13 +394,13 @@ public class BrowserEmulatorClient {
 		}
 	}
 
-	public int getRoleInWorker(WorkerType currentWorkerType, OpenViduRole role) {
+	public int getRoleInWorker(String workerUrl, OpenViduRole role) {
 		Integer idx = role.equals(OpenViduRole.PUBLISHER) ? 0 : 1;
 		int[] initialArray = { 0, 0 };
 		BrowserEmulatorClient.publishersAndSubscribersInWorker
-				.putIfAbsent(currentWorkers.getCurrentWorkerUrl(currentWorkerType), initialArray);
+				.putIfAbsent(workerUrl, initialArray);
 		return BrowserEmulatorClient.publishersAndSubscribersInWorker
-				.get(currentWorkers.getCurrentWorkerUrl(currentWorkerType))[idx];
+				.get(workerUrl)[idx];
 	}
 
 	public void calculateQoe(List<Instance> workersList) {

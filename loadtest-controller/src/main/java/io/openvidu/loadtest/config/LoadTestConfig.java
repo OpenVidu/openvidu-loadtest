@@ -85,6 +85,10 @@ public class LoadTestConfig {
 	private boolean qoeAnalysisRecordings;
 
 	private boolean qoeAnalysisInSitu;
+
+	private int paddingDuration;
+	
+	private int fragmentDuration;
 	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -230,6 +234,14 @@ public class LoadTestConfig {
 	public boolean isQoeAnalysisInSitu() {
 		return qoeAnalysisInSitu;
 	}
+
+	public int getPaddingDuration() {
+		return paddingDuration;
+	}
+
+	public int getFragmentDuration() {
+		return fragmentDuration;
+	}
 	
 	@PostConstruct
 	private void checkConfigurationProperties() {
@@ -269,6 +281,8 @@ public class LoadTestConfig {
 			retryTimes = asInt("RETRY_TIMES");
 			qoeAnalysisRecordings = asBoolean("QOE_ANALYSIS_RECORDINGS");
 			qoeAnalysisInSitu = asBoolean("QOE_ANALYSIS_IN_SITU");
+			paddingDuration = asInt("VIDEO_PADDING_DURATION");
+			fragmentDuration = asInt("VIDEO_FRAGMENT_DURATION");
 			this.printInfo();
 
 		} catch (Exception e) {
