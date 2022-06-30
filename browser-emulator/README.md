@@ -85,9 +85,13 @@ When [Delete all participant](#delete-participants) is run, all individual recor
 			- new_participant_id: username of the user
 			- new_participant_session: session
 			- @timestamp: timestamp when the user was added to the session (in ISO format)
-	- run:
+	- Run:
 		```bash
 		npm run qoe
+		```
+	- You can also put a limit on the number of virtual cores used by the QoE scripts by adding the number as argument, for example with max 4 vcpus:
+		```bash
+		npm run qoe -- 4
 		```
 After the analysis is done, the results will be uploaded to the selected index in ELK. A dashboard can be imported to Kibana importing the [loadtest.ndjson](load-test/src/main/resources/loadtest.ndjson) file. For more information about the imported data, check their respective pages: [VMAF](https://github.com/Netflix/vmaf), [VQMT](https://github.com/Rolinh/VQMT), [PESQ](https://github.com/dennisguse/ITU-T_pesq), [ViSQOL](https://github.com/google/visqol).
 Note: The QoE results are normalized in the range 0-1 before importing them to ELK.

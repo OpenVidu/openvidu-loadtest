@@ -2,6 +2,10 @@ import { readFileSync } from 'fs';
 import { JSONQoeProcessingELK } from '../types/api-rest.type';
 import { runQoEAnalysisBlocking } from '../utils/qoe-analysis-utils'
 
+let maxCpus = undefined;
+if (process.argv.length > 2) {
+    maxCpus = parseInt(process.argv[2]);
+}
 const pythonpath = process.env['PYTHONPATH']
 if (!pythonpath) {
     process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD']
@@ -14,4 +18,4 @@ process.env.ELASTICSEARCH_HOSTNAME = info.elasticsearch_hostname;
 process.env.ELASTICSEARCH_USERNAME = info.elasticsearch_username;
 process.env.ELASTICSEARCH_PASSWORD = info.elasticsearch_password;
 process.env.ELASTICSEARCH_INDEX = info.index;
-runQoEAnalysisBlocking(info)
+runQoEAnalysisBlocking(info, maxCpus)
