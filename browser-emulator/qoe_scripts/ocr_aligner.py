@@ -5,11 +5,10 @@ import numpy as np
 import os
 import random
 from qoe_scripts.logger_handler import get_logger
-from qoe_scripts.arg_reader import debug
 import ray
 from itertools import chain
 
-logger = get_logger(__name__, debug)
+logger = get_logger(__name__, False)
 ocr_configs = [
     {
         'config': r'-c tessedit_char_whitelist=0123456789 --oem 3 --psm 8',
@@ -101,13 +100,13 @@ def get_ocr(frames_refs, fragment_duration_secs, target_fps):
                 else:
                     logger.warn(
                         "Error in OCR (text: %s, confidence: %s), no more configs available", text, str(conf))
-                    if debug:
-                        logger.debug("skipping frame and saving image of cropped frame number in error directory")
-                        os.makedirs("./error", exist_ok=True)
-                        cv2.imwrite("./error/" + text + "_" + str(conf) + "_" +
-                                    str(random.randint(0, 100000)) + "_gray.png", img_gray)
-                        cv2.imwrite("./error/" + text + "_" + str(conf) + "_" +
-                                    str(random.randint(0, 100000)) + "_ocr.png", ocr_img)
+                    # if debug:
+                    #     logger.debug("skipping frame and saving image of cropped frame number in error directory")
+                    #     os.makedirs("./error", exist_ok=True)
+                    #     cv2.imwrite("./error/" + text + "_" + str(conf) + "_" +
+                    #                 str(random.randint(0, 100000)) + "_gray.png", img_gray)
+                    #     cv2.imwrite("./error/" + text + "_" + str(conf) + "_" +
+                    #                 str(random.randint(0, 100000)) + "_ocr.png", ocr_img)
                     last_error = True
                     break
             else:
