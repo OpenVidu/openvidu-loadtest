@@ -105,6 +105,12 @@ export interface JSONQoeProcessing {
     timestamps?: JSONUserInfo[]
 }
 
+export interface JSONQoeProcessingELK extends JSONQoeProcessing {
+    elasticsearch_hostname: string,
+    elasticsearch_username: string,
+    elasticsearch_password: string,
+}
+
 export interface JSONQoEInfo {
     '@timestamp': string,
     session: string,

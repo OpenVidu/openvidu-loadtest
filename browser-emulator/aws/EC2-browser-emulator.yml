@@ -12,7 +12,7 @@ Resources:
     Type: AWS::EC2::Instance
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT45M
+        Timeout: PT1H
         Count: 1
     Properties:
       ImageId: !Ref ImageId
@@ -21,7 +21,6 @@ Resources:
       - Key: Name
         Value: !Ref AWS::StackName
     # Add KeyName: [your ssh key] to be able to access this instance
-      KeyName: ivan-aws-virginia
       BlockDeviceMappings:
       - DeviceName: "/dev/sda1"
         Ebs:
