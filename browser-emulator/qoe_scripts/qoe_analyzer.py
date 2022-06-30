@@ -43,7 +43,7 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
     # Remux step has been removed
     cut_index_ref = ray.put(cut_index)
     extract_audio_task = vpt.extract_audio.remote(
-        cut_index_ref, ffmpeg_path_ref, start_fragment_time, end_fragment_time, ar.viewer, prefix_ref, pesq_ref, debug_ref)
+        cut_index_ref, ffmpeg_path_ref, start_fragment_time, end_fragment_time, ar.viewer, prefix_ref, pesq_ref, presenter_prepared, debug_ref)
     ocr_task = align_ocr(
         cut_frames, fds_ref, fps_ref, cut_index_ref)
     write_video_task = vpt.write_video.remote(
