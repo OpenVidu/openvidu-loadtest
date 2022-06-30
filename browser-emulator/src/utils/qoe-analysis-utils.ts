@@ -36,7 +36,7 @@ async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, fi
         timestamps = processingInfo.timestamps;
     }
     else {
-        timestamps = await this.elasticSearchService.getStartTimes()
+        timestamps = await elasticSearchService.getStartTimes()
     }
     const promises = [];
     files.forEach((file) => {
