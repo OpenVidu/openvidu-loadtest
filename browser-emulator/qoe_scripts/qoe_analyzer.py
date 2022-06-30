@@ -15,8 +15,12 @@ start_time = time.time()
 debug = ar.debug
 remux = ar.remux
 
-if not ray.is_initialized():
+if ray.is_initialized():
+    ray.shutdown()
+if ar.max_cpus is None:
     ray.init(ignore_reinit_error=True, include_dashboard=debug)
+else:
+    ray.init(ignore_reinit_error=True, include_dashboard=debug, num_cpus=ar.max_cpus)
 
 PESQ_AUDIO_SAMPLE_RATE = "16000"
 
