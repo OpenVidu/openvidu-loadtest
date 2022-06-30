@@ -154,9 +154,6 @@ def main():
     VMAF_MAX = 100
     VMAF_MIN = 0
     VMAF_RANGE = VMAF_MAX - VMAF_MIN
-    PSNR_MAX = 60
-    PSNR_MIN = 20
-    PSNR_RANGE = PSNR_MAX - PSNR_MIN
     AUDIO_MAX = 5
     AUDIO_MIN = 1
     AUDIO_RANGE = AUDIO_MAX - AUDIO_MIN
@@ -168,11 +165,11 @@ def main():
             "cut_index": tasks[0],
             "vmaf": (cut_results[0][0] - VMAF_MIN) / VMAF_RANGE,
             "msssim": cut_results[1][0][0],
-            "psnr": (cut_results[1][0][1] - PSNR_MIN) / PSNR_RANGE,
-            "psnrhvs": (cut_results[1][0][2] - PSNR_MIN) / PSNR_RANGE,
+            "psnr": cut_results[1][0][1],
+            "psnrhvs": cut_results[1][0][2],
             "ssim": cut_results[1][0][3],
             "vifp": cut_results[1][0][4],
-            "psnrhvsm": (cut_results[1][0][5] - PSNR_MIN) / PSNR_RANGE,
+            "psnrhvsm": cut_results[1][0][5],
             "pesq": (cut_results[2][0] - AUDIO_MIN) / AUDIO_RANGE,
             "visqol": (cut_results[3][0] - AUDIO_MIN) / AUDIO_RANGE
         }
