@@ -1,10 +1,9 @@
 import subprocess as sp
 import cv2
 from qoe_scripts.logger_handler import get_logger
-from qoe_scripts.arg_reader import debug
 import ray
 
-logger = get_logger(__name__, debug)
+logger = get_logger(__name__, False)
 
 
 @ray.remote

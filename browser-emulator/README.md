@@ -85,9 +85,13 @@ When [Delete all participant](#delete-participants) is run, all individual recor
 			- new_participant_id: username of the user
 			- new_participant_session: session
 			- @timestamp: timestamp when the user was added to the session (in ISO format)
-	- run:
+	- Run:
 		```bash
 		npm run qoe
+		```
+	- You can also put a limit on the number of virtual cores used by the QoE scripts by adding the number as argument, for example with max 4 vcpus:
+		```bash
+		npm run qoe -- 4
 		```
 After the analysis is done, the results will be uploaded to the selected index in ELK. A dashboard can be imported to Kibana importing the [loadtest.ndjson](load-test/src/main/resources/loadtest.ndjson) file. For more information about the imported data, check their respective pages: [VMAF](https://github.com/Netflix/vmaf), [VQMT](https://github.com/Rolinh/VQMT), [PESQ](https://github.com/dennisguse/ITU-T_pesq), [ViSQOL](https://github.com/google/visqol).
 Note: The QoE results are normalized in the range 0-1 before importing them to ELK.
@@ -113,6 +117,21 @@ Note: The QoE results are normalized in the range 0-1 before importing them to E
 	"elasticSearchIndex": "your-optional-index",
 	"awsAccessKey": "your-AWS-access-key",
 	"awsSecretAccessKey": "your-AWS-secret-key",
+	"browserVideo": {
+		"videoType": "bunny",
+		"videoInfo": [
+			{
+				"width": 640,
+				"height": 480,
+				"fps": 30
+			}, 
+			{
+				"width": 1920,
+				"height": 1080,
+				"fps": 60
+			}
+		]
+	},
 	"qoeAnalysis": {
 		"enabled": true,
 		"fragment_duration": 5,
@@ -125,11 +144,39 @@ Note: The QoE results are normalized in the range 0-1 before importing them to E
 * #### RESPONSE
 ```json
 Instance has been initialized
+```
+
+`browserVideo` is only needed if using `browserMode REAL`. This object indicates what videos to use, which will be downloaded. There are 3 types of videos by default, having to be selected in the `videoType` property inside `browserVideo`. If using a default video type, the resolution and fps of the videos to use have to be selected in the `videoInfo` array property. All default videos have padding for possible usage in QoE Analysis. The default video types and available resolutions and framerates are the following:
+- `bunny`: blender animated demo video
+	- available resolutions and framerates:
+		- Width: 640, height: 480, fps: 30
+		- Width: 640, height: 480, fps: 60
+		- Width: 1280, height: 720, fps: 30
+		- Width: 1280, height: 720, fps: 60
+		- Width: 1920, height: 1080, fps: 30
+		- Width: 1920, height: 1080, fps: 60
+- `interview`: interview video
+	- available resolutions and framerates:
+		- Width: 640, height: 480, fps: 30
+- `game`: gameplay video with commentary
+	- available resolutions and framerates:
+		- Width: 640, height: 480, fps: 30
 
 In Qoe Analysis object:
 - fragment_duration indicates the duration of the video fragment between the paddings
 - padding_duration indicates the duration of the padding
-```
+
+The default videos have been already processed by adding padding, the following durations are:
+- `bunny`:
+	- fragment_duration: 5
+	- padding_duration: 1
+- `interview`:
+	- fragment_duration: 15
+	- padding_duration: 1
+- `game`:
+	- fragment_duration: 15
+	- padding_duration: 1
+
 
 ### CREATE PARTICIPANT
 

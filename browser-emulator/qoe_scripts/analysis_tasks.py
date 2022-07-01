@@ -3,10 +3,9 @@ import os
 import csv
 import math
 from qoe_scripts.logger_handler import get_logger
-from qoe_scripts.arg_reader import debug
 import ray
 
-logger = get_logger(__name__, debug)
+logger = get_logger(__name__, False)
 
 vmaf_path = os.environ.get('VMAF_PATH')
 if not vmaf_path:

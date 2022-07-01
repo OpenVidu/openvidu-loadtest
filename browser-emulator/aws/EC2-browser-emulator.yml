@@ -65,9 +65,6 @@ Resources:
 
           cd /opt/openvidu-loadtest/
 
-          # Download media files
-          ./browser-emulator/download_mediafiles.sh
-
           # Create browser-emulator docker image
           cd docker/browser-emulator/
           ./run.sh 2.2.0

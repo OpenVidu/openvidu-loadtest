@@ -48,7 +48,7 @@ export class RealBrowserService {
 	public async startBrowserContainer(properties: TestProperties): Promise<any> {
 		if (!this.existMediaFiles(properties.resolution, properties.frameRate) && !process.env.IS_DOCKER_CONTAINER) {
 			return Promise.reject({
-				message: 'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run download_mediafiles.sh?',
+				message: 'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
 			});
 		}
 

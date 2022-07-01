@@ -11,6 +11,8 @@ export interface LoadTestPostRequest {
 
 export interface InitializePostRequest {
 	qoeAnalysis?: QoeAnalysisRequest;
+    // Only needed with browser type REAL
+    browserVideo?: BrowserVideoRequest;
     elasticSearchPassword: string;
 	elasticSearchUserName: string;
 	elasticSearchHost: string;
@@ -18,6 +20,27 @@ export interface InitializePostRequest {
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;
 	s3BucketName?: string;
+}
+
+export interface BrowserVideoRequest {
+    videoType: "bunny" | "interview" | "game" | CustomBrowserVideoRequest;
+    // needed if not using custom video
+    videoInfo?: BrowserVideoInfo[];
+}
+
+export interface BrowserVideoInfo {
+    width: number;
+    height: number;
+    fps: number;
+}
+
+export interface CustomBrowserVideoRequest {
+    videos: CustomBrowserVideo[];
+    audioUrl: string;
+}
+
+export interface CustomBrowserVideo extends BrowserVideoInfo {
+    url: string;
 }
 
 export interface QoeAnalysisRequest {

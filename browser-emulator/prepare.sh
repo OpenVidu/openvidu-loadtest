@@ -61,14 +61,6 @@ command -v python3-pip >/dev/null || {
 
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
 
-# Download mediafiles
-# ============
-
-if [ "$DOCKER_CONTAINER" = false ]; then
-    echo "Downloading media files..."
-    "$SELF_PATH"/download_mediafiles.sh
-fi
-
 ## Give execution rights to the scripts
 chmod +x "$SELF_PATH"/qoe_scripts/*.sh
 

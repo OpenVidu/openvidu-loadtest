@@ -3,51 +3,76 @@ from qoe_scripts.logger_handler import get_logger
 import cv2
 import os
 import json
-import qoe_scripts.arg_reader as ar
 import qoe_scripts.video_processing_tasks as vpt
 import qoe_scripts.analysis_tasks as at
 from qoe_scripts.padding_matcher import match_image
 from qoe_scripts.ocr_aligner import align_ocr
 import ray
 import time
-start_time = time.time()
+import argparse
 
-debug = ar.debug
-remux = ar.remux
+start_time = time.time()
+parser = argparse.ArgumentParser(description="QoE analyzer")
+parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode")
+parser.add_argument("--remux", action="store_true", default=False, help="Enable remux mode")
+parser.add_argument("--viewer", type=str, default="viewer.yuv", help="Distorted viewer video")
+parser.add_argument("--prefix", type=str, default="qoe_", help="Prefix for output files")
+parser.add_argument("--fragment_duration_secs", type=int, default=5, help="Fragment duration in seconds")
+parser.add_argument("--padding_duration_secs", type=int, default=1, help="Padding duration in seconds")
+parser.add_argument("--width", type=int, default=640, help="Width of the video")
+parser.add_argument("--height", type=int, default=480, help="Height of the video")
+parser.add_argument("--fps", type=int, default=30, help="FPS of the video")
+parser.add_argument("--presenter", type=str, default="presenter.yuv", help="Original video")
+parser.add_argument("--presenter_audio", type=str, default="presenter.wav", help="Original audio")
+parser.add_argument("--max_cpus", type=int, help="Max number of CPUs to use")
+
+args = parser.parse_args()
+debug = args.debug
+fps = args.fps
+fragment_duration_secs = args.fragment_duration_secs
+padding_duration_secs = args.padding_duration_secs
+width = args.width
+height = args.height
+presenter = args.presenter
+presenter_audio = args.presenter_audio
+remux = args.remux
+viewer = args.viewer
+prefix = args.prefix
+max_cpus = args.max_cpus
 
 if ray.is_initialized():
     ray.shutdown()
-if ar.max_cpus is None:
+if max_cpus is None:
     ray.init(ignore_reinit_error=True, include_dashboard=debug)
 else:
-    ray.init(ignore_reinit_error=True, include_dashboard=debug, num_cpus=ar.max_cpus)
+    ray.init(ignore_reinit_error=True, include_dashboard=debug, num_cpus=max_cpus)
 
 PESQ_AUDIO_SAMPLE_RATE = "16000"
 
 logger = get_logger(__name__, debug)
 
-dim = (ar.width, ar.height)
+dim = (width, height)
 ffmpeg_path = get_valid_ffmpeg_path()
 
 # put into ray shared memory objects that are reused frequently between tasks so that ray doesn't have to put and get them everytime
-fds_ref = ray.put(ar.fragment_duration_secs)
-fps_ref = ray.put(ar.fps)
-prefix_ref = ray.put(ar.prefix)
+fds_ref = ray.put(fragment_duration_secs)
+fps_ref = ray.put(fps)
+prefix_ref = ray.put(prefix)
 pesq_ref = ray.put(PESQ_AUDIO_SAMPLE_RATE)
 debug_ref = ray.put(debug)
-width_ref = ray.put(ar.width)
-height_ref = ray.put(ar.height)
+width_ref = ray.put(width)
+height_ref = ray.put(height)
 ffmpeg_path_ref = ray.put(ffmpeg_path)
 
 presenter_prepared = vpt.prepare_presenter.remote(
-    ffmpeg_path, ar.presenter, ar.padding_duration_secs, fds_ref, ar.presenter_audio, pesq_ref, debug_ref)
+    ffmpeg_path, presenter, padding_duration_secs, fds_ref, presenter_audio, pesq_ref, debug_ref)
 
 
 def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_time):
     # Remux step has been removed
     cut_index_ref = ray.put(cut_index)
     extract_audio_task = vpt.extract_audio.remote(
-        cut_index_ref, ffmpeg_path_ref, start_fragment_time, end_fragment_time, ar.viewer, prefix_ref, pesq_ref, presenter_prepared, debug_ref)
+        cut_index_ref, ffmpeg_path_ref, start_fragment_time, end_fragment_time, viewer, prefix_ref, pesq_ref, presenter_prepared, debug_ref)
     ocr_task = align_ocr(
         cut_frames, fds_ref, fps_ref, cut_index_ref)
     write_video_task = vpt.write_video.remote(
@@ -80,7 +105,7 @@ def main():
     os.makedirs("./ocr", exist_ok=True)
     os.makedirs("./frames", exist_ok=True)
     logger.info("Starting video processing")
-    cap = cv2.VideoCapture(ar.viewer)
+    cap = cv2.VideoCapture(viewer)
     i = 0
     is_begin_padding = False
     is_beginning_video = True
@@ -108,7 +133,7 @@ def main():
                 len_frames = len(frames_for_cut)
                 if len_frames > 0:
                     logger.info("Padding found on frame %d", i)
-                    if len_frames > (ar.fragment_duration_secs * ar.fps):
+                    if len_frames > (fragment_duration_secs * fps):
                         logger.warn("Fragment is longer than expected, skipping...")
                     else:
                         end_fragment_time = (cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
@@ -120,7 +145,7 @@ def main():
                 frames_for_cut.append(frame)
 
         if debug:
-            cv2.imwrite("frames/" + ar.viewer + str(i) + ".jpg", frame)
+            cv2.imwrite("frames/" + viewer + str(i) + ".jpg", frame)
         i += 1
 
     cap.release()
@@ -129,9 +154,6 @@ def main():
     VMAF_MAX = 100
     VMAF_MIN = 0
     VMAF_RANGE = VMAF_MAX - VMAF_MIN
-    PSNR_MAX = 60
-    PSNR_MIN = 20
-    PSNR_RANGE = PSNR_MAX - PSNR_MIN
     AUDIO_MAX = 5
     AUDIO_MIN = 1
     AUDIO_RANGE = AUDIO_MAX - AUDIO_MIN
@@ -143,16 +165,16 @@ def main():
             "cut_index": tasks[0],
             "vmaf": (cut_results[0][0] - VMAF_MIN) / VMAF_RANGE,
             "msssim": cut_results[1][0][0],
-            "psnr": (cut_results[1][0][1] - PSNR_MIN) / PSNR_RANGE,
-            "psnrhvs": (cut_results[1][0][2] - PSNR_MIN) / PSNR_RANGE,
+            "psnr": cut_results[1][0][1],
+            "psnrhvs": cut_results[1][0][2],
             "ssim": cut_results[1][0][3],
             "vifp": cut_results[1][0][4],
-            "psnrhvsm": (cut_results[1][0][5] - PSNR_MIN) / PSNR_RANGE,
+            "psnrhvsm": cut_results[1][0][5],
             "pesq": (cut_results[2][0] - AUDIO_MIN) / AUDIO_RANGE,
             "visqol": (cut_results[3][0] - AUDIO_MIN) / AUDIO_RANGE
         }
         results_list.append(analysis_results_dict)
-    with open(ar.prefix + "_cuts.json", 'w') as f:
+    with open(prefix + "_cuts.json", 'w') as f:
         json.dump(results_list, f)
     logger.info("End video processing")
     logger.info("Time used: %s seconds", str(time.time() - start_time))
