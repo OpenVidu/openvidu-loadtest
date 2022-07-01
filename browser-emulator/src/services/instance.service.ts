@@ -211,7 +211,7 @@ export class InstanceService {
 										return reject(err);
 									} else {
 										console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
-										return resolve(fsPromises.rm(filePath, { recursive: true, force: true }));
+										return resolve("");
 									}
 								});
 							}));
