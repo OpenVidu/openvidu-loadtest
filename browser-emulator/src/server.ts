@@ -45,6 +45,9 @@ server.listen(SERVER_PORT, async () => {
 	const instanceService = InstanceService.getInstance();
 
 	try {
+		if (!fs.existsSync(`${process.env.PWD}/src/assets/mediafiles`)){
+			fs.mkdirSync(`${process.env.PWD}/src/assets/mediafiles`);
+		}
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
 			console.log('Pulling Docker images needed...');
 			await instanceService.pullImagesNeeded();
