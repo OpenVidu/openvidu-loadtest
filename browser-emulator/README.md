@@ -174,7 +174,7 @@ The default videos have been already processed by adding padding, the following 
 	- fragment_duration: 15
 	- padding_duration: 1
 - `game`:
-	- fragment_duration: 15
+	- fragment_duration: 30
 	- padding_duration: 1
 
 
