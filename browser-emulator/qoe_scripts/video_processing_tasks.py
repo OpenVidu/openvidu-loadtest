@@ -1,13 +1,12 @@
 import subprocess as sp
 import cv2
-from qoe_scripts.logger_handler import get_logger
+import logging as logger
 import ray
-
-logger = get_logger(__name__, False)
 
 
 @ray.remote
 def prepare_presenter(ffmpeg_path, presenter, padding_duration_secs, fragment_duration_secs, presenter_audio, PESQ_AUDIO_SAMPLE_RATE, debug=False):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     logger.info("Starting preparing presenter files")
     if debug:
         out = sp.PIPE
@@ -35,11 +34,12 @@ def prepare_presenter(ffmpeg_path, presenter, padding_duration_secs, fragment_du
 
 @ray.remote
 def extract_audio(cut_index, ffmpeg_path, start_cut_n, end_cut_n, viewer, prefix, PESQ_AUDIO_SAMPLE_RATE, presenter_prepared, debug=False):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     if not presenter_prepared:
         logger.error("Something went wrong, presenter not prepared")
         raise Exception("Something went wrong, presenter not prepared")
     logger.info("Starting audio extraction on cut %d", cut_index)
-    #offset = 0.1 # offset is needed because the start cut time is not as precise as it should be atm
+    # offset = 0.1 # offset is needed because the start cut time is not as precise as it should be atm
     end_cut = str(end_cut_n)
     start_cut = str(start_cut_n)
     logger.info("Starting audio extraction on cut %d, %s to %s",
@@ -53,7 +53,8 @@ def extract_audio(cut_index, ffmpeg_path, start_cut_n, end_cut_n, viewer, prefix
     logger.info(ffmpeg_command_to_save_audio)
     if debug:
         out = sp.PIPE
-        logger.debug("Executing FFmpeg command: %s", ffmpeg_command_to_save_audio)
+        logger.debug("Executing FFmpeg command: %s",
+                     ffmpeg_command_to_save_audio)
     else:
         out = sp.DEVNULL
     errout = sp.STDOUT
@@ -66,6 +67,7 @@ def extract_audio(cut_index, ffmpeg_path, start_cut_n, end_cut_n, viewer, prefix
 
 @ray.remote
 def write_video(cut_frames, cut_index, ffmpeg_path, width, height, fps, prefix, presenter_prepared, debug=False):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     if not presenter_prepared:
         logger.error("Something went wrong, presenter not prepared")
         raise Exception("Something went wrong, presenter not prepared")

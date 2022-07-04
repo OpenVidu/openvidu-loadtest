@@ -1,9 +1,7 @@
 import numpy as np
 import math
-from qoe_scripts.logger_handler import get_logger
+import logging as logger
 import ray
-
-logger = get_logger(__name__, False)
 
 colors_rgb = np.array([
     [0, 255, 255],  # cyan
@@ -14,7 +12,8 @@ colors_rgb = np.array([
     [255, 0, 0]  # red
 ])
 
-def match_image(frame):
+
+def match_image(frame, debug_ref):
     height = frame.shape[0]
     width = frame.shape[1]
     match_height = math.floor(height / 3)
@@ -41,7 +40,7 @@ def match_image(frame):
         color_widths_chunk = color_widths_split[x]
         color_rgb_chunk = color_rgb_split[x]
         tasks.append(match_color.remote(put_frame, color_widths_chunk,
-                     match_height_ref, color_rgb_chunk))
+                     match_height_ref, color_rgb_chunk, debug_ref))
     results = ray.get(tasks)
 
     logger.debug("results: %s", str(results))
@@ -49,7 +48,8 @@ def match_image(frame):
 
 
 @ray.remote
-def match_color(frame, width_locations, height, expected_colors):
+def match_color(frame, width_locations, height, expected_colors, debug):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     solutions = []
     for x in range(len(width_locations)):
         width = width_locations[x]
@@ -60,7 +60,7 @@ def match_color(frame, width_locations, height, expected_colors):
         red = frame[height - 1, width - 1, 2]
         rgb_section = np.array([red, green, blue])
         solutions.append(np.allclose(
-            rgb_section, expected, rtol=0, atol=50)) # 50 is the threshold
+            rgb_section, expected, rtol=0, atol=50))  # 50 is the threshold
     logger.debug("match_color return %s for colors %s",
                  str(solutions), str(expected))
     return np.all(solutions)

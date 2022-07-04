@@ -1,8 +1,7 @@
 import os
 import platform
-from qoe_scripts.logger_handler import get_logger
+import logging as logger
 
-logger = get_logger(__name__, False)
 
 def get_valid_ffmpeg_path(
     custom_ffmpeg="", is_windows=False, ffmpeg_download_path="", logging=False
@@ -64,6 +63,7 @@ def get_valid_ffmpeg_path(
     # Final Auto-Validation for FFmeg Binaries. returns final path if test is passed
     return final_path if validate_ffmpeg(final_path, logging=logging) else False
 
+
 def validate_ffmpeg(path, logging=False):
     """
     ## validate_ffmpeg
@@ -95,6 +95,7 @@ def validate_ffmpeg(path, logging=False):
             logger.warning("FFmpeg validity Test Failed!")
         return False
     return True
+
 
 def check_output(*args, **kwargs):
     """

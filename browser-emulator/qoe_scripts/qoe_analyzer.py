@@ -1,5 +1,5 @@
 from qoe_scripts.get_ffmpeg_path import get_valid_ffmpeg_path
-from qoe_scripts.logger_handler import get_logger
+import logging as logger
 import cv2
 import os
 import json
@@ -13,17 +13,27 @@ import argparse
 
 start_time = time.time()
 parser = argparse.ArgumentParser(description="QoE analyzer")
-parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode")
-parser.add_argument("--remux", action="store_true", default=False, help="Enable remux mode")
-parser.add_argument("--viewer", type=str, default="viewer.yuv", help="Distorted viewer video")
-parser.add_argument("--prefix", type=str, default="qoe_", help="Prefix for output files")
-parser.add_argument("--fragment_duration_secs", type=int, default=5, help="Fragment duration in seconds")
-parser.add_argument("--padding_duration_secs", type=int, default=1, help="Padding duration in seconds")
-parser.add_argument("--width", type=int, default=640, help="Width of the video")
-parser.add_argument("--height", type=int, default=480, help="Height of the video")
+parser.add_argument("--debug", action="store_true",
+                    default=False, help="Enable debug mode")
+parser.add_argument("--remux", action="store_true",
+                    default=False, help="Enable remux mode")
+parser.add_argument("--viewer", type=str, default="viewer.yuv",
+                    help="Distorted viewer video")
+parser.add_argument("--prefix", type=str, default="qoe_",
+                    help="Prefix for output files")
+parser.add_argument("--fragment_duration_secs", type=int,
+                    default=5, help="Fragment duration in seconds")
+parser.add_argument("--padding_duration_secs", type=int,
+                    default=1, help="Padding duration in seconds")
+parser.add_argument("--width", type=int, default=640,
+                    help="Width of the video")
+parser.add_argument("--height", type=int, default=480,
+                    help="Height of the video")
 parser.add_argument("--fps", type=int, default=30, help="FPS of the video")
-parser.add_argument("--presenter", type=str, default="presenter.yuv", help="Original video")
-parser.add_argument("--presenter_audio", type=str, default="presenter.wav", help="Original audio")
+parser.add_argument("--presenter", type=str,
+                    default="presenter.yuv", help="Original video")
+parser.add_argument("--presenter_audio", type=str,
+                    default="presenter.wav", help="Original audio")
 parser.add_argument("--max_cpus", type=int, help="Max number of CPUs to use")
 
 args = parser.parse_args()
@@ -40,16 +50,31 @@ viewer = args.viewer
 prefix = args.prefix
 max_cpus = args.max_cpus
 
+logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
+
+logger.info("Debug: %s", debug)
+logger.info("FPS: %d", fps)
+logger.info("Fragment duration (s): %d s", fragment_duration_secs)
+logger.info("Padding duration (s): %d s", padding_duration_secs)
+logger.info("Dimensions: %d x %d", width, height)
+logger.info("Presenter video: %s", presenter)
+logger.info("Presenter audio: %s", presenter_audio)
+logger.info("Viewer video: %s", viewer)
+logger.info("Prefix: %s", prefix)
+logger.info("Max CPUs: %s", max_cpus)
+logger.info("Initializing Ray")
+
+
 if ray.is_initialized():
     ray.shutdown()
 if max_cpus is None:
     ray.init(ignore_reinit_error=True, include_dashboard=debug)
 else:
-    ray.init(ignore_reinit_error=True, include_dashboard=debug, num_cpus=max_cpus)
+    ray.init(ignore_reinit_error=True,
+             include_dashboard=debug, num_cpus=max_cpus)
 
+logger.info("Ray initialized")
 PESQ_AUDIO_SAMPLE_RATE = "16000"
-
-logger = get_logger(__name__, debug)
 
 dim = (width, height)
 ffmpeg_path = get_valid_ffmpeg_path()
@@ -74,13 +99,17 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
     extract_audio_task = vpt.extract_audio.remote(
         cut_index_ref, ffmpeg_path_ref, start_fragment_time, end_fragment_time, viewer, prefix_ref, pesq_ref, presenter_prepared, debug_ref)
     ocr_task = align_ocr(
-        cut_frames, fds_ref, fps_ref, cut_index_ref)
+        cut_frames, fds_ref, fps_ref, cut_index_ref, debug_ref)
     write_video_task = vpt.write_video.remote(
         ocr_task, cut_index_ref, ffmpeg_path_ref, width_ref, height_ref, fps_ref, prefix_ref, presenter_prepared, debug_ref)
-    vmaf_task = at.run_vmaf.remote(write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
-    vqmt_task = at.run_vqmt.remote(write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
-    pesq_task = at.run_pesq.remote(extract_audio_task, prefix_ref, cut_index_ref, pesq_ref, debug_ref)
-    visqol_task = at.run_visqol.remote(extract_audio_task, prefix_ref, cut_index_ref, debug_ref)
+    vmaf_task = at.run_vmaf.remote(
+        write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
+    vqmt_task = at.run_vqmt.remote(
+        write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
+    pesq_task = at.run_pesq.remote(
+        extract_audio_task, prefix_ref, cut_index_ref, pesq_ref, debug_ref)
+    visqol_task = at.run_visqol.remote(
+        extract_audio_task, prefix_ref, cut_index_ref, debug_ref)
     if not debug:
         remove_processing_task = at.remove_processing_files.remote(
             vmaf_task, vqmt_task, pesq_task, visqol_task)
@@ -92,7 +121,8 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
         remove_analysis_task = at.remove_analysis_files.remote(
             parse_vmaf_task, parse_vqmt_task, parse_pesq_task, parse_visqol_task)
 
-    final_tasks = [cut_index, parse_vmaf_task, parse_vqmt_task, parse_pesq_task, parse_visqol_task]
+    final_tasks = [cut_index, parse_vmaf_task,
+                   parse_vqmt_task, parse_pesq_task, parse_visqol_task]
     if not debug:
         final_tasks.append(remove_processing_task)
         final_tasks.append(remove_analysis_task)
@@ -121,27 +151,30 @@ def main():
             break
         frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
         if is_begin_padding:
-            if not match_image(frame):
+            if not match_image(frame, debug_ref):
                 # padding ended
                 is_begin_padding = False
                 start_fragment_time = (cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
                 frames_for_cut.append(frame)
         else:
-            is_begin_padding = match_image(frame)
+            is_begin_padding = match_image(frame, debug_ref)
             if is_begin_padding:
                 is_beginning_video = False
                 len_frames = len(frames_for_cut)
                 if len_frames > 0:
                     logger.info("Padding found on frame %d", i)
                     if len_frames > (fragment_duration_secs * fps):
-                        logger.warn("Fragment is longer than expected, skipping...")
+                        logger.warning(
+                            "Fragment is longer than expected, skipping...")
                     else:
-                        end_fragment_time = (cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
-                        tasks = process_cut_frames(frames_for_cut, cut_index, start_fragment_time, end_fragment_time)
+                        end_fragment_time = (
+                            cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
+                        tasks = process_cut_frames(
+                            frames_for_cut, cut_index, start_fragment_time, end_fragment_time)
                         async_tasks.append(tasks)
                     cut_index += 1
                     frames_for_cut = []
-            elif not is_beginning_video: # this ignores the first fragment as it is incomplete and QoE stats would be wrong
+            elif not is_beginning_video:  # this ignores the first fragment as it is incomplete and QoE stats would be wrong
                 frames_for_cut.append(frame)
 
         if debug:
@@ -149,7 +182,8 @@ def main():
         i += 1
 
     cap.release()
-    logger.info("Finished reading frames. Finishing processing cut fragments and normalizing data...")
+    logger.info(
+        "Finished reading frames. Finishing processing cut fragments and normalizing data...")
     results_list = []
     VMAF_MAX = 100
     VMAF_MIN = 0

@@ -2,10 +2,9 @@ import subprocess as sp
 import os
 import csv
 import math
-from qoe_scripts.logger_handler import get_logger
+import logging as logger
 import ray
 
-logger = get_logger(__name__, False)
 
 vmaf_path = os.environ.get('VMAF_PATH')
 if not vmaf_path:
@@ -44,6 +43,7 @@ if not os.path.exists(os.path.join(visqol_path, 'bazel-bin/visqol')):
 
 @ray.remote
 def remove_processing_files(*args):
+    logger.basicConfig(level=logger.INFO)
     logger.info("Remove processed files")
     files = list(map(lambda x: x[0], args[1:]))
     logger.info(str(files))
@@ -51,11 +51,12 @@ def remove_processing_files(*args):
         if os.path.isfile(file):
             os.remove(file)
         else:
-            logger.warn("File not found: %s", file)
+            logger.warning("File not found: %s", file)
 
 
 @ray.remote
 def remove_analysis_files(*args):
+    logger.basicConfig(level=logger.INFO)
     files = []
     logger.info("Remove analysis files")
     for arg in args:
@@ -66,11 +67,12 @@ def remove_analysis_files(*args):
         if os.path.isfile(file):
             os.remove(file)
         else:
-            logger.warn("File not found: %s", file)
+            logger.warning("File not found: %s", file)
 
 
 @ray.remote
 def run_vmaf(vid_file, prefix, cut_index, width, height, debug):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     logger.info("Starting VMAF Analysis of cut %d", cut_index)
     prefix_with_index = prefix + '-' + str(cut_index)
     vmaf_command = "%s --threads 1 -p 420 -w %d -h %d -b 8 -r presenter.yuv -d %s -m path=/usr/local/share/vmaf/models/vmaf_v0.6.1.json --json -o $PWD/%s_vmaf.json && cat $PWD/%s_vmaf.json | jq '.frames[].metrics.vmaf' > $PWD/%s_vmaf.csv" % (
@@ -82,6 +84,7 @@ def run_vmaf(vid_file, prefix, cut_index, width, height, debug):
 
 @ray.remote
 def run_vqmt(vid_file, prefix, cut_index, width, height, debug):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     logger.info("Starting VQMT Analysis of cut %d", cut_index)
     prefix_with_index = prefix + '-' + str(cut_index)
     vqmt_command = "%s presenter.yuv %s %d %d 1500 1 %s PSNR SSIM VIFP MSSSIM PSNRHVS PSNRHVSM >> /dev/null 2>&1" % (
@@ -97,23 +100,25 @@ def run_vqmt(vid_file, prefix, cut_index, width, height, debug):
 
 @ray.remote
 def run_pesq(audio_files, prefix, cut_index, PESQ_AUDIO_SAMPLE_RATE, debug):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     audio_file_pesq = audio_files[1]
     prefix_with_index = prefix + '-' + str(cut_index)
     pesq_command = "%s +%s presenter-pesq.wav %s | tail -n 1 > %s_pesq.txt" % (
         pesq_path, PESQ_AUDIO_SAMPLE_RATE, audio_file_pesq, prefix_with_index)
     return run_analysis_command(pesq_command, [
-            audio_file_pesq, "%s-%d_pesq.txt" % (prefix, cut_index)],
+        audio_file_pesq, "%s-%d_pesq.txt" % (prefix, cut_index)],
         debug=debug)
 
 
 @ray.remote
 def run_visqol(audio_files, prefix, cut_index, debug):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     audio_file = audio_files[0]
     prefix_with_index = prefix + '-' + str(cut_index)
     visqol_command = "%s/bazel-bin/visqol --reference_file presenter.wav --degraded_file %s --verbose --similarity_to_quality_model %s/model/libsvm_nu_svr_model.txt | grep MOS-LQO > %s_visqol.txt" % (
         visqol_path, audio_file, visqol_path, prefix_with_index)
     return run_analysis_command(visqol_command, [
-            audio_file, "%s-%d_visqol.txt" % (prefix, cut_index)],
+        audio_file, "%s-%d_visqol.txt" % (prefix, cut_index)],
         debug=debug)
 
 
