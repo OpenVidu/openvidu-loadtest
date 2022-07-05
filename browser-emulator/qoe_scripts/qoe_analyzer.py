@@ -1,3 +1,4 @@
+from numpy import Infinity
 from qoe_scripts.get_ffmpeg_path import get_valid_ffmpeg_path
 import logging as logger
 import cv2
@@ -155,6 +156,10 @@ def main():
                 # padding ended
                 is_begin_padding = False
                 start_fragment_time = (cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
+                if (end_fragment_time is not None) and (start_fragment_time < end_fragment_time):
+                    logger.warning("Start fragment time %f is less than last end fragment time %f, using estimate time %f",
+                                           start_fragment_time, end_fragment_time, end_fragment_time + fragment_duration_secs)
+                    start_fragment_time = end_fragment_time + fragment_duration_secs
                 frames_for_cut.append(frame)
         else:
             is_begin_padding = match_image(frame, debug_ref)
