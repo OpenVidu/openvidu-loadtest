@@ -38,7 +38,6 @@ def extract_audio(cut_index, ffmpeg_path, start_cut_n, end_cut_n, viewer, prefix
     if not presenter_prepared:
         logger.error("Something went wrong, presenter not prepared")
         raise Exception("Something went wrong, presenter not prepared")
-    logger.info("Starting audio extraction on cut %d", cut_index)
     # offset = 0.1 # offset is needed because the start cut time is not as precise as it should be atm
     end_cut = str(end_cut_n)
     start_cut = str(start_cut_n)

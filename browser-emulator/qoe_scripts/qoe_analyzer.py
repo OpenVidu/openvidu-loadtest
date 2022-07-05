@@ -169,6 +169,10 @@ def main():
                     else:
                         end_fragment_time = (
                             cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
+                        if end_fragment_time <= start_fragment_time:
+                            logger.warning("End fragment time %f is less than start fragment time %f, using estimate time %f",
+                                           end_fragment_time, start_fragment_time, start_fragment_time + fragment_duration_secs)
+                            end_fragment_time = start_fragment_time + fragment_duration_secs
                         tasks = process_cut_frames(
                             frames_for_cut, cut_index, start_fragment_time, end_fragment_time)
                         async_tasks.append(tasks)
