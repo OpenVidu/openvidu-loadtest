@@ -177,6 +177,31 @@ The default videos have been already processed by adding padding, the following 
 	- fragment_duration: 30
 	- padding_duration: 1
 
+Also, custom videos can be used by providing an url, example of using a custom video (Note: it is highly recommended that the width and height of the videos are a multiple of 16 if using the QoE Analysis features):
+```json
+{
+	...,
+	"browserVideo": {
+		"videoType": {
+			"audioUrl": "https://fakeurl.com/fakeaudio.wav",
+			"videos": [
+				{
+					"url": "https://fakeurl.com/fakevideo480.y4m",
+					"width": 640,
+					"height": 480,
+					"fps": 30
+				},
+				{
+					"url": "https://fakeurl.com/fakevideo1080.y4m",
+					"width": 1920,
+					"height": 1080,
+					"fps": 60
+				}
+			]
+		}
+	}
+}
+```
 
 ### CREATE PARTICIPANT
 
