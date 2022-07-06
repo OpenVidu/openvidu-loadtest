@@ -89,6 +89,18 @@ public class LoadTestConfig {
 	private int paddingDuration;
 	
 	private int fragmentDuration;
+
+	private String videoType;
+
+	private int videoHeight;
+	
+	private int videoWidth;
+
+	private int videoFps;
+
+	private String videoUrl;
+
+	private String audioUrl;
 	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -243,6 +255,30 @@ public class LoadTestConfig {
 		return fragmentDuration;
 	}
 	
+	public String getVideoType() {
+		return videoType;
+	}
+
+	public int getVideoHeight() {
+		return videoHeight;
+	}
+
+	public int getVideoWidth() {
+		return videoWidth;
+	}
+
+	public int getVideoFps() {
+		return videoFps;
+	}
+
+	public String getVideoUrl() {
+		return videoUrl;
+	}
+
+	public String getAudioUrl() {
+		return audioUrl;
+	}
+
 	@PostConstruct
 	private void checkConfigurationProperties() {
 
@@ -283,6 +319,12 @@ public class LoadTestConfig {
 			qoeAnalysisInSitu = asBoolean("QOE_ANALYSIS_IN_SITU");
 			paddingDuration = asInt("VIDEO_PADDING_DURATION");
 			fragmentDuration = asInt("VIDEO_FRAGMENT_DURATION");
+			videoType = asString("VIDEO_TYPE");
+			videoHeight = asInt("VIDEO_HEIGHT");
+			videoWidth = asInt("VIDEO_WIDTH");
+			videoFps = asInt("VIDEO_FPS");
+			videoUrl = asOptionalString("VIDEO_URL");
+			audioUrl = asOptionalString("AUDIO_URL");
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -359,6 +401,16 @@ public class LoadTestConfig {
 		System.out.printf(format, "ElasticSearch Host:", elasticsearchHost);
 		System.out.printf(format, "ElasticSearch Username:", elasticsearchUserName);
 		System.out.printf(format, "ElasticSearch Password:", elasticsearchPassword);
+		System.out.println("-------- -------------------- --------");
+
+		System.out.printf("\n");
+		System.out.printf("--- QOE ANALYSIS PARAMETERS ---");
+		System.out.printf("\n");
+
+		System.out.printf(format, "QoE recordings:", qoeAnalysisRecordings);
+		System.out.printf(format, "QoE analysis will be run in-situ:", qoeAnalysisInSitu);
+		System.out.printf(format, "Video padding duration:", paddingDuration);
+		System.out.printf(format, "Video fragment duration:", fragmentDuration);
 		System.out.println("-------- -------------------- --------");
 	}
 

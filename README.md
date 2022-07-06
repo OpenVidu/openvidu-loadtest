@@ -226,7 +226,12 @@ MEDIANODE_LOAD_FOR_START_RECORDING=0
 RECORDING_SESSION_GRUPED_BY=0
 # Bucket name where the recordings will be saved
 # Record each MediaStream in each worker for Quality of Experience analysis
-QOE_ANALYSIS=true
+QOE_ANALYSIS_RECORDINGS=true
+# Perform qoe analysis in the same worker as they were recorded in, if false the recordings will only be uploaded to S3
+QOE_ANALYSIS_IN_SITU=false
+# Video information needed for in situ QoE analysis, read https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#running-qoe-analysis for more information
+VIDEO_PADDING_DURATION=1
+VIDEO_FRAGMENT_DURATION=5
 S3_BUCKET_NAME=openvidu-loadtest-capacity
 ```
 
@@ -236,6 +241,20 @@ These properties allow retry the participant creation when it fails
 ```properties
 RETRY_MODE=false
 RETRY_TIMES=5
+```
+
+#### For selecting the video to use (only used in browserMode REAL)
+These properties allow you to select the video to use when the browsers used are real browsers.
+There are 3 default options and you can also use a custom video, check the description of the [browser-emulator Initialize instance API](https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#initialize-instance) for more information about these options:
+```properties
+# Video type options: BUNNY, INTERVIEW, GAME, CUSTOM
+VIDEO_TYPE=BUNNY
+VIDEO_WIDTH=640
+VIDEO_HEIGHT=480
+VIDEO_FPS=30
+# If VIDEO_TYPE is CUSTOM, you have to specify the video and audio URLs
+VIDEO_URL=
+AUDIO_URL=
 ```
 
 #### Monitoring parameters

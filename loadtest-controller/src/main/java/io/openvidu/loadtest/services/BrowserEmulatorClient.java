@@ -80,6 +80,12 @@ public class BrowserEmulatorClient {
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
 				.s3BucketName(loadTestConfig.getS3BucketName())
+				.videoType(loadTestConfig.getVideoType())
+				.videoHeight(loadTestConfig.getVideoHeight())
+				.videoWidth(loadTestConfig.getVideoWidth())
+				.videoFps(loadTestConfig.getVideoFps())
+				.videoUrl(loadTestConfig.getVideoUrl())
+				.audioUrl(loadTestConfig.getAudioUrl())
 				.qoeAnalysis(loadTestConfig.isQoeAnalysisRecordings(), loadTestConfig.getPaddingDuration(), loadTestConfig.getFragmentDuration())
 				.build().toJson();
 		try {
