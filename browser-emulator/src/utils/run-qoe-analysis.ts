@@ -1,11 +1,14 @@
 import { readFileSync } from 'fs';
 import { JSONQoeProcessingELK } from '../types/api-rest.type';
-import { runQoEAnalysisBlocking } from '../utils/qoe-analysis-utils'
+import { runQoEAnalysisBlocking, processFilesAndUploadResults } from '../utils/qoe-analysis-utils'
+import yargs = require('yargs/yargs');
+import { hideBin } from 'yargs/helpers';
+const argv = yargs(hideBin(process.argv)).options({
+    cpus: { type: 'number', default: undefined },
+    process: { type: 'boolean', default: false }
+}).parseSync()
 
-let maxCpus = undefined;
-if (process.argv.length > 2) {
-    maxCpus = parseInt(process.argv[2]);
-}
+const maxCpus = argv.cpus;
 const pythonpath = process.env['PYTHONPATH']
 if (!pythonpath) {
     process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD']
@@ -18,4 +21,8 @@ process.env.ELASTICSEARCH_HOSTNAME = info.elasticsearch_hostname;
 process.env.ELASTICSEARCH_USERNAME = info.elasticsearch_username;
 process.env.ELASTICSEARCH_PASSWORD = info.elasticsearch_password;
 process.env.ELASTICSEARCH_INDEX = info.index;
-runQoEAnalysisBlocking(info, maxCpus)
+if (process) {
+    processFilesAndUploadResults(info)
+} else {
+    runQoEAnalysisBlocking(info, maxCpus)
+}
