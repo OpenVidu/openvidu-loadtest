@@ -21,7 +21,7 @@ process.env.ELASTICSEARCH_HOSTNAME = info.elasticsearch_hostname;
 process.env.ELASTICSEARCH_USERNAME = info.elasticsearch_username;
 process.env.ELASTICSEARCH_PASSWORD = info.elasticsearch_password;
 process.env.ELASTICSEARCH_INDEX = info.index;
-if (process) {
+if (argv.process) {
     processFilesAndUploadResults(info)
 } else {
     runQoEAnalysisBlocking(info, maxCpus)
