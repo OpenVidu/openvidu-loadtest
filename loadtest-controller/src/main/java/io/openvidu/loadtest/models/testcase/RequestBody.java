@@ -31,7 +31,7 @@ public class RequestBody {
 	private boolean qoeAnalysisEnabled = false;
 	private int paddingDuration = 1;
 	private int fragmentDuration = 5;
-	private String videoType = "BUNNY";
+	private String videoType = "bunny";
 	private int videoWidth = 640;
 	private int videoHeight = 480;
 	private int videoFps = 30;
@@ -342,7 +342,7 @@ public class RequestBody {
 		}
 		
 		JsonObject browserVideo = new JsonObject();
-		if (this.videoType.equals("CUSTOM")) {
+		if (this.videoType.equals("custom")) {
 			JsonObject videoType = new JsonObject();
 			videoType.addProperty("audioUrl", this.audioUrl);
 			JsonObject videoInfo = new JsonObject();
@@ -361,7 +361,7 @@ public class RequestBody {
 			videoInfo.addProperty("width", this.videoWidth);
 			videoInfo.addProperty("height", this.videoHeight);
 			videoInfo.addProperty("fps", this.videoFps);
-			videoInfoArray.add(video);
+			videoInfoArray.add(videoInfo);
 			browserVideo.add("videoInfo", videoInfoArray);
 		}
 		jsonBody.add("browserVideo", browserVideo);
