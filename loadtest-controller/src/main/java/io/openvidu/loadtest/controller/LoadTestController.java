@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -96,11 +97,10 @@ public class LoadTestController {
 
 	private static String setAndInitializeNextWorker(String currentWorker, WorkerType workerType) {
 		String nextWorkerUrl = getNextWorker(currentWorker, workerType);
-		initializeInstance(nextWorkerUrl, workerType);
 		return nextWorkerUrl;
 	}
 
-	private static void initializeInstance(String url, WorkerType workerType) {
+	private static void initializeInstance(String url) {
 		browserEmulatorClient.ping(url);
 		WebSocketClient ws = new WebSocketClient();
 		ws.connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
@@ -154,6 +154,7 @@ public class LoadTestController {
 					log.info("Getting new {} already launched: {}", workerTypeValue, newWorkerUrl);
 				}
 			}
+			initializeInstance(newWorkerUrl);
 			return newWorkerUrl;
 		} else {
 			workersUsed = devWorkersList.size();
@@ -224,13 +225,14 @@ public class LoadTestController {
 
 	private boolean estimate(String workerUrl, TestCase testCase, int publishers, int subscribers) {
 		log.info("Starting browser estimation");
-		initializeInstance(workerUrl, WorkerType.WORKER);
+		initializeInstance(workerUrl);
 		boolean overloaded = false;
 		int iteration = 0;
 		while (!overloaded) {
 			// TODO: take into account recording workers
 			for (int i = 0; i < publishers; i++) {
-				CreateParticipantResponse response = browserEmulatorClient.createPublisher(workerUrl, iteration + i, 0, testCase);
+				CreateParticipantResponse response = browserEmulatorClient.createPublisher(workerUrl, iteration + i, 0,
+						testCase);
 				if (response.isResponseOk()) {
 					double cpu = response.getWorkerCpuPct();
 					if (cpu > loadTestConfig.getWorkerMaxLoad()) {
@@ -292,11 +294,37 @@ public class LoadTestController {
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
+						ExecutorService executorService = Executors
+								.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+						List<Future<?>> futures = new ArrayList<>();
+						awsWorkersList.forEach(instance -> {
+							futures.add(executorService.submit(new Runnable() {
+								@Override
+								public void run() {
+									initializeInstance(instance.getPublicDnsName());
+								}
+							}));
+						});
 						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
 						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
+						recordingWorkersList.forEach(instance -> {
+							futures.add(executorService.submit(new Runnable() {
+								@Override
+								public void run() {
+									initializeInstance(instance.getPublicDnsName());
+								}
+							}));
+						});
 						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
+						futures.forEach(future -> {
+							try {
+								future.get();
+							} catch (InterruptedException | ExecutionException e) {
+								log.error("Error while initializing instance", e);
+							}
+						});
 					}
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					boolean noEstimateError = true;
@@ -327,11 +355,37 @@ public class LoadTestController {
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
+						ExecutorService executorService = Executors
+								.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+						List<Future<?>> futures = new ArrayList<>();
+						awsWorkersList.forEach(instance -> {
+							futures.add(executorService.submit(new Runnable() {
+								@Override
+								public void run() {
+									initializeInstance(instance.getPublicDnsName());
+								}
+							}));
+						});
 						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
 						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
+						recordingWorkersList.forEach(instance -> {
+							futures.add(executorService.submit(new Runnable() {
+								@Override
+								public void run() {
+									initializeInstance(instance.getPublicDnsName());
+								}
+							}));
+						});
 						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
+						futures.forEach(future -> {
+							try {
+								future.get();
+							} catch (InterruptedException | ExecutionException e) {
+								log.error("Error while initializing instance", e);
+							}
+						});
 					}
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
@@ -394,7 +448,7 @@ public class LoadTestController {
 			for (int i = 0; i < participantsBySession; i++) {
 				if ((browsersInWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
 					log.info("Browsers in worker: {} is equal than limit: {}",
-						browsersInWorker, browserEstimation);
+							browsersInWorker, browserEstimation);
 					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
 					browsersInWorker = 0;
 				}
@@ -406,13 +460,15 @@ public class LoadTestController {
 							+ "_"
 							+ participantsBySession + "PSes";
 					futureList.add(executorService
-							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase,
 									OpenViduRole.PUBLISHER,
 									true, recordingMetadata)));
 					tasksInProgress++;
 				} else {
 					futureList.add(executorService
-							.submit(new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+							.submit(new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase,
 									OpenViduRole.PUBLISHER,
 									false, null)));
 					browsersInWorker++;
@@ -475,7 +531,8 @@ public class LoadTestController {
 					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
 							+ subscribers + "PSes";
 					futureList.add(executorService
-							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase,
 									OpenViduRole.PUBLISHER, true, recordingMetadata)));
 				} else {
 					futureList.add(executorService
@@ -507,7 +564,7 @@ public class LoadTestController {
 					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
 							+ subscribers + "PSes";
 					futureList.add(executorService
-					.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
+							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata)));
 				} else {
 					futureList.add(executorService
