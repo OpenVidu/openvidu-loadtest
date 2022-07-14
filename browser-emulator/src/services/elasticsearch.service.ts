@@ -164,7 +164,8 @@ export class ElasticSearchService {
 						exists: {
 							field: 'new_participant_id'
 						}
-					}
+					},
+					size: 10000
 				}
 			})
 			return result.body.hits.hits.map(hit => {
