@@ -143,10 +143,28 @@ public class LoadTestController {
 					log.info("Launching a new Ec2 instance... ");
 					List<Instance> nextInstanceList = ec2Client
 							.launchInstance(loadTestConfig.getWorkersRumpUp(), workerType);
+					List<Future<?>> futures = new ArrayList<>();
+					ExecutorService executorService = Executors
+								.newFixedThreadPool(nextInstanceList.size());
+					nextInstanceList.forEach(instance -> {
+						futures.add(executorService.submit(new Runnable() {
+							@Override
+							public void run() {
+								initializeInstance(instance.getPublicDnsName());
+							}
+						}));
+					});
 					actualWorkerList.addAll(nextInstanceList);
 					actualWorkerStartTimes
 							.addAll(nextInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
 					newWorkerUrl = nextInstanceList.get(0).getPublicDnsName();
+					futures.forEach(future -> {
+						try {
+							future.get();
+						} catch (InterruptedException | ExecutionException e) {
+							log.error("Error while initializing instance", e);
+						}
+					});
 					log.info("New {} has been launched: {}", workerTypeValue, newWorkerUrl);
 
 				} else {
@@ -154,7 +172,6 @@ public class LoadTestController {
 					log.info("Getting new {} already launched: {}", workerTypeValue, newWorkerUrl);
 				}
 			}
-			initializeInstance(newWorkerUrl);
 			return newWorkerUrl;
 		} else {
 			workersUsed = devWorkersList.size();
@@ -294,8 +311,9 @@ public class LoadTestController {
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
+						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
 						ExecutorService executorService = Executors
-								.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+								.newFixedThreadPool(Math.max(awsWorkersList.size(), recordingWorkersList.size()));
 						List<Future<?>> futures = new ArrayList<>();
 						awsWorkersList.forEach(instance -> {
 							futures.add(executorService.submit(new Runnable() {
@@ -305,9 +323,6 @@ public class LoadTestController {
 								}
 							}));
 						});
-						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
 						recordingWorkersList.forEach(instance -> {
 							futures.add(executorService.submit(new Runnable() {
 								@Override
@@ -316,6 +331,8 @@ public class LoadTestController {
 								}
 							}));
 						});
+						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
 						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
 						futures.forEach(future -> {
@@ -355,8 +372,9 @@ public class LoadTestController {
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
+						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
 						ExecutorService executorService = Executors
-								.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+								.newFixedThreadPool(Math.max(awsWorkersList.size(), recordingWorkersList.size()));
 						List<Future<?>> futures = new ArrayList<>();
 						awsWorkersList.forEach(instance -> {
 							futures.add(executorService.submit(new Runnable() {
@@ -366,9 +384,6 @@ public class LoadTestController {
 								}
 							}));
 						});
-						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
 						recordingWorkersList.forEach(instance -> {
 							futures.add(executorService.submit(new Runnable() {
 								@Override
@@ -377,6 +392,8 @@ public class LoadTestController {
 								}
 							}));
 						});
+						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+								.collect(Collectors.toList()));
 						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
 								.collect(Collectors.toList()));
 						futures.forEach(future -> {
