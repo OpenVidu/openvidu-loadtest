@@ -19,17 +19,17 @@ export async function runQoEAnalysisNonBlocking(processingInfo: JSONQoeProcessin
     return files;
 }
 
-export async function runQoEAnalysisBlocking(processingInfo: JSONQoeProcessing, maxCpus?: number) {
+export async function runQoEAnalysisBlocking(processingInfo: JSONQoeProcessing, maxCpus?: number, onlyFiles = false) {
     const dir = `${process.env.PWD}/recordings/qoe`
     const files = await fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
         .then(() => fsPromises.readdir(dir))
-    await runQoEAnalysis(processingInfo, dir, files, maxCpus).then(() => {
+    await runQoEAnalysis(processingInfo, dir, files, maxCpus, onlyFiles).then(() => {
         console.log("Finished running QoE analysis")
     })
     return files;
 }
 
-async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, files: string[], maxCpus?: number) {
+async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, files: string[], maxCpus?: number, onlyFiles = false) {
     await elasticSearchService.initialize(processingInfo.index)
     let timestamps = await getTimestamps(processingInfo);
     const promises = [];
@@ -39,7 +39,9 @@ async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, fi
         const prefix = fileName.split('.')[0];
         promises.push(limit(() => runSingleAnalysis(filePath, fileName, processingInfo, maxCpus)
             .then(async () => {
-                return readJSONFile(prefix)
+                if (!onlyFiles) {
+                    return readJSONFile(prefix)
+                }
             }).catch(err => {
                 console.error(err)
             })))

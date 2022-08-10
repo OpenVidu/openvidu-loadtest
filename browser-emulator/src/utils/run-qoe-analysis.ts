@@ -5,10 +5,12 @@ import yargs = require('yargs/yargs');
 import { hideBin } from 'yargs/helpers';
 const argv = yargs(hideBin(process.argv)).options({
     cpus: { type: 'number', default: undefined },
+    onlyfiles: { type: 'boolean', default: false },
     process: { type: 'boolean', default: false }
 }).parseSync()
 
 const maxCpus = argv.cpus;
+const onlyFiles = argv.onlyfiles
 const pythonpath = process.env['PYTHONPATH']
 if (!pythonpath) {
     process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD']
@@ -24,5 +26,5 @@ process.env.ELASTICSEARCH_INDEX = info.index;
 if (argv.process) {
     processFilesAndUploadResults(info)
 } else {
-    runQoEAnalysisBlocking(info, maxCpus)
+    runQoEAnalysisBlocking(info, maxCpus, onlyFiles)
 }
