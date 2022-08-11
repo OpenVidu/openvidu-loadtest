@@ -47,9 +47,15 @@ async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, fi
             })))
     });
     return Promise.all(promises)
-        .then((info) => processAndUploadResults(timestamps, info, processingInfo))
+        .then((info) => {
+            if (!onlyFiles) {
+                processAndUploadResults(timestamps, info, processingInfo)
+            }
+        })
         .then(() => {
-            console.log("Finished uploading results to ELK")
+            if (!onlyFiles) {
+                console.log("Finished uploading results to ELK")
+            }
         })
 }
 
