@@ -30,8 +30,11 @@ export async function runQoEAnalysisBlocking(processingInfo: JSONQoeProcessing, 
 }
 
 async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, files: string[], maxCpus?: number, onlyFiles = false) {
-    await elasticSearchService.initialize(processingInfo.index)
-    let timestamps = await getTimestamps(processingInfo);
+    let timestamps: JSONUserInfo[] = []
+    if (!onlyFiles) {
+        await elasticSearchService.initialize(processingInfo.index)
+        timestamps = await getTimestamps(processingInfo)
+    }
     const promises = [];
     files.forEach((file) => {
         const filePath = `${dir}/${file}`;
