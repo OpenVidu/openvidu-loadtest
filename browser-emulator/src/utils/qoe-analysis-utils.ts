@@ -135,13 +135,17 @@ async function processAndUploadResults(timestamps: JSONUserInfo[], info: any[], 
         }
         userStartMap[timestampSession][timestampUserFrom] = timestampDate;
     }
-    const jsonsELK: JSONQoEInfo[] = info.flatMap(infoArray => {
+    let jsonsELK: JSONQoEInfo[] = info.flatMap(infoArray => {
         const session = infoArray[0];
         const userFrom = infoArray[1];
         const userTo = infoArray[2];
         const jsonText = infoArray[3];
         const json = JSON.parse(jsonText);
         // Video starts when the latest of the 2 users enters the session
+        if (!(session in userStartMap) || !(userFrom in userStartMap[session]) || !(userTo in userStartMap[session])) {
+            console.error(`Could not find start time for session ${session} user ${userFrom} and user ${userTo}`)
+            return undefined;
+        }
         const userFromDate = userStartMap[session][userFrom].getTime()
         const userToDate = userStartMap[session][userTo].getTime()
         const videoStart = Math.max(userFromDate, userToDate);
@@ -155,6 +159,7 @@ async function processAndUploadResults(timestamps: JSONUserInfo[], info: any[], 
         }
         return json
     })
+    jsonsELK = jsonsELK.filter(json => json !== undefined)
     console.log("Finished processing results for ELK, writing to ElasticSearch...")
     return elasticSearchService.sendBulkJsons(jsonsELK)
 }
