@@ -393,6 +393,8 @@ export class RealBrowserService {
 							throw new Error(error);
 						}
 					`);
+					console.log("QoE Recordings saved for container " + containerName);
+					this.printBrowserLogs(containerId);
 				} catch(error) {
 					console.log("Error saving QoE Recordings for container " + containerName);
 					console.log(error);
