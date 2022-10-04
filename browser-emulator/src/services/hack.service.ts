@@ -70,7 +70,7 @@ export class HackService {
 	openviduBrowser() {
 		OpenVidu.OpenVidu = ((original) => {
 			OpenVidu.OpenVidu.prototype.checkSystemRequirements = () => {
-				return 1;
+				return true;
 			};
 			return OpenVidu.OpenVidu;
 		})(OpenVidu.OpenVidu);
