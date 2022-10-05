@@ -164,12 +164,15 @@ def parse_pesq(analysis_results):
     file = analysis_results[1]
     with open(file, 'r') as f:
         text = f.read()
-        if text == '':
+        try:
+            if text == '':
+                return 0, [file]
+            first_split = text.split("\t")
+            rawMOS = float(first_split[0].split("= ")[1])
+            MOSLQO = float(first_split[1])
+            return ((rawMOS + MOSLQO) / 2), [file]
+        except:
             return 0, [file]
-        first_split = text.split("\t")
-        rawMOS = float(first_split[0].split("= ")[1])
-        MOSLQO = float(first_split[1])
-        return ((rawMOS + MOSLQO) / 2), [file]
 
 
 @ray.remote
@@ -179,4 +182,7 @@ def parse_visqol(analysis_results):
         text = f.read()
         if text == '':
             return 0, [file]
-        return (float(text.split("MOS-LQO:		")[1])), [file]
+        try:
+            return (float(text.split("MOS-LQO:		")[1])), [file]
+        except:
+            return 0, [file]
