@@ -138,7 +138,10 @@ def parse_csv(file, column, headers):
     with open(file, 'r') as f:
         reader = csv.reader(f)
         if headers:
-            next(reader)
+            try:
+                next(reader)
+            except:
+                logger.warn("No headers found in file %s, it's probably empty", file)
         results = [float(row[column]) if not math.isnan(
             float(row[column])) else 0 for row in reader]
         return sum(results) / len(results)
