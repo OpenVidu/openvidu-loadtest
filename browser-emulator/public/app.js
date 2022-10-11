@@ -137,7 +137,7 @@ async function joinSession() {
 				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
 				remoteControl.record({
 					mimeType : "video/webm",
-					audioBitsPerSecond : 48000,
+					audioBitsPerSecond : 160000,
 					videoBitsPerSecond: calculateBitsPerSecond(FRAME_RATE, RESOLUTION),
 				}).then(() => {
 					if (remoteControl.state == "RECORDING") {
