@@ -113,7 +113,7 @@ async function joinSession() {
 			videoContainer = 'remote-video-publisher';
 		}
 
-		subscriptions +=1;
+		//subscriptions +=1;
 		const subscriber = session.subscribe(event.stream, videoContainer);
 
 		if (!!QOE_ANALYSIS) {
