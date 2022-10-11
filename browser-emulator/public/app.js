@@ -130,15 +130,25 @@ async function joinSession() {
 				// var remoteControl = new ElasTestRemoteControl();
 				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+				console.log(USER_ID + "starting recording user " + remoteUser);
 				var remoteControl = OV.initLocalRecorder(event.stream);
 				while(remoteControl.state != "READY") {
 				}
+				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
 				remoteControl.record({
 					mimeType : "video/webm",
 					audioBitsPerSecond : 48000,
 					videoBitsPerSecond: calculateBitsPerSecond(FRAME_RATE, RESOLUTION),
 				}).then(() => {
+					if (remoteControl.state == "RECORDING") {
+						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
+					} else {
+						console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+					}
 					remoteControls.set(remoteUser, remoteControl);
+				}).catch((error) => {
+					console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+					console.error(error);
 				})
 			}
 
@@ -430,15 +440,15 @@ async function getRecordings(fileNamePrefix) {
 	for (const remoteControlEntry of remoteControls.entries()) {
 		const remoteUser = remoteControlEntry[0];
 		const remoteControl = remoteControlEntry[1];
-		console.debug("Stopping recording...");
+		console.log("Stopping recording: " + USER_ID + " recording " + remoteUser);
 		await remoteControl.stop();
-		console.debug("Recording stopped, getting blob...");
+		console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
 		const blob = await remoteControl.getBlob();
 		blobMap.set(remoteUser, blob);
 		if (!!blob) {
-			console.debug("Blob saved: " + blob.size + " bytes");
+			console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size + " bytes");
 		} else {
-			console.warn("Blob is null");
+			console.warn("Blob is null for: " + USER_ID + " recording " + remoteUser);
 		}
 	}
 	recordingBlobs.forEach((blob, remoteUser) => blobMap.set(remoteUser, blob));
