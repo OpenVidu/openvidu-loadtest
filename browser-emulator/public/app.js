@@ -116,31 +116,6 @@ async function joinSession() {
 		//subscriptions +=1;
 		const subscriber = session.subscribe(event.stream, videoContainer);
 
-		if (!!QOE_ANALYSIS) {
-			// var remoteControl = new ElasTestRemoteControl();
-			// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
-			var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
-			console.log(USER_ID + " starting recording user " + remoteUser);
-			var remoteControl = OV.initLocalRecorder(event.stream);
-			while(remoteControl.state != "READY") {
-			}
-			console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
-			remoteControl.record({
-				mimeType : "video/webm",
-				audioBitsPerSecond : 128000,
-				videoBitsPerSecond: calculateBitsPerSecond(FRAME_RATE, RESOLUTION),
-			}).then(() => {
-				if (remoteControl.state == "RECORDING") {
-					console.log("Recording started: " + USER_ID + " recording " + remoteUser);
-				} else {
-					console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
-				}
-				remoteControls.set(remoteUser, remoteControl);
-			}).catch((error) => {
-				console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
-				console.error(error);
-			})
-		}
 		subscriber.on("streamPlaying", e => {
 
 
@@ -152,6 +127,32 @@ async function joinSession() {
 				createUnmuteButton('subscriber-need-to-be-unmuted', videoId);
 			}
 
+			
+			if (!!QOE_ANALYSIS) {
+				// var remoteControl = new ElasTestRemoteControl();
+				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
+				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+				console.log(USER_ID + " starting recording user " + remoteUser);
+				var remoteControl = OV.initLocalRecorder(event.stream);
+				while(remoteControl.state != "READY") {
+				}
+				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
+				remoteControl.record({
+					mimeType : "video/webm",
+					audioBitsPerSecond : 128000,
+					videoBitsPerSecond: calculateBitsPerSecond(FRAME_RATE, RESOLUTION),
+				}).then(() => {
+					if (remoteControl.state == "RECORDING") {
+						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
+					} else {
+						console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+					}
+					remoteControls.set(remoteUser, remoteControl);
+				}).catch((error) => {
+					console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+					console.error(error);
+				})
+			}
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
 		});
 	});
