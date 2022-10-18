@@ -4,12 +4,11 @@ export abstract class FilesService {
     readonly fileDirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`, `${process.env.PWD}/recordings/qoe`];
 
     static getInstance() {
-
-        if (!this.instance) {
+        if (!FilesService.instance) {
             throw new Error('FilesService not initialized');
         }
 
-        return this.instance;
+        return FilesService.instance;
     }
     abstract uploadFiles(): Promise<void>;
     abstract isBucketCreated(bucketName: string): Promise<boolean>;

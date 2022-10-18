@@ -41,7 +41,6 @@ app.post('/initialize', async (req: Request, res: Response) => {
 	try {
 		const request: InitializePostRequest = req.body;
 		const isProdMode: boolean = APPLICATION_MODE === ApplicationMode.PROD;
-		const instanceService = InstanceService.getInstance();
 		let filesService: FilesService;
 		const elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance();
 
@@ -49,17 +48,14 @@ app.post('/initialize', async (req: Request, res: Response) => {
 
 		console.log('Initialize browser-emulator');
 
+		const promises = []
 		if (isProdMode) {
+			
 
 			if (!!request.browserVideo) {
-				await downloadMediaFiles(request.browserVideo);
+				promises.push(downloadMediaFiles(request.browserVideo));
 			}
-
-			if (!!request.qoeAnalysis) {
-				process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
-				QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
-			}
-
+			
 			if (!elasticSearchService.isElasticSearchRunning()) {
 				process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
 				process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
@@ -67,30 +63,30 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				if (!!request.elasticSearchIndex) {
 					process.env.ELASTICSEARCH_INDEX = request.elasticSearchIndex;
 				}
-				await elasticSearchService.initialize(process.env.ELASTICSEARCH_INDEX);
-				try {
-					await instanceService.launchMetricBeat();
-				} catch (error) {
-					console.log('Error starting metricbeat', error);
-					if (error.statusCode === 409 && error.message.includes('Conflict')) {
-						console.log('Retrying ...');
-						await instanceService.removeContainer(ContainerName.METRICBEAT);
-						await instanceService.launchMetricBeat();
-					}
+				promises.push(elasticSearchService.initialize(process.env.ELASTICSEARCH_INDEX));
+				promises.push(launchMetricBeat());
+			}
+
+			const fileServicePromise = new Promise((resolve, reject) => {
+				if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
+					process.env.MINIO_HOST = request.minioHost;
+					process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
+					process.env.MINIO_BUCKET = request.minioBucket;
+					filesService = MinioFilesService.getInstance(request.minioAccessKey, request.minioSecretKey);
+				} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
+					process.env.S3_BUCKET = request.s3BucketName;
+					filesService = S3FilesService.getInstance(request.awsAccessKey, request.awsSecretAccessKey);
 				}
-			}
-
-			if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
-				process.env.MINIO_HOST = request.minioHost;
-				process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
-				process.env.MINIO_BUCKET = request.minioBucket;
-				filesService = MinioFilesService.getInstance(request.minioAccessKey, request.minioSecretKey);
-			} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
-				process.env.S3_BUCKET = request.s3BucketName;
-				filesService = S3FilesService.getInstance(request.awsAccessKey, request.awsSecretAccessKey);
-			}
+				resolve('');
+			}).then(() => {
+				if (!!request.qoeAnalysis) {
+					process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
+					QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
+				}
+			});
+			promises.push(fileServicePromise);
 		}
-
+		await Promise.all(promises);
 		res.status(200).send(`Instance ${req.headers.host} has been initialized`);
 	} catch (error) {
 		console.error(error);
@@ -108,6 +104,19 @@ function createRecordingsDirectory() {
 	}
 }
 
+async function launchMetricBeat() {
+	const instanceService = InstanceService.getInstance();
+	try {
+		await instanceService.launchMetricBeat();
+	} catch (error) {
+		console.log('Error starting metricbeat', error);
+		if (error.statusCode === 409 && error.message.includes('Conflict')) {
+			console.log('Retrying ...');
+			await instanceService.removeContainer(ContainerName.METRICBEAT);
+			await instanceService.launchMetricBeat();
+		}
+	}
+}
 
 async function downloadMediaFiles(videoType: BrowserVideoRequest) {
 	return Promise.all([
