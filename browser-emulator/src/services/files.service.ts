@@ -1,34 +1,17 @@
-import { MinioFilesService } from "./minio.service";
-import { S3FilesService } from "./s3.service";
-
 export abstract class FilesService {
 
-    private static instance: FilesService;
+    protected static instance: FilesService;
+    readonly fileDirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`, `${process.env.PWD}/recordings/qoe`];
 
-    fileDirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`, `${process.env.PWD}/recordings/qoe`];
+    static getInstance() {
 
-    static getInstance(type?: FilesService.Type, ...args: string[]): FilesService {
-        if (!FilesService.instance) {
-            if (type == FilesService.Type.MINIO) {
-                FilesService.instance = new MinioFilesService(args[0], args[1]);
-            } else if (type == FilesService.Type.S3) {
-                FilesService.instance = new S3FilesService(args[0], args[1]);
-            }
-            else {
-                throw new Error("FilesService type not implemented or undefined");
-            }
+        if (!this.instance) {
+            throw new Error('FilesService not initialized');
         }
-        return FilesService.instance;
-    }
 
+        return this.instance;
+    }
     abstract uploadFiles(): Promise<void>;
     abstract isBucketCreated(bucketName: string): Promise<boolean>;
     abstract createBucket(bucketName: string): Promise<any>;
-}
-
-export namespace FilesService {
-    export enum Type {
-        S3 = "s3",
-        MINIO = "minio"
-    }
 }

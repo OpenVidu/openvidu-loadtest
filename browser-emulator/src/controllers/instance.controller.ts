@@ -11,6 +11,7 @@ import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
 import https = require('https');
 import { FilesService } from '../services/files.service';
 import { S3FilesService } from '../services/s3.service';
+import { MinioFilesService } from '../services/minio.service';
 
 export const app = express.Router({
 	strict: true,
@@ -83,10 +84,10 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				process.env.MINIO_HOST = request.minioHost;
 				process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
 				process.env.MINIO_BUCKET = request.minioBucket;
-				filesService = FilesService.getInstance(FilesService.Type.MINIO, request.minioAccessKey, request.minioSecretKey);
+				filesService = MinioFilesService.getInstance(request.minioAccessKey, request.minioSecretKey);
 			} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
 				process.env.S3_BUCKET = request.s3BucketName;
-				filesService = FilesService.getInstance(FilesService.Type.S3, request.awsAccessKey, request.awsSecretAccessKey);
+				filesService = S3FilesService.getInstance(request.awsAccessKey, request.awsSecretAccessKey);
 			}
 		}
 

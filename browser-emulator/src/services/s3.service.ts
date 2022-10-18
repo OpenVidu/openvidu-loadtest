@@ -7,21 +7,25 @@ import * as AWS from 'aws-sdk';
 export class S3FilesService extends FilesService {
 	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig`;
 
-    constructor(awsAccessKey: string, awsSecretAccessKey: string) {
+    private constructor(awsAccessKey: string, awsSecretAccessKey: string) {
         super();
         this.createAWSConfigFile(awsAccessKey, awsSecretAccessKey);
     }
 
+    static getInstance(...args: string[]): FilesService {
+        if (!FilesService.instance) {
+            FilesService.instance = new S3FilesService(args[0], args[1]);
+        }
+        return FilesService.instance;
+    }
     
     private createAWSConfigFile(awsAccessKey: string, awsSecretAccessKey: string) {
-        const filesService = (FilesService.getInstance() as S3FilesService);
-
         const awsConfig = { accessKeyId: awsAccessKey, secretAccessKey: awsSecretAccessKey, region: 'us-east-1' };
-        if (fs.existsSync(filesService.AWS_CREDENTIALS_PATH)) {
-            fs.rmSync(filesService.AWS_CREDENTIALS_PATH, { recursive: true, force: true });
+        if (fs.existsSync(this.AWS_CREDENTIALS_PATH)) {
+            fs.rmSync(this.AWS_CREDENTIALS_PATH, { recursive: true, force: true });
         }
-        fs.mkdirSync(filesService.AWS_CREDENTIALS_PATH, {recursive: true});
-        fs.writeFileSync(`${filesService.AWS_CREDENTIALS_PATH}/config.json`, JSON.stringify(awsConfig));
+        fs.mkdirSync(this.AWS_CREDENTIALS_PATH, {recursive: true});
+        fs.writeFileSync(`${this.AWS_CREDENTIALS_PATH}/config.json`, JSON.stringify(awsConfig));
         console.log('Created aws credentials file');
     }
 

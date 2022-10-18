@@ -6,7 +6,7 @@ import * as Minio from "minio";
 export class MinioFilesService extends FilesService {
     private minioClient: Minio.Client;
 
-    constructor(minioAccessKey: string, minioSecretAccessKey: string) {
+    private constructor(minioAccessKey: string, minioSecretAccessKey: string) {
         super();
         this.minioClient = new Minio.Client({
             endPoint: process.env.MINIO_HOST,
@@ -15,6 +15,13 @@ export class MinioFilesService extends FilesService {
             accessKey: minioAccessKey,
             secretKey: minioSecretAccessKey
         })
+    }
+    
+    static getInstance(...args: string[]): FilesService {
+        if (!FilesService.instance) {
+            FilesService.instance = new MinioFilesService(args[0], args[1]);
+        }
+        return FilesService.instance;
     }
 
     async uploadFiles(): Promise<void> {
