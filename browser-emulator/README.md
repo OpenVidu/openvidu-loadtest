@@ -12,7 +12,7 @@ The browser-emulator service provides several connection modes:
 
 This app provides a simple **REST API** that will be used by **Load Test application** and it allows:
 * [Ping to instance](#ping-instance). Do ping to check if instance is ready.
-* [Initialize instance](#initialize-instance). Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container. This request also set the AWS public and secret keys for uploading the **video recordings files to S3** (just in case the test case includes recording).
+* [Initialize instance](#initialize-instance). Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container. This request also set the AWS public and secret keys for uploading the **video recordings files to S3**, or Minio keys for uploading the **video recordings files to Minio** (just in case the test case includes recordings).
 
 * [Create a participant](#create-participant) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
 
@@ -27,7 +27,7 @@ This services also is listening for a **WebSocket communication** on `ws:browser
 
 BrowserEmulator can run analysis on the Quality of Experience on your video and audio. For this, the following requisites have to be met:
 - The `browserMode` when adding a participant has to be `REAL` (at the moment this option doesn't work with `EMULATED` users).
-- AWS public and secret keys have to be set so the recorded video fragments can be uploaded to S3.
+- AWS public and secret keys or Minio keys have to be set so the recorded video fragments can be uploaded to S3 or Minio.
 - The original video and audio (separate files expected) need to be cut and concrete paddings added to them. This can be done with the *generate-mediafiles-qoe.sh* script. The mandatory options are:
 	- -d: Duration of the cut video, the video will be cut from the beginning to the second passed in this argument.
 	- -p: Duration of the padding to be added (in seconds)
@@ -41,7 +41,7 @@ BrowserEmulator can run analysis on the Quality of Experience on your video and 
 		- The audio file has to have the following name: `fakeaudio.wav`.  
 	Alternatively you can use our already preprocessed videos that can be downloaded using the *download_mediafiles.sh* script. These have 1 secvond of padding and 5 seconds of cut video.
 
-For the purpose of running the QoE Analysis, for each user pair 2 videos will be recorded during the run, one recording what the first user is receiving from the second and viceversa. These videos will be uploaded to S3 when [Delete all participant](#delete-participants) is run. These recordings will be called individual recordings.
+For the purpose of running the QoE Analysis, for each user pair 2 videos will be recorded during the run, one recording what the first user is receiving from the second and viceversa. These videos will be uploaded to S3 or Minio when [Delete all participant](#delete-participants) is run. These recordings will be called individual recordings.
 
 When running [Initialize instance](#initialize-instance), you can add the property `"qoeAnalysis"` to the body, an object with the following options:
 	- enabled: defaults `false`, setting this to true will enable the individual recordings.
@@ -125,6 +125,12 @@ Note: The QoE results are normalized in the range 0-1 before importing them to E
 	"elasticSearchIndex": "your-optional-index",
 	"awsAccessKey": "your-AWS-access-key",
 	"awsSecretAccessKey": "your-AWS-secret-key",
+	"s3BucketName": "your-s3-bucket-name",
+	"minioAccessKey": "your-Minio-access-key",
+	"minioSecretAccessKey": "your-Minio-secret-key",
+	"minioHost": "your-Minio-endpoint",
+	"minioBucket": "your-Minio-bucket",
+	"minioPort": "your-optional-Minio-port (default 443)"
 	"browserVideo": {
 		"videoType": "bunny",
 		"videoInfo": [
@@ -153,6 +159,8 @@ Note: The QoE results are normalized in the range 0-1 before importing them to E
 ```json
 Instance has been initialized
 ```
+
+Note: the Minio variables (minioAccessKey, minioSecretAccessKey, minioHost, minioBucket) and the AWS variables (awsAccessKey, awsSecretAccessKey, s3BucketName) are exclusive, in the case the request has both types of variables the Minio ones have priority, and files will try to be uploaded to Minio.
 
 `browserVideo` is only needed if using `browserMode REAL`. This object indicates what videos to use, which will be downloaded. There are 3 types of videos by default, having to be selected in the `videoType` property inside `browserVideo`. If using a default video type, the resolution and fps of the videos to use have to be selected in the `videoInfo` array property. All default videos have padding for possible usage in QoE Analysis. The default video types and available resolutions and framerates are the following:
 - `bunny`: blender animated demo video

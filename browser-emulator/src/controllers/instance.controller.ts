@@ -9,6 +9,8 @@ import { ApplicationMode } from '../types/config.type';
 import { ContainerName } from '../types/container-info.type';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
 import https = require('https');
+import { FilesService } from '../services/files.service';
+import { S3FilesService } from '../services/s3.service';
 
 export const app = express.Router({
 	strict: true,
@@ -39,44 +41,53 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		const request: InitializePostRequest = req.body;
 		const isProdMode: boolean = APPLICATION_MODE === ApplicationMode.PROD;
 		const instanceService = InstanceService.getInstance();
+		let filesService: FilesService;
 		const elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance();
 
 		createRecordingsDirectory();
 
 		console.log('Initialize browser-emulator');
 
-		if (isProdMode && !!request.browserVideo) {
-			await downloadMediaFiles(request.browserVideo);
-		}
+		if (isProdMode) {
 
-		if (isProdMode && !!request.qoeAnalysis) {
-			process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
-			QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
-		}
-
-		if (isProdMode && !elasticSearchService.isElasticSearchRunning()) {
-			process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
-			process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
-			process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
-			if (!!request.elasticSearchIndex) {
-				process.env.ELASTICSEARCH_INDEX = request.elasticSearchIndex;
+			if (!!request.browserVideo) {
+				await downloadMediaFiles(request.browserVideo);
 			}
-			await elasticSearchService.initialize(process.env.ELASTICSEARCH_INDEX);
-			try {
-				await instanceService.launchMetricBeat();
-			} catch (error) {
-				console.log('Error starting metricbeat', error);
-				if (error.statusCode === 409 && error.message.includes('Conflict')) {
-					console.log('Retrying ...');
-					await instanceService.removeContainer(ContainerName.METRICBEAT);
+
+			if (!!request.qoeAnalysis) {
+				process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
+				QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
+			}
+
+			if (!elasticSearchService.isElasticSearchRunning()) {
+				process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
+				process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
+				process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
+				if (!!request.elasticSearchIndex) {
+					process.env.ELASTICSEARCH_INDEX = request.elasticSearchIndex;
+				}
+				await elasticSearchService.initialize(process.env.ELASTICSEARCH_INDEX);
+				try {
 					await instanceService.launchMetricBeat();
+				} catch (error) {
+					console.log('Error starting metricbeat', error);
+					if (error.statusCode === 409 && error.message.includes('Conflict')) {
+						console.log('Retrying ...');
+						await instanceService.removeContainer(ContainerName.METRICBEAT);
+						await instanceService.launchMetricBeat();
+					}
 				}
 			}
-		}
 
-		if (isProdMode && !!request.awsAccessKey && !!request.awsSecretAccessKey) {
-			process.env.S3_BUCKET = request.s3BucketName;
-			createAWSConfigFile(request.awsAccessKey, request.awsSecretAccessKey);
+			if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
+				process.env.MINIO_HOST = request.minioHost;
+				process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
+				process.env.MINIO_BUCKET = request.minioBucket;
+				filesService = FilesService.getInstance(FilesService.Type.MINIO, request.minioAccessKey, request.minioSecretKey);
+			} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
+				process.env.S3_BUCKET = request.s3BucketName;
+				filesService = FilesService.getInstance(FilesService.Type.S3, request.awsAccessKey, request.awsSecretAccessKey);
+			}
 		}
 
 		res.status(200).send(`Instance ${req.headers.host} has been initialized`);
@@ -96,17 +107,6 @@ function createRecordingsDirectory() {
 	}
 }
 
-function createAWSConfigFile(awsAccessKey: string, awsSecretAccessKey: string) {
-	const instanceService = InstanceService.getInstance();
-
-	const awsConfig = { accessKeyId: awsAccessKey, secretAccessKey: awsSecretAccessKey, region: 'us-east-1' };
-	if (fs.existsSync(instanceService.AWS_CREDENTIALS_PATH)) {
-		fs.rmSync(instanceService.AWS_CREDENTIALS_PATH, { recursive: true, force: true });
-	}
-	fs.mkdirSync(instanceService.AWS_CREDENTIALS_PATH, {recursive: true});
-	fs.writeFileSync(`${instanceService.AWS_CREDENTIALS_PATH}/config.json`, JSON.stringify(awsConfig));
-	console.log('Created aws credentials file');
-}
 
 async function downloadMediaFiles(videoType: BrowserVideoRequest) {
 	return Promise.all([

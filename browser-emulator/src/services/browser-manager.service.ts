@@ -8,6 +8,7 @@ import { OpenViduEventsService, QoERecordingsService, WebrtcStatsService } from 
 import { OpenViduRole } from '../types/openvidu.type';
 import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
+import { FilesService } from './files.service';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
@@ -18,6 +19,7 @@ export class BrowserManagerService {
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
 		private instanceService: InstanceService = InstanceService.getInstance(),
+		private filesService: FilesService = FilesService.getInstance(),
 		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
@@ -102,7 +104,7 @@ export class BrowserManagerService {
 			await this.elasticSearchService.clean();
 		}
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
-			await this.instanceService.uploadFilesToS3();
+			await this.filesService.uploadFiles();
 		}
 	}
 

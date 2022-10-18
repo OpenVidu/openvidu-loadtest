@@ -20,6 +20,11 @@ export interface InitializePostRequest {
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;
 	s3BucketName?: string;
+    minioHost?: string;
+    minioAccessKey?: string;
+    minioSecretKey?: string;
+    minioPort?: number;
+    minioBucket?: string;
 }
 
 export interface BrowserVideoRequest {

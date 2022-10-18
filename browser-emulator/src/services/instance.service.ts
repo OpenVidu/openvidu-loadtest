@@ -1,5 +1,3 @@
-import fs = require('fs');
-import fsPromises = fs.promises;
 import * as os from 'node-os-utils';
 import { ContainerCreateOptions } from 'dockerode';
 
@@ -9,8 +7,6 @@ import { DockerService } from './docker.service';
 import { LocalStorageService } from './local-storage.service';
 import { WebrtcStatsService } from './config-storage.service';
 import { ContainerName } from '../types/container-info.type';
-
-import * as AWS from 'aws-sdk';
 
 export class InstanceService {
 	private static instance: InstanceService;
@@ -22,7 +18,6 @@ export class InstanceService {
 	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
-	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig`;
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
 	private pullImagesRetries: number = 0;
@@ -151,120 +146,4 @@ export class InstanceService {
 		}
 	}
 
-	// async uploadQoeAnalysisToS3(file: string): Promise<void> {
-	// 	return new Promise(async (resolve, reject) => {
-	// 		if (fs.existsSync(`${this.AWS_CREDENTIALS_PATH}/config.json`)) {
-	// 			AWS.config.loadFromPath(`${this.AWS_CREDENTIALS_PATH}/config.json`);
-	// 			const s3 = new AWS.S3();
-	// 			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
-	// 				await this.createS3Bucket(process.env.S3_BUCKET);
-	// 			}
-	// 			const filePath = `${process.env.PWD}/${file}`;
-	// 			const params = {
-	// 				Bucket: process.env.S3_BUCKET,
-	// 				Key: file,
-	// 				Body: fs.createReadStream(filePath)
-	// 			};
-	// 			s3.putObject(params, (err, data) => {
-	// 				if (err) {
-	// 					console.error(err);
-	// 					return reject(err);
-	// 				} else {
-	// 					console.log(`Successfully uploaded Qoe Analysis to ${process.env.S3_BUCKET} / ${file}`);
-	// 					return resolve(fsPromises.rm(filePath, { force: true }));
-	// 				}
-	// 			});
-	// 		}
-	// 	});
-		
-		
-	// }
-
-	async uploadFilesToS3(): Promise<void> {
-		if (fs.existsSync(`${this.AWS_CREDENTIALS_PATH}/config.json`)) {
-			AWS.config.loadFromPath(`${this.AWS_CREDENTIALS_PATH}/config.json`);
-			const s3 = new AWS.S3();
-			const dirs = [`${process.env.PWD}/recordings/kms`, `${process.env.PWD}/recordings/chrome`, `${process.env.PWD}/recordings/qoe`];
-
-			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
-				await this.createS3Bucket(process.env.S3_BUCKET);
-			}
-			const promises = [];
-			dirs.forEach((dir) => {
-				promises.push(
-					fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
-					.then(() => fsPromises.readdir(dir))
-					.then((files) => {
-						const uploadPromises = [];
-						files.forEach((file) => {
-							const filePath = `${dir}/${file}`;
-							const fileName = file.split('/').pop();
-							const params = {
-								Bucket: process.env.S3_BUCKET,
-								Key: fileName,
-								Body: fs.createReadStream(filePath)
-							};
-							uploadPromises.push(new Promise((resolve, reject) => {
-								s3.putObject(params, (err, data) => {
-									if (err) {
-										console.error(err);
-										return reject(err);
-									} else {
-										console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
-										return resolve("");
-									}
-								});
-							}));
-						});
-						return Promise.all(uploadPromises);
-					})
-				);
-			});
-			await Promise.all(promises);
-		} else {
-			console.log(`ERROR uploading videos to S3. AWS is not configured. ${this.AWS_CREDENTIALS_PATH}/config.json not found`);
-		}
-	}
-
-	private isBucketCreated(s3BucketName: string): Promise<boolean> {
-
-		return new Promise((resolve, reject) => {
-			const s3 = new AWS.S3();
-			let bucketFound: boolean = false;
-			// Call S3 to list the buckets
-
-			s3.listBuckets((err, data) => {
-				if (err) {
-					console.log("Error", err);
-					return reject(err);
-				}
-				bucketFound = !!data.Buckets.find(b => {return b.Name === s3BucketName});
-				resolve(bucketFound);
-			});
-		});
-	}
-
-	private createS3Bucket(bucketName: string): Promise<any> {
-
-		return new Promise((resolve, reject) => {
-			const s3 = new AWS.S3();
-
-			const bucketParams = {
-				Bucket : bucketName
-			};
-
-			// call S3 to create the bucket
-			s3.createBucket(bucketParams, function(err, data) {
-				if (err) {
-				  console.log("Error", err);
-				  return reject(err);
-				}
-
-				console.log("Success", data.Location);
-				resolve('');
-
-			});
-		});
-
-	}
 }
