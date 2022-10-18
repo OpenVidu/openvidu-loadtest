@@ -15,7 +15,9 @@ export enum EmulatedUserType {
 
 	KMS = 'KMS',
 	NODE_WEBRTC_CANVAS = 'NODE_WEBRTC_CANVAS',
-	NODE_WEBRTC_FFMPEG = 'NODE_WEBRTC_FFMPEG'
+	NODE_WEBRTC_FFMPEG = 'NODE_WEBRTC_FFMPEG',
+	NONE = 'NONE'
+
 }
 
 export enum ApplicationMode {
