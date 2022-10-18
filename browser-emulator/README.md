@@ -127,10 +127,10 @@ Note: The QoE results are normalized in the range 0-1 before importing them to E
 	"awsSecretAccessKey": "your-AWS-secret-key",
 	"s3BucketName": "your-s3-bucket-name",
 	"minioAccessKey": "your-Minio-access-key",
-	"minioSecretAccessKey": "your-Minio-secret-key",
+	"minioSecretKey": "your-Minio-secret-key",
 	"minioHost": "your-Minio-endpoint",
 	"minioBucket": "your-Minio-bucket",
-	"minioPort": "your-optional-Minio-port (default 443)"
+	"minioPort": "your-optional-Minio-port (default 443)",
 	"browserVideo": {
 		"videoType": "bunny",
 		"videoInfo": [
