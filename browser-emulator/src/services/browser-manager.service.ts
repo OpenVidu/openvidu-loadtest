@@ -19,7 +19,7 @@ export class BrowserManagerService {
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
 		private instanceService: InstanceService = InstanceService.getInstance(),
-		private filesService: FilesService = FilesService.getInstance(),
+		private filesService: FilesService | undefined = FilesService.getInstance(),
 		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
@@ -103,8 +103,12 @@ export class BrowserManagerService {
 		if (this.elasticSearchService.isElasticSearchRunning()) {
 			await this.elasticSearchService.clean();
 		}
-		if (APPLICATION_MODE === ApplicationMode.PROD) {
-			await this.filesService.uploadFiles();
+		if ((APPLICATION_MODE === ApplicationMode.PROD)) {
+			if (!!this.filesService) {
+				await this.filesService.uploadFiles();
+			} else {
+				console.warn("FilesService is not defined (There is no S3 or Minio bucket specified). Can't upload recordings");
+			}
 		}
 	}
 

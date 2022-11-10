@@ -9,7 +9,6 @@ export class QoeAnalyzerService {
 
     constructor(
         private readonly elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
-        private readonly browserManagerService: BrowserManagerService = BrowserManagerService.getInstance(),
         private FRAGMENT_DURATION: number = 5,
         private PADDING_DURATION: number = 1,
     ) { }
@@ -27,7 +26,7 @@ export class QoeAnalyzerService {
     }
 
     public async runQoEAnalysis() {
-        const lastRequest = this.browserManagerService.lastRequestInfo
+        const lastRequest = BrowserManagerService.getInstance().lastRequestInfo
         if (lastRequest) {
             const properties = lastRequest.properties
             if (properties) {
