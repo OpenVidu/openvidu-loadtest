@@ -1,0 +1,17 @@
+{
+    "chrome": {
+        "default": "108.0",
+        "versions": {
+            "108.0": {
+                "image": "selenoid/vnc_chrome:108.0",
+                "port": "4444",
+                "tmpfs": {
+                    "/tmp": "size=512m"
+                },
+                "volumes": [
+                    "/opt/openvidu-loadtest/browser-emulator/src/assets/mediafiles:/home/ubuntu/mediafiles"
+                ]
+            }
+        }
+    }
+}

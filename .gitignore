@@ -44,6 +44,10 @@ browser-emulator/dist/
 
 browser-emulator/recordings/
 
+browser-emulator/logs/
+
+browser-emulator/qoe_json_files/
+
 browser-emulator/webrtc-stats-config
 
 *.txt

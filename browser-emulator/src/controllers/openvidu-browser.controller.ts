@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service';
 import { OpenViduRole, Resolution } from '../types/openvidu.type';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
+import { DOCKER_NAME, SERVER_PORT } from '../config';
 
 export const app = express.Router({
 	strict: true,
@@ -105,7 +106,11 @@ function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
 
 function setEnvironmentParams(req: Request): void {
 	const request: LoadTestPostRequest = req.body;
-	process.env.LOCATION_HOSTNAME = req.headers.host;
+	if (process.env.IS_DOCKER_CONTAINER === 'true') {
+		process.env.LOCATION_HOSTNAME = `${DOCKER_NAME}:${SERVER_PORT}`;
+	} else {
+		process.env.LOCATION_HOSTNAME = req.headers.host;
+	}
 	process.env.OPENVIDU_SECRET = request.openviduSecret;
 	process.env.OPENVIDU_URL = request.openviduUrl;
 	process.env.KURENTO_RECORDING_ENABLED = String(request.properties.recording && request.browserMode === BrowserMode.EMULATE);
