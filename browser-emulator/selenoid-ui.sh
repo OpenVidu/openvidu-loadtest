@@ -1,0 +1,1 @@
+docker run -d --name selenoid-ui --network browseremulator -p 8080:8080 aerokube/selenoid-ui --selenoid-uri http://selenoid:4444
