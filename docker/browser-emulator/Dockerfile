@@ -81,6 +81,27 @@ ENV VISQOL_PATH=/usr/local/visqol
 ENV LD_LIBRARY_PATH=/usr/local/lib
 ENV PYTHONPATH=/opt/openvidu-loadtest/browser-emulator
 
+# Install dependencies
+RUN apt-get update && apt-get install -yq --no-install-recommends \
+  	curl apt-transport-https ca-certificates software-properties-common python3-pip gnupg git && \
+	curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
+	apt-get install -yq --no-install-recommends \
+	nodejs ffmpeg libopencv-dev python3-opencv jq pkg-config && \
+	pkg-config --cflags --libs opencv4 && \
+	rm -rf /var/lib/apt/lists/*
+
+COPY ["browser-emulator/package.json", "browser-emulator/package-lock.json*", "./"]
+RUN npm install
+
+COPY ["browser-emulator/qoe_scripts/requirements.txt", "./qoe_scripts/"]
+
+## Install python dependencies
+RUN pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
+
+# Entrypoint
+COPY ./entrypoint.sh /usr/local/bin
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Get libraries
 COPY --from=base /usr/local/bin/ /usr/local/bin/
 COPY --from=base /usr/local/share/ /usr/local/share/
@@ -100,15 +121,6 @@ COPY --from=vmaf /usr/bin/ /usr/bin/
 COPY --from=vmaf /usr/lib/ /usr/lib/
 COPY --from=vmaf /usr/lib64/ /usr/lib64/
 
-COPY --from=tesseract /usr/local/bin/ /usr/local/bin/
-COPY --from=tesseract /usr/local/share/ /usr/local/share/
-COPY --from=tesseract /usr/local/lib/ /usr/local/lib/
-COPY --from=tesseract /usr/local/include/ /usr/local/include/
-COPY --from=tesseract /usr/include/ /usr/include/
-COPY --from=tesseract /usr/bin/ /usr/bin/
-COPY --from=tesseract /usr/lib/ /usr/lib/
-COPY --from=tesseract /usr/lib64/ /usr/lib64/
-
 # Get VMAF
 COPY --from=vmaf /tmp/vmaf-2.3.0/model/* /usr/local/share/vmaf/models/
 
@@ -122,34 +134,21 @@ COPY --from=pesq /tmp/ITU-T_pesq/bin/itu-t-pesq2005 /usr/local/bin/pesq
 COPY --from=visqol /root/.cache/bazel/ /root/.cache/bazel/
 COPY --from=visqol /tmp/visqol-3.1.0 /usr/local/visqol
 
-# Install dependencies
-RUN apt-get update && apt-get install -yq --no-install-recommends \
-  	curl apt-transport-https ca-certificates software-properties-common python3-pip gnupg && \
-	curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
-	apt-get install -yq --no-install-recommends \
-	nodejs ffmpeg libopencv-dev python3-opencv jq pkg-config && \
-	pkg-config --cflags --libs opencv4 && \
-	rm -rf /var/lib/apt/lists/*
-
+COPY --from=tesseract /usr/local/bin/ /usr/local/bin/
+COPY --from=tesseract /usr/local/share/ /usr/local/share/
+COPY --from=tesseract /usr/local/lib/ /usr/local/lib/
+COPY --from=tesseract /usr/local/include/ /usr/local/include/
+COPY --from=tesseract /usr/include/ /usr/include/
+COPY --from=tesseract /usr/bin/ /usr/bin/
+COPY --from=tesseract /usr/lib/ /usr/lib/
+COPY --from=tesseract /usr/lib64/ /usr/lib64/
 # Get tesseract
 RUN curl --output "/usr/local/share/tessdata/eng.traineddata" \
         --continue-at - \
         --location "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
 
-COPY ["browser-emulator/package.json", "browser-emulator/package-lock.json*", "./"]
-RUN npm install
-
-COPY ["browser-emulator/qoe_scripts/requirements.txt", "./qoe_scripts/"]
-
-## Install python dependencies
-RUN pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
-
 COPY browser-emulator/ .
 RUN npm run build
-
-# Entrypoint
-COPY ./entrypoint.sh /usr/local/bin
-RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 5000
 EXPOSE 5001

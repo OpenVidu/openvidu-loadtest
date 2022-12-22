@@ -46,13 +46,13 @@ export class BrowserManagerService {
 
 		if (isRealBrowser) {
 			// Create new stream manager using launching a normal Chrome browser
-			connectionId = await this.realBrowserService.startBrowserContainer(request.properties);
+			await this.realBrowserService.startSelenoid();
 			try {
 				const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
 				const qoeService: QoERecordingsService = new QoERecordingsService();
 				const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName(), qoeStorageName: qoeService.getItemName() };
 				const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig(), qoeStorageValue: qoeService.getConfig() };
-				await this.realBrowserService.launchBrowser(connectionId, request, storageNameObject, storageValueObject);
+				connectionId = await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
 				this.realBrowserService.storeConnection(connectionId, request.properties);
 			} catch (error) {
 				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);

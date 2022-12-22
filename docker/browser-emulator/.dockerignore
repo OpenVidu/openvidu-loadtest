@@ -1,3 +1,5 @@
+**/logs
+**/qoe_json_files
 **/node_modules
 **/aws
 **/dist

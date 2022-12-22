@@ -101,7 +101,7 @@ export class DockerService {
 		}
 	}
 
-	private async getContainerByIdOrName(nameOrId: string): Promise<Docker.Container> {
+	async getContainerByIdOrName(nameOrId: string): Promise<Docker.Container> {
 		const containers: Docker.ContainerInfo[] = await this.docker.listContainers({ all: true });
 		const containerInfo = containers.find((containerInfo: Docker.ContainerInfo) => {
 			return containerInfo.Names.indexOf('/' + nameOrId) >= 0 || containerInfo.Id === nameOrId;
