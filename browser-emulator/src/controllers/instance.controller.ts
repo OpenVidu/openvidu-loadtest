@@ -8,10 +8,10 @@ import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
 import { ContainerName } from '../types/container-info.type';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
-import https = require('https');
 import { FilesService } from '../services/files.service';
 import { S3FilesService } from '../services/s3.service';
 import { MinioFilesService } from '../services/minio.service';
+import { downloadFile } from '../utils/download-files';
 
 export const app = express.Router({
 	strict: true,
@@ -77,7 +77,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				}
 				resolve('');
 			}).then(() => {
-				if (!!request.qoeAnalysis) {
+				if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {
 					process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
 					QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
 				}
@@ -128,9 +128,9 @@ async function downloadBrowserMediaFiles(videoType: BrowserVideoRequest) {
 		return downloadBasicTypeMediaFiles(videoType);
 	} else {
 		const promises = videoType.videoType.videos.map(video => {
-			return downloadMediaFile(`fakevideo_${video.fps}fps_${video.width}x${video.height}.y4m`, video.url);
+			return downloadFile(`fakevideo_${video.fps}fps_${video.width}x${video.height}.y4m`, video.url, MEDIAFILES_DIR);
 		})
-		promises.push(downloadMediaFile('fakeaudio.wav', videoType.videoType.audioUrl));
+		promises.push(downloadFile('fakeaudio.wav', videoType.videoType.audioUrl, MEDIAFILES_DIR));
 		return Promise.all(promises)
 	}
 }
@@ -140,41 +140,17 @@ async function downloadBasicTypeMediaFiles(videoType: BrowserVideoRequest) {
 		throw new Error('Missing video info in video request');
 	}
 	const promises = videoType.videoInfo.map((info) => {
-		return downloadMediaFile(`fakevideo_${info.fps}fps_${info.width}x${info.height}.y4m`,
-			`https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${info.height}p_${info.fps}fps.y4m`);
+		return downloadFile(`fakevideo_${info.fps}fps_${info.width}x${info.height}.y4m`,
+			`https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${info.height}p_${info.fps}fps.y4m`, MEDIAFILES_DIR);
 	})
-	promises.push(downloadMediaFile('fakeaudio.wav', `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`))
+	promises.push(downloadFile('fakeaudio.wav', `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`, MEDIAFILES_DIR))
 	return Promise.all(promises)
 }
 
 async function downloadEmulatedFiles() {
 	return Promise.all([
-		downloadMediaFile("video_640x480.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv"),
-		downloadMediaFile("video_1280x720.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_1280x720.mkv")
+		downloadFile("video_640x480.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv", MEDIAFILES_DIR),
+		downloadFile("video_1280x720.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_1280x720.mkv", MEDIAFILES_DIR)
 	]);
 }
 
-async function downloadMediaFile(name: string, fileUrl: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const filePath = MEDIAFILES_DIR + "/" + name;
-		fs.access(MEDIAFILES_DIR, fs.constants.W_OK, (err) => {
-			if (err) {
-				console.error(`${filePath} is not writable`);
-				reject(err);
-			}
-			const file = fs.createWriteStream(filePath);
-			console.log("Downloading " + fileUrl + " to " + filePath);
-			const request = https.get(fileUrl, function (response) {
-				response.pipe(file);
-				file.on("finish", () => {
-					file.close();
-					console.log("Download of " + filePath + " successful");
-					resolve(filePath);
-				})
-			}).on('error', (err) => {
-				console.error(err);
-				reject(err);
-			});
-		})
-	})
-}

@@ -3,8 +3,8 @@ import fs = require('fs');
 import fsPromises = fs.promises;
 const pLimit = require('p-limit');
 import path = require('path');
-import { spawn } from 'child_process';
 import { ElasticSearchService } from "../services/elasticsearch.service";
+import { runScript } from "./run-script";
 
 const limit = pLimit(1) // Scripts are already multithreaded
 const elasticSearchService = ElasticSearchService.getInstance();
@@ -60,33 +60,6 @@ async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, fi
                 console.log("Finished uploading results to ELK")
             }
         })
-}
-
-async function runScript(script: string): Promise<string> {
-    console.log(script);
-    const promise: Promise<string> = new Promise((resolve, reject) => {
-        const execProcess = spawn(script, [], {
-            cwd: `${process.env.PWD}`,
-            shell: "/bin/bash",
-        });
-        execProcess.stdout.on('data', (data) => {
-            console.log(data.toString());
-        });
-        execProcess.stderr.on('data', (data) => {
-            console.error(data.toString());
-        });
-        execProcess.on('exit', (code) => {
-            if (code !== 0) {
-                console.error(`exit code ${code}`);
-                return reject({
-                    error: code
-                });
-            } else {
-                return resolve("");
-            }
-        });
-    })
-    return promise
 }
 
 async function runSingleAnalysis(filePath: string, fileName: string, processingInfo: JSONQoeProcessing, maxCpus?: number): Promise<string> {

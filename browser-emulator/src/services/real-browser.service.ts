@@ -1,26 +1,22 @@
 import fs = require('fs');
-import os = require('os');
-import { Browser, Builder, By, Capabilities, until, WebDriver, logging } from 'selenium-webdriver';
+import { By, Capabilities, until, WebDriver, logging } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
 import { LoadTestPostRequest, TestProperties } from '../types/api-rest.type';
 import { OpenViduRole } from '../types/openvidu.type';
 import { ErrorGenerator } from '../utils/error-generator';
-import { DockerService } from './docker.service';
-import { ContainerCreateOptions } from 'dockerode';
 import { Storage } from './local-storage.service';
 import { StorageNameObject, StorageValueObject } from '../types/storage-config.type';
 import { DOCKER_NAME } from '../config';
+import { SelenoidService } from './selenoid.service';
 declare var localStorage: Storage;
 export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
 
-	private readonly BROWSER_CONTAINER_HOSTPORT = 4444;
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
 	private selenoidOptionsCapabilities = {}
 	private driverMap: Map<string, {driver: WebDriver, sessionName: string, connectionRole: OpenViduRole}> = new Map();
-	private readonly CHROME_BROWSER_IMAGE = 'aerokube/selenoid:latest-release';
 	private readonly RECORDINGS_PATH = '/opt/selenoid/video';
 	private readonly QOE_RECORDINGS_PATH = '/home/ubuntu/qoe';
 	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
@@ -28,19 +24,16 @@ export class RealBrowserService {
 	private readonly AUDIO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakeaudio.wav';
 	private keepAliveIntervals = new Map();
 	private totalPublishers: number = 0;
+	private selenoidService: SelenoidService;
 
-	constructor(private dockerService: DockerService = new DockerService(), private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
+	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
 		this.chromeOptions.addArguments(
 			'--disable-dev-shm-usage',
 			'--use-fake-ui-for-media-stream',
 			'--start-maximized',
-			'--use-fake-device-for-media-stream',
-			'--allow-file-access-from-files',
-			`--use-file-for-fake-audio-capture=${this.AUDIO_FILE_LOCATION}`
+			"--no-sandbox",
+			"--disable-gpu"
 		);
-		// TODO: Check audio processing for use-file-for-fake-audio-capture
-		// https://peter.sh/experiments/chromium-command-line-switches/#use-file-for-fake-audio-capture
-		// https://stackoverflow.com/questions/29936416/webrtc-disable-all-audio-processing
 		const prefs = new logging.Preferences();
 		prefs.setLevel(logging.Type.BROWSER, logging.Level.ALL);
 		this.chromeCapabilities.setLoggingPrefs(prefs);
@@ -51,62 +44,36 @@ export class RealBrowserService {
 	}
 
 	public async startSelenoid(): Promise<void> {
-		const configPath = `${process.env.PWD}/config/browsers.json`;
-		const configFile = fs.readFileSync(configPath, "utf8");
-		const configJson = JSON.parse(configFile);
-		configJson["chrome"]["versions"]["108.0"]["volumes"] = [`${process.env.PWD}/src/assets/mediafiles:${this.MEDIA_FILES_PATH}`];
-		fs.writeFileSync(configPath, JSON.stringify(configJson, null, 4), "utf8");
-		const containerName = `selenoid`;
-		const bindedPort = this.BROWSER_CONTAINER_HOSTPORT;
-		const options: ContainerCreateOptions = this.getChromeContainerOptions(containerName, bindedPort);
-		const container = await this.dockerService.getContainerByIdOrName(containerName);
-		if (!!container) {
-			console.log("Selenoid container already up")
-			return Promise.resolve();
-		};
-		try {
-			console.log("Selenoid container starting")
-			await this.dockerService.startContainer(options);
-			console.log("Selenoid container started")
-			// TODO: better wait for selenoid (curl http://localhost:4444/status)
-			// await new Promise(resolve => setTimeout(resolve, 1000));
-		} catch (error) {
-			if (error.statusCode === 409) {
-				console.log("Selenoid container already up")
-				return Promise.resolve();
-			}
-			console.error(error);
-			return Promise.reject(new Error(error));
-		}
+		this.selenoidService = await SelenoidService.getInstance();
 	}
 
-	async deleteStreamManagerWithConnectionId(containerId: string): Promise<void> {
-		console.log('Removing and stopping container ', containerId);
-		const value = this.driverMap.get(containerId);
-		const keepAliveInterval = this.keepAliveIntervals.get(containerId);
+	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
+		console.log('Removing and stopping driver ', driverId);
+		const value = this.driverMap.get(driverId);
+		const keepAliveInterval = this.keepAliveIntervals.get(driverId);
 		if (!!keepAliveInterval) {
 			clearInterval(keepAliveInterval);
-			this.keepAliveIntervals.delete(containerId);
+			this.keepAliveIntervals.delete(driverId);
 		}
-		await this.saveQoERecordings(containerId);
+		await this.saveQoERecordings(driverId);
 		await value.driver.quit();
-		this.driverMap.delete(containerId);
-		this.deleteConnection(value.sessionName, containerId, value.connectionRole);
+		this.driverMap.delete(driverId);
+		this.deleteConnection(value.sessionName, driverId, value.connectionRole);
 	}
 
 	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
-		const containersToDelete = [];
+		const driversToDelete = [];
 		const promisesToResolve: Promise<void>[] = [];
 		const recordingPromises: Promise<void>[] = [];
 		this.driverMap.forEach((value, key) => {
 			if (value.connectionRole === role) {
-				containersToDelete.push({key, value});
+				driversToDelete.push({key, value});
 				recordingPromises.push(this.saveQoERecordings(key));
 				this.deleteConnection(value.sessionName, key, value.connectionRole);
 			}
 		});
 		await Promise.all(recordingPromises);
-		containersToDelete.forEach((item) => {
+		driversToDelete.forEach((item) => {
 			const keepAliveInterval = this.keepAliveIntervals.get(item.key);
 			if (!!keepAliveInterval) {
 				clearInterval(keepAliveInterval);
@@ -136,10 +103,8 @@ export class RealBrowserService {
 		}
 		const isRecording = !!properties.recording && !properties.headless;
 		if (isRecording) {
-			this.selenoidOptionsCapabilities["enableVideo"] = true;
-			await this.dockerService.pullImage("selenoid/video-recorder:latest-release");
+			//TODO: implement
 		}
-		this.selenoidOptionsCapabilities["enableVNC"] = true;
 		this.selenoidOptionsCapabilities["enableLog"] = true;
 		this.selenoidOptionsCapabilities["sessionTimeout"] = "24h";
 		// https://aerokube.com/selenoid/latest/#_specifying_capabilities_via_protocol_extensions
@@ -148,15 +113,14 @@ export class RealBrowserService {
 			this.chromeOptions.addArguments('--headless');
 		}
 		// Set video file path based on resolution property
-		// Resolution is not significant for audio
-		this.chromeOptions.addArguments(`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`);
+		// this.chromeOptions.addArguments(`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`);
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
 				let driverId: string;
 				try {
 					const webappUrl = this.generateWebappUrl(request.token, request.properties);
 					console.log(webappUrl);
-					let chrome = await this.getChromeDriver(this.BROWSER_CONTAINER_HOSTPORT);
+					let chrome = await this.selenoidService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
 					driverId = (await chrome.getSession()).getId();
 					this.driverMap.set(driverId, {driver: chrome, sessionName: properties.sessionName, connectionRole: properties.role});
 					await chrome.get(webappUrl);
@@ -273,49 +237,6 @@ export class RealBrowserService {
 		}
 	}
 
-	private getChromeContainerOptions(containerName: string, hostPort: number): ContainerCreateOptions {
-		const numOfCpus = (2*os.cpus().length).toString();
-		const options: ContainerCreateOptions = {
-			Image: this.CHROME_BROWSER_IMAGE,
-			name: containerName,
-			ExposedPorts: {
-				'4444/tcp': {},
-				// VNC service password for 'elastestbrowsers/chrome' image is 'selenoid'
-				// '6080/tcp': {},
-				// '5900/tcp': {},
-			},
-			Env: [`OVERRIDE_VIDEO_OUTPUT_DIR=${process.env.PWD}/recordings/chrome`],
-			HostConfig: {
-				Binds: [
-					`${process.env.PWD}/recordings/chrome:${this.RECORDINGS_PATH}`,
-					`${process.env.PWD}/recordings/qoe:${this.QOE_RECORDINGS_PATH}`,
-					`${process.env.PWD}/src/assets/mediafiles:${this.MEDIA_FILES_PATH}`,
-					`${process.env.PWD}/config/:/etc/selenoid/:ro`,
-					`${process.env.PWD}/selenoid-logs/:/opt/selenoid/logs/`,
-					"/var/run/docker.sock:/var/run/docker.sock"
-				],
-				PortBindings: {
-					'4444/tcp': [{ HostPort: hostPort.toString(), HostIp: '0.0.0.0' }],
-					// '6080/tcp': [{ HostPort: (hostPort + 2000).toString(), HostIp: '0.0.0.0' }],
-					// '5900/tcp': [{ HostPort: (hostPort + 1900).toString(), HostIp: '0.0.0.0' }],
-				},
-				NetworkMode: "browseremulator"
-				//CapAdd: ['SYS_ADMIN'],
-			},
-			Cmd: ["-limit", numOfCpus, "-timeout", "24h", "-container-network", "browseremulator"] // Timeout might be overkill
-		};
-		return options;
-	}
-
-	private async getChromeDriver(bindedPort: number): Promise<WebDriver> {
-		return await new Builder()
-			.forBrowser(Browser.CHROME)
-			.withCapabilities(this.chromeCapabilities)
-			.setChromeOptions(this.chromeOptions)
-			.usingServer(`http://selenoid:${bindedPort}/wd/hub`)
-			.build();
-	}
-
 	private generateWebappUrl(token: string, properties: TestProperties): string {
 		const publicUrl = !!process.env.OPENVIDU_URL ? `publicurl=${process.env.OPENVIDU_URL}&` : '';
 		const secret = !!process.env.OPENVIDU_SECRET ? `secret=${process.env.OPENVIDU_SECRET}&` : '';
@@ -350,12 +271,12 @@ export class RealBrowserService {
 		}
 	}
 
-	private async saveQoERecordings(containerId: string) {
+	private async saveQoERecordings(driverId: string) {
 		if (!!process.env.QOE_ANALYSIS) {
-			console.log("Saving QoE Recordings for container " + containerId);
-			const chrome = this.driverMap.get(containerId).driver;
+			console.log("Saving QoE Recordings for driver " + driverId);
+			const chrome = this.driverMap.get(driverId).driver;
 			if (!!chrome) {
-				console.log("Executing getRecordings for container " + containerId);
+				console.log("Executing getRecordings for driver " + driverId);
 				const fileNamePrefix = `QOE`;
 				try {
 					await chrome.executeAsyncScript(`
@@ -368,14 +289,14 @@ export class RealBrowserService {
 							throw new Error(error);
 						}
 					`);
-					console.log("QoE Recordings saved for container " + containerId);
-					await this.printBrowserLogs(containerId);
+					console.log("QoE Recordings saved for driver " + driverId);
+					await this.printBrowserLogs(driverId);
 				} catch (error) {
-					console.log("Error saving QoE Recordings for container " + containerId);
+					console.log("Error saving QoE Recordings for driver " + driverId);
 					console.log(error);
-					await this.printBrowserLogs(containerId);
+					await this.printBrowserLogs(driverId);
 				}
-				this.driverMap.delete(containerId);
+				this.driverMap.delete(driverId);
 			}
 		}
 	}
