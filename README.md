@@ -1,6 +1,12 @@
 # OpenVidu Load Test
 
-> WARNING: The current tool is under development which means that bugs could be present in the code and you can expect some changes in usage.
+> WARNING: The Openvidu Load Test project is having some big changes in functionality and architecture, so the latest versions in the repository are not stable.
+ 
+What you can do is clone the repository on the commit of one of the previous stable releases (or use the latest tags in the Releases):
+•	https://github.com/OpenVidu/openvidu-loadtest/tree/7efa6275679b5005c8f3eddcc323b088c3eac907 if you want to use emulation of browsers based on KMS.
+•	https://github.com/OpenVidu/openvidu-loadtest/tree/d2e31a5463dd13fdfe55d0ee686a6ea53ae37f30 if you want to use emulation of browsers based on Node webrtc (both versions work for real browsers).
+ 
+After that, you will have to download the latest openvidu-browser (or the version of openvidu-browser you are using in your OpenVidu deployment) and add it to the directory at browser-emulator/public, and modify line 6 of browser-emulator/public/index.html to use the latest openvidu-browser.
 
 This repository contains a distributed tool that allows you to perform a load test against an OpenVidu CE or an OpenVidu PRO deployment.
 
