@@ -1,7 +1,7 @@
 {
   // TSConfig Base (https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#tsconfig-bases)
   // Use recommended base settings for the Node.js runtime.
-  "extends": "@tsconfig/node14/tsconfig.json",
+  "extends": "@tsconfig/node16/tsconfig.json",
 
   // Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
   "compilerOptions": {

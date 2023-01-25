@@ -72,7 +72,7 @@ async function runSingleAnalysis(filePath: string, fileName: string, processingI
     if (maxCpus !== undefined) {
         maxCpusString = " --max_cpus " + maxCpus;
     }
-    return runScript(`python3 ${process.env.PWD}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` + maxCpusString)
+    return <Promise<string>> runScript(`python3 ${process.env.PWD}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` + maxCpusString)
 }
 
 async function readJSONFile(prefix: string) {

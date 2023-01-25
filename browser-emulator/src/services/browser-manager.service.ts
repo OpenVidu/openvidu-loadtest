@@ -46,7 +46,7 @@ export class BrowserManagerService {
 
 		if (isRealBrowser) {
 			// Create new stream manager using launching a normal Chrome browser
-			await this.realBrowserService.startSelenoid();
+			await this.realBrowserService.startSelenium(request.properties);
 			try {
 				const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
 				const qoeService: QoERecordingsService = new QoERecordingsService();

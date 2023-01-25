@@ -65,25 +65,25 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				promises.push(launchMetricBeat());
 			}
 
-			const fileServicePromise = new Promise((resolve, reject) => {
-				if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
-					process.env.MINIO_HOST = request.minioHost;
-					process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
-					process.env.MINIO_BUCKET = request.minioBucket;
-					filesService = MinioFilesService.getInstance(request.minioAccessKey, request.minioSecretKey);
-				} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
-					process.env.S3_BUCKET = request.s3BucketName;
-					filesService = S3FilesService.getInstance(request.awsAccessKey, request.awsSecretAccessKey);
-				}
-				resolve('');
-			}).then(() => {
-				if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {
-					process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
-					QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
-				}
-			});
-			promises.push(fileServicePromise);
 		}
+		const fileServicePromise = new Promise((resolve, reject) => {
+			if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
+				process.env.MINIO_HOST = request.minioHost;
+				process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
+				process.env.MINIO_BUCKET = request.minioBucket;
+				filesService = MinioFilesService.getInstance(request.minioAccessKey, request.minioSecretKey);
+			} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
+				process.env.S3_BUCKET = request.s3BucketName;
+				filesService = S3FilesService.getInstance(request.awsAccessKey, request.awsSecretAccessKey);
+			}
+			resolve('');
+		}).then(() => {
+			if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {
+				process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
+				QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
+			}
+		});
+		promises.push(fileServicePromise);
 		await Promise.all(promises);
 		res.status(200).send(`Instance ${req.headers.host} has been initialized`);
 	} catch (error) {

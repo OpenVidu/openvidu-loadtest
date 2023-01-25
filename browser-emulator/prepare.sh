@@ -28,8 +28,20 @@ apt-get update
 apt-get install -yq --no-install-recommends \
 	build-essential bc make cmake libopencv-dev python3-opencv bazel libnetpbm10-dev xxd \
     libjpeg-turbo-progs imagemagick-6.q16 jq automake g++ libtool libleptonica-dev pkg-config nasm ninja-build \
-    meson doxygen libx264-dev libx265-dev libnuma-dev nodejs ffmpeg docker-ce
+    meson doxygen libx264-dev libx265-dev libnuma-dev \
+    ffmpeg docker-ce xvfb v4l2loopback-dkms v4l2loopback-utils linux-modules-extra-$(uname -r) pulseaudio
 pkg-config --cflags --libs opencv4
+# Enable fake webcam for real browsers
+modprobe v4l2loopback devices=1 exclusive_caps=1
+echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopback.conf
+
+install_chrome() {
+    # installs 109.0, update version when needed
+    wget https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_109.0.5414.74-1_amd64.deb
+    apt-get install ./google-chrome-stable_109.0.5414.74-1_amd64.deb
+    apt-get install -f -yq
+    rm -f google-chrome-stable_109.0.5414.74-1_amd64.deb
+}
 
 install_vmaf() {
     ## Install VMAF
@@ -152,6 +164,7 @@ install_vmaf &
 install_tesseract &
 install_python_dependencies &
 install_node_dependencies &
+install_chrome &
 wait
 
 echo "Instance is ready"

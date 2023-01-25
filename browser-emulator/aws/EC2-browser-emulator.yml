@@ -57,7 +57,6 @@ Resources:
           mkdir -p ../../browser-emulator/recordings/kms
           mkdir -p ../../browser-emulator/recordings/chrome
           mkdir -p ../../browser-emulator/recordings/qoe
-          mkdir -p ../../browser-emulator/selenoid-config
 
           echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-none > /var/log/crontab.log' 2>&1 | crontab
 

@@ -13,6 +13,22 @@ import { InstanceService } from './services/instance.service';
 import { ApplicationMode, EmulatedUserType } from './types/config.type';
 import { WsService } from './services/ws.service';
 import WebSocket = require('ws');
+import nodeCleanup = require('node-cleanup');
+
+import { BrowserManagerService } from './services/browser-manager.service';
+import { killAllDetached } from './utils/run-script';
+import { cleanupFakeMediaDevices } from './utils/fake-media-devices';
+
+async function cleanup() {
+	const browserManager = BrowserManagerService.getInstance();
+	try {
+		await browserManager.clean();
+	} catch (err) {
+		console.error(err);
+	}
+	killAllDetached();
+	await cleanupFakeMediaDevices();
+}
 
 const app: any = express();
 const ws = new WebSocket.Server({ port: WEBSOCKET_PORT, path: '/events' });
@@ -70,6 +86,19 @@ server.listen(SERVER_PORT, async () => {
 		} else {
 			process.env['PYTHONPATH'] = process.env['PWD']
 		}
+
+		nodeCleanup(() => {
+			cleanup();
+			nodeCleanup.uninstall();
+			return false;
+		});
+
+		// For development
+		// TODO: Remove this
+		// const VIDEO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakevideo`;
+		// const AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
+		// const videoPath = `${VIDEO_FILE_LOCATION}_30fps_640x480.y4m`
+		// const selenoidService = await SelenoidService.getInstance(videoPath, AUDIO_FILE_LOCATION);
 
 		console.log('---------------------------------------------------------');
 		console.log(' ');

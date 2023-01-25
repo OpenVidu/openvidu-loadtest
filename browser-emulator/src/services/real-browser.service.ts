@@ -7,7 +7,8 @@ import { ErrorGenerator } from '../utils/error-generator';
 import { Storage } from './local-storage.service';
 import { StorageNameObject, StorageValueObject } from '../types/storage-config.type';
 import { DOCKER_NAME } from '../config';
-import { SelenoidService } from './selenoid.service';
+import { SeleniumService } from './selenium.service';
+import { runScript } from '../utils/run-script';
 declare var localStorage: Storage;
 export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
@@ -17,14 +18,12 @@ export class RealBrowserService {
 	private chromeCapabilities = Capabilities.chrome();
 	private selenoidOptionsCapabilities = {}
 	private driverMap: Map<string, {driver: WebDriver, sessionName: string, connectionRole: OpenViduRole}> = new Map();
-	private readonly RECORDINGS_PATH = '/opt/selenoid/video';
-	private readonly QOE_RECORDINGS_PATH = '/home/ubuntu/qoe';
-	private readonly MEDIA_FILES_PATH = '/home/ubuntu/mediafiles';
-	private readonly VIDEO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakevideo';
-	private readonly AUDIO_FILE_LOCATION = '/home/ubuntu/mediafiles/fakeaudio.wav';
+	private readonly VIDEO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakevideo`;
+	private readonly AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
 	private keepAliveIntervals = new Map();
 	private totalPublishers: number = 0;
-	private selenoidService: SelenoidService;
+	private selenoidService: SeleniumService;
+	private recordingScript: any;
 
 	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
 		this.chromeOptions.addArguments(
@@ -43,8 +42,9 @@ export class RealBrowserService {
 		}
 	}
 
-	public async startSelenoid(): Promise<void> {
-		this.selenoidService = await SelenoidService.getInstance();
+	public async startSelenium(properties: TestProperties): Promise<void> {
+		const videoPath = `${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`
+		this.selenoidService = await SeleniumService.getInstance(videoPath, this.AUDIO_FILE_LOCATION);
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
@@ -82,7 +82,11 @@ export class RealBrowserService {
 			promisesToResolve.push(item.value.driver.quit());
 			this.driverMap.delete(item.key);
 		});
-		await Promise.all(promisesToResolve);
+		try {
+			await Promise.all(promisesToResolve);
+		} catch (error) {
+			console.error('Error quitting driver ', error);
+		}
 	}
 
 	async clean(): Promise<void> {
@@ -102,8 +106,16 @@ export class RealBrowserService {
 			});
 		}
 		const isRecording = !!properties.recording && !properties.headless;
-		if (isRecording) {
-			//TODO: implement
+		if (isRecording && !this.recordingScript) {
+			const ffmpegCommand = [
+				"ffmpeg -hide_banner -loglevel warning -nostdin -y",
+				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab :10`,
+				` -f pulse -i `,
+				`${process.env.PWD}/recordings/chrome/session_${Date.now()}.mp4`,
+			].join("");
+			this.recordingScript = await runScript(ffmpegCommand, {
+				detached: true
+			})
 		}
 		this.selenoidOptionsCapabilities["enableLog"] = true;
 		this.selenoidOptionsCapabilities["sessionTimeout"] = "24h";
@@ -112,8 +124,6 @@ export class RealBrowserService {
 		if (!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 		}
-		// Set video file path based on resolution property
-		// this.chromeOptions.addArguments(`--use-file-for-fake-video-capture=${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`);
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
 				let driverId: string;

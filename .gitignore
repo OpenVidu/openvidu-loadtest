@@ -50,6 +50,13 @@ browser-emulator/qoe_json_files/
 
 browser-emulator/webrtc-stats-config
 
+browser-emulator/selenoid-*
+!browser-emulator/selenoid-config/browsers.json
+
+browser-emulator/cm
+
+browser-emulator/qoe_scripts/__pycache__/
+
 *.txt
 !requirements.txt
 
