@@ -54,14 +54,6 @@ window.onload = () => {
 	}
 };
 
-function calculateBitsPerSecond(frameRate, resolution) {
-	var splitted = resolution.split("x");
-	var width = parseInt(splitted[0]);
-	var height = parseInt(splitted[1]);
-	var bitsPerPixel = 24;
-	return frameRate * width * height * bitsPerPixel;
-}
-
 function joinWithForm() {
 
 	OPENVIDU_SERVER_URL = document.getElementById("form-publicurl").value;
@@ -118,6 +110,35 @@ async function joinSession() {
 
 		subscriber.on("streamPlaying", e => {
 
+			e.stream.getMediaStream().getAudioTracks()[0].applyConstraints({
+				echoCancellation: false,
+				noiseSuppression: false,
+				autoGainControl: false,
+			}).then(() => {
+				if (!!QOE_ANALYSIS) {
+					// var remoteControl = new ElasTestRemoteControl();
+					// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
+					var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+					console.log(USER_ID + " starting recording user " + remoteUser);
+					var remoteControl = OV.initLocalRecorder(event.stream);
+					while(remoteControl.state != "READY") {
+					}
+					console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
+					remoteControl.record({
+						mimeType : "video/webm",
+					}).then(() => {
+						if (remoteControl.state == "RECORDING") {
+							console.log("Recording started: " + USER_ID + " recording " + remoteUser);
+						} else {
+							console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+						}
+						remoteControls.set(remoteUser, remoteControl);
+					}).catch((error) => {
+						console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+						console.error(error);
+					})
+				}
+			})
 
 			if(ROLE === 'SUBSCRIBER'){
 				// It has been necessary mute the video because of the user gesture policies don't allow play it
@@ -125,31 +146,6 @@ async function joinSession() {
 				document.getElementById(videoId).muted = true;
 				document.getElementById(videoId).play();
 				createUnmuteButton('subscriber-need-to-be-unmuted', videoId);
-			}
-
-			
-			if (!!QOE_ANALYSIS) {
-				// var remoteControl = new ElasTestRemoteControl();
-				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
-				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
-				console.log(USER_ID + " starting recording user " + remoteUser);
-				var remoteControl = OV.initLocalRecorder(event.stream);
-				while(remoteControl.state != "READY") {
-				}
-				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
-				remoteControl.record({
-					mimeType : "video/webm",
-				}).then(() => {
-					if (remoteControl.state == "RECORDING") {
-						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
-					} else {
-						console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
-					}
-					remoteControls.set(remoteUser, remoteControl);
-				}).catch((error) => {
-					console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
-					console.error(error);
-				})
 			}
 			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
 		});
@@ -189,7 +185,7 @@ async function joinSession() {
 	}
 
 	session.connect(OPENVIDU_TOKEN, {clientData: `Real_browser_${USER_ID}`})
-		.then(() => {
+		.then(async () => {
 			console.log("Connected to session " + SESSION_ID);
 			if(ROLE === 'PUBLISHER') {
 				var videoContainer = null;
@@ -197,24 +193,50 @@ async function joinSession() {
 					videoContainer = 'video-publisher';
 				}
 				console.log("User " + USER_ID + " is publisher, publishing video and audio...");
-				var publisher = OV.initPublisher(videoContainer, {
-					audioSource: AUDIO ? undefined : null,
-					videoSource: VIDEO ? undefined : null,
+				var audioSource = AUDIO ? undefined : null;
+				var videoSource = VIDEO ? undefined : null;
+				OV.getUserMedia({
+					audioSource,
+					videoSource,
 					publishAudio: AUDIO,
 					publishVideo: VIDEO,
 					resolution:  RESOLUTION,
 					frameRate: FRAME_RATE,
 					mirror: false
-				});
-
-				session.publish(publisher);
-				console.log("Publisher initialized");
+				}).then((mediaStream) => {
+					if (AUDIO) {
+						var audioTrack = mediaStream.getAudioTracks()[0];
+						return audioTrack.applyConstraints({
+							echoCancellation: false,
+							noiseSuppression: false,
+							autoGainControl: false,
+						}).then(() => {
+							return audioTrack;
+						});
+					} else {
+						return null;
+					}
+				}).then((audioTrack) => {
+					const publisher = OV.initPublisher(videoContainer, {
+						audioSource: audioTrack,
+						videoSource: videoSource,
+						publishAudio: AUDIO,
+						publishVideo: VIDEO,
+						resolution:  RESOLUTION,
+						frameRate: FRAME_RATE,
+						mirror: false
+					});
+					session.publish(publisher);
+					console.log("Publisher initialized");
+					setPublisherButtonsActions(publisher);
+				}).catch((err) => {
+					console.error(err);
+				})
 			} else {
 				console.log("User " + USER_ID + " is subscriber");
 				initMainVideoThumbnail();
 
 			}
-			setPublisherButtonsActions(publisher);
 
 		})
 		.catch(error => {
@@ -448,7 +470,7 @@ async function getRecordings(fileNamePrefix) {
 		const blob = await remoteControl.getBlob();
 		blobMap.set(remoteUser, blob);
 		if (!!blob) {
-			console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size + " bytes");
+			console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
 		} else {
 			console.warn("Blob is null for: " + USER_ID + " recording " + remoteUser);
 		}
