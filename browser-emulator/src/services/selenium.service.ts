@@ -13,8 +13,11 @@ export class SeleniumService {
     private constructor() {
     }
 
-    static async getInstance(videoPath: string, audioPath: string) {
+    static async getInstance(videoPath?: string, audioPath?: string) {
         if (!SeleniumService.instance) {
+            if (!(videoPath && audioPath)) {
+                throw new Error("Video and audio are needed for initializing Selenium")
+            }
             // Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
             // TODO: choose display number in config
             process.env.DISPLAY=":10"

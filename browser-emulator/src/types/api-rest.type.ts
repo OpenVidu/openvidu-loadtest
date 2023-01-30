@@ -28,9 +28,10 @@ export interface InitializePostRequest {
 }
 
 export interface BrowserVideoRequest {
-    videoType: "bunny" | "interview" | "game" | CustomBrowserVideoRequest;
+    videoType: "bunny" | "interview" | "game" | "custom";
     // needed if not using custom video
-    videoInfo?: BrowserVideoInfo[];
+    videoInfo?: BrowserVideoInfo;
+    customVideo? : CustomBrowserVideoRequest;
 }
 
 export interface BrowserVideoInfo {
@@ -40,7 +41,7 @@ export interface BrowserVideoInfo {
 }
 
 export interface CustomBrowserVideoRequest {
-    videos: CustomBrowserVideo[];
+    video: CustomBrowserVideo;
     audioUrl: string;
 }
 

@@ -12,6 +12,7 @@ import { FilesService } from '../services/files.service';
 import { S3FilesService } from '../services/s3.service';
 import { MinioFilesService } from '../services/minio.service';
 import { downloadFile } from '../utils/download-files';
+import { SeleniumService } from '../services/selenium.service';
 
 export const app = express.Router({
 	strict: true,
@@ -51,7 +52,9 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		const promises = []
 		if (isProdMode) {
 			if (!!request.browserVideo) {
-				promises.push(downloadMediaFiles(request.browserVideo));
+				promises.push(downloadMediaFiles(request.browserVideo).then((fileNames) => {
+					SeleniumService.getInstance(fileNames[0][0], fileNames[0][1]);
+				}));
 			}
 			
 			if (!elasticSearchService.isElasticSearchRunning()) {
@@ -116,41 +119,33 @@ async function launchMetricBeat() {
 	}
 }
 
-async function downloadMediaFiles(videoType: BrowserVideoRequest) {
+async function downloadMediaFiles(videoType: BrowserVideoRequest): Promise<string[][]> {
 	return Promise.all([
 		downloadBrowserMediaFiles(videoType),
 		downloadEmulatedFiles()
 	])
 }
 
-async function downloadBrowserMediaFiles(videoType: BrowserVideoRequest) {
-	if (videoType.videoType === "bunny" || videoType.videoType === "interview" || videoType.videoType === "game") {
-		return downloadBasicTypeMediaFiles(videoType);
-	} else {
-		const promises = videoType.videoType.videos.map(video => {
-			return downloadFile(`fakevideo_${video.fps}fps_${video.width}x${video.height}.y4m`, video.url, MEDIAFILES_DIR);
-		})
-		promises.push(downloadFile('fakeaudio.wav', videoType.videoType.audioUrl, MEDIAFILES_DIR));
-		return Promise.all(promises)
-	}
-}
-
-async function downloadBasicTypeMediaFiles(videoType: BrowserVideoRequest) {
-	if (videoType.videoInfo === undefined || videoType.videoInfo.length <= 0) {
+async function downloadBrowserMediaFiles(videoType: BrowserVideoRequest): Promise<string[]> {
+	if (videoType.videoInfo === undefined) {
 		throw new Error('Missing video info in video request');
 	}
-	const promises = videoType.videoInfo.map((info) => {
-		return downloadFile(`fakevideo_${info.fps}fps_${info.width}x${info.height}.y4m`,
-			`https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${info.height}p_${info.fps}fps.y4m`, MEDIAFILES_DIR);
-	})
-	promises.push(downloadFile('fakeaudio.wav', `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`, MEDIAFILES_DIR))
+	const videoInfo = videoType.videoInfo
+	const videoFile = `fakevideo_${videoInfo.fps}fps_${videoInfo.width}x${videoInfo.height}.y4m`
+	const videoUrl = videoType.videoType === "custom" ? videoType.customVideo.video.url : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${videoInfo.height}p_${videoInfo.fps}fps.y4m`
+	const audioFile = `fakeaudio.wav`
+	const audioUrl = videoType.videoType === "custom" ? videoType.customVideo.audioUrl : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`
+	const promises = [
+			downloadFile(videoFile, videoUrl, MEDIAFILES_DIR).then(() => videoFile),
+			downloadFile(audioFile, audioUrl, MEDIAFILES_DIR).then(() => audioFile)
+		]
 	return Promise.all(promises)
 }
 
-async function downloadEmulatedFiles() {
+async function downloadEmulatedFiles(): Promise<string[]> {
 	return Promise.all([
-		downloadFile("video_640x480.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv", MEDIAFILES_DIR),
-		downloadFile("video_1280x720.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_1280x720.mkv", MEDIAFILES_DIR)
+		downloadFile("video_640x480.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv", MEDIAFILES_DIR).then(() => "video_640x480.mkv"),
+		downloadFile("video_1280x720.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_1280x720.mkv", MEDIAFILES_DIR).then(() => "video_1280x720.mkv")
 	]);
 }
 
