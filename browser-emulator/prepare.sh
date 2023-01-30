@@ -10,6 +10,8 @@ shopt -s inherit_errexit 2>/dev/null || true
 # Trace all commands.
 set -o xtrace
 
+DEBIAN_FRONTEND=noninteractive
+
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
 
 ## Install necessary packages
@@ -166,5 +168,22 @@ install_python_dependencies &
 install_node_dependencies &
 install_chrome &
 wait
+
+pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+
+# Pull images used by browser-emulator for faster initialization time
+docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
+docker pull kurento/kurento-media-server:latest
+docker network create browseremulator
+
+# Create recording directories
+mkdir -p ../../browser-emulator/recordings/kms
+mkdir -p ../../browser-emulator/recordings/chrome
+mkdir -p ../../browser-emulator/recordings/qoe
+
+echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-none > /var/log/crontab.log' 2>&1 | crontab
+
+# sending the finish call
+/usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource BrowserInstance --region ${AWS::Region}
 
 echo "Instance is ready"

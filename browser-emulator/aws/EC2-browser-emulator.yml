@@ -5,7 +5,7 @@ Parameters:
   ImageId:
     Type: AWS::EC2::Image::Id
     Description: An Amazon EC2 image ID, such as ami-09d56f8956ab235b3.
-    Default: ami-09d56f8956ab235b3
+    Default: ami-0778521d914d23bc1
 
 Resources:
   BrowserInstance:
@@ -31,34 +31,11 @@ Resources:
         "Fn::Base64":
           !Sub |
           #!/bin/bash
-          set -eu -o pipefail
-          # Bash options for strict error checking.
-          set -o errexit -o errtrace -o pipefail -o nounset
-          shopt -s inherit_errexit 2>/dev/null || true
-
-          # Trace all commands.
-          set -o xtrace
-
-          DEBIAN_FRONTEND=noninteractive
-
+          apt update
+          apt install -y linux-aws-edge 
           git clone https://github.com/OpenVidu/openvidu-loadtest.git /opt/openvidu-loadtest
 
           cd /opt/openvidu-loadtest/
 
-          ./browser-emulator/prepare.sh
-          pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-          
-          # Pull images used by browser-emulator for faster initialization time
-          docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
-          docker pull kurento/kurento-media-server:latest
-          docker network create browseremulator
-
-          # Create recording directories
-          mkdir -p ../../browser-emulator/recordings/kms
-          mkdir -p ../../browser-emulator/recordings/chrome
-          mkdir -p ../../browser-emulator/recordings/qoe
-
-          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-none > /var/log/crontab.log' 2>&1 | crontab
-
-          # sending the finish call
-          /usr/local/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource BrowserInstance --region ${AWS::Region}
+          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare.sh > /var/log/prepare.log' 2>&1 | crontab
+          reboot now
