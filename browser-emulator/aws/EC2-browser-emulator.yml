@@ -35,7 +35,7 @@ Resources:
           apt install -y linux-aws-edge 
           git clone https://github.com/OpenVidu/openvidu-loadtest.git /opt/openvidu-loadtest
 
-          cd /opt/openvidu-loadtest/
-
+          echo 'AWS_STACK=${AWS::StackId}' | sudo tee -a /etc/environment
+          echo 'AWS_REGION=${AWS::Region}' | sudo tee -a /etc/environment
           echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare.sh > /var/log/prepare.log 2>&1' 2>&1 | crontab
           reboot now
