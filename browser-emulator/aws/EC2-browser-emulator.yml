@@ -37,5 +37,5 @@ Resources:
 
           cd /opt/openvidu-loadtest/
 
-          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare.sh > /var/log/prepare.log' 2>&1 | crontab
+          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare.sh > /var/log/prepare.log 2>&1' 2>&1 | crontab
           reboot now
