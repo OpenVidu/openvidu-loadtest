@@ -440,3 +440,7 @@ This service provides a simple **REST API** that will be used by **Load Test app
 This services also is listening for a **WebSocket communication** on `ws:browser-emulator-addres:5001/events`. It will send information from openvidu-browser to the loadtest-controller.
 
 See [browser-emulator docummentation](browser-emulator/README.md) for more info.
+
+# Acknowledgments
+
+This work has been supported by the Regional Government of Madrid (Spain) (CM) through project EDGEDATA-CM (P2018/TCS-4499) cofunded by FSE & FEDER.
