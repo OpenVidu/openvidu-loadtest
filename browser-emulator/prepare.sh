@@ -140,8 +140,6 @@ install_tesseract() {
     ../../configure --disable-openmp --disable-shared 'CXXFLAGS=-g -O2 -fno-math-errno -Wall -Wextra -Wpedantic'
     make
     make install
-    # Needs sudo so it works in crontab
-    sudo ldconfig
     cd ../../..
     rm -rf tesseract-4.1.3
     cd $SELF_PATH
@@ -155,9 +153,10 @@ install_python_dependencies() {
     pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
 }
 
-install_node_dependencies() {
+install_node_dependencies_and_build() {
     ## Install node dependencies
     npm --prefix /opt/openvidu-loadtest/browser-emulator install 
+    npm --prefix /opt/openvidu-loadtest/browser-emulator run build
 }
 
 install_ffmpeg &
@@ -171,6 +170,8 @@ install_node_dependencies &
 install_chrome &
 wait
 
+# Needs sudo so it works in crontab
+sudo ldconfig
 pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
 
 # Pull images used by browser-emulator for faster initialization time
