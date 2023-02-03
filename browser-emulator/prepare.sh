@@ -183,7 +183,7 @@ mkdir -p ../../browser-emulator/recordings/kms
 mkdir -p ../../browser-emulator/recordings/chrome
 mkdir -p ../../browser-emulator/recordings/qoe
 
-echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-none > /var/log/crontab.log 2>&1' 2>&1 | crontab
+echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod > /var/log/crontab.log 2>&1' 2>&1 | crontab
 
 # sending the finish call
 /usr/local/bin/cfn-signal -e 0 --stack ${AWS_STACK} --resource BrowserInstance --region ${AWS_REGION}
