@@ -93,13 +93,6 @@ server.listen(SERVER_PORT, async () => {
 			return false;
 		});
 
-		// For development
-		// TODO: Remove this
-		// const VIDEO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakevideo`;
-		// const AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
-		// const videoPath = `${VIDEO_FILE_LOCATION}_30fps_640x480.y4m`
-		// const selenoidService = await SelenoidService.getInstance(videoPath, AUDIO_FILE_LOCATION);
-
 		console.log('---------------------------------------------------------');
 		console.log(' ');
 		console.log(`Service started in ${APPLICATION_MODE} mode`);

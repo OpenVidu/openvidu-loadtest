@@ -16,13 +16,12 @@ export class RealBrowserService {
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
-	private selenoidOptionsCapabilities = {}
 	private driverMap: Map<string, {driver: WebDriver, sessionName: string, connectionRole: OpenViduRole}> = new Map();
 	private readonly VIDEO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakevideo`;
 	private readonly AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
 	private keepAliveIntervals = new Map();
 	private totalPublishers: number = 0;
-	private selenoidService: SeleniumService;
+	private seleniumService: SeleniumService;
 	private recordingScript: any;
 
 	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
@@ -44,7 +43,7 @@ export class RealBrowserService {
 
 	public async startSelenium(properties: TestProperties): Promise<void> {
 		const videoPath = `${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`
-		this.selenoidService = await SeleniumService.getInstance(videoPath, this.AUDIO_FILE_LOCATION);
+		this.seleniumService = await SeleniumService.getInstance(videoPath, this.AUDIO_FILE_LOCATION);
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
@@ -117,10 +116,6 @@ export class RealBrowserService {
 				detached: true
 			})
 		}
-		this.selenoidOptionsCapabilities["enableLog"] = true;
-		this.selenoidOptionsCapabilities["sessionTimeout"] = "24h";
-		// https://aerokube.com/selenoid/latest/#_specifying_capabilities_via_protocol_extensions
-		this.chromeCapabilities.set("selenoid:options", this.selenoidOptionsCapabilities);
 		if (!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 		}
@@ -130,7 +125,7 @@ export class RealBrowserService {
 				try {
 					const webappUrl = this.generateWebappUrl(request.token, request.properties);
 					console.log(webappUrl);
-					let chrome = await this.selenoidService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
+					let chrome = await this.seleniumService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
 					driverId = (await chrome.getSession()).getId();
 					this.driverMap.set(driverId, {driver: chrome, sessionName: properties.sessionName, connectionRole: properties.role});
 					await chrome.get(webappUrl);
@@ -167,7 +162,6 @@ export class RealBrowserService {
 					this.totalPublishers = currentPublishers + publisherVideos.length;
 					// Workaround, currently browsers timeout after 1h unless we send an HTTP request to Selenium
 					// set interval each minute to send a request to Selenium
-					// Maybe this is unnecessary now that we are using selenoid
 					const keepAliveInterval = setInterval(() => {
 						chrome.executeScript(() => {
 							return true;

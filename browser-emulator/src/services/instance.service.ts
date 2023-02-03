@@ -11,8 +11,6 @@ import { ContainerName } from '../types/container-info.type';
 export class InstanceService {
 	private static instance: InstanceService;
 	private isinstanceInitialized: boolean = false;
-	private readonly SELENOID_IMAGE = 'aerokube/selenoid:latest-release';
-	private readonly CHROME_BROWSER_IMAGE = 'selenoid/vnc_chrome:108.0';
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbeat-config/metricbeat.yml`;
@@ -126,14 +124,8 @@ export class InstanceService {
 			if (!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))) {
 				await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
 			}
-			if (!(await this.dockerService.imageExists(this.CHROME_BROWSER_IMAGE))) {
-				await this.dockerService.pullImage(this.CHROME_BROWSER_IMAGE);
-			}
 			if (!(await this.dockerService.imageExists(this.KMS_IMAGE)) && EMULATED_USER_TYPE === EmulatedUserType.KMS) {
 				await this.dockerService.pullImage(this.KMS_IMAGE);
-			}
-			if (!(await this.dockerService.imageExists(this.SELENOID_IMAGE))) {
-				await this.dockerService.pullImage(this.SELENOID_IMAGE);
 			}
 		} catch (err) {
 			console.error("Error pulling images: ");
