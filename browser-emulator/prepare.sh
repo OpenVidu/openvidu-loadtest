@@ -166,7 +166,7 @@ install_visqol &
 install_vmaf &
 install_tesseract &
 install_python_dependencies &
-install_node_dependencies &
+install_node_dependencies_and_build &
 install_chrome &
 wait
 
