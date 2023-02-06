@@ -38,7 +38,7 @@ pkg-config --cflags --libs opencv4
 sudo modprobe v4l2loopback devices=1 exclusive_caps=1
 echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopback.conf
 # Add user ubuntu to docker group
-usermod -a -G docker ubuntu
+sudo usermod -a -G docker ubuntu
 
 install_chrome() {
     # installs 109.0, update version when needed
