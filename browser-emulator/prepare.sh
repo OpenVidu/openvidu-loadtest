@@ -40,6 +40,8 @@ echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopbac
 # Add user ubuntu to docker and syslog groups
 sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
+# Needed for VISQOL, put here so it doesn't conflict with other python installation parallel to it
+pip3 install numpy
 
 install_chrome() {
     # installs 109.0, update version when needed
@@ -113,17 +115,17 @@ install_visqol() {
     ## Install VISQOL
     curl --output "/tmp/visqol.tar.gz" \
             --continue-at - \
-            --location "https://github.com/google/visqol/archive/refs/tags/v3.1.0.tar.gz"
+            --location "https://github.com/google/visqol/archive/refs/tags/v3.3.3.tar.gz"
     cd /tmp
     tar -xvf visqol.tar.gz
     rm visqol.tar.gz
-    cd visqol-3.1.0
+    cd visqol-3.3.3
     bazel build :visqol -c opt
     cd ..
-    mv visqol-3.1.0 /usr/local/visqol
+    mv visqol-3.3.3 /usr/local/visqol
     export VISQOL_PATH=/usr/local/visqol
     echo export VISQOL_PATH=/usr/local/visqol | tee -a /etc/profile
-    rm -rf visqol-3.1.0
+    rm -rf visqol-3.3.3
     cd $SELF_PATH
 }
 
