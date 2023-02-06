@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Shell setup
-# ===========
+# Shell setup, assumes running on AWS EC2 Ubuntu 20.04
+# ====================================================
 
 # Bash options for strict error checking.
 set -o errexit -o errtrace -o pipefail -o nounset
@@ -37,6 +37,8 @@ pkg-config --cflags --libs opencv4
 # Needs sudo so it works in crontab
 sudo modprobe v4l2loopback devices=1 exclusive_caps=1
 echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopback.conf
+# Add user ubuntu to docker group
+usermod -a -G docker ubuntu
 
 install_chrome() {
     # installs 109.0, update version when needed
