@@ -41,7 +41,7 @@ echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopbac
 install_chrome() {
     # installs 109.0, update version when needed
     wget https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_109.0.5414.74-1_amd64.deb
-    apt-get install ./google-chrome-stable_109.0.5414.74-1_amd64.deb
+    apt-get install -f -yq ./google-chrome-stable_109.0.5414.74-1_amd64.deb
     apt-get install -f -yq
     rm -f google-chrome-stable_109.0.5414.74-1_amd64.deb
 }
