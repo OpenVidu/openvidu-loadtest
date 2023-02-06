@@ -136,8 +136,8 @@ async function downloadBrowserMediaFiles(videoType: BrowserVideoRequest): Promis
 	const audioFile = `fakeaudio.wav`
 	const audioUrl = videoType.videoType === "custom" ? videoType.customVideo.audioUrl : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`
 	const promises = [
-			downloadFile(videoFile, videoUrl, MEDIAFILES_DIR).then(() => videoFile),
-			downloadFile(audioFile, audioUrl, MEDIAFILES_DIR).then(() => audioFile)
+			downloadFile(videoFile, videoUrl, MEDIAFILES_DIR),
+			downloadFile(audioFile, audioUrl, MEDIAFILES_DIR)
 		]
 	return Promise.all(promises)
 }
