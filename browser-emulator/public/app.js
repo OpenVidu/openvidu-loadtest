@@ -25,6 +25,7 @@ var session;
 
 var remoteControls = new Map();
 var recordingBlobs = new Map();
+var recordingChunks = new Map();
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -86,7 +87,7 @@ function recordStartDelay(time) {
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
 	OV = new OpenVidu();
-	OV.enableProdMode();
+	//OV.enableProdMode();
 	session = OV.initSession();
 
 	session.on("connectionCreated", event => {
@@ -118,22 +119,27 @@ async function joinSession() {
 				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				console.log(USER_ID + " starting recording user " + remoteUser);
-				var remoteControl = OV.initLocalRecorder(event.stream);
+				var mediaStream = event.stream.getMediaStream();
+				const mediaRecorder = new MediaRecorder(mediaStream, { 
+					mimeType: 'video/webm' 
+				});
 				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
-				recordStartDelay(5000).then(
-					remoteControl.record({ 
-						mimeType: 'video/webm;codecs=vp8,opus' 
-					})
-				).then(() => {
-					if (remoteControl.state == "RECORDING") {
+				recordStartDelay(5000).then(() => {
+					recordingChunks.set(remoteUser, []);
+					mediaRecorder.ondataavailable = (e) => {
+						if (e.data.size > 0) {
+							recordingChunks.get(remoteUser).push(e.data);
+						}
+					};
+					mediaRecorder.onstart = () => {
 						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
-					} else {
+						remoteControls.set(remoteUser, mediaRecorder);
+					};
+					mediaRecorder.onerror = (error) => {
 						console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+						console.error(error);
 					}
-					remoteControls.set(remoteUser, remoteControl);
-				}).catch((error) => {
-					console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
-					console.error(error);
+					mediaRecorder.start()
 				})
 			}
 
@@ -151,7 +157,8 @@ async function joinSession() {
 	session.on("streamDestroyed", event => {
 		sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
 		if (!!QOE_ANALYSIS) {
-			var remoteControl = remoteControls.get(event.stream.streamId);
+			var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+			var remoteControl = remoteControls.get(remoteUser);
 			remoteControl.stop().then(() => {
 				console.log("Recording stopped because of streamDestroyed");
 				return remoteControl.getBlob()
@@ -456,26 +463,25 @@ function showVideoRoom() {
 	document.getElementById('remote').style.display = 'block';
 }
 
-async function getRecordings(fileNamePrefix) {
-	const blobMap = new Map();
+function getRecordings(fileNamePrefix) {
 	for (const remoteControlEntry of remoteControls.entries()) {
 		const remoteUser = remoteControlEntry[0];
 		const remoteControl = remoteControlEntry[1];
 		console.log("Stopping recording: " + USER_ID + " recording " + remoteUser);
-		await remoteControl.stop();
-		console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
-		const blob = await remoteControl.getBlob();
-		blobMap.set(remoteUser, blob);
-		if (!!blob) {
-			console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-		} else {
-			console.warn("Blob is null for: " + USER_ID + " recording " + remoteUser);
-		}
+		remoteControl.onstop = () => {
+			console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
+			var chunks = recordingChunks.get(remoteUser);
+			var blob = new Blob(chunks, { type: remoteControl.mimeType });
+			recordingBlobs.set(remoteUser, blob);
+			if (!!blob) {
+				console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
+				sendBlob(blob, fileNamePrefix, remoteUser)
+			} else {
+				console.warn("Blob is null for: " + USER_ID + " recording " + remoteUser);
+			}
+		};
+		remoteControl.stop();
 	}
-	recordingBlobs.forEach((blob, remoteUser) => blobMap.set(remoteUser, blob));
-	let promises = [];
-	blobMap.forEach((blob, remoteUser) => promises.push(sendBlob(blob, fileNamePrefix, remoteUser)));
-	return Promise.all(promises);
 }
 
 function sendBlob(blob, fileNamePrefix, remoteUserId) {
@@ -483,24 +489,22 @@ function sendBlob(blob, fileNamePrefix, remoteUserId) {
 
 	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
 	if (url) {
-		return new Promise((resolve, reject) => {
-			const formData = new FormData();
-			// Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
-			const finalSuffix = remoteUserId === USER_ID ? remoteUserId + '_' + Math.floor(Math.random() * 1000000) : remoteUserId;
-			const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
-			console.log("Sending file: " + fileName);
-			formData.append('file', blob, fileName);
-			$.ajax({
-				type: 'POST',
-				url: url.httpEndpoint,
-				data: formData,
-				processData: false,
-				contentType: false,
-				success: (response) => resolve(),
-				error: (error) => reject(error)
-			});
+		const formData = new FormData();
+		// Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
+		const finalSuffix = remoteUserId === USER_ID ? remoteUserId + '_' + Math.floor(Math.random() * 1000000) : remoteUserId;
+		const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
+		console.log("Sending file: " + fileName);
+		formData.append('file', blob, fileName);
+		$.ajax({
+			type: 'POST',
+			url: url.httpEndpoint,
+			data: formData,
+			processData: false,
+			contentType: false,
+			success: (response) => console.log(response),
+			error: (error) => console.error(error)
 		});
 	} else {
-		return Promise.resolve();
+		console.error("No URL in localStorage for QoE Endpoint")
 	}
 }

@@ -283,8 +283,7 @@ export class RealBrowserService {
 				console.log("Executing getRecordings for driver " + driverId);
 				const fileNamePrefix = `QOE`;
 				try {
-					await chrome.executeAsyncScript(`
-						const callback = arguments[arguments.length - 1];
+					await chrome.executeScript(`
 						try {
 							getRecordings('${fileNamePrefix}');
 						} catch (error) {
