@@ -79,6 +79,10 @@ function appendElement(id) {
     eventsDiv.appendChild(element);
 }
 
+function recordStartDelay(time) {
+	return new Promise(resolve => setTimeout(resolve, time));
+}
+
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
 	OV = new OpenVidu();
@@ -115,12 +119,12 @@ async function joinSession() {
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				console.log(USER_ID + " starting recording user " + remoteUser);
 				var remoteControl = OV.initLocalRecorder(event.stream);
-				while(remoteControl.state != "READY") {
-				}
 				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
-				remoteControl.record({
-					mimeType : "video/webm",
-				}).then(() => {
+				recordStartDelay(5000).then(
+					remoteControl.record({ 
+						mimeType: 'video/webm;codecs=vp8,opus' 
+					})
+				).then(() => {
 					if (remoteControl.state == "RECORDING") {
 						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
 					} else {

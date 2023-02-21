@@ -109,7 +109,7 @@ export class RealBrowserService {
 			const ffmpegCommand = [
 				"ffmpeg -hide_banner -loglevel warning -nostdin -y",
 				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab :10`,
-				` -f pulse -i `,
+				` -f pulse -i default`,
 				`${process.env.PWD}/recordings/chrome/session_${Date.now()}.mp4`,
 			].join("");
 			this.recordingScript = await runScript(ffmpegCommand, {
@@ -286,8 +286,7 @@ export class RealBrowserService {
 					await chrome.executeAsyncScript(`
 						const callback = arguments[arguments.length - 1];
 						try {
-							await getRecordings('${fileNamePrefix}');
-							callback();
+							getRecordings('${fileNamePrefix}');
 						} catch (error) {
 							console.error(error);
 							throw new Error(error);
