@@ -1,6 +1,7 @@
 import fs = require('fs');
-import { By, Capabilities, until, WebDriver, logging } from 'selenium-webdriver';
+import { By, Capabilities, until, WebDriver, logging, Browser } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
+import firefox = require('selenium-webdriver/firefox');
 import { LoadTestPostRequest, TestProperties } from '../types/api-rest.type';
 import { OpenViduRole } from '../types/openvidu.type';
 import { ErrorGenerator } from '../utils/error-generator';
@@ -16,6 +17,8 @@ export class RealBrowserService {
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private chromeOptions = new chrome.Options();
 	private chromeCapabilities = Capabilities.chrome();
+	private firefoxOptions = new firefox.Options();
+	private firefoxCapabilities = Capabilities.firefox();
 	private driverMap: Map<string, {driver: WebDriver, sessionName: string, connectionRole: OpenViduRole}> = new Map();
 	private readonly VIDEO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakevideo`;
 	private readonly AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
@@ -25,17 +28,23 @@ export class RealBrowserService {
 	private recordingScript: any;
 
 	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
-		this.chromeOptions.addArguments(
-			'--disable-dev-shm-usage',
-			'--use-fake-ui-for-media-stream',
-			'--start-maximized',
-			"--no-sandbox",
-			"--disable-gpu"
-		);
 		const prefs = new logging.Preferences();
 		prefs.setLevel(logging.Type.BROWSER, logging.Level.ALL);
-		this.chromeCapabilities.setLoggingPrefs(prefs);
-		this.chromeCapabilities.setAcceptInsecureCerts(true);
+		if (process.env.REAL_DRIVER === "firefox") {
+			this.firefoxCapabilities.setLoggingPrefs(prefs);
+			this.firefoxCapabilities.setAcceptInsecureCerts(true);
+			this.firefoxOptions.setPreference("permissions.default.microphone", 1);
+			this.firefoxOptions.setPreference("permissions.default.camera", 1);
+		} else {
+			this.chromeCapabilities.setLoggingPrefs(prefs);
+			this.chromeCapabilities.setAcceptInsecureCerts(true);
+			this.chromeOptions.addArguments(
+				'--disable-dev-shm-usage',
+				'--use-fake-ui-for-media-stream',
+				"--no-sandbox",
+				"--disable-gpu"
+			);
+		}
 		if (process.env.IS_DOCKER_CONTAINER === 'true') {
 			this.chromeOptions.addArguments(`--unsafely-treat-insecure-origin-as-secure=http://${DOCKER_NAME}`);
 		}
@@ -118,6 +127,7 @@ export class RealBrowserService {
 		}
 		if (!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
+			this.firefoxOptions.headless();
 		}
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
@@ -125,14 +135,20 @@ export class RealBrowserService {
 				try {
 					const webappUrl = this.generateWebappUrl(request.token, request.properties);
 					console.log(webappUrl);
-					let chrome = await this.seleniumService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
-					driverId = (await chrome.getSession()).getId();
-					this.driverMap.set(driverId, {driver: chrome, sessionName: properties.sessionName, connectionRole: properties.role});
-					await chrome.get(webappUrl);
+					let driver; 
+					if (process.env.REAL_DRIVER === "firefox") {
+						driver = await this.seleniumService.getFirefoxDriver(this.firefoxCapabilities, this.firefoxOptions);
+					} else {
+						driver = await this.seleniumService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
+					}
+					driverId = (await driver.getSession()).getId();
+					this.driverMap.set(driverId, {driver, sessionName: properties.sessionName, connectionRole: properties.role});
+					await driver.get(webappUrl);
+					driver.manage().window().maximize();
 
 					if (!!storageNameObj && !!storageValueObj) {
 						// Add webrtc stats config to LocalStorage
-						await chrome.executeScript(
+						await driver.executeScript(
 							() => {
 								localStorage.setItem(arguments[0].webrtcStorageName, arguments[1].webrtcStorageValue);
 								localStorage.setItem(arguments[0].ovEventStorageName, arguments[1].ovEventStorageValue);
@@ -144,26 +160,26 @@ export class RealBrowserService {
 					}
 
 					// Wait until connection has been created
-					await chrome.wait(until.elementsLocated(By.id('local-connection-created')), this.BROWSER_WAIT_TIMEOUT_MS);
+					await driver.wait(until.elementsLocated(By.id('local-connection-created')), this.BROWSER_WAIT_TIMEOUT_MS);
 					let currentPublishers = 0;
 					if (request.properties.role === OpenViduRole.PUBLISHER) {
 						// Wait until publisher has been published regardless of whether the videos are shown or not
-						await chrome.wait(until.elementsLocated(By.id('local-stream-created')), this.BROWSER_WAIT_TIMEOUT_MS);
+						await driver.wait(until.elementsLocated(By.id('local-stream-created')), this.BROWSER_WAIT_TIMEOUT_MS);
 						currentPublishers++;
 					} else {
 						// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
-						await chrome.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
-						await chrome.sleep(1000);
-						const buttons = await chrome.findElements(By.id('subscriber-need-to-be-unmuted'));
+						await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
+						await driver.sleep(1000);
+						const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
 						buttons.forEach(button => button.click());
 					}
 					console.log('Browser works as expected');
-					const publisherVideos = await chrome.findElements(By.css("[id^=\"remote-video-str\"]"))
+					const publisherVideos = await driver.findElements(By.css("[id^=\"remote-video-str\"]"))
 					this.totalPublishers = currentPublishers + publisherVideos.length;
 					// Workaround, currently browsers timeout after 1h unless we send an HTTP request to Selenium
 					// set interval each minute to send a request to Selenium
 					const keepAliveInterval = setInterval(() => {
-						chrome.executeScript(() => {
+						driver.executeScript(() => {
 							return true;
 						});
 					}, 60000);
@@ -278,12 +294,12 @@ export class RealBrowserService {
 	private async saveQoERecordings(driverId: string) {
 		if (!!process.env.QOE_ANALYSIS) {
 			console.log("Saving QoE Recordings for driver " + driverId);
-			const chrome = this.driverMap.get(driverId).driver;
-			if (!!chrome) {
+			const driver = this.driverMap.get(driverId).driver;
+			if (!!driver) {
 				console.log("Executing getRecordings for driver " + driverId);
 				const fileNamePrefix = `QOE`;
 				try {
-					await chrome.executeScript(`
+					await driver.executeScript(`
 						try {
 							getRecordings('${fileNamePrefix}');
 						} catch (error) {

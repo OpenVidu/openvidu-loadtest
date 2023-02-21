@@ -1,8 +1,16 @@
 import { isRunning, runScript } from "../utils/run-script";
-require('chromedriver');
 import { Browser, Builder, Capabilities, WebDriver } from "selenium-webdriver";
-import chrome = require('selenium-webdriver/chrome');
 import { startFakeMediaDevices } from "../utils/fake-media-devices";
+import chrome = require('selenium-webdriver/chrome');
+import firefox = require('selenium-webdriver/firefox');
+let driver;
+if (process.env.REAL_DRIVER === "firefox") {
+    require('geckodriver');
+    driver = firefox;
+} else {
+    require('chromedriver');
+    driver = chrome;
+}
 
 export class SeleniumService {
     
@@ -44,4 +52,14 @@ export class SeleniumService {
             .setChromeService(sb)
 			.build();
 	}
+
+    async getFirefoxDriver(firefoxCapabilities: Capabilities, firefoxOptions: firefox.Options): Promise<WebDriver> {
+        const sb = new firefox.ServiceBuilder().enableVerboseLogging();
+		return await new Builder()
+			.forBrowser(Browser.FIREFOX)
+			.withCapabilities(firefoxCapabilities)
+			.setFirefoxOptions(firefoxOptions)
+            .setFirefoxService(sb)
+			.build();
+    }
 }
