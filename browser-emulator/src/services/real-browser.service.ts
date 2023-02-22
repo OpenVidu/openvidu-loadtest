@@ -118,8 +118,8 @@ export class RealBrowserService {
 		if (isRecording && !this.recordingScript) {
 			const ffmpegCommand = [
 				"ffmpeg -hide_banner -loglevel warning -nostdin -y",
-				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab :10`,
-				` -f pulse -i default`,
+				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
+				` -f pulse -i 0`,
 				`${process.env.PWD}/recordings/chrome/session_${Date.now()}.mp4`,
 			].join("");
 			this.recordingScript = await runScript(ffmpegCommand, {
