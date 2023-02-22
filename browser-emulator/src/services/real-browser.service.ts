@@ -9,7 +9,7 @@ import { Storage } from './local-storage.service';
 import { StorageNameObject, StorageValueObject } from '../types/storage-config.type';
 import { DOCKER_NAME } from '../config';
 import { SeleniumService } from './selenium.service';
-import { runScript } from '../utils/run-script';
+import { runScript, stopDetached } from '../utils/run-script';
 declare var localStorage: Storage;
 export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
@@ -99,7 +99,14 @@ export class RealBrowserService {
 	}
 
 	async clean(): Promise<void> {
+		this.stopRecording();
 		await Promise.all([this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER), this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER)]);
+	}
+
+	stopRecording() {
+		if (!!this.recordingScript) {
+			stopDetached(this.recordingScript.pid);
+		}
 	}
 
 	async launchBrowser(

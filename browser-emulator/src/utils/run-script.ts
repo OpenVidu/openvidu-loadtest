@@ -48,6 +48,21 @@ export async function runScript(script: string, options?: {
     return promise;
 }
 
+export function stopDetached(pid: number) {
+    try {
+        console.log("Stopping " + pid);
+        process.kill(-pid, "SIGINT");
+    } catch (err) {
+        try {
+            console.log("Retrying stopping " + pid);
+            process.kill(pid, "SIGINT");
+        } catch (err2) {
+            console.error(err);
+            console.error(err2);
+        }
+    }
+}
+
 export function killAllDetached() {
     console.log("PIDs to kill: " + detachedPids);
     detachedPids.forEach(pid => {
