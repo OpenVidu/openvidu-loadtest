@@ -114,18 +114,6 @@ export class RealBrowserService {
 				message: 'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
 			});
 		}
-		const isRecording = !!properties.recording && !properties.headless;
-		if (isRecording && !this.recordingScript) {
-			const ffmpegCommand = [
-				"ffmpeg -hide_banner -loglevel warning -nostdin -y",
-				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
-				` -f pulse -i 0`,
-				`${process.env.PWD}/recordings/chrome/session_${Date.now()}.mp4`,
-			].join("");
-			this.recordingScript = await runScript(ffmpegCommand, {
-				detached: true
-			})
-		}
 		if (!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 			this.firefoxOptions.headless();
@@ -160,6 +148,18 @@ export class RealBrowserService {
 						);
 					}
 
+					const isRecording = !!properties.recording && !properties.headless;
+					if (isRecording && !this.recordingScript) {
+						const ffmpegCommand = [
+							"ffmpeg -hide_banner -loglevel warning -nostdin -y",
+							` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
+							` -f pulse -i 0 `,
+							`${process.env.PWD}/recordings/chrome/session_${Date.now()}.mp4`,
+						].join("");
+						this.recordingScript = await runScript(ffmpegCommand, {
+							detached: true
+						})
+					}
 					// Wait until connection has been created
 					await driver.wait(until.elementsLocated(By.id('local-connection-created')), this.BROWSER_WAIT_TIMEOUT_MS);
 					let currentPublishers = 0;
