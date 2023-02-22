@@ -33,8 +33,9 @@ export class RealBrowserService {
 		if (process.env.REAL_DRIVER === "firefox") {
 			this.firefoxCapabilities.setLoggingPrefs(prefs);
 			this.firefoxCapabilities.setAcceptInsecureCerts(true);
-			this.firefoxOptions.setPreference("permissions.default.microphone", 1);
-			this.firefoxOptions.setPreference("permissions.default.camera", 1);
+			this.firefoxOptions
+				.setPreference("permissions.default.microphone", 1)
+				.setPreference("permissions.default.camera", 1);
 		} else {
 			this.chromeCapabilities.setLoggingPrefs(prefs);
 			this.chromeCapabilities.setAcceptInsecureCerts(true);
@@ -299,13 +300,14 @@ export class RealBrowserService {
 				console.log("Executing getRecordings for driver " + driverId);
 				const fileNamePrefix = `QOE`;
 				try {
-					await driver.executeScript(`
-						try {
-							getRecordings('${fileNamePrefix}');
-						} catch (error) {
-							console.error(error);
-							throw new Error(error);
-						}
+					await driver.executeAsyncScript(`
+						const callback = arguments[arguments.length - 1];
+						getRecordings('${fileNamePrefix}')
+							.catch(error => {
+								console.error(error)
+							}).finally(() => {
+								callback();
+							});
 					`);
 					console.log("QoE Recordings saved for driver " + driverId);
 					await this.printBrowserLogs(driverId);
@@ -320,20 +322,22 @@ export class RealBrowserService {
 	}
 
 	private async printBrowserLogs(driverId: string) {
-		const entries = await this.driverMap.get(driverId).driver.manage().logs().get(logging.Type.BROWSER)
-		if (!!entries) {
-			function formatTime(s: number): string {
-				const dtFormat = new Intl.DateTimeFormat('en-GB', {
-					timeStyle: 'medium',
-					timeZone: 'UTC'
+		if (process.env.REAL_DRIVER !== "firefox") {
+			const entries = await this.driverMap.get(driverId).driver.manage().logs().get(logging.Type.BROWSER)
+			if (!!entries) {
+				function formatTime(s: number): string {
+					const dtFormat = new Intl.DateTimeFormat('en-GB', {
+						timeStyle: 'medium',
+						timeZone: 'UTC'
+					});
+
+					return dtFormat.format(new Date(s * 1e3));
+				}
+
+				entries.forEach(function (entry) {
+					console.log('%s - [%s] %s', formatTime(entry.timestamp), entry.level.name, entry.message);
 				});
-
-				return dtFormat.format(new Date(s * 1e3));
 			}
-
-			entries.forEach(function (entry) {
-				console.log('%s - [%s] %s', formatTime(entry.timestamp), entry.level.name, entry.message);
-			});
 		}
 	}
 }

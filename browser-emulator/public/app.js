@@ -463,48 +463,57 @@ function showVideoRoom() {
 	document.getElementById('remote').style.display = 'block';
 }
 
-function getRecordings(fileNamePrefix) {
+async function getRecordings(fileNamePrefix) {
+	const stopPromises = [];
 	for (const remoteControlEntry of remoteControls.entries()) {
 		const remoteUser = remoteControlEntry[0];
 		const remoteControl = remoteControlEntry[1];
-		console.log("Stopping recording: " + USER_ID + " recording " + remoteUser);
-		remoteControl.onstop = () => {
-			console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
-			var chunks = recordingChunks.get(remoteUser);
-			var blob = new Blob(chunks, { type: remoteControl.mimeType });
-			recordingBlobs.set(remoteUser, blob);
-			if (!!blob) {
-				console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-				sendBlob(blob, fileNamePrefix, remoteUser)
-			} else {
-				console.warn("Blob is null for: " + USER_ID + " recording " + remoteUser);
-			}
-		};
-		remoteControl.stop();
+		const stopPromise = new Promise ((resolve, reject) => {
+			console.log("Stopping recording: " + USER_ID + " recording " + remoteUser);
+			remoteControl.onstop = () => {
+				console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
+				var chunks = recordingChunks.get(remoteUser);
+				var blob = new Blob(chunks, { type: remoteControl.mimeType });
+				recordingBlobs.set(remoteUser, blob);
+				if (!!blob) {
+					console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
+					resolve({"user": remoteUser, "blob": blob});
+				} else {
+					reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
+				}
+			};
+			remoteControl.stop();
+		}).then((blobObject) => sendBlob(blobObject.blob, fileNamePrefix, blobObject.user)).catch((error) => {
+			console.error(error);
+		})
+		stopPromises.push(stopPromise);
 	}
+	return Promise.all(stopPromises);
 }
 
-function sendBlob(blob, fileNamePrefix, remoteUserId) {
-	var ITEM_NAME = 'ov-qoe-config';
+async function sendBlob(blob, fileNamePrefix, remoteUserId) {
+	return new Promise ((resolve, reject) => {
+		var ITEM_NAME = 'ov-qoe-config';
 
-	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-	if (url) {
-		const formData = new FormData();
-		// Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
-		const finalSuffix = remoteUserId === USER_ID ? remoteUserId + '_' + Math.floor(Math.random() * 1000000) : remoteUserId;
-		const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
-		console.log("Sending file: " + fileName);
-		formData.append('file', blob, fileName);
-		$.ajax({
-			type: 'POST',
-			url: url.httpEndpoint,
-			data: formData,
-			processData: false,
-			contentType: false,
-			success: (response) => console.log(response),
-			error: (error) => console.error(error)
-		});
-	} else {
-		console.error("No URL in localStorage for QoE Endpoint")
-	}
+		const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
+		if (url) {
+			const formData = new FormData();
+			// Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
+			const finalSuffix = remoteUserId === USER_ID ? remoteUserId + '_' + Math.floor(Math.random() * 1000000) : remoteUserId;
+			const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
+			console.log("Sending file: " + fileName);
+			formData.append('file', blob, fileName);
+			$.ajax({
+				type: 'POST',
+				url: url.httpEndpoint,
+				data: formData,
+				processData: false,
+				contentType: false,
+				success: (response) => resolve(),
+				error: (error) => reject(error)
+			});
+		} else {
+			reject("No URL in localStorage for QoE Endpoint")
+		}
+	})
 }
