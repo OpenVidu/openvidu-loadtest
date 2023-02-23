@@ -131,7 +131,7 @@ export class RealBrowserService {
 				try {
 					const webappUrl = this.generateWebappUrl(request.token, request.properties);
 					console.log(webappUrl);
-					let driver; 
+					let driver: WebDriver; 
 					if (process.env.REAL_DRIVER === "firefox") {
 						driver = await this.seleniumService.getFirefoxDriver(this.firefoxCapabilities, this.firefoxOptions);
 					} else {
@@ -140,10 +140,10 @@ export class RealBrowserService {
 					driverId = (await driver.getSession()).getId();
 					this.driverMap.set(driverId, {driver, sessionName: properties.sessionName, connectionRole: properties.role});
 					await driver.get(webappUrl);
-					driver.manage().window().maximize();
 
 					if (!!storageNameObj && !!storageValueObj) {
 						// Add webrtc stats config to LocalStorage
+						// TODO: Possible race condition where openvidu-browser runs before the localStorage is updated so it doesn't record webrtc stats
 						await driver.executeScript(
 							() => {
 								localStorage.setItem(arguments[0].webrtcStorageName, arguments[1].webrtcStorageValue);
@@ -154,6 +154,8 @@ export class RealBrowserService {
 							storageValueObj
 						);
 					}
+					
+					await driver.manage().window().maximize();
 
 					const isRecording = !!properties.recording && !properties.headless;
 					if (isRecording && !this.recordingScript) {
