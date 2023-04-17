@@ -28,6 +28,11 @@ public class RequestBody {
 	private boolean headlessBrowser = false;
 	private String recordingMetadata = "";
 	private String s3BucketName = "";
+	private String minioAccessKey = "";
+	private String minioSecretKey = "";
+	private String minioBucket = "";
+	private int minioPort = 443;
+	private String minioHost = "";
 	private boolean qoeAnalysisEnabled = false;
 	private int paddingDuration = 1;
 	private int fragmentDuration = 5;
@@ -254,7 +259,7 @@ public class RequestBody {
 	}
 
 	public RequestBody frameRate(int frameRate) {
-		if (frameRate > 0 && frameRate <= 30) {
+		if (frameRate > 0) {
 			this.frameRate = frameRate;
 		}
 		return this;
@@ -285,39 +290,45 @@ public class RequestBody {
 		return this;
 	}
 
-	public RequestBody videoType(String videoType) {
-		this.videoType = videoType;
+	public RequestBody minioAccessKey(String minioAccessKey) {
+		this.minioAccessKey = minioAccessKey;
 		return this;
 	}
-	
-	public RequestBody videoWidth(int videoWidth) {
+
+	public RequestBody minioSecretKey(String minioSecretKey) {
+		this.minioSecretKey = minioSecretKey;
+		return this;
+	}
+
+	public RequestBody minioHost(String minioHost) {
+		this.minioHost = minioHost;
+		return this;
+	}
+
+	public RequestBody minioBucket(String minioBucket) {
+		this.minioBucket = minioBucket;
+		return this;
+	}
+
+	public RequestBody minioPort(int minioPort) {
+		this.minioPort = minioPort;
+		return this;
+	}
+
+	public RequestBody browserVideo(String videoType, int videoWidth, int videoHeight, int videoFps, String videoUrl, String audioUrl) {
+		this.videoType = videoType.toLowerCase();
 		this.videoWidth = videoWidth;
-		return this;
-	}
-
-	public RequestBody videoHeight(int videoHeight) {
 		this.videoHeight = videoHeight;
-		return this;
-	}
-
-	public RequestBody videoFps(int videoFps) {
 		this.videoFps = videoFps;
-		return this;
-	}
-
-	public RequestBody videoUrl(String videoUrl) {
 		this.videoUrl = videoUrl;
-		return this;
-	}
-
-	public RequestBody audioUrl(String audioUrl) {
 		this.audioUrl = audioUrl;
 		return this;
 	}
 
 	public RequestBody build() {
 		return new RequestBody(openviduUrl, openviduSecret, elasticSearchHost, elasticSearchUserName, elasticSearchPassword, elasticSearchIndex, awsAccessKey, awsSecretAccessKey, browserMode, userId, sessionName, token, role, audio, video,
-				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser, recordingMetadata, s3BucketName, qoeAnalysisEnabled, paddingDuration, fragmentDuration, videoType, videoWidth, videoHeight, videoFps, videoUrl, audioUrl);
+				resolution, openviduRecordingMode, frameRate, browserRecording, showVideoElements, headlessBrowser, recordingMetadata, s3BucketName, qoeAnalysisEnabled, paddingDuration, fragmentDuration, videoType, videoWidth, videoHeight, videoFps, videoUrl, audioUrl,
+				minioAccessKey, minioSecretKey, minioHost, minioPort, minioBucket);
 	}
 
 	public JsonObject toJson() {
@@ -343,26 +354,23 @@ public class RequestBody {
 		
 		JsonObject browserVideo = new JsonObject();
 		if (this.videoType.equals("custom")) {
-			JsonObject videoType = new JsonObject();
-			videoType.addProperty("audioUrl", this.audioUrl);
-			JsonObject videoInfo = new JsonObject();
-			videoInfo.addProperty("url", this.videoUrl);
-			videoInfo.addProperty("width", this.videoWidth);
-			videoInfo.addProperty("height", this.videoHeight);
-			videoInfo.addProperty("fps", this.videoFps);
-			JsonArray videos = new JsonArray();
-			videos.add(videoInfo);
-			videoType.add("videos", videos);
-			browserVideo.add("videoType", videoType);
+			browserVideo.addProperty("videoType", "custom");
+			JsonObject customVideo = new JsonObject();
+			customVideo.addProperty("audioUrl", this.audioUrl);
+			JsonObject video = new JsonObject();
+			video.addProperty("url", this.videoUrl);
+			video.addProperty("width", this.videoWidth);
+			video.addProperty("height", this.videoHeight);
+			video.addProperty("fps", this.videoFps);
+			customVideo.add("video", video);
+			browserVideo.add("customVideo", customVideo);
 		} else {
 			browserVideo.addProperty("videoType", this.videoType);
-			JsonArray videoInfoArray = new JsonArray();
 			JsonObject videoInfo = new JsonObject();
 			videoInfo.addProperty("width", this.videoWidth);
 			videoInfo.addProperty("height", this.videoHeight);
 			videoInfo.addProperty("fps", this.videoFps);
-			videoInfoArray.add(videoInfo);
-			browserVideo.add("videoInfo", videoInfoArray);
+			browserVideo.add("videoInfo", videoInfo);
 		}
 		jsonBody.add("browserVideo", browserVideo);
 
@@ -398,7 +406,8 @@ public class RequestBody {
 	private RequestBody(String openviduUrl, String openviduSecret, String elasticSearchHost, String elasticSearchUserName, String elasticSearchPassword, String elasticSearchIndex, String awsAccessKey, String awsSecretAccessKey, BrowserMode browserMode, String userId,
 			String sessionName, String token, OpenViduRole role, boolean audio, boolean video, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, int frameRate, boolean browserRecording,
-			boolean showVideoElements, boolean headlessBrowser, String recordingMetadata, String s3BucketName, boolean qoeAnalysis, int paddingDuration, int fragmentDuration, String videoType, int videoWidth, int videoHeight, int videoFps, String videoUrl, String audioUrl) {
+			boolean showVideoElements, boolean headlessBrowser, String recordingMetadata, String s3BucketName, boolean qoeAnalysis, int paddingDuration, int fragmentDuration, String videoType, int videoWidth, int videoHeight, int videoFps, String videoUrl, String audioUrl,
+			String minioAccessKey, String minioSecretKey, String minioHost, int minioPort, String minioBucket) {
 		super();
 		this.openviduUrl = openviduUrl;
 		this.openviduSecret = openviduSecret;
@@ -426,12 +435,17 @@ public class RequestBody {
 		this.qoeAnalysisEnabled = qoeAnalysis;
 		this.paddingDuration = paddingDuration;
 		this.fragmentDuration = fragmentDuration;
-		this.videoType = videoType;
+		this.videoType = videoType.toLowerCase();
 		this.videoWidth = videoWidth;
 		this.videoHeight = videoHeight;
 		this.videoFps = videoFps;
 		this.videoUrl = videoUrl;
 		this.audioUrl = audioUrl;
+		this.minioAccessKey = minioAccessKey;
+		this.minioSecretKey = minioSecretKey;
+		this.minioHost = minioHost;
+		this.minioPort = minioPort;
+		this.minioBucket = minioBucket;
 	}
 
 }

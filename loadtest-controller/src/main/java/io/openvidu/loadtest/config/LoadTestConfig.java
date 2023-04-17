@@ -77,6 +77,16 @@ public class LoadTestConfig {
 	private String awsAccessKey;
 	
 	private String s3bucketName;
+
+	private String minioAccessKey;
+	
+	private String minioSecretKey;
+
+	private String minioBucket;
+	
+	private int minioPort;
+
+	private String minioHost;
 	
 	private boolean retryMode;
 	
@@ -279,6 +289,26 @@ public class LoadTestConfig {
 		return audioUrl;
 	}
 
+    public String getMinioAccessKey() {
+        return this.minioAccessKey;
+    }
+
+    public String getMinioSecretKey() {
+        return this.minioSecretKey;
+    }
+
+    public String getMinioHost() {
+        return this.minioHost;
+    }
+
+    public int getMinioPort() {
+        return this.minioPort;
+    }
+
+    public String getMinioBucket() {
+        return this.minioBucket;
+    }
+
 	@PostConstruct
 	private void checkConfigurationProperties() {
 
@@ -331,6 +361,12 @@ public class LoadTestConfig {
 			videoFps = asInt("VIDEO_FPS");
 			videoUrl = asOptionalString("VIDEO_URL");
 			audioUrl = asOptionalString("AUDIO_URL");
+			minioAccessKey = asOptionalString("MINIO_ACCESS_KEY");
+			minioSecretKey = asOptionalString("MINIO_SECRET_KEY");
+			minioHost = asOptionalString("MINIO_HOST");
+			minioPort = asInt("MINIO_PORT");
+			minioBucket = asOptionalString("MINIO_BUCKET");
+
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -393,8 +429,8 @@ public class LoadTestConfig {
 		}
 		if (recordingSessionGroup > 0) {
 			System.out.printf(format, "Recording starts each :", recordingSessionGroup + " session(s)");
-			if(s3bucketName.isBlank()) {
-				System.err.printf(format, "S3 Bucket Name is not defined");
+			if(s3bucketName.isBlank() && minioBucket.isBlank()) {
+				System.err.printf(format, "S3 or Minio Bucket Name is not defined");
 				System.exit(1);
 			}
 		}

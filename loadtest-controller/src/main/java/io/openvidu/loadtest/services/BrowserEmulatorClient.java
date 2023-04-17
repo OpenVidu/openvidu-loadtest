@@ -80,12 +80,13 @@ public class BrowserEmulatorClient {
 				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
 				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
 				.s3BucketName(loadTestConfig.getS3BucketName())
-				.videoType(loadTestConfig.getVideoType())
-				.videoHeight(loadTestConfig.getVideoHeight())
-				.videoWidth(loadTestConfig.getVideoWidth())
-				.videoFps(loadTestConfig.getVideoFps())
-				.videoUrl(loadTestConfig.getVideoUrl())
-				.audioUrl(loadTestConfig.getAudioUrl())
+				.minioAccessKey(loadTestConfig.getMinioAccessKey())
+				.minioSecretKey(loadTestConfig.getMinioSecretKey())
+				.minioHost(loadTestConfig.getMinioHost())
+				.minioPort(loadTestConfig.getMinioPort())
+				.minioBucket(loadTestConfig.getMinioBucket())
+				.browserVideo(loadTestConfig.getVideoType(), loadTestConfig.getVideoHeight(), loadTestConfig.getVideoWidth(),
+					loadTestConfig.getVideoFps(), loadTestConfig.getVideoUrl(), loadTestConfig.getAudioUrl())
 				.qoeAnalysis(loadTestConfig.isQoeAnalysisRecordings(), loadTestConfig.getPaddingDuration(), loadTestConfig.getFragmentDuration())
 				.build().toJson();
 		try {
