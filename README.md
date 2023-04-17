@@ -205,7 +205,7 @@ WORKERS_NUMBER_AT_THE_BEGINNING=1
 # Overcoming this CPU percentage threshold a new worker will be launched
 WORKER_MAX_LOAD=80
 # Number of new workers incrementation
-WORKERS_RUMP_UP=1
+WORKERS_RAMP_UP=1
 ```
 
 ##### For the MANUAL distribution of participants to workers
@@ -213,7 +213,7 @@ WORKERS_RUMP_UP=1
 # Boolean param for MANUAL participants allocation
 MANUAL_PARTICIPANTS_ALLOCATION=false
 # Number of participants per worker
-PARTICIPANTS_PER_WORKER=
+USERS_PER_WORKER=
 ```
 
 ##### For video quality control
@@ -223,9 +223,10 @@ When test finishes, it will saved in the S3 Bucket.
 
 
 ```properties
-# For video quality control
-# If testing on AWS, It'll start a new ec2 instance where a new participant will be connected using a real Chrome Browser
-# and it will start to record the session when media node has archieved this value
+# For video quality control (enabled for AWS testing only) 
+# It'll start a new ec2 instance where a new participant will be connected using a real Chrome Browser
+# it will start to record the session when media node has archieved this value
+# Needs an ElasticSearch instance to work
 MEDIANODE_LOAD_FOR_START_RECORDING=0
 # it will start to record the sessions gruped by the specifyed value.
 # 0: Recording disabled, 1 recording starts each session, 2 recording starts each two session ...

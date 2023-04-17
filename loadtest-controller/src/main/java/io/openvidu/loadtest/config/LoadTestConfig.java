@@ -292,7 +292,10 @@ public class LoadTestConfig {
 			secondsToWaitBeforeTestFinished = asInt("SECONDS_TO_WAIT_BEFORE_TEST_FINISHED");
 			secondsToWaitBetweenTestCases = asInt("SECONDS_TO_WAIT_BETWEEN_TEST_CASES");
 			manualParticipantsAllocation = asBoolean("MANUAL_PARTICIPANTS_ALLOCATION");
-			sessionsPerWorker= asInt("SESSIONS_PER_WORKER");
+			sessionsPerWorker= asInt("USERS_PER_WORKER");
+			if (sessionsPerWorker == -1) {
+				sessionsPerWorker= asInt("SESSIONS_PER_WORKER");
+			}
 			elasticsearchHost = asOptionalString("ELASTICSEARCH_HOST");
 			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
 			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
@@ -306,7 +309,10 @@ public class LoadTestConfig {
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
 			recordingWorkersNumberAtTheBeginning = asInt("RECORDING_WORKERS_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
-			workersRumpUp = asInt("WORKERS_RUMP_UP");
+			workersRumpUp = asInt("WORKERS_RAMP_UP");
+			if (workersRumpUp == -1) {
+				workersRumpUp= asInt("WORKERS_RUMP_UP");
+			}
 			medianodeLoadForStartRecording = asDouble("MEDIANODE_LOAD_FOR_START_RECORDING");
 			recordingSessionGroup = asInt("RECORDING_SESSION_GRUPED_BY");
 			terminateWorkers = asBoolean("TERMINATE_WORKERS");
