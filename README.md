@@ -235,6 +235,23 @@ MANUAL_PARTICIPANTS_ALLOCATION=false
 USERS_PER_WORKER=
 ```
 
+##### If you want to save the recordings in MinIO
+```properties
+################################################
+#### MinIO credentials and information if using it to save recordings instead of S3
+################################################
+# MinIO Endpoint
+MINIO_HOST=
+# MinIO Port (default 443)
+MINIO_PORT=443
+# MinIO Access Key
+MINIO_ACCESS_KEY=
+# MinIO Secret Key
+MINIO_SECRET_KEY=
+# MinIO Bucket Name
+MINIO_BUCKET=
+```
+
 ##### For video quality control
 These properties allow record a participant (launching an external chrome browser) for check the received video quality.
 
