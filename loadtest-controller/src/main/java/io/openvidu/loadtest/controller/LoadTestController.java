@@ -648,7 +648,7 @@ public class LoadTestController {
 		double medianodeLoadForRecording = loadTestConfig.getMedianodeLoadForRecording();
 		int recordingSessionGroup = loadTestConfig.getRecordingSessionGroup();
 
-		boolean isLoadRecordingEnabled = medianodeLoadForRecording > 0
+		boolean isLoadRecordingEnabled = medianodeLoadForRecording > 0 && esClient.isInitialized()
 				&& !browserEmulatorClient.isRecordingParticipantCreated(sessionNumber.get())
 				&& esClient.getMediaNodeCpu() >= medianodeLoadForRecording;
 
@@ -675,7 +675,11 @@ public class LoadTestController {
 	}
 
 	private void waitToMediaServerLiveAgain() {
-		while (esClient.getMediaNodeCpu() > 5.00) {
+		if (esClient.isInitialized()) {
+			while (esClient.getMediaNodeCpu() > 5.00) {
+				this.sleep(5, "Waiting MediaServer recovers his CPU");
+			}
+		} else {
 			this.sleep(5, "Waiting MediaServer recovers his CPU");
 		}
 	}

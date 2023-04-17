@@ -49,35 +49,49 @@ public class ElasticSearchClient {
 
 	private static DecimalFormat df2 = new DecimalFormat("#.###");
 
+	private boolean initialized = false;
+
 	@PostConstruct
 	public void init() {
 
 		URL url = serializeUrl();
-		HttpHost httpHost = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
-		RestClientBuilder restClientBuilder = RestClient.builder(httpHost);
-		if (url.getPath() != null && !url.getPath().isEmpty()) {
-			restClientBuilder.setPathPrefix(url.getPath());
-		}
-		boolean isELKSecured = loadTestConfig.isElasticSearchSecured();
+		if (url != null) {
 
-		if (isELKSecured) {
-			CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-			String esUserName = loadTestConfig.getElasticsearchUserName();
-			String esPassword = loadTestConfig.getElasticsearchPassword();
-			credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(esUserName, esPassword));
-			restClientBuilder.setHttpClientConfigCallback(
-					httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
+			HttpHost httpHost = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
+			RestClientBuilder restClientBuilder = RestClient.builder(httpHost);
+			if (url.getPath() != null && !url.getPath().isEmpty()) {
+				restClientBuilder.setPathPrefix(url.getPath());
+			}
+			boolean isELKSecured = loadTestConfig.isElasticSearchSecured();
 
-		}
-		this.client = new RestHighLevelClient(restClientBuilder);
+			if (isELKSecured) {
+				CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+				String esUserName = loadTestConfig.getElasticsearchUserName();
+				String esPassword = loadTestConfig.getElasticsearchPassword();
+				credentialsProvider.setCredentials(AuthScope.ANY,
+						new UsernamePasswordCredentials(esUserName, esPassword));
+				restClientBuilder.setHttpClientConfigCallback(
+						httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
 
-		if (doPing()) {
+			}
+			this.client = new RestHighLevelClient(restClientBuilder);
+
+			if (doPing()) {
+				this.initialized = true;
+				log.info("Connection to Elasticsearch established at {}", loadTestConfig.getElasticsearchHost());
+			}
+		} else {
+			log.info("Elasticsearch client not initialized");
 		}
 	}
 
 	private URL serializeUrl() {
 		URL url = null;
 		try {
+			if (loadTestConfig.getElasticsearchHost().equals("")) {
+				log.warn("Property 'ELASTICSEARCH_HOST' is not defined");
+				return null;
+			}
 			url = new URL(loadTestConfig.getElasticsearchHost());
 		} catch (MalformedURLException e1) {
 			log.error("Property 'ELASTICSEARCH_HOST' is not a valid URI: {}", loadTestConfig.getElasticsearchHost());
@@ -100,26 +114,32 @@ public class ElasticSearchClient {
 		return pingSuccess;
 	}
 
-	//private double getCurrentOpenViduCpu() throws IOException {
-//
-//	SearchRequest searchRequest = new SearchRequest("openvidu");
-//	SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-//	searchSourceBuilder.query(QueryBuilders.matchQuery("elastic_type", MONITORING_STATS));
-//	searchSourceBuilder.sort("timestamp", SortOrder.DESC).size(1);
-//	searchRequest.source(searchSourceBuilder);
-//
-//	SearchResponse searchResponse = this.client.search(searchRequest, RequestOptions.DEFAULT);
-//
-//	JsonObject json = jsonUtils.getJson(searchResponse.getHits().getHits()[0].getSourceAsString());
-//
-//	Timestamp stamp = new Timestamp(json.get("timestamp").getAsLong());
-//	Date date = new Date(stamp.getTime());
-//	System.out.println(date);
-//
-//	System.out.println("CPU USAGE " + json.get("cpu").getAsDouble());
-//
-//	return Double.parseDouble(df2.format(json.get("cpu").getAsDouble()));
-//}
+	// private double getCurrentOpenViduCpu() throws IOException {
+	//
+	// SearchRequest searchRequest = new SearchRequest("openvidu");
+	// SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+	// searchSourceBuilder.query(QueryBuilders.matchQuery("elastic_type",
+	// MONITORING_STATS));
+	// searchSourceBuilder.sort("timestamp", SortOrder.DESC).size(1);
+	// searchRequest.source(searchSourceBuilder);
+	//
+	// SearchResponse searchResponse = this.client.search(searchRequest,
+	// RequestOptions.DEFAULT);
+	//
+	// JsonObject json =
+	// jsonUtils.getJson(searchResponse.getHits().getHits()[0].getSourceAsString());
+	//
+	// Timestamp stamp = new Timestamp(json.get("timestamp").getAsLong());
+	// Date date = new Date(stamp.getTime());
+	// System.out.println(date);
+	//
+	// System.out.println("CPU USAGE " + json.get("cpu").getAsDouble());
+	//
+	// return Double.parseDouble(df2.format(json.get("cpu").getAsDouble()));
+	// }
+	public boolean isInitialized() {
+		return this.initialized;
+	}
 
 	public double getMediaNodeCpu() {
 
