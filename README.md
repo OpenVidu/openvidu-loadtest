@@ -116,10 +116,29 @@ npm run start:dev-kms
 	**Once aws credentials have been configured in your pc**, it's time to create the browser-emulator AMI. For creating it, you only have to run the `createAMI.sh` script.
 
 	```bash
-	./browser-emulator/aws/createAMI.sh
+	cd ./browser-emulator/aws/
+	./createAMI.sh
 	```
 
+	Defaults to creating the AMI:
+	- In the us-east-1 AWS region.
+	- Using Chrome as the browser for tests.
+	- Not installing QoE analysis software required if doing QoE analysis in situ (generally not necessary).
+
 	After AMI was created, you must set the  **AMI ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_AMI_ID` property.
+
+	You can change the default values of the script in the [`createAMI.sh`](browser-emulator/aws/createAMI.sh) script like this:
+
+	```bash
+	cd ./browser-emulator/aws/
+	./createAMI.sh --region eu-west-1 --version ./EC2-browser-emulator-firefox.yml
+	```
+
+	The following versions are available:
+	- Chrome with no qoe analysis software preinstalled (default): `./EC2-browser-emulator-no-qoe.yml`
+	- Chrome with qoe analysis software preinstalled: `./EC2-browser-emulator.yml`
+	- Firefox with no qoe analysis software preinstalled: `./EC2-browser-emulator-firefox-no-qoe.yml`
+	- Firefox with qoe analysis software preinstalled: `./EC2-browser-emulator-firefox.yml`
 
 * **Create a security group**:
 
