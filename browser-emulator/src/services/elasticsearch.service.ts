@@ -46,7 +46,7 @@ export class ElasticSearchService {
 				console.log('Connecting with ElasticSearch ...');
 				this.client = new Client(clientOptions);
 				const pingSuccess = await this.client.ping();
-				this.pingSuccess = pingSuccess.body;
+				this.pingSuccess = !!pingSuccess.body;
 				if (this.pingSuccess) {
 					if (!this.indexName) {
 						await this.createElasticSearchIndex();
@@ -92,7 +92,7 @@ export class ElasticSearchService {
 		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
 			try {
 				const operations = jsons.flatMap((json) => [{ index: { _index: this.indexName } }, json])
-				const bulkResponse = await this.client.bulk({ refresh: true, body: operations });
+				const bulkResponse = await this.client.bulk({ refresh: "true", body: operations });
 				if (bulkResponse.body.errors) {
 					throw new Error(bulkResponse.body.items[0].index.error.reason);
 				}
