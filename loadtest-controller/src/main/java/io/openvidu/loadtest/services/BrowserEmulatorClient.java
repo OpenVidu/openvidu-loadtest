@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.amazonaws.services.ec2.model.Instance;
@@ -28,7 +27,7 @@ import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.WorkerType;
+import io.openvidu.loadtest.models.testcase.RequestBody.RequestType;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -38,20 +37,23 @@ public class BrowserEmulatorClient {
 	private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
 	private static final int HTTP_STATUS_OK = 200;
 	private static final int WORKER_PORT = 5000;
-	private static final String LOADTEST_INDEX = "loadtest-webrtc-stats-" + System.currentTimeMillis();
+	public static final String LOADTEST_INDEX = "loadtest-webrtc-stats-" + System.currentTimeMillis();
 	private static List<Integer> recordingParticipantCreated = new ArrayList<Integer>();
 	private static Map<String, int[]> publishersAndSubscribersInWorker = new ConcurrentHashMap<String, int[]>();
 
 	private static final int WAIT_MS = 1000;
 
-	@Autowired
 	private LoadTestConfig loadTestConfig;
 
-	@Autowired
 	private CustomHttpClient httpClient;
 
-	@Autowired
 	private JsonUtils jsonUtils;
+
+	public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils) {
+		this.loadTestConfig = loadTestConfig;
+		this.httpClient = httpClient;
+		this.jsonUtils = jsonUtils;
+	}
 
 	public void ping(String workerUrl) {
 		try {
@@ -85,10 +87,10 @@ public class BrowserEmulatorClient {
 				.minioHost(loadTestConfig.getMinioHost())
 				.minioPort(loadTestConfig.getMinioPort())
 				.minioBucket(loadTestConfig.getMinioBucket())
-				.browserVideo(loadTestConfig.getVideoType(), loadTestConfig.getVideoHeight(), loadTestConfig.getVideoWidth(),
+				.browserVideo(loadTestConfig.getVideoType(), loadTestConfig.getVideoWidth(), loadTestConfig.getVideoHeight(),
 					loadTestConfig.getVideoFps(), loadTestConfig.getVideoUrl(), loadTestConfig.getAudioUrl())
 				.qoeAnalysis(loadTestConfig.isQoeAnalysisRecordings(), loadTestConfig.getPaddingDuration(), loadTestConfig.getFragmentDuration())
-				.build().toJson();
+				.build().toJson(RequestType.INITIALIZE);
 		try {
 			log.info("Initialize worker {}", workerUrl);
 			return this.httpClient.sendPost("https://" + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
@@ -256,7 +258,7 @@ public class BrowserEmulatorClient {
 			log.info("Selected worker: {}", workerUrl);
 			log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
 			HttpResponse<String> response = this.httpClient.sendPost(
-					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(RequestType.PARTICIPANT), null,
 					getHeaders());
 
 			if (response.statusCode() != HTTP_STATUS_OK) {

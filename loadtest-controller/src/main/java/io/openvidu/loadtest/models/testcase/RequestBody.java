@@ -5,6 +5,9 @@ import com.google.gson.JsonObject;
 
 public class RequestBody {
 
+	public enum RequestType {
+		INITIALIZE, PARTICIPANT
+	}
 	private String openviduUrl = "";
 	private String openviduSecret = "";
 	private String elasticSearchHost = "";
@@ -331,74 +334,88 @@ public class RequestBody {
 				minioAccessKey, minioSecretKey, minioHost, minioPort, minioBucket);
 	}
 
-	public JsonObject toJson() {
+	public JsonObject toJson(RequestType requestType) {
 		JsonObject jsonBody = new JsonObject();
-		JsonObject properties = new JsonObject();
-		jsonBody.addProperty("openviduUrl", this.openviduUrl);
-		jsonBody.addProperty("openviduSecret", this.openviduSecret);
-		jsonBody.addProperty("elasticSearchHost", this.elasticSearchHost);
-		jsonBody.addProperty("elasticSearchUserName", this.elasticSearchUserName);
-		jsonBody.addProperty("elasticSearchPassword", this.elasticSearchPassword);
-		jsonBody.addProperty("elasticSearchIndex", this.elasticSearchIndex);
-		jsonBody.addProperty("awsAccessKey", this.awsAccessKey);
-		jsonBody.addProperty("awsSecretAccessKey", this.awsSecretAccessKey);
-		jsonBody.addProperty("s3BucketName", this.s3BucketName);
-		jsonBody.addProperty("browserMode", this.browserMode.getValue());
-		if (this.qoeAnalysisEnabled) {
-			JsonObject qoe = new JsonObject();
-			qoe.addProperty("enabled", this.qoeAnalysisEnabled);
-			qoe.addProperty("paddingDuration", this.paddingDuration);
-			qoe.addProperty("fragmentDuration", this.fragmentDuration);
-			jsonBody.add("qoeAnalysis", qoe);
-		}
-		
-		JsonObject browserVideo = new JsonObject();
-		if (this.videoType.equals("custom")) {
-			browserVideo.addProperty("videoType", "custom");
-			JsonObject customVideo = new JsonObject();
-			customVideo.addProperty("audioUrl", this.audioUrl);
-			JsonObject video = new JsonObject();
-			video.addProperty("url", this.videoUrl);
-			video.addProperty("width", this.videoWidth);
-			video.addProperty("height", this.videoHeight);
-			video.addProperty("fps", this.videoFps);
-			customVideo.add("video", video);
-			browserVideo.add("customVideo", customVideo);
+		if (requestType.equals(RequestType.INITIALIZE)) {
+			jsonBody.addProperty("elasticSearchHost", this.elasticSearchHost);
+			jsonBody.addProperty("elasticSearchUserName", this.elasticSearchUserName);
+			jsonBody.addProperty("elasticSearchPassword", this.elasticSearchPassword);
+			jsonBody.addProperty("elasticSearchIndex", this.elasticSearchIndex);
+			jsonBody.addProperty("awsAccessKey", this.awsAccessKey);
+			jsonBody.addProperty("awsSecretAccessKey", this.awsSecretAccessKey);
+			if ((this.s3BucketName != null) && !this.s3BucketName.isEmpty()) {
+				jsonBody.addProperty("s3BucketName", this.s3BucketName);
+			}
+			if ((this.minioAccessKey != null) && !this.minioAccessKey.isEmpty()) {
+				jsonBody.addProperty("minioAccessKey", this.minioAccessKey);
+				jsonBody.addProperty("minioSecretKey", this.minioSecretKey);
+				jsonBody.addProperty("minioHost", this.minioHost);
+				jsonBody.addProperty("minioPort", this.minioPort);
+				jsonBody.addProperty("minioBucket", this.minioBucket);
+			}
+			
+			JsonObject browserVideo = new JsonObject();
+			if (this.videoType.equals("custom")) {
+				browserVideo.addProperty("videoType", "custom");
+				JsonObject customVideo = new JsonObject();
+				customVideo.addProperty("audioUrl", this.audioUrl);
+				JsonObject video = new JsonObject();
+				video.addProperty("url", this.videoUrl);
+				video.addProperty("width", this.videoWidth);
+				video.addProperty("height", this.videoHeight);
+				video.addProperty("fps", this.videoFps);
+				customVideo.add("video", video);
+				browserVideo.add("customVideo", customVideo);
+			} else {
+				browserVideo.addProperty("videoType", this.videoType);
+				JsonObject videoInfo = new JsonObject();
+				videoInfo.addProperty("width", this.videoWidth);
+				videoInfo.addProperty("height", this.videoHeight);
+				videoInfo.addProperty("fps", this.videoFps);
+				browserVideo.add("videoInfo", videoInfo);
+			}
+			jsonBody.add("browserVideo", browserVideo);
+			if (this.qoeAnalysisEnabled) {
+				JsonObject qoe = new JsonObject();
+				qoe.addProperty("enabled", this.qoeAnalysisEnabled);
+				qoe.addProperty("paddingDuration", this.paddingDuration);
+				qoe.addProperty("fragmentDuration", this.fragmentDuration);
+				jsonBody.add("qoeAnalysis", qoe);
+			}
 		} else {
-			browserVideo.addProperty("videoType", this.videoType);
-			JsonObject videoInfo = new JsonObject();
-			videoInfo.addProperty("width", this.videoWidth);
-			videoInfo.addProperty("height", this.videoHeight);
-			videoInfo.addProperty("fps", this.videoFps);
-			browserVideo.add("videoInfo", videoInfo);
-		}
-		jsonBody.add("browserVideo", browserVideo);
 
-		properties.addProperty("userId", this.userId);
-		properties.addProperty("sessionName", this.sessionName);
-		properties.addProperty("role", this.role.getValue());
-		properties.addProperty("audio", this.audio);
-		properties.addProperty("video", this.video);
-		properties.addProperty("resolution", this.resolution.getValue());
-		properties.addProperty("frameRate", this.frameRate);
-		
-		
-		if (!token.isEmpty()) {
-			properties.addProperty("token", this.token);
+			jsonBody.addProperty("openviduUrl", this.openviduUrl);
+			jsonBody.addProperty("openviduSecret", this.openviduSecret);
+			jsonBody.addProperty("browserMode", this.browserMode.getValue());
+			
+			JsonObject properties = new JsonObject();
+
+			properties.addProperty("userId", this.userId);
+			properties.addProperty("sessionName", this.sessionName);
+			properties.addProperty("role", this.role.getValue());
+			properties.addProperty("audio", this.audio);
+			properties.addProperty("video", this.video);
+			properties.addProperty("resolution", this.resolution.getValue());
+			properties.addProperty("frameRate", this.frameRate);
+			
+			
+			if (!token.isEmpty()) {
+				properties.addProperty("token", this.token);
+			}
+			if (this.openviduRecordingMode != null && !this.openviduRecordingMode.getValue().isEmpty()) {
+				properties.addProperty("recordingOutputMode", this.openviduRecordingMode.getValue());
+			}
+			if (this.browserMode.getValue().equals(BrowserMode.REAL.getValue())) {
+				properties.addProperty("recording", this.browserRecording);
+				properties.addProperty("showVideoElements", this.showVideoElements);
+				properties.addProperty("headless", this.headlessBrowser);
+			}
+			
+			if(!this.recordingMetadata.isBlank()) {
+				properties.addProperty("recordingMetadata", this.recordingMetadata);
+			}
+			jsonBody.add("properties", properties);
 		}
-		if (this.openviduRecordingMode != null && !this.openviduRecordingMode.getValue().isEmpty()) {
-			properties.addProperty("recordingOutputMode", this.openviduRecordingMode.getValue());
-		}
-		if (this.browserMode.getValue().equals(BrowserMode.REAL.getValue())) {
-			properties.addProperty("recording", this.browserRecording);
-			properties.addProperty("showVideoElements", this.showVideoElements);
-			properties.addProperty("headless", this.headlessBrowser);
-		}
-		
-		if(!this.recordingMetadata.isBlank()) {
-			properties.addProperty("recordingMetadata", this.recordingMetadata);
-		}
-		jsonBody.add("properties", properties);
 		return jsonBody;
 
 	}
