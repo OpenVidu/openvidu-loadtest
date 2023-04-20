@@ -116,13 +116,15 @@ public class DataIO {
 					}
 				}
 
-				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr) ;
+				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr);
 
-				if(browserMode.equals(BrowserMode.REAL)) {
-					browserRecording = element.has("browserRecording") ? element.get("browserRecording").getAsBoolean() : false;
-					headlessBrowser = element.has("headlessBrowser") ? element.get("headlessBrowser").getAsBoolean() : false;
-					showBrowserVideoElements = element.has("showBrowserVideoElements") ? element.get("showBrowserVideoElements").getAsBoolean() : false;
-					
+				if (browserMode.equals(BrowserMode.REAL)) {
+					browserRecording = element.has("recording") ? element.get("recording").getAsBoolean() : false;
+					headlessBrowser = element.has("headless") ? element.get("headless").getAsBoolean() : false;
+					showBrowserVideoElements = element.has("showBrowserVideoElements")
+							? element.get("showBrowserVideoElements").getAsBoolean()
+							: false;
+
 				}
 			}
 
