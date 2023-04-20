@@ -240,9 +240,11 @@ public class LoadTestController {
 
 	}
 
-	private boolean estimate(String workerUrl, TestCase testCase, int publishers, int subscribers) {
+	private boolean estimate(boolean instancesInitialized, String workerUrl, TestCase testCase, int publishers, int subscribers) {
 		log.info("Starting browser estimation");
-		initializeInstance(workerUrl);
+		if (!instancesInitialized) {
+			initializeInstance(workerUrl);
+		}
 		boolean overloaded = false;
 		int iteration = 0;
 		while (!overloaded) {
@@ -307,7 +309,7 @@ public class LoadTestController {
 
 			if (testCase.is_NxN()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-
+					boolean instancesInitialized = false;
 					if (PROD_MODE) {
 						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
@@ -342,13 +344,14 @@ public class LoadTestController {
 								log.error("Error while initializing instance", e);
 							}
 						});
+						instancesInitialized = true;
 					}
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					boolean noEstimateError = true;
 					if (loadTestConfig.isManualParticipantsAllocation()) {
 						browserEstimation = loadTestConfig.getSessionsPerWorker();
 					} else {
-						noEstimateError = estimate(
+						noEstimateError = estimate(instancesInitialized,
 								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
 								testCase, participantsBySession, 0);
 					}
@@ -367,6 +370,8 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
+				
+				boolean instancesInitialized = false;
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 
 					if (PROD_MODE) {
@@ -403,6 +408,7 @@ public class LoadTestController {
 								log.error("Error while initializing instance", e);
 							}
 						});
+						instancesInitialized = true;
 					}
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
@@ -411,7 +417,7 @@ public class LoadTestController {
 					if (loadTestConfig.isManualParticipantsAllocation()) {
 						browserEstimation = loadTestConfig.getSessionsPerWorker();
 					} else {
-						noEstimateError = estimate(
+						noEstimateError = estimate(instancesInitialized,
 								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
 								testCase, publishers, subscribers);
 					}
