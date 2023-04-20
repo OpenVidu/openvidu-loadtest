@@ -32,7 +32,7 @@
     "axios": "0.23.0",
     "btoa": "1.2.1",
     "canvas": "2.10.2",
-    "chromedriver": "112.0.0",
+    "chromedriver": "109.0.0",
     "dockerode": "3.3.1",
     "express": "4.17.1",
     "fluent-ffmpeg": "2.1.2",
