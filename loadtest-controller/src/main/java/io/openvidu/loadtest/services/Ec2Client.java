@@ -1,5 +1,8 @@
 package io.openvidu.loadtest.services;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,6 +36,7 @@ import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.util.Base64;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.WorkerType;
@@ -48,6 +52,8 @@ public class Ec2Client {
 	private static String INSTANCE_REGION = "";
 	private static int WORKERS_NUMBER_AT_THE_BEGINNING;
 	private static int RECORDING_WORKERS_NUMBER_AT_THE_BEGINNING;
+
+	private static Path USER_DATA_VNC = Path.of("debug_vnc.sh");
 
 	private static final Tag NAME_TAG = new Tag().withKey("Name").withValue("Worker");
 	private static final Tag RECORDING_NAME_TAG = new Tag().withKey("Name").withValue("Recording Worker");
@@ -217,6 +223,16 @@ public class Ec2Client {
 				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1).withBlockDeviceMappings(
 						new BlockDeviceMapping().withDeviceName("/dev/sda1").withEbs(new EbsBlockDevice().withVolumeSize(50).withDeleteOnTermination(true)));
 		
+		if (this.loadTestConfig.isDebugVnc()) {
+			try {
+				ec2request.withUserData(
+					Base64.encodeAsString(Files.readAllBytes(USER_DATA_VNC)));
+			} catch (IOException e) {
+				log.error("Error reading user data file", e);
+				System.exit(1);
+			}
+		}
+
 		if(!this.loadTestConfig.getWorkerInstanceKeyPair().isBlank()) {
 			ec2request.withKeyName(this.loadTestConfig.getWorkerInstanceKeyPair());
 		}

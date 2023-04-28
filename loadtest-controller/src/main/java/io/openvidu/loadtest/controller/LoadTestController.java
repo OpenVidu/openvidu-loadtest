@@ -345,6 +345,7 @@ public class LoadTestController {
 							}
 						});
 						instancesInitialized = true;
+						//sleep(1, "Wait for instances to be cold");
 					}
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					boolean noEstimateError = true;

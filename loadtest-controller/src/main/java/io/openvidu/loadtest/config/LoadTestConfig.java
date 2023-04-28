@@ -111,6 +111,8 @@ public class LoadTestConfig {
 	private String videoUrl;
 
 	private String audioUrl;
+
+	private boolean debugVnc;
 	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -309,6 +311,10 @@ public class LoadTestConfig {
         return this.minioBucket;
     }
 
+	public boolean isDebugVnc() {
+		return this.debugVnc;
+	}
+
 	@PostConstruct
 	private void checkConfigurationProperties() {
 
@@ -366,6 +372,7 @@ public class LoadTestConfig {
 			minioHost = asOptionalString("MINIO_HOST");
 			minioPort = asInt("MINIO_PORT");
 			minioBucket = asOptionalString("MINIO_BUCKET");
+			debugVnc = asBoolean("DEBUG_VNC");
 
 			this.printInfo();
 
@@ -454,6 +461,9 @@ public class LoadTestConfig {
 		System.out.printf(format, "Video padding duration:", paddingDuration);
 		System.out.printf(format, "Video fragment duration:", fragmentDuration);
 		System.out.println("-------- -------------------- --------");
+		if (isDebugVnc()) {
+			System.out.printf("Debug VNC Enabled\n");
+		}
 	}
 
 	// -------------------------------------------------------
