@@ -21,6 +21,17 @@ export async function startFakeMediaDevices(videoPath: string, audioPath: string
         } catch (err) {
             await runScript(`${process.env.PWD}/recording_scripts/create-fake-microphone.sh`);
         }
+        // Wait for V4L2 device to be ready
+        let v4l2DeviceReady = false;
+        while (!v4l2DeviceReady) {
+            try {
+                await fsPromises.access("/dev/video0");
+                v4l2DeviceReady = true;
+            } catch (err) {
+                console.log("Waiting for V4L2 device to be ready...");
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
         // Start ffmpeg to read video and audio from files and write to virtual webcam and microphone
         await runScript(`${process.env.PWD}/recording_scripts/start-fake-media.sh ${videoPath} ${audioPath}`, {
             detached: true
