@@ -52,9 +52,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		const promises = []
 		if (isProdMode) {
 			if (!!request.browserVideo) {
-				promises.push(downloadMediaFiles(request.browserVideo).then((fileNames) => {
-					SeleniumService.getInstance(fileNames[0][0], fileNames[0][1]);
-				}));
+				promises.push(downloadMediaFilesAndStartSeleniumService(request.browserVideo));
 			}
 			
 			if (!elasticSearchService.isElasticSearchRunning()) {
@@ -119,11 +117,12 @@ async function launchMetricBeat() {
 	}
 }
 
-async function downloadMediaFiles(videoType: BrowserVideoRequest): Promise<string[][]> {
-	return Promise.all([
+async function downloadMediaFilesAndStartSeleniumService(videoType: BrowserVideoRequest): Promise<SeleniumService> {
+	const fileNames = await Promise.all([
 		downloadBrowserMediaFiles(videoType),
 		downloadEmulatedFiles()
 	])
+	return SeleniumService.getInstance(fileNames[0][0], fileNames[0][1]);
 }
 
 async function downloadBrowserMediaFiles(videoType: BrowserVideoRequest): Promise<string[]> {

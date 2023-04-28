@@ -235,6 +235,7 @@ async function joinSession() {
 					setPublisherButtonsActions(publisher);
 				}).catch((err) => {
 					console.error(err);
+					console.error(JSON.stringify(err));
 				})
 			} else {
 				console.log("User " + USER_ID + " is subscriber");
