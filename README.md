@@ -316,6 +316,15 @@ KIBANA_HOST=https://kibanahost
 - `OPENVIDU_PRO_STATS_MONITORING_INTERVAL=1`
 - `OPENVIDU_PRO_STATS_WEBRTC_INTERVAL=1`
 
+### Miscelaneous configuration
+Recommended to leave default values unless you know what you are doing.
+
+```properties
+# Maximum number of concurrent requests. If left blank, defaults to number of available processors + 1.
+MAX_REQUESTS=
+# Install VNC server on workers for debug purposes
+DEBUG_VNC=false
+```
 
 #### 3. Configure session typology
 

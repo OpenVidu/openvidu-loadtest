@@ -113,6 +113,8 @@ public class LoadTestConfig {
 	private String audioUrl;
 
 	private boolean debugVnc;
+
+	private int maxRequests;
 	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -315,6 +317,10 @@ public class LoadTestConfig {
 		return this.debugVnc;
 	}
 
+	public int getMaxRequests() {
+		return this.maxRequests;
+	}
+
 	@PostConstruct
 	private void checkConfigurationProperties() {
 
@@ -373,7 +379,10 @@ public class LoadTestConfig {
 			minioPort = asInt("MINIO_PORT");
 			minioBucket = asOptionalString("MINIO_BUCKET");
 			debugVnc = asBoolean("DEBUG_VNC");
-
+			maxRequests = asInt("MAX_REQUESTS");
+			if (maxRequests == -1) {
+				maxRequests = Runtime.getRuntime().availableProcessors() + 1;
+			}
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -460,7 +469,10 @@ public class LoadTestConfig {
 		System.out.printf(format, "QoE analysis will be run in-situ:", qoeAnalysisInSitu);
 		System.out.printf(format, "Video padding duration:", paddingDuration);
 		System.out.printf(format, "Video fragment duration:", fragmentDuration);
-		System.out.println("-------- -------------------- --------");
+		System.out.println("-------- -------------------- --------");System.out.printf("\n");
+		System.out.printf("--- MISCELANEOUS PARAMETERS ---");
+		System.out.printf("\n");
+		System.out.printf(format, "Maximum number of in flight requests: ", maxRequests);
 		if (isDebugVnc()) {
 			System.out.printf("Debug VNC Enabled\n");
 		}

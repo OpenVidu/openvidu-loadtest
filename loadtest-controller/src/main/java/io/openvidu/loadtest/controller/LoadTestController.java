@@ -34,6 +34,7 @@ import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
 import io.openvidu.loadtest.services.WebSocketClient;
+import io.openvidu.loadtest.services.WebSocketConnectionFactory;
 import io.openvidu.loadtest.utils.DataIO;
 
 /**
@@ -83,13 +84,16 @@ public class LoadTestController {
 	private static List<Integer> streamsPerWorker = new ArrayList<>();
 	private static Map<Calendar, List<String>> userStartTimes = new ConcurrentHashMap<>();
 
+	private static WebSocketConnectionFactory webSocketConnectionFactory;
+
 	public LoadTestController(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
-			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client) {
+			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client, WebSocketConnectionFactory webSocketConnectionFactory) {
 		LoadTestController.browserEmulatorClient = browserEmulatorClient;
 		LoadTestController.loadTestConfig = loadTestConfig;
 		LoadTestController.kibanaClient = kibanaClient;
 		LoadTestController.esClient = esClient;
 		LoadTestController.ec2Client = ec2Client;
+		LoadTestController.webSocketConnectionFactory = webSocketConnectionFactory;
 
 		PROD_MODE = loadTestConfig.getWorkerUrlList().isEmpty();
 		devWorkersList = loadTestConfig.getWorkerUrlList();
@@ -102,8 +106,7 @@ public class LoadTestController {
 
 	private static void initializeInstance(String url) {
 		browserEmulatorClient.ping(url);
-		WebSocketClient ws = new WebSocketClient();
-		ws.connect("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
+		WebSocketClient ws = webSocketConnectionFactory.createConnection("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
 		wsSessions.add(ws);
 		if (loadTestConfig.isKibanaEstablished()) {
 			browserEmulatorClient.initializeInstance(url);
@@ -446,15 +449,14 @@ public class LoadTestController {
 		});
 	}
 
-	private CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase) {
+	public CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase) {
 		int testCaseSessionsLimit = testCase.getSessions();
 
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
 
-		int nThreads = Runtime.getRuntime().availableProcessors() + 1;
-		int maxRequestsInFlight = nThreads;
-		ExecutorService executorService = Executors.newFixedThreadPool(nThreads);
+		int maxRequestsInFlight = loadTestConfig.getMaxRequests();
+		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
 		int browsersInWorker = 0;
 		int tasksInProgress = 0;
 
@@ -527,11 +529,11 @@ public class LoadTestController {
 		return lastResponse;
 	}
 
-	private CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase) {
+	public CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase) {
 		int testCaseSessionsLimit = testCase.getSessions();
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
-		ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
+		ExecutorService executorService = Executors.newFixedThreadPool(loadTestConfig.getMaxRequests());
 		CreateParticipantResponse lastResponse = null;
 		int tasksSubmittedPerWorker = 0;
 		while (needCreateNewSession(testCaseSessionsLimit)) {
