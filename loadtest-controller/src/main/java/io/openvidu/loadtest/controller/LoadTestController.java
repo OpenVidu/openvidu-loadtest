@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
 import com.amazonaws.services.ec2.model.Instance;
@@ -53,8 +52,7 @@ public class LoadTestController {
 	private static ElasticSearchClient esClient;
 	private static Ec2Client ec2Client;
 
-	@Autowired
-	private DataIO io;
+	private static DataIO io;
 
 	private static List<Instance> awsWorkersList = new ArrayList<Instance>();
 	private static List<String> devWorkersList = new ArrayList<String>();
@@ -87,13 +85,15 @@ public class LoadTestController {
 	private static WebSocketConnectionFactory webSocketConnectionFactory;
 
 	public LoadTestController(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
-			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client, WebSocketConnectionFactory webSocketConnectionFactory) {
+			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client, WebSocketConnectionFactory webSocketConnectionFactory,
+			DataIO dataIO) {
 		LoadTestController.browserEmulatorClient = browserEmulatorClient;
 		LoadTestController.loadTestConfig = loadTestConfig;
 		LoadTestController.kibanaClient = kibanaClient;
 		LoadTestController.esClient = esClient;
 		LoadTestController.ec2Client = ec2Client;
 		LoadTestController.webSocketConnectionFactory = webSocketConnectionFactory;
+		LoadTestController.io = dataIO;
 
 		PROD_MODE = loadTestConfig.getWorkerUrlList().isEmpty();
 		devWorkersList = loadTestConfig.getWorkerUrlList();
@@ -763,7 +763,7 @@ public class LoadTestController {
 				.setUserStartTimes(userStartTimes)
 				.build();
 
-		this.io.exportResults(rr);
+		io.exportResults(rr);
 
 	}
 
