@@ -25,9 +25,15 @@ source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
 apt-get update
 apt-get install -yq --no-install-recommends \
-    ffmpeg docker-ce xvfb v4l2loopback-dkms v4l2loopback-utils linux-modules-extra-$(uname -r) pulseaudio nodejs
+    ffmpeg docker-ce xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs
 # Enable fake webcam for real browsers
-# Needs sudo so it works in crontab
+# Needs sudo so it works in crontabv4l2_version=0.12.7
+curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /opt/v4l2
+cd /opt/v4l2
+sudo dkms add -m v4l2loopback -v ${v4l2_version}
+sudo dkms build -m v4l2loopback -v ${v4l2_version}
+sudo dkms install -m v4l2loopback -v ${v4l2_version}
+cd $SELF_PATH
 sudo modprobe v4l2loopback devices=1 exclusive_caps=1
 echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopback.conf
 # Add user ubuntu to docker and syslog groups

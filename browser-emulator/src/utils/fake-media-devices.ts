@@ -23,13 +23,19 @@ export async function startFakeMediaDevices(videoPath: string, audioPath: string
         }
         // Wait for V4L2 device to be ready
         let v4l2DeviceReady = false;
+        let attempts = 0;
         while (!v4l2DeviceReady) {
             try {
                 await fsPromises.access("/dev/video0");
                 v4l2DeviceReady = true;
             } catch (err) {
+                if (attempts > 5) {
+                    console.error("Can't start V4L2 device");
+                    process.exit();
+                }
                 console.log("Waiting for V4L2 device to be ready...");
                 await new Promise(resolve => setTimeout(resolve, 1000));
+                attempts++;
             }
         }
         // Start ffmpeg to read video and audio from files and write to virtual webcam and microphone

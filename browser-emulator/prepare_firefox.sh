@@ -31,10 +31,17 @@ apt-get install -yq --no-install-recommends \
 	build-essential bc make cmake libopencv-dev python3-opencv bazel libnetpbm10-dev xxd \
     libjpeg-turbo-progs imagemagick-6.q16 jq automake g++ libtool libleptonica-dev pkg-config nasm ninja-build \
     meson doxygen libx264-dev libx265-dev libnuma-dev \
-    ffmpeg docker-ce xvfb v4l2loopback-dkms v4l2loopback-utils linux-modules-extra-$(uname -r) pulseaudio nodejs
+    ffmpeg docker-ce xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs
 pkg-config --cflags --libs opencv4
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
+v4l2_version=0.12.7
+curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /opt/v4l2
+cd /opt/v4l2
+sudo dkms add -m v4l2loopback -v ${v4l2_version}
+sudo dkms build -m v4l2loopback -v ${v4l2_version}
+sudo dkms install -m v4l2loopback -v ${v4l2_version}
+cd $SELF_PATH
 sudo modprobe v4l2loopback devices=1 exclusive_caps=1
 echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopback.conf
 # Add user ubuntu to docker and syslog groups
