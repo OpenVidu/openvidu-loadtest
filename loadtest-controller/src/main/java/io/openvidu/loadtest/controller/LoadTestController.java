@@ -461,6 +461,7 @@ public class LoadTestController {
 		int tasksInProgress = 0;
 
 		CreateParticipantResponse lastResponse = null;
+		List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(maxRequestsInFlight);
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (sessionNumber.get() > 0) {
@@ -469,7 +470,6 @@ public class LoadTestController {
 
 			sessionNumber.getAndIncrement();
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.toString());
-			List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
 			for (int i = 0; i < participantsBySession; i++) {
 				if ((browsersInWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
@@ -508,7 +508,7 @@ public class LoadTestController {
 						if (!lastResponse.isResponseOk()) {
 							return lastResponse;
 						}
-						futureList = new ArrayList<>(browserEstimation);
+						futureList = new ArrayList<>(maxRequestsInFlight);
 						tasksInProgress = 0;
 					}
 					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
@@ -518,7 +518,7 @@ public class LoadTestController {
 					if (!lastResponse.isResponseOk()) {
 						return lastResponse;
 					}
-					futureList = new ArrayList<>(browserEstimation);
+					futureList = new ArrayList<>(maxRequestsInFlight);
 				}
 			}
 
@@ -536,6 +536,7 @@ public class LoadTestController {
 		ExecutorService executorService = Executors.newFixedThreadPool(loadTestConfig.getMaxRequests());
 		CreateParticipantResponse lastResponse = null;
 		int tasksSubmittedPerWorker = 0;
+		List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (sessionNumber.get() > 0) {
@@ -546,7 +547,6 @@ public class LoadTestController {
 			sessionNumber.getAndIncrement();
 			// log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() +
 			// sessionNumberStr);
-			List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {

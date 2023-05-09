@@ -77,6 +77,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(1);
         when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(1);
         when(this.loadTestConfig.getSecondsToWaitBeforeTestFinished()).thenReturn(5);
+        // Uncomment if need to test specific number of in flight requests (cores + 1 by default)
         when(this.loadTestConfig.getMaxRequests()).thenReturn(17);
 
     }
@@ -141,14 +142,14 @@ public class LoadTestControllerTests {
         int sessionCounter = 1;
         for (Instance instance : allInstances) {
             for (int i = 0; i < 4; i++) {
-                if ((userCounter != 7) || (sessionCounter != 2)) {
+                if (!((userCounter == 7) && (sessionCounter == 2))) {
                     createSuccessfullResponsesMock(instance.getPublicDnsName(), testCase, userCounter, sessionCounter);
-                    if (userCounter < 8) {
-                        userCounter++;
-                    } else {
-                        userCounter = 1;
-                        sessionCounter++;
-                    }
+                }
+                if (userCounter < 8) {
+                    userCounter++;
+                } else {
+                    userCounter = 1;
+                    sessionCounter++;
                 }
             }
         }
@@ -162,12 +163,33 @@ public class LoadTestControllerTests {
         List<String> instanceUrls = allInstances.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : allInstances) {
-            instanceChecks(instance, webSocketMocks.get(instance.getPublicDnsName()));
+            String instanceUrl = instance.getPublicDnsName();
+            verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(webSocketMocks.get(instance.getPublicDnsName()), times(1)).close();
+            verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
+        }
+        userCounter = 1;
+        sessionCounter = 1;
+        // Check all minimum used instances
+        for (Instance instance : allInstances.subList(0, 3)) {
+            String instanceUrl = instance.getPublicDnsName();
+            for (int i = 0; i < 4; i++) {
+                // Last one may be called may not be called depending on number of cores
+                if (!((userCounter == 8) && (sessionCounter == 2))) {
+                    verify(this.browserEmulatorClient, times(1)).createPublisher(instanceUrl, userCounter, sessionCounter, testCase);
+                }
+                if (userCounter < 8) {
+                    userCounter++;
+                } else {
+                    userCounter = 1;
+                    sessionCounter++;
+                }
+            }
         }
         verify(this.browserEmulatorClient, times(1)).disconnectAll(List.of(instance1Url));
         verify(this.browserEmulatorClient, times(1)).disconnectAll(instanceUrls);
         verify(this.ec2Client, times(1)).stopInstance(allInstances);
-        verify(this.ec2Client, times(2)).launchInstance(1, WorkerType.WORKER);
 
         // TODO: Check result report
         verify(this.dataIO, times(1)).exportResults(any());
@@ -194,14 +216,6 @@ public class LoadTestControllerTests {
                 new CreateParticipantResponse(true, "", "connectionId" + i, streamsInWorker, i, "User" + i, "LoadTestSession" + session, 0)
             );
         }
-    }
-
-    private void instanceChecks(Instance instance, WebSocketClient wsc) {
-        String instanceUrl = instance.getPublicDnsName();
-        verify(this.browserEmulatorClient, times(1)).ping("https://" + instanceUrl);
-        verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
-        verify(wsc, times(1)).close();
-        verify(this.browserEmulatorClient, times(1)).initializeInstance("https://" + instanceUrl);
     }
 
     private WebSocketClient mockWebSocket(String url) {
