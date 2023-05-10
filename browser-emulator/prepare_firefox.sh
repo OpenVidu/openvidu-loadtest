@@ -36,9 +36,9 @@ pkg-config --cflags --libs opencv4
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
 v4l2_version=0.12.7
-mkdir -p /opt/v4l2
-curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /opt/v4l2
-cd /opt/v4l2
+mkdir -p /usr/src
+curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /usr/src
+cd /usr/src
 sudo dkms add -m v4l2loopback -v ${v4l2_version}
 sudo dkms build -m v4l2loopback -v ${v4l2_version}
 sudo dkms install -m v4l2loopback -v ${v4l2_version}
