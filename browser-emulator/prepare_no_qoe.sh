@@ -29,6 +29,7 @@ apt-get install -yq --no-install-recommends \
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
 v4l2_version=0.12.7
+mkdir -p /opt/v4l2
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /opt/v4l2
 cd /opt/v4l2
 sudo dkms add -m v4l2loopback -v ${v4l2_version}
