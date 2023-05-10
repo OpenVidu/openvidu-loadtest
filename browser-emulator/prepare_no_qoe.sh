@@ -25,7 +25,7 @@ source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
 apt-get update
 apt-get install -yq --no-install-recommends \
-    ffmpeg docker-ce xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs
+    ffmpeg docker-ce xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
 v4l2_version=0.12.7

@@ -31,7 +31,7 @@ apt-get install -yq --no-install-recommends \
 	build-essential bc make cmake libopencv-dev python3-opencv bazel libnetpbm10-dev xxd \
     libjpeg-turbo-progs imagemagick-6.q16 jq automake g++ libtool libleptonica-dev pkg-config nasm ninja-build \
     meson doxygen libx264-dev libx265-dev libnuma-dev \
-    ffmpeg docker-ce xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs
+    ffmpeg docker-ce xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
 pkg-config --cflags --libs opencv4
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
