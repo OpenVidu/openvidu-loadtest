@@ -37,7 +37,9 @@ sudo dkms build -m v4l2loopback -v ${v4l2_version}
 sudo dkms install -m v4l2loopback -v ${v4l2_version}
 cd $SELF_PATH
 sudo modprobe v4l2loopback devices=1 exclusive_caps=1
-echo "v4l2loopback devices=1 exclusive_caps=1" > /etc/modules-load.d/v4l2loopback.conf
+echo "v4l2loopback" | tee /etc/modules-load.d/v4l2loopback.conf 
+echo "options v4l2loopback devices=1 exclusive_caps=1" | tee /etc/modprobe.d/v4l2loopback.conf
+sudo update-initramfs -c -k $(uname -r)
 # Add user ubuntu to docker and syslog groups
 sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
