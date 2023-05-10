@@ -45,10 +45,10 @@ sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
 
 install_chrome() {
-    wget https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_112.0.5615.165-1_amd64.deb
-    apt-get install -f -yq ./google-chrome-stable_112.0.5615.165-1_amd64.deb
+    wget -c https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    apt-get install -f -yq ./google-chrome-stable_current_amd64.deb
     apt-get install -f -yq
-    rm -f google-chrome-stable_112.0.5615.165-1_amd64.deb
+    rm -f google-chrome-stable_current_amd64.deb
 }
 
 install_ffmpeg() {

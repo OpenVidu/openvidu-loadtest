@@ -54,8 +54,7 @@ sudo usermod -a -G syslog ubuntu
 pip3 install numpy
 
 install_firefox() {
-    # installs 110.0+build3-0ubuntu0.20.04.1, update version when needed
-    apt-get install -f -yq firefox=110.0+build3-0ubuntu0.20.04.1
+    apt-get install -f -yq firefox
 }
 
 install_vmaf() {
