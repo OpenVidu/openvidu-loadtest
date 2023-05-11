@@ -139,7 +139,7 @@ export class RealBrowserService {
 					}
 					driverId = (await driver.getSession()).getId();
 					this.driverMap.set(driverId, {driver, sessionName: properties.sessionName, connectionRole: properties.role});
-					await driver.manage().setTimeouts({script: 600000});
+					await driver.manage().setTimeouts({script: 1800000});
 					await driver.get(webappUrl);
 
 					if (!!storageNameObj && !!storageValueObj) {
