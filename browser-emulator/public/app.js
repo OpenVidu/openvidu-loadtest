@@ -131,19 +131,6 @@ async function joinSession() {
 							recordingChunks.get(remoteUser).push(e.data);
 						}
 					};
-					mediaRecorder.onstop = () => {
-						console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
-						var chunks = recordingChunks.get(remoteUser);
-						var blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-						recordingBlobs.set(remoteUser, blob);
-						if (!!blob) {
-							console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-							resolve({"user": remoteUser, "blob": blob});
-						} else {
-							sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
-							reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
-						}
-					};
 					mediaRecorder.onstart = () => {
 						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
 						remoteControls.set(remoteUser, mediaRecorder);
