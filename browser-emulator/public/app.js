@@ -132,7 +132,6 @@ async function joinSession() {
 						}
 					};
 					mediaRecorder.onstop = () => {
-						leaveSession();
 						console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
 						var chunks = recordingChunks.get(remoteUser);
 						var blob = new Blob(chunks, { type: mediaRecorder.mimeType });
@@ -180,7 +179,10 @@ async function joinSession() {
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				recordingBlobs.set(remoteUser, blob);
 				console.log("Blob created");
-			})
+			}).catch(err => {
+				console.error(err);
+				sendError(err);
+			});
 		}
 	});
 
@@ -230,6 +232,9 @@ async function joinSession() {
 							autoGainControl: false,
 						}).then(() => {
 							return audioTrack;
+						}).catch(err => {
+							console.error(err);
+							sendError(err);
 						});
 					} else {
 						return null;
@@ -393,7 +398,10 @@ function initFormValues() {
 
 
 function getToken() {
-	return createSession(SESSION_ID).then(sessionId => createToken(sessionId));
+	return createSession(SESSION_ID).then(sessionId => createToken(sessionId)).catch(err => {
+		console.error(err);
+		sendError(err);
+	});
 }
 
 function createSession(sessionId) { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-openviduapisessions
@@ -481,6 +489,7 @@ function showVideoRoom() {
 }
 
 async function getRecordings(fileNamePrefix) {
+	leaveSession();
 	const stopPromises = [];
 	for (const remoteControlEntry of remoteControls.entries()) {
 		const remoteUser = remoteControlEntry[0];
