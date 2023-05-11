@@ -140,6 +140,7 @@ async function joinSession() {
 							console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
 							resolve({"user": remoteUser, "blob": blob});
 						} else {
+							sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
 							reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
 						}
 					};
@@ -248,6 +249,7 @@ async function joinSession() {
 				}).catch((err) => {
 					console.error(err);
 					console.error(JSON.stringify(err));
+					sendError(err);
 				})
 			} else {
 				console.log("User " + USER_ID + " is subscriber");
@@ -258,6 +260,7 @@ async function joinSession() {
 		})
 		.catch(error => {
 			console.log("There was an error connecting to the session:", error.code, error.message);
+			sendError(error);
 		});
 
 }
@@ -486,6 +489,7 @@ async function getRecordings(fileNamePrefix) {
 			remoteControl.stop();
 		}).then((blobObject) => sendBlob(blobObject.blob, fileNamePrefix, blobObject.user)).catch((error) => {
 			console.error(error);
+			sendError(error);
 		})
 		stopPromises.push(stopPromise);
 	}
@@ -517,4 +521,21 @@ async function sendBlob(blob, fileNamePrefix, remoteUserId) {
 			reject("No URL in localStorage for QoE Endpoint")
 		}
 	})
+}
+
+function sendError(err) {
+	var ITEM_NAME = 'ov-errorlog-config';
+
+	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
+	if (url) {
+		$.ajax({
+			type: 'POST',
+			url: url.httpEndpoint,
+			data: JSON.stringify(err),
+			success: (response) => console.log("Error sent to browser-emulator"),
+			error: (error) => console.error(error)
+		});
+	} else {
+		reject("No URL in localStorage for error Endpoint")
+	}
 }

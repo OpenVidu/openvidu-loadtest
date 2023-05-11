@@ -20,3 +20,7 @@ export interface StorageValueObject {
 export interface QoeRecordingsConfig {
     httpEndpoint: string
 }
+
+export interface EventErrorConfig {
+    httpEndpoint: string
+}

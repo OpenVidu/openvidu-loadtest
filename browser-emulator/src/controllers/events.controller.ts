@@ -37,3 +37,17 @@ app.post('/events', (req: Request, res: Response) => {
 		res.status(500).send(error);
 	}
 });
+
+app.post('/events/errors', (req: Request, res: Response) => {
+	try {
+		const message: string = JSON.stringify(req.body);
+
+		console.error("Error received from browser: ");
+		console.error(message);
+
+		return res.status(200).send();
+	} catch (error) {
+		console.error(error);
+		res.status(500).send(error);
+	}
+});

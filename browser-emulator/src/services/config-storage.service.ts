@@ -1,4 +1,4 @@
-import { OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type';
+import { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type';
 
 export class WebrtcStatsService {
 	private readonly ITEM_NAME: string = 'webrtc-stats-config';
@@ -38,6 +38,21 @@ export class QoERecordingsService {
 	public getConfig(): string {
 		const statsConfig: QoeRecordingsConfig = {
 			httpEndpoint: `https://${process.env.LOCATION_HOSTNAME}/qoe/qoeRecordings`,
+		};
+		return JSON.stringify(statsConfig);
+	}
+
+	public getItemName(): string {
+		return this.ITEM_NAME;
+	}
+}
+
+export class ErrorLogService {
+	private readonly ITEM_NAME: string = 'ov-errorlog-config';
+
+	public getConfig(): string {
+		const statsConfig: EventErrorConfig = {
+			httpEndpoint: `https://${process.env.LOCATION_HOSTNAME}/events/errors`,
 		};
 		return JSON.stringify(statsConfig);
 	}
