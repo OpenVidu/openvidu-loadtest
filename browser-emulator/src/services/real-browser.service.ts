@@ -7,9 +7,10 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { ErrorGenerator } from '../utils/error-generator';
 import { Storage } from './local-storage.service';
 import { StorageNameObject, StorageValueObject } from '../types/storage-config.type';
-import { DOCKER_NAME } from '../config';
+import { APPLICATION_MODE, DOCKER_NAME } from '../config';
 import { SeleniumService } from './selenium.service';
 import { runScript, stopDetached } from '../utils/run-script';
+import { ApplicationMode } from '../types/config.type';
 declare var localStorage: Storage;
 export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
@@ -116,7 +117,7 @@ export class RealBrowserService {
 		timeout: number = 1000
 	): Promise<string> {
 		const properties = request.properties;
-		if (!this.existMediaFiles(properties.resolution, properties.frameRate) && !process.env.IS_DOCKER_CONTAINER) {
+		if (!this.existMediaFiles(properties.resolution, properties.frameRate) && !process.env.IS_DOCKER_CONTAINER && (APPLICATION_MODE === ApplicationMode.PROD)) {
 			return Promise.reject({
 				message: 'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
 			});
@@ -150,6 +151,7 @@ export class RealBrowserService {
 								localStorage.setItem(arguments[0].webrtcStorageName, arguments[1].webrtcStorageValue);
 								localStorage.setItem(arguments[0].ovEventStorageName, arguments[1].ovEventStorageValue);
 								localStorage.setItem(arguments[0].qoeStorageName, arguments[1].qoeStorageValue);
+								localStorage.setItem(arguments[0].errorStorageName, arguments[1].errorStorageValue);
 							},
 							storageNameObj,
 							storageValueObj
