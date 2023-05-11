@@ -515,6 +515,7 @@ async function getRecordings(fileNamePrefix) {
 		})
 		stopPromises.push(stopPromise);
 	}
+	session.disconnect();
 	return Promise.all(stopPromises);
 }
 
