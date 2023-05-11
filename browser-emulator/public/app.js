@@ -132,6 +132,7 @@ async function joinSession() {
 						}
 					};
 					mediaRecorder.onstop = () => {
+						leaveSession();
 						console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
 						var chunks = recordingChunks.get(remoteUser);
 						var blob = new Blob(chunks, { type: mediaRecorder.mimeType });
