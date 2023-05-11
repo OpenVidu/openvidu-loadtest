@@ -489,7 +489,6 @@ function showVideoRoom() {
 }
 
 async function getRecordings(fileNamePrefix) {
-	leaveSession();
 	const stopPromises = [];
 	for (const remoteControlEntry of remoteControls.entries()) {
 		const remoteUser = remoteControlEntry[0];
