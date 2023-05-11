@@ -495,6 +495,19 @@ async function getRecordings(fileNamePrefix) {
 		const remoteControl = remoteControlEntry[1];
 		const stopPromise = new Promise ((resolve, reject) => {
 			console.log("Stopping recording: " + USER_ID + " recording " + remoteUser);
+			remoteControl.onstop = () => {
+				console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
+				var chunks = recordingChunks.get(remoteUser);
+				var blob = new Blob(chunks, { type: remoteControl.mimeType });
+				recordingBlobs.set(remoteUser, blob);
+				if (!!blob) {
+					console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
+					resolve({"user": remoteUser, "blob": blob});
+				} else {
+					sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
+					reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
+				}
+			};
 			remoteControl.stop();
 		}).then((blobObject) => sendBlob(blobObject.blob, fileNamePrefix, blobObject.user)).catch((error) => {
 			console.error(error);
