@@ -24,10 +24,10 @@ public class WebSocketConnectionFactory {
 	private AtomicInteger attempts = new AtomicInteger(1);
 	
 	public WebSocketClient createConnection(String endpointURI) {
-        WebSocketClient wsc = null;
+        WebSocketClient wsc = new WebSocketClient(endpointURI, this);
 		try {
 			Session session = wsClient.connectToServer(wsc, new URI(endpointURI));
-			wsc = new WebSocketClient(endpointURI, session, this);
+			wsc.setSession(session);
 		} catch (DeploymentException | IOException e) {
 			return retryOnError(e, endpointURI);
 		} catch (URISyntaxException e1) {

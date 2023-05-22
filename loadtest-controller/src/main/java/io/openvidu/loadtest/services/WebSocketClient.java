@@ -31,10 +31,13 @@ public class WebSocketClient extends Endpoint {
 
 	private WebSocketConnectionFactory factoryCreator;
 
-	public WebSocketClient(String endpointURI, Session session, WebSocketConnectionFactory factory) {
+	public WebSocketClient(String endpointURI, WebSocketConnectionFactory factory) {
 		this.wsEndpoint = endpointURI;
-		this.session = session;
 		this.factoryCreator = factory;
+	}
+
+	public void setSession(Session session) {
+		this.session = session;
 	}
 
 	public String getEndpoint() {
@@ -95,6 +98,4 @@ public class WebSocketClient extends Endpoint {
 		}
 	}
 
-    public void setSession(Session session2) {
-    }
 }
