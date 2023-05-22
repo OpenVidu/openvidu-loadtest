@@ -108,9 +108,7 @@ public class LoadTestController {
 		browserEmulatorClient.ping(url);
 		WebSocketClient ws = webSocketConnectionFactory.createConnection("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
 		wsSessions.add(ws);
-		if (loadTestConfig.isKibanaEstablished()) {
-			browserEmulatorClient.initializeInstance(url);
-		}
+		browserEmulatorClient.initializeInstance(url);
 	}
 
 	private static String getNextWorker(String actualCurrentWorkerUrl, WorkerType workerType) {
