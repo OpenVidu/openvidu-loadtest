@@ -326,6 +326,7 @@ public class LoadTestConfig {
 
 		try {
 			openviduUrl = asString("OPENVIDU_URL");
+			openviduUrl = openviduUrl.replaceAll("/$", "");
 			openviduSecret = asString("OPENVIDU_SECRET");
 			sessionNamePrefix = asString("SESSION_NAME_PREFIX");
 			userNamePrefix = asString("USER_NAME_PREFIX");
