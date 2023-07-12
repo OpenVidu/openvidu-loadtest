@@ -337,7 +337,7 @@ export class RealBrowserService {
 	}
 
 	private async saveQoERecordings(driverId: string) {
-		if (!!process.env.QOE_ANALYSIS) {
+		if (!!process.env.QOE_ANALYSIS && !!driverId) {
 			console.log("Saving QoE Recordings for driver " + driverId);
 			const driver = this.driverMap.get(driverId).driver;
 			if (!!driver) {
