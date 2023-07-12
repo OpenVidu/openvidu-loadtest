@@ -100,7 +100,7 @@ export class BrowserManagerService {
 	async clean(): Promise<void> {
 		this.emulateBrowserService.clean();
 		await this.realBrowserService.clean();
-
+		console.log("Browsers cleaned");
 		if (this.elasticSearchService.isElasticSearchRunning()) {
 			await this.elasticSearchService.clean();
 		}

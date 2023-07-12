@@ -72,24 +72,38 @@ export class RealBrowserService {
 	}
 
 	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
-		const driversToDelete = [];
+		console.log("Current number of total users in worker: " + this.driverMap.size);
+		console.log("Deleting all " + role.toString());
+		const driversToDelete: {key: string, value: {
+			driver: WebDriver;
+			sessionName: string;
+			connectionRole: OpenViduRole;
+		} }[] = [];
 		const promisesToResolve: Promise<void>[] = [];
 		const recordingPromises: Promise<void>[] = [];
 		this.driverMap.forEach((value, key) => {
 			if (value.connectionRole === role) {
 				driversToDelete.push({key, value});
+				console.log("Driver to delete: " + key + " with session: " + value.sessionName)
+
 				recordingPromises.push(this.saveQoERecordings(key));
-				this.deleteConnection(value.sessionName, key, value.connectionRole);
+				this.deleteConnection(value.sessionName, key, value.connectionRole)
 			}
 		});
-		await Promise.all(recordingPromises);
+		console.log("Number of users to delete: " + driversToDelete.length)
+		if (recordingPromises.length > 0) {
+			console.log("Number of QoE recordings to save: " + recordingPromises.length)
+			await Promise.all(recordingPromises)
+			console.log("QoE recordings saved")
+		}
+		console.log("Clearing keep alive intervals")
 		driversToDelete.forEach((item) => {
 			const keepAliveInterval = this.keepAliveIntervals.get(item.key);
 			if (!!keepAliveInterval) {
 				clearInterval(keepAliveInterval);
 				this.keepAliveIntervals.delete(item.key);
 			}
-			promisesToResolve.push(item.value.driver.quit());
+			promisesToResolve.push(this.quitDriver(item.key, item.value));
 			this.driverMap.delete(item.key);
 		});
 		try {
@@ -99,13 +113,30 @@ export class RealBrowserService {
 		}
 	}
 
+	private async quitDriver(key: string, value: {
+		driver: WebDriver;
+		sessionName: string;
+		connectionRole: OpenViduRole;
+	}) {
+		console.log("Quitting driver: " + key + " with session: " + value.sessionName)
+		try {
+			await value.driver.quit()
+			console.log("Driver quit: " + key + " with session: " + value.sessionName + " successfully")
+		} catch (error) {
+			console.error("Error quitting driver: " + key + " with session: " + value.sessionName, error)
+		}
+	}
+
 	async clean(): Promise<void> {
+		console.log("Cleaning real browsers")
 		this.stopRecording();
 		await Promise.all([this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER), this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER)]);
+		console.log("Real browsers cleaned")
 	}
 
 	stopRecording() {
 		if (!!this.recordingScript) {
+			console.log("Stopping general recording")
 			stopDetached(this.recordingScript.pid);
 		}
 	}
