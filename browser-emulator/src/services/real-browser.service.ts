@@ -233,6 +233,7 @@ export class RealBrowserService {
 					console.log(error);
 					if (!!driverId) {
 						await this.printBrowserLogs(driverId);
+						await this.deleteStreamManagerWithConnectionId(driverId);
 					}
 					reject(this.errorGenerator.generateError(error));
 				}

@@ -56,7 +56,6 @@ export class BrowserManagerService {
 				connectionId = await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
 				this.realBrowserService.storeConnection(connectionId, request.properties);
 			} catch (error) {
-				await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 				throw error;
 			}
 		} else {
