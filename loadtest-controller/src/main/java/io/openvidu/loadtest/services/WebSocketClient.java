@@ -70,7 +70,7 @@ public class WebSocketClient extends Endpoint {
 	@OnMessage
 	public void onMessage(String message) {
 		if(message.contains("exception") || message.contains("Exception")) {
-			log.error("Received exception: {}", message);
+			log.error("Received exception from {}: {}", this.wsEndpoint, message);
 			WorkerExceptionManager.getInstance().setException(message);
 		}
 	}

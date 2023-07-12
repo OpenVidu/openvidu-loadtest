@@ -99,7 +99,7 @@ public class BrowserEmulatorClient {
 			log.error(e.getMessage());
 			this.sleep(WAIT_MS);
 			if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
-				System.out.println("Retrying");
+				log.warn("Retrying");
 				return this.initializeInstance(workerUrl);
 			}
 		}
@@ -232,6 +232,7 @@ public class BrowserEmulatorClient {
 			headers.put("Content-Type", "application/json");
 			HttpResponse<String> response = this.httpClient.sendDelete(
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", headers);
+			log.info("Participants in worker {} deleted", workerUrl);
 			return response.body();
 		} catch (Exception e) {
 			return e.getMessage();
@@ -262,7 +263,7 @@ public class BrowserEmulatorClient {
 					getHeaders());
 
 			if (response.statusCode() != HTTP_STATUS_OK) {
-				System.out.println("Error: " + response.body());
+				log.warn("Error: " + response.body());
 				failures++;
 				// lastResponses.add("Failure");
 				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
@@ -279,7 +280,7 @@ public class BrowserEmulatorClient {
 					String stopReason = "OpenVidu Error: " + response.body();
 					return cpr.setResponseOk(false).setStopReason(stopReason);
 				}
-				System.out.println("Retrying");
+				log.warn("Retrying");
 				sleep(WAIT_MS);
 				if (loadTestConfig.isRetryMode() && isResponseLimitReached(failures)) {
 					return cpr.setResponseOk(false);
@@ -299,7 +300,7 @@ public class BrowserEmulatorClient {
 				sleep(WAIT_MS);
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
-				System.out.println(e.getMessage());
+				log.error(e.getMessage());
 				return cpr.setResponseOk(true);
 			}
 			e.printStackTrace();
