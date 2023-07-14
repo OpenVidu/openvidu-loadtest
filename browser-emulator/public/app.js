@@ -136,8 +136,24 @@ async function joinSession() {
 						remoteControls.set(remoteUser, mediaRecorder);
 					};
 					mediaRecorder.onerror = (error) => {
-						console.error("Error starting recording: " + USER_ID + " recording " + remoteUser);
+						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
 						console.error(error);
+						console.error(error.error)
+						console.error(error.error.name)
+						sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
+						var remoteControl = remoteControls.get(remoteUser);
+						if (!!remoteControl) {
+							var chunks = recordingChunks.get(remoteUser);
+							var blob = new Blob(chunks, { type: remoteControl.mimeType });
+							recordingBlobs.set(remoteUser, blob);
+							if (!!blob) {
+								console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
+								sendBlob(blob, "QOE_errored_recording", remoteUser)
+							} else {
+								sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
+								reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
+							}
+						}
 					}
 					mediaRecorder.start()
 				})
@@ -502,7 +518,12 @@ async function getRecordings(fileNamePrefix) {
 		})
 		stopPromises.push(stopPromise);
 	}
-	session.disconnect();
+	try {
+		session.disconnect();
+	} catch (error) {
+		console.error("Can't disconnect from session")
+		console.error(error)
+	}
 	return Promise.all(stopPromises);
 }
 
