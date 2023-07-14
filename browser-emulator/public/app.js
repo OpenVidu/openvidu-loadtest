@@ -137,27 +137,31 @@ async function joinSession() {
 					};
 					mediaRecorder.onerror = (error) => {
 						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
-						console.error(error);
-						console.error(error.error)
-						console.error(error.error.message)
-						console.error(error.error.name)
-						if (error.error.message.contains("transient")) {
-							// restart recording
-							console.error("Restarting recording as error should be transient: " + USER_ID + " recording " + remoteUser);
-							remoteControls.get(remoteUser).start();
+						try {
+							console.error(error)
+							console.error(error.error.message)
+							console.error(error.error.name)
+						} catch (error2) {
+							console.error(error2)
 						}
 						sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
-						var remoteControl = remoteControls.get(remoteUser);
-						if (!!remoteControl) {
-							var chunks = recordingChunks.get(remoteUser);
-							var blob = new Blob(chunks, { type: remoteControl.mimeType });
-							recordingBlobs.set(remoteUser, blob);
-							if (!!blob) {
-								console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-								sendBlob(blob, "QOE_errored_recording", remoteUser)
-							} else {
-								sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
-								reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
+						if (error.error.message.contains("transient")) {
+							// restart recording
+							console.info("Restarting recording as error should be transient: " + USER_ID + " recording " + remoteUser);
+							remoteControls.get(remoteUser).start();
+						} else {
+							var remoteControl = remoteControls.get(remoteUser);
+							if (!!remoteControl) {
+								var chunks = recordingChunks.get(remoteUser);
+								var blob = new Blob(chunks, { type: remoteControl.mimeType });
+								recordingBlobs.set(remoteUser, blob);
+								if (!!blob) {
+									console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
+									sendBlob(blob, "QOE_errored_recording", remoteUser)
+								} else {
+									sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
+									reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
+								}
 							}
 						}
 					}
