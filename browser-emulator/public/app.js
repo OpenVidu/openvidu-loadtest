@@ -19,6 +19,7 @@ var QOE_ANALYSIS;
 
 var OV;
 var session;
+var mediaRecorderErrors = 0;
 
 // var subscriptions = 0;
 // const MAX_SUBSCRIPTIONS = 5;
@@ -137,6 +138,7 @@ async function joinSession() {
 					};
 					mediaRecorder.onerror = (error) => {
 						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
+						mediaRecorderErrors++;
 						try {
 							console.error(error)
 							console.error(error.error.message)
@@ -145,11 +147,12 @@ async function joinSession() {
 							console.error(error2)
 						}
 						sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
-						if (error.error.message.includes("transient")) {
+						if (mediaRecorderErrors <= 5) {
 							// restart recording
-							console.info("Restarting recording as error should be transient: " + USER_ID + " recording " + remoteUser);
+							console.info("Restarting recording: " + USER_ID + " recording " + remoteUser);
 							remoteControls.get(remoteUser).start();
 						} else {
+							console.info("Too many MediaRecorder errors, trying to save blob: " + USER_ID + " recording " + remoteUser);
 							var remoteControl = remoteControls.get(remoteUser);
 							if (!!remoteControl) {
 								var chunks = recordingChunks.get(remoteUser);
