@@ -145,7 +145,7 @@ async function joinSession() {
 							console.error(error2)
 						}
 						sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
-						if (error.error.message.contains("transient")) {
+						if (error.error.message.includes("transient")) {
 							// restart recording
 							console.info("Restarting recording as error should be transient: " + USER_ID + " recording " + remoteUser);
 							remoteControls.get(remoteUser).start();
