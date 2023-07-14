@@ -45,7 +45,7 @@ sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
 
 install_firefox() {
-    snap install firefox
+    apt-get install -f -yq firefox
 }
 
 install_ffmpeg() {
