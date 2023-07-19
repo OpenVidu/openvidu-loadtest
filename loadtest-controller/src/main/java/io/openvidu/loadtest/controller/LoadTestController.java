@@ -629,14 +629,15 @@ public class LoadTestController {
 
 	private CreateParticipantResponse getLastResponse(List<Future<CreateParticipantResponse>> futureList) {
 		CreateParticipantResponse lastResponse = null;
+		boolean errored = false;
 		for (Future<CreateParticipantResponse> future : futureList) {
 			try {
 				CreateParticipantResponse futureResponse = future.get();
 				if (!futureResponse.isResponseOk()) {
 					lastResponse = futureResponse;
-					break;
+					errored = true;
 				}
-				if ((lastResponse == null) || (futureResponse.getStreamsInWorker() >= lastResponse
+				if (!errored || (lastResponse == null) || (futureResponse.getStreamsInWorker() >= lastResponse
 						.getStreamsInWorker())) {
 					lastResponse = futureResponse;
 				}
