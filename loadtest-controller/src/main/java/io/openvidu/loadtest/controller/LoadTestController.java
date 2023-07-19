@@ -694,10 +694,6 @@ public class LoadTestController {
 
 	private void disconnectAllSessions() {
 		List<String> workersUrl = devWorkersList;
-		for (WebSocketClient ws : wsSessions) {
-			ws.close();
-		}
-		wsSessions.clear();
 		if (PROD_MODE) {
 			// Add all ec2 instances
 			for (Instance ec2 : awsWorkersList) {
@@ -715,6 +711,10 @@ public class LoadTestController {
 				browserEmulatorClient.calculateQoe(allWorkers);
 			}
 
+			for (WebSocketClient ws : wsSessions) {
+				ws.close();
+			}
+			wsSessions.clear();
 			ec2Client.stopInstance(recordingWorkersList);
 			ec2Client.stopInstance(awsWorkersList);
 
