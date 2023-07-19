@@ -346,12 +346,17 @@ export class RealBrowserService {
 				try {
 					await driver.executeAsyncScript(`
 						const callback = arguments[arguments.length - 1];
-						getRecordings('${fileNamePrefix}')
+						try {
+							getRecordings('${fileNamePrefix}')
 							.catch(error => {
 								console.error(error)
 							}).finally(() => {
-								callback();
+								callback()
 							});
+						} catch (error) {
+							console.error(error)
+							callback()
+						}
 					`);
 					console.log("QoE Recordings saved for driver " + driverId);
 					await this.printBrowserLogs(driverId);
