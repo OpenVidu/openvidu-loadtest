@@ -300,7 +300,7 @@ public class BrowserEmulatorClient {
 				sleep(WAIT_MS);
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
-				log.error(e.getMessage());
+				log.error(workerUrl + ": " + e.getMessage());
 				return cpr.setResponseOk(true);
 			}
 			e.printStackTrace();

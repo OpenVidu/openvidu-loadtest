@@ -72,6 +72,8 @@ public class WebSocketClient extends Endpoint {
 		if(message.contains("exception") || message.contains("Exception")) {
 			log.error("Received exception from {}: {}", this.wsEndpoint, message);
 			WorkerExceptionManager.getInstance().setException(message);
+		} else if (message.contains("error") || message.contains("Error")) {
+			log.warn("Received message from {}: {}", this.wsEndpoint, message);
 		}
 	}
 
