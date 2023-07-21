@@ -712,7 +712,9 @@ public class LoadTestController {
 			}
 
 			for (WebSocketClient ws : wsSessions) {
-				ws.close();
+				if (ws != null) {
+					ws.close();
+				}
 			}
 			wsSessions.clear();
 			ec2Client.stopInstance(recordingWorkersList);
