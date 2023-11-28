@@ -10,7 +10,7 @@
     // This helps with type-checking the Kurento JS client files.
     "declaration": true,
     "declarationMap": true,
-
+    "module": "commonjs",
     // Linter Checks (https://www.typescriptlang.org/tsconfig#Additional_Checks_6176)
     // These help with writing better code. Enable as many as possible.
     //"noFallthroughCasesInSwitch": true,

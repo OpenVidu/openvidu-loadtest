@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Shell setup, assumes running on AWS EC2 Ubuntu 20.04
+# Shell setup, assumes running on AWS EC2 Ubuntu 22.04
 # ====================================================
 
 # Bash options for strict error checking.
@@ -11,6 +11,7 @@ shopt -s inherit_errexit 2>/dev/null || true
 set -o xtrace
 
 DEBIAN_FRONTEND=noninteractive
+sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
 
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
 
@@ -18,11 +19,14 @@ SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute
 apt-get update
 apt-get upgrade -yq
 apt-get install -yq --no-install-recommends \
-  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip
-curl -sL https://deb.nodesource.com/setup_18.x | bash - 
+  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip build-essential
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+NODE_MAJOR=18
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
-add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
+add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
 apt-get update
 apt-get install -yq --no-install-recommends \
     ffmpeg docker-ce xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
@@ -45,6 +49,13 @@ sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
 
 install_firefox() {
+    snap remove firefox
+    add-apt-repository ppa:mozillateam/ppa -y
+    echo '
+Package: *
+Pin: release o=LP-PPA-mozillateam
+Pin-Priority: 1001
+' | sudo tee /etc/apt/preferences.d/mozilla-firefox
     apt-get install -f -yq firefox
 }
 
@@ -61,7 +72,7 @@ install_ffmpeg() {
 
 install_node_dependencies_and_build() {
     ## Install node dependencies
-    npm --prefix /opt/openvidu-loadtest/browser-emulator install 
+    npm --prefix /opt/openvidu-loadtest/browser-emulator install --save-dev
     npm --prefix /opt/openvidu-loadtest/browser-emulator run build
 }
 
@@ -70,23 +81,16 @@ install_node_dependencies_and_build &
 install_firefox &
 wait
 
-pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-
 # Pull images used by browser-emulator for faster initialization time
 docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
 docker pull kurento/kurento-media-server:latest
 docker network create browseremulator
 
 # Create recording directories
-mkdir -p ../../browser-emulator/recordings/kms
-mkdir -p ../../browser-emulator/recordings/chrome
-mkdir -p ../../browser-emulator/recordings/qoe
+mkdir -p ./recordings/kms
+mkdir -p ./recordings/chrome
+mkdir -p ./recordings/qoe
 
 chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
 
 echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-firefox > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -
-
-# sending the finish call
-/usr/local/bin/cfn-signal -e 0 --stack ${AWS_STACK} --resource BrowserInstance --region ${AWS_REGION}
-
-echo "Instance is ready"

@@ -19,13 +19,16 @@ apt-get update
 apt-get upgrade -yq
 apt-get install -yq --no-install-recommends \
   	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip
-curl -sL https://deb.nodesource.com/setup_18.x | bash - 
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+NODE_MAJOR=18
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
 curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
 mv bazel.gpg /etc/apt/trusted.gpg.d/
 echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
-add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
+add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
 apt-get update
 apt-get install -yq --no-install-recommends \
 	build-essential bc make cmake libopencv-dev python3-opencv bazel libnetpbm10-dev xxd \
@@ -169,7 +172,7 @@ install_python_dependencies() {
 
 install_node_dependencies_and_build() {
     ## Install node dependencies
-    npm --prefix /opt/openvidu-loadtest/browser-emulator install 
+    npm --prefix /opt/openvidu-loadtest/browser-emulator install --save-dev
     npm --prefix /opt/openvidu-loadtest/browser-emulator run build
 }
 
@@ -194,15 +197,10 @@ docker pull kurento/kurento-media-server:latest
 docker network create browseremulator
 
 # Create recording directories
-mkdir -p ../../browser-emulator/recordings/kms
-mkdir -p ../../browser-emulator/recordings/chrome
-mkdir -p ../../browser-emulator/recordings/qoe
+mkdir -p ./recordings/kms
+mkdir -p ./recordings/chrome
+mkdir -p ./recordings/qoe
 
 chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
 
 echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -
-
-# sending the finish call
-/usr/local/bin/cfn-signal -e 0 --stack ${AWS_STACK} --resource BrowserInstance --region ${AWS_REGION}
-
-echo "Instance is ready"

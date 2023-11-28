@@ -139,15 +139,8 @@ async function joinSession() {
 					mediaRecorder.onerror = (error) => {
 						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
 						mediaRecorderErrors++;
-						try {
-							console.error(error)
-							console.error(error.error.message)
-							console.error(error.error.name)
-							sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
-						} catch (error2) {
-							console.error(error2)
-							sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error2 });
-						}
+						console.error(error)
+						sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
 						if (mediaRecorderErrors <= 5) {
 							// restart recording
 							console.info("Restarting recording: " + USER_ID + " recording " + remoteUser);
@@ -167,6 +160,14 @@ async function joinSession() {
 									reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
 								}
 							}
+						}
+						try {
+							console.warn("Trying to print previous mediarecorder error")
+							console.error(error.error.message)
+							console.error(error.error.name)
+						}  catch (error2) {
+							console.error(error2)
+							sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error2 });
 						}
 					}
 					mediaRecorder.start()

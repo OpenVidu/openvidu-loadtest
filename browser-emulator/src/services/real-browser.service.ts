@@ -27,16 +27,24 @@ export class RealBrowserService {
 	private totalPublishers: number = 0;
 	private seleniumService: SeleniumService;
 	private recordingScript: any;
+	private seleniumLogger: logging.Logger;
 
 	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
 		const prefs = new logging.Preferences();
+		this.seleniumLogger = logging.getLogger('webdriver');
 		prefs.setLevel(logging.Type.BROWSER, logging.Level.ALL);
+		prefs.setLevel(logging.Type.DRIVER, logging.Level.ALL);
+		prefs.setLevel(logging.Type.CLIENT, logging.Level.ALL);
+		prefs.setLevel(logging.Type.PERFORMANCE, logging.Level.ALL);
+		prefs.setLevel(logging.Type.SERVER, logging.Level.ALL);
+		logging.installConsoleHandler();
 		if (process.env.REAL_DRIVER === "firefox") {
 			this.firefoxCapabilities.setLoggingPrefs(prefs);
 			this.firefoxCapabilities.setAcceptInsecureCerts(true);
 			this.firefoxOptions
 				.setPreference("permissions.default.microphone", 1)
-				.setPreference("permissions.default.camera", 1);
+				.setPreference("permissions.default.camera", 1)
+				.setPreference("devtools.console.stdout.content", true);
 		} else {
 			this.chromeCapabilities.setLoggingPrefs(prefs);
 			this.chromeCapabilities.setAcceptInsecureCerts(true);
