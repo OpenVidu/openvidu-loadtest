@@ -21,6 +21,7 @@ var QOE_ANALYSIS;
 var session;
 var mediaRecorderErrors = 0;
 var LivekitClient = window.LivekitClient;
+var trackUser = new Map();
 
 // var subscriptions = 0;
 // const MAX_SUBSCRIPTIONS = 5;
@@ -46,10 +47,11 @@ window.onload = () => {
 	QOE_ANALYSIS = url.searchParams.get("qoeAnalysis");
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 
-	const tokenCanBeCreated = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL && !!OPENVIDU_SERVER_SECRET;
-	const tokenHasBeenReceived = !!USER_ID && !!OPENVIDU_TOKEN;
+	const userCond = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL;
+	const lkApiCond = !!LIVEKIT_API_KEY && !!LIVEKIT_API_SECRET;
+	const token = !!OPENVIDU_TOKEN;
 
-	if(tokenCanBeCreated || tokenHasBeenReceived){
+	if(userCond && lkApiCond && token){
 		showVideoRoom();
 		joinSession();
 	} else {
@@ -92,38 +94,29 @@ async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
 	session = new LivekitClient.Room();
 	//OV.enableProdMode();
-
-	session.on("connectionCreated", event => {
-		var connectionType = 'remote';
-		if (event.connection.connectionId === session.connection.connectionId) {
-			appendElement('local-connection-created');
-			connectionType = 'local';
-		}
-		sendEvent({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType  });
+	room.on(LivekitClient.RoomEvent.Connected, () => {
+		appendElement('local-connection-created');
+		sendEvent({ event: "connectionCreated" });
 
 	});
+	room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+		sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote' });
 
-	session.on("streamCreated", event => {
-		sendEvent({ event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
-
-		var videoContainer = null;
-		if(SHOW_VIDEO_ELEMENTS){
-			const subscriberContainer = insertSubscriberContainer(event);
-
-			videoContainer = 'remote-video-publisher';
+		const element = track.attach();
+		if (SHOW_VIDEO_ELEMENTS) {
+			insertSubscriberContainer(track, element, participant.sid);
 		}
 
-		//subscriptions +=1;
-		const subscriber = session.subscribe(event.stream, videoContainer);
-
-		subscriber.on("streamPlaying", e => {
-			if (!!QOE_ANALYSIS) {
-				// var remoteControl = new ElasTestRemoteControl();
-				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
-				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+		if (!!QOE_ANALYSIS) {
+			// var remoteControl = new ElasTestRemoteControl();
+			// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
+			var remoteUser = participant.name;
+			if (!trackUser.has(participant.sid)) {
+				trackUser.set(participant.sid, track);
+			} else {
 				console.log(USER_ID + " starting recording user " + remoteUser);
-				var mediaStream = event.stream.getMediaStream();
-				const mediaRecorder = new MediaRecorder(mediaStream, { 
+				var tracks = [trackUser.get(participant.sid).mediaStreamTrack, track.mediaStreamTrack];
+				const mediaRecorder = new MediaRecorder(tracks, { 
 					mimeType: 'video/webm' 
 				});
 				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
@@ -142,7 +135,7 @@ async function joinSession() {
 						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
 						mediaRecorderErrors++;
 						console.error(error)
-						sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
+						sendEvent({ event: "recordingerror", connectionId: participant.sid, reason: error.error });
 						if (mediaRecorderErrors <= 5) {
 							// restart recording
 							console.info("Restarting recording: " + USER_ID + " recording " + remoteUser);
@@ -169,22 +162,18 @@ async function joinSession() {
 							console.error(error.error.name)
 						}  catch (error2) {
 							console.error(error2)
-							sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error2 });
+							sendEvent({ event: "recordingerror", connectionId: participant.sid, reason: error2 });
 						}
 					}
 					mediaRecorder.start()
 				})
 			}
 
-			if(ROLE === 'SUBSCRIBER'){
-				// It has been necessary mute the video because of the user gesture policies don't allow play it
-				const videoId = e.target.videos[0].video.id;
-				document.getElementById(videoId).muted = true;
-				document.getElementById(videoId).play();
-				createUnmuteButton('subscriber-need-to-be-unmuted', videoId);
-			}
-			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
-		});
+		}
+	});
+
+	room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+		// TODO
 	});
 
 	session.on("streamDestroyed", event => {
@@ -329,13 +318,13 @@ function initMainVideoThumbnail() {
 	}
 }
 
-function createUnmuteButton(buttonId, videoId){
+function createUnmuteButton(buttonId, videoContainer){
 	const container = document.getElementById('remote');
 	const button = document.createElement('button');
 	button.innerText = 'Unmute';
 	button.setAttribute('id', buttonId);
 	button.onclick = () => {
-		document.getElementById(videoId).muted = false;
+		videoContainer.muted = false;
 		button.remove();
 	};
 	container.appendChild(button);
@@ -397,12 +386,17 @@ function setPublisherButtonsActions(publisher) {
 	};
 }
 
-function insertSubscriberContainer(event) {
+function insertSubscriberContainer(track, element, participantSid) {
 
 	var remotes = document.getElementById('remote-video-publisher');
 	var videoContainer = document.createElement('div');
-	videoContainer.id = 'video-' + event?.stream?.connection?.connectionId;
+	videoContainer.id = 'video-' + participantSid;
 	remotes.appendChild(videoContainer);
+	videoContainer.appendChild(element);
+	
+	videoContainer.muted = true;
+	videoContainer.play();
+	createUnmuteButton('subscriber-need-to-be-unmuted', videoContainer);
 	return videoContainer;
 }
 
