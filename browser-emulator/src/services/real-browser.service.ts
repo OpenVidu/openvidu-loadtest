@@ -11,6 +11,7 @@ import { APPLICATION_MODE, DOCKER_NAME } from '../config';
 import { SeleniumService } from './selenium.service';
 import { runScript, stopDetached } from '../utils/run-script';
 import { ApplicationMode } from '../types/config.type';
+import { BaseComModule } from '../com-modules/base';
 declare var localStorage: Storage;
 export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
@@ -169,7 +170,8 @@ export class RealBrowserService {
 			setTimeout(async () => {
 				let driverId: string;
 				try {
-					const webappUrl = this.generateWebappUrl(request.token, request.properties);
+					const comModuleInstance = BaseComModule.getInstance();
+					const webappUrl = comModuleInstance.generateWebappUrl(request);
 					console.log(webappUrl);
 					let driver: WebDriver; 
 					if (process.env.REAL_DRIVER === "firefox") {
@@ -308,30 +310,6 @@ export class RealBrowserService {
 				}
 			}
 		}
-	}
-
-	private generateWebappUrl(token: string, properties: TestProperties): string {
-		const publicUrl = !!process.env.OPENVIDU_URL ? `publicurl=${process.env.OPENVIDU_URL}&` : '';
-		const secret = !!process.env.OPENVIDU_SECRET ? `secret=${process.env.OPENVIDU_SECRET}&` : '';
-		const recordingMode = !!properties.recordingOutputMode ? `recordingmode=${properties.recordingOutputMode}&` : '';
-		const tokenParam = !!token ? `token=${token}` : '';
-		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
-		return (
-			`https://${process.env.LOCATION_HOSTNAME}/?` +
-			publicUrl +
-			secret +
-			recordingMode +
-			tokenParam +
-			`role=${properties.role}&` +
-			`sessionId=${properties.sessionName}&` +
-			`userId=${properties.userId}&` +
-			`audio=${properties.audio}&` +
-			`video=${properties.video}&` +
-			`resolution=${properties.resolution}&` +
-			`showVideoElements=${properties.showVideoElements}&` +
-			`frameRate=${properties.frameRate}&` +
-			`qoeAnalysis=${qoeAnalysis}`
-		);
 	}
 
 	private existMediaFiles(resolution: string, framerate: number): boolean {

@@ -1,0 +1,29 @@
+video {
+    width: 320px;
+    height: 240px;
+}
+
+#local{
+    border: 2px solid;
+}
+
+.tags {
+    display: inline-block; cursor: pointer; background-color: #daae00; color: white; font-size: 13px; font-weight: bold; padding: 1px 3px; border-radius: 3px; font-family: 'Arial';
+}
+
+#video-container {
+    display: inline-block; margin: 5px 5px 0 0; border: 2px solid;
+}
+
+#info-container {
+    display: flex; justify-content: space-between; margin-bottom: 3px;
+}
+
+.info-header {
+    cursor: initial; background-color: #0088aa;
+}
+
+#remote-video-publisher {
+    border: 1px, solid;
+    display: flex;
+}

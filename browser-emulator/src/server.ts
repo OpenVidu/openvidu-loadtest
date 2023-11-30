@@ -1,7 +1,7 @@
 import fs = require('fs');
 import https = require('https');
 import * as express from 'express';
-import { APPLICATION_MODE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT } from './config';
+import { APPLICATION_MODE, COM_MODULE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT, comModuleInstance } from './config';
 import { HackService } from './services/hack.service';
 
 import { app as ovBrowserController } from './controllers/openvidu-browser.controller';
@@ -18,6 +18,7 @@ import nodeCleanup = require('node-cleanup');
 import { BrowserManagerService } from './services/browser-manager.service';
 import { killAllDetached } from './utils/run-script';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices';
+import { OpenviduComModule } from './com-modules/openvidu';
 
 async function cleanup() {
 	const browserManager = BrowserManagerService.getInstance();
@@ -33,12 +34,16 @@ async function cleanup() {
 const app: any = express();
 const ws = new WebSocket.Server({ port: WEBSOCKET_PORT, path: '/events' });
 
-app.use(express.static('public'));
+app.use(express.static(COM_MODULE));
 
 const options = {
-	key: fs.readFileSync('public/key.pem', 'utf8'),
-	cert: fs.readFileSync('public/cert.pem', 'utf8'),
+	key: fs.readFileSync(COM_MODULE + '/key.pem', 'utf8'),
+	cert: fs.readFileSync(COM_MODULE + '/cert.pem', 'utf8'),
 };
+
+if (!!COM_MODULE) {
+	OpenviduComModule.getInstance();
+}
 
 app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');

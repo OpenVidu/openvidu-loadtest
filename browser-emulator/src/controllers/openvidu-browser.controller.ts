@@ -3,7 +3,10 @@ import { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service';
 import { OpenViduRole, Resolution } from '../types/openvidu.type';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
-import { DOCKER_NAME, SERVER_PORT } from '../config';
+import { AccessToken } from 'livekit-server-sdk';
+import { BaseComModule } from '../com-modules/base';
+
+const comModuleInstance: BaseComModule = BaseComModule.getInstance();
 
 export const app = express.Router({
 	strict: true,
@@ -13,8 +16,9 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
 		const request: LoadTestPostRequest = req.body;
 
-		if (areStreamManagerParamsCorrect(request)) {
-			setEnvironmentParams(req);
+		if (comModuleInstance.areParametersCorrect(request)) {
+			comModuleInstance.setEnvironmentParams(req);
+			comModuleInstance.processNewUserRequest(request);
 			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 
 			request.browserMode = request.browserMode || BrowserMode.EMULATE;
@@ -91,27 +95,3 @@ app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 		res.status(500).send(error);
 	}
 });
-
-function areStreamManagerParamsCorrect(request: LoadTestPostRequest): boolean {
-	const openviduSecret: string = request.openviduSecret;
-	const openviduUrl: string = request.openviduUrl;
-	const token: string = request.token;
-	let properties: TestProperties = request.properties;
-
-	const tokenCanBeCreated = !!properties?.userId && !!properties?.sessionName && !!openviduUrl && !!openviduSecret;
-	const tokenHasBeenReceived = !!properties?.userId && !!token;
-
-	return tokenCanBeCreated || tokenHasBeenReceived;
-}
-
-function setEnvironmentParams(req: Request): void {
-	const request: LoadTestPostRequest = req.body;
-	if (process.env.IS_DOCKER_CONTAINER === 'true') {
-		process.env.LOCATION_HOSTNAME = `${DOCKER_NAME}:${SERVER_PORT}`;
-	} else {
-		process.env.LOCATION_HOSTNAME = req.headers.host;
-	}
-	process.env.OPENVIDU_SECRET = request.openviduSecret;
-	process.env.OPENVIDU_URL = request.openviduUrl;
-	process.env.KURENTO_RECORDING_ENABLED = String(request.properties.recording && request.browserMode === BrowserMode.EMULATE);
-}
