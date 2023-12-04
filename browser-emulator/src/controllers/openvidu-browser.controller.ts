@@ -2,11 +2,8 @@ import * as express from 'express';
 import { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service';
 import { OpenViduRole, Resolution } from '../types/openvidu.type';
-import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse, TestProperties } from '../types/api-rest.type';
-import { AccessToken } from 'livekit-server-sdk';
-import { BaseComModule } from '../com-modules/base';
-
-const comModuleInstance: BaseComModule = BaseComModule.getInstance();
+import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
+import BaseComModule from '../com-modules/base';
 
 export const app = express.Router({
 	strict: true,
@@ -14,6 +11,7 @@ export const app = express.Router({
 
 app.post('/streamManager', async (req: Request, res: Response) => {
 	try {
+		const comModuleInstance: BaseComModule = BaseComModule.getInstance();
 		const request: LoadTestPostRequest = req.body;
 
 		if (comModuleInstance.areParametersCorrect(request)) {

@@ -1,7 +1,7 @@
 import fs = require('fs');
 import https = require('https');
 import * as express from 'express';
-import { APPLICATION_MODE, COM_MODULE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT, comModuleInstance } from './config';
+import { APPLICATION_MODE, COM_MODULE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT } from './config';
 import { HackService } from './services/hack.service';
 
 import { app as ovBrowserController } from './controllers/openvidu-browser.controller';
@@ -18,7 +18,6 @@ import nodeCleanup = require('node-cleanup');
 import { BrowserManagerService } from './services/browser-manager.service';
 import { killAllDetached } from './utils/run-script';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices';
-import { OpenviduComModule } from './com-modules/openvidu';
 
 async function cleanup() {
 	const browserManager = BrowserManagerService.getInstance();
@@ -34,16 +33,26 @@ async function cleanup() {
 const app: any = express();
 const ws = new WebSocket.Server({ port: WEBSOCKET_PORT, path: '/events' });
 
-app.use(express.static(COM_MODULE));
+let publicDir: string;
+let comModuleInstance;
+if (!!COM_MODULE) {
+	let moduleName = COM_MODULE.trim();
+	const ComModule = require(`./com-modules/${moduleName}`);
+	comModuleInstance = ComModule.default.getInstance();
+	publicDir = ComModule.PUBLIC_DIR;
+} else {
+	console.log('COM_MODULE environment variable is not set. Using default com-module (OpenVidu 2)');
+	const OpenviduComModule = require('./com-modules/openvidu');
+	comModuleInstance = OpenviduComModule.default.getInstance();
+	publicDir = OpenviduComModule.PUBLIC_DIR;
+}
+
+app.use(express.static(publicDir));
 
 const options = {
-	key: fs.readFileSync(COM_MODULE + '/key.pem', 'utf8'),
-	cert: fs.readFileSync(COM_MODULE + '/cert.pem', 'utf8'),
+	key: fs.readFileSync(publicDir + '/key.pem', 'utf8'),
+	cert: fs.readFileSync(publicDir + '/cert.pem', 'utf8'),
 };
-
-if (!!COM_MODULE) {
-	OpenviduComModule.getInstance();
-}
 
 app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');
@@ -66,8 +75,8 @@ server.listen(SERVER_PORT, async () => {
 	const instanceService = InstanceService.getInstance();
 
 	try {
-		if (!fs.existsSync(`${process.env.PWD}/src/assets/mediafiles`)){
-			fs.mkdirSync(`${process.env.PWD}/src/assets/mediafiles`);
+		if (!fs.existsSync(`${process.cwd()}/src/assets/mediafiles`)){
+			fs.mkdirSync(`${process.cwd()}/src/assets/mediafiles`);
 		}
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
 			console.log('Pulling Docker images needed...');

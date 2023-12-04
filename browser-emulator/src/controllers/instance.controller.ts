@@ -18,7 +18,7 @@ export const app = express.Router({
 	strict: true,
 });
 
-const MEDIAFILES_DIR = `${process.env.PWD}/src/assets/mediafiles`;
+const MEDIAFILES_DIR = `${process.cwd()}/src/assets/mediafiles`;
 
 app.get('/ping', (req: Request, res: Response) => {
 	if (InstanceService.getInstance().isInstanceInitialized()) {
@@ -94,7 +94,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 });
 
 function createRecordingsDirectory() {
-	const dir = `${process.env.PWD}/recordings`;
+	const dir = `${process.cwd()}/recordings`;
 	if (!fs.existsSync(dir)) {
 		fs.mkdirSync(dir);
 		fs.mkdirSync(dir + '/kms');

@@ -35,8 +35,8 @@ export class QoeAnalyzerService {
                 const width: string = dim[0]
                 const height: string = dim[1]
                 const PRESENTER_VIDEO_FILE_LOCATION =
-                    `${process.env.PWD}/src/assets/mediafiles/fakevideo_${framerate}fps_${properties.resolution}.y4m`
-                const PRESENTER_AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`
+                    `${process.cwd()}/src/assets/mediafiles/fakevideo_${framerate}fps_${properties.resolution}.y4m`
+                const PRESENTER_AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`
                 const processingInfo: JSONQoeProcessing = {
                     index: this.elasticSearchService.indexName,
                     fragment_duration: this.FRAGMENT_DURATION,

@@ -53,7 +53,7 @@ export class FfmpegService implements IEmulateWebrtc {
 		let audioOutput = null;
 
 		const command = ffmpeg()
-			.input(`${process.env.PWD}/src/assets/mediafiles/video.mkv`)
+			.input(`${process.cwd()}/src/assets/mediafiles/video.mkv`)
 			.inputOptions(['-stream_loop -1', '-r 1']);
 
 		if (video) {

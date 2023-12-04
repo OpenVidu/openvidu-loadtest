@@ -16,10 +16,10 @@ export async function startFakeMediaDevices(videoPath: string, audioPath: string
                 },
             })
             if (!(loadedModules.includes("module-pipe-source") && loadedModules.includes("source_name=virtmic"))) {
-                await runScript(`${process.env.PWD}/recording_scripts/create-fake-microphone.sh`);
+                await runScript(`${process.cwd()}/recording_scripts/create-fake-microphone.sh`);
             }
         } catch (err) {
-            await runScript(`${process.env.PWD}/recording_scripts/create-fake-microphone.sh`);
+            await runScript(`${process.cwd()}/recording_scripts/create-fake-microphone.sh`);
         }
         // Wait for V4L2 device to be ready
         let v4l2DeviceReady = false;
@@ -39,7 +39,7 @@ export async function startFakeMediaDevices(videoPath: string, audioPath: string
             }
         }
         // Start ffmpeg to read video and audio from files and write to virtual webcam and microphone
-        await runScript(`${process.env.PWD}/recording_scripts/start-fake-media.sh ${videoPath} ${audioPath}`, {
+        await runScript(`${process.cwd()}/recording_scripts/start-fake-media.sh ${videoPath} ${audioPath}`, {
             detached: true
         });
         console.log("Fake webcam started.");
@@ -49,7 +49,7 @@ export async function startFakeMediaDevices(videoPath: string, audioPath: string
 
 export async function cleanupFakeMediaDevices() {
     try {
-        await runScript(`${process.env.PWD}/recording_scripts/clear-fake-microphone.sh`);
+        await runScript(`${process.cwd()}/recording_scripts/clear-fake-microphone.sh`);
     } catch (err) {
         console.error(err);
     }

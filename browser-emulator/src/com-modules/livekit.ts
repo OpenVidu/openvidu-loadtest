@@ -1,10 +1,11 @@
-import { BaseComModule } from "./base";
 import { AccessToken } from 'livekit-server-sdk';
 import { LKLoadTestPostRequest } from '../types/com-modules/livekit';
 import { TestProperties } from "../types/api-rest.type";
 import { Request } from "express";
+import BaseComModule from './base';
 
-export class LiveKitComModule extends BaseComModule {
+export const PUBLIC_DIR = "public-lk";
+class LiveKitComModule extends BaseComModule {
 
     static getInstance(): BaseComModule {
         if (!BaseComModule.instance) {
@@ -30,6 +31,8 @@ export class LiveKitComModule extends BaseComModule {
         const token = at.toJwt();
 
         request.token = token;
+
+        console.log(token);
         
         return Promise.resolve(request);
     }
@@ -57,17 +60,11 @@ export class LiveKitComModule extends BaseComModule {
         const properties: TestProperties = request.properties;
         const token: string = request.token;
         const publicUrl = !!process.env.OPENVIDU_URL ? `publicurl=${process.env.OPENVIDU_URL}&` : '';
-		const livekitApiKey = !!process.env.LIVEKIT_API_KEY ? `livekitapikey=${process.env.LIVEKIT_API_KEY}&` : '';
-		const livekitApiSecret = !!process.env.LIVEKIT_API_SECRET ? `livekitapisecret=${process.env.LIVEKIT_API_SECRET}&` : '';
-		const recordingMode = !!properties.recordingOutputMode ? `recordingmode=${properties.recordingOutputMode}&` : '';
-		const tokenParam = !!token ? `token=${token}` : '';
+		const tokenParam = !!token ? `token=${token}&` : '';
 		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
 			`https://${process.env.LOCATION_HOSTNAME}/?` +
 			publicUrl +
-			livekitApiKey +
-			livekitApiSecret +
-			recordingMode +
 			tokenParam +
 			`role=${properties.role}&` +
 			`sessionId=${properties.sessionName}&` +
@@ -81,3 +78,5 @@ export class LiveKitComModule extends BaseComModule {
 		);
     }
 }
+
+export default LiveKitComModule;

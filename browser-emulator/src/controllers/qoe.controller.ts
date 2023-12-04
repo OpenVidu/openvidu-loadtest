@@ -3,7 +3,7 @@ import multer = require('multer');
 import { Request, Response } from 'express';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
 
-const RECORDINGS_PATH = `${process.env.PWD}/recordings/qoe`;
+const RECORDINGS_PATH = `${process.cwd()}/recordings/qoe`;
 var storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, RECORDINGS_PATH)

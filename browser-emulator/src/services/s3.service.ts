@@ -5,7 +5,7 @@ const fsPromises = fs.promises;
 import * as AWS from 'aws-sdk';
 
 export class S3FilesService extends FilesService {
-	readonly AWS_CREDENTIALS_PATH = `${process.env.PWD}/.awsconfig`;
+	readonly AWS_CREDENTIALS_PATH = `${process.cwd()}/.awsconfig`;
 
     private constructor(awsAccessKey: string, awsSecretAccessKey: string) {
         super();
@@ -119,7 +119,7 @@ export class S3FilesService extends FilesService {
     // 			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
     // 				await this.createS3Bucket(process.env.S3_BUCKET);
     // 			}
-    // 			const filePath = `${process.env.PWD}/${file}`;
+    // 			const filePath = `${process.cwd()}/${file}`;
     // 			const params = {
     // 				Bucket: process.env.S3_BUCKET,
     // 				Key: file,

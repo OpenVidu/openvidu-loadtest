@@ -2,7 +2,7 @@ import { BrowserMode, LoadTestPostRequest } from "../types/api-rest.type";
 import { DOCKER_NAME, SERVER_PORT} from '../config';
 import { Request } from "express";
 
-export abstract class BaseComModule {
+abstract class BaseComModule {
 
     protected static instance: BaseComModule | undefined;
 
@@ -26,3 +26,5 @@ export abstract class BaseComModule {
 
     abstract generateWebappUrl(request: LoadTestPostRequest): string;
 }
+
+export default BaseComModule;

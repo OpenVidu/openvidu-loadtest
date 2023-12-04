@@ -15,7 +15,6 @@ Vagrant.configure("2") do |config|
   SHELL
 
   config.vm.synced_folder "./src", "/opt/openvidu-loadtest/browser-emulator/src"
-  config.vm.synced_folder "./public", "/opt/openvidu-loadtest/browser-emulator/public"
   config.vm.synced_folder "./qoe_scripts", "/opt/openvidu-loadtest/browser-emulator/qoe_scripts"
   config.vm.synced_folder "./recording_scripts", "/opt/openvidu-loadtest/browser-emulator/recording_scripts"
   config.vm.synced_folder "./recordings", "/opt/openvidu-loadtest/browser-emulator/recordings"
@@ -24,6 +23,9 @@ Vagrant.configure("2") do |config|
   config.vm.provision "file", source: "./download_mediafiles.sh", destination: "/opt/openvidu-loadtest/browser-emulator/download_mediafiles.sh"
   config.vm.provision "file", source: "./tsconfig.json", destination: "/opt/openvidu-loadtest/browser-emulator/tsconfig.json"
   config.vm.provision "file", source: "./debug_vnc_local.sh", destination: "/opt/openvidu-loadtest/browser-emulator/debug_vnc.sh"
+
+  config.vm.synced_folder "./public", "/opt/openvidu-loadtest/browser-emulator/public"
+  config.vm.synced_folder "./public-lk", "/opt/openvidu-loadtest/browser-emulator/public-lk"
 
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "4096"
@@ -39,7 +41,9 @@ Vagrant.configure("2") do |config|
     usermod -aG video vagrant
     chown -R vagrant:vagrant /opt/openvidu-loadtest
     crontab -r -u ubuntu
-    echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run build && npm run start:prod-firefox > /var/log/crontab.log 2>&1' 2>&1 | crontab -u vagrant -
+    echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run build && npm run start:prod-livekit-firefox > /var/log/crontab.log 2>&1' 2>&1 | crontab -u vagrant -
+    curl -sSL https://get.livekit.io | bash
+    (crontab -u vagrant -l ; echo '@reboot livekit-server --dev > /var/log/livekit.log 2>&1') | crontab -u vagrant -
     ./debug_vnc.sh
     reboot now
   SHELL

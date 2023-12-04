@@ -11,7 +11,7 @@ import { APPLICATION_MODE, DOCKER_NAME } from '../config';
 import { SeleniumService } from './selenium.service';
 import { runScript, stopDetached } from '../utils/run-script';
 import { ApplicationMode } from '../types/config.type';
-import { BaseComModule } from '../com-modules/base';
+import BaseComModule from '../com-modules/base';
 declare var localStorage: Storage;
 export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
@@ -22,8 +22,8 @@ export class RealBrowserService {
 	private firefoxOptions = new firefox.Options();
 	private firefoxCapabilities = Capabilities.firefox();
 	private driverMap: Map<string, {driver: WebDriver, sessionName: string, connectionRole: OpenViduRole}> = new Map();
-	private readonly VIDEO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakevideo`;
-	private readonly AUDIO_FILE_LOCATION = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
+	private readonly VIDEO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakevideo`;
+	private readonly AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 	private keepAliveIntervals = new Map();
 	private totalPublishers: number = 0;
 	private seleniumService: SeleniumService;
@@ -207,7 +207,7 @@ export class RealBrowserService {
 							"ffmpeg -hide_banner -loglevel warning -nostdin -y",
 							` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
 							` -f pulse -i 0 `,
-							`${process.env.PWD}/recordings/chrome/session_${Date.now()}.mp4`,
+							`${process.cwd()}/recordings/chrome/session_${Date.now()}.mp4`,
 						].join("");
 						this.recordingScript = await runScript(ffmpegCommand, {
 							detached: true
@@ -220,13 +220,12 @@ export class RealBrowserService {
 						// Wait until publisher has been published regardless of whether the videos are shown or not
 						await driver.wait(until.elementsLocated(By.id('local-stream-created')), this.BROWSER_WAIT_TIMEOUT_MS);
 						currentPublishers++;
-					} else {
-						// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
-						await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
-						await driver.sleep(1000);
-						const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
-						buttons.forEach(button => button.click());
 					}
+					// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
+					await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
+					await driver.sleep(1000);
+					const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
+					buttons.forEach(button => button.click());
 					console.log('Browser works as expected');
 					const publisherVideos = await driver.findElements(By.css("[id^=\"remote-video-str\"]"))
 					this.totalPublishers = currentPublishers + publisherVideos.length;
@@ -313,8 +312,8 @@ export class RealBrowserService {
 	}
 
 	private existMediaFiles(resolution: string, framerate: number): boolean {
-		const videoFile = `${process.env.PWD}/src/assets/mediafiles/fakevideo_${framerate}fps_${resolution}.y4m`;
-		const audioFile = `${process.env.PWD}/src/assets/mediafiles/fakeaudio.wav`;
+		const videoFile = `${process.cwd()}/src/assets/mediafiles/fakevideo_${framerate}fps_${resolution}.y4m`;
+		const audioFile = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 		try {
 			return fs.existsSync(videoFile) && fs.existsSync(audioFile);
 		} catch (error) {

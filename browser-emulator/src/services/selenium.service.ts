@@ -46,7 +46,7 @@ export class SeleniumService {
     }
 
     async getChromeDriver(chromeCapabilities: Capabilities, chromeOptions: chrome.Options): Promise<WebDriver> {
-        const sb = new chrome.ServiceBuilder().enableVerboseLogging().loggingTo(`${process.env.PWD}/selenium.log`);
+        const sb = new chrome.ServiceBuilder().enableVerboseLogging().loggingTo(`${process.cwd()}/selenium.log`);
 		return await new Builder()
 			.forBrowser(Browser.CHROME)
 			.withCapabilities(chromeCapabilities)
@@ -56,10 +56,10 @@ export class SeleniumService {
 	}
 
     async getFirefoxDriver(firefoxCapabilities: Capabilities, firefoxOptions: firefox.Options): Promise<WebDriver> {
-        // const logFile = `${process.env.PWD}/selenium.log`;
+        // const logFile = `${process.cwd()}/selenium.log`;
         // const logStream = fs.createWriteStream(logFile, {flags: 'a'});
         //process.env.MOZ_LOG = "RTCRtpSender:5,VideoEngine:5,RTCDMTFSender:5,CamerasParent:5,WebrtcTCPSocket:5,MediaTrackGraph:5,WebAudioAPI:5,HTMLMediaElement:5,MediaEncoder:5,ForwardedInputTrack:5,HTMLMediaElementEvents:5,GetUserMedia:5,CamerasChild:5,VP8TrackEncoder:5,MediaChild:5,MediaPipeline:5,TabShare:5,VideoFrameConverter:5,sdp:5,mtransport:5,ShmemPool:5,webrtc_trace:5,signaling:5,MediaManager:5,DriftCompensator:5,jsep:5,ForwardInputTrack:5,RTCRtpReceiver:5,cubeb:5,TrackEncoder:5,PeerConnectionImpl:5,MediaParent:5,RTCRtpTransceiver:5,MediaRecorder:5,Muxer:5,MediaStreamTrack:5,MediaStream:5"
-        process.env.MOZ_LOG = "MediaRecorder:5"
+        // process.env.MOZ_LOG = "MediaRecorder:5,MediaStream:5,MediaEncoder:5,MediaDecoder:5,MediaTimer:5,MediaTrackGraph:5,"
         const sb = new firefox.ServiceBuilder().enableVerboseLogging(true).setStdio('inherit');
 		return await new Builder()
 			.forBrowser(Browser.FIREFOX)

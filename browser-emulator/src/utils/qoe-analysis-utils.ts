@@ -10,7 +10,7 @@ const limit = pLimit(1) // Scripts are already multithreaded
 const elasticSearchService = ElasticSearchService.getInstance();
 
 export async function runQoEAnalysisNonBlocking(processingInfo: JSONQoeProcessing) {
-    const dir = `${process.env.PWD}/recordings/qoe`
+    const dir = `${process.cwd()}/recordings/qoe`
     const files = await fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
         .then(() => fsPromises.readdir(dir))
     runQoEAnalysis(processingInfo, dir, files).then(() => {
@@ -20,7 +20,7 @@ export async function runQoEAnalysisNonBlocking(processingInfo: JSONQoeProcessin
 }
 
 export async function runQoEAnalysisBlocking(processingInfo: JSONQoeProcessing, maxCpus?: number, onlyFiles = false) {
-    const dir = `${process.env.PWD}/recordings/qoe`
+    const dir = `${process.cwd()}/recordings/qoe`
     const files = await fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
         .then(() => fsPromises.readdir(dir))
     await runQoEAnalysis(processingInfo, dir, files, maxCpus, onlyFiles).then(() => {
@@ -72,7 +72,7 @@ async function runSingleAnalysis(filePath: string, fileName: string, processingI
     if (maxCpus !== undefined) {
         maxCpusString = " --max_cpus " + maxCpus;
     }
-    return <Promise<string>> runScript(`python3 ${process.env.PWD}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` + maxCpusString)
+    return <Promise<string>> runScript(`python3 ${process.cwd()}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` + maxCpusString)
 }
 
 async function readJSONFile(prefix: string) {
@@ -140,7 +140,7 @@ async function processAndUploadResults(timestamps: JSONUserInfo[], info: any[], 
 export async function processFilesAndUploadResults(processingInfo: JSONQoeProcessing) {
     await elasticSearchService.initialize(processingInfo.index)
     const timestamps = await getTimestamps(processingInfo)
-    let files = await fsPromises.readdir(process.env.PWD)
+    let files = await fsPromises.readdir(process.cwd())
     files = files.filter(f => (path.extname(f).toLowerCase() === ".json") && (f.includes("_cuts.json")))
     const filesInfo = []
     for (const file of files) {

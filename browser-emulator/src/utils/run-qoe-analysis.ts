@@ -17,7 +17,7 @@ if (!pythonpath) {
 } else {
     process.env['PYTHONPATH'] = process.env['PWD']
 }
-const jsonText: string = readFileSync(`${process.env.PWD}/qoe-results-processing-config.json`, 'utf-8');
+const jsonText: string = readFileSync(`${process.cwd()}/qoe-results-processing-config.json`, 'utf-8');
 const info: JSONQoeProcessingELK = JSON.parse(jsonText)
 process.env.ELASTICSEARCH_HOSTNAME = info.elasticsearch_hostname;
 process.env.ELASTICSEARCH_USERNAME = info.elasticsearch_username;

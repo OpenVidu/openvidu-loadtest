@@ -13,7 +13,7 @@ export class InstanceService {
 	private isinstanceInitialized: boolean = false;
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
-	private readonly METRICBEAT_YML_LOCATION = `${process.env.PWD}/src/assets/metricbeat-config/metricbeat.yml`;
+	private readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
 	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
 	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
 	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
@@ -86,8 +86,8 @@ export class InstanceService {
 				Env: ['KMS_MIN_PORT=40000', 'KMS_MAX_PORT=65535', `KURENTO_RECORDING_ENABLED=${process.env.KURENTO_RECORDING_ENABLED}`],
 				HostConfig: {
 					Binds: [
-						`${process.env.PWD}/recordings/kms:${this.KMS_RECORDINGS_PATH}`,
-						`${process.env.PWD}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`,
+						`${process.cwd()}/recordings/kms:${this.KMS_RECORDINGS_PATH}`,
+						`${process.cwd()}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`,
 					],
 					AutoRemove: false,
 					NetworkMode: 'browseremulator',

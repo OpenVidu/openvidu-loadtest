@@ -1,8 +1,9 @@
 import { LoadTestPostRequest, TestProperties } from "../types/api-rest.type";
-import { BaseComModule } from "./base";
 import { Request } from "express";
+import BaseComModule from "./base";
 
-export class OpenviduComModule extends BaseComModule {
+export const PUBLIC_DIR = "public-";
+class OpenviduComModule extends BaseComModule {
 
     static getInstance(): BaseComModule {
         if (!BaseComModule.instance) {
@@ -63,3 +64,5 @@ export class OpenviduComModule extends BaseComModule {
 		);
     }
 }
+
+export default OpenviduComModule;

@@ -12,7 +12,7 @@ export async function runScript(script: string, options?: {
     console.log(script);
     const promise: Promise<string | ChildProcess> = new Promise((resolve, reject) => {
         const execProcess = spawn(script, [], {
-            cwd: `${process.env.PWD}`,
+            cwd: `${process.cwd()}`,
             shell: "/bin/bash",
             detached: !!options ? !!options.detached ? options.detached : false : false,
             stdio: !!options ? !!options.ignoreLogs ? 'ignore' : 'pipe' : 'pipe'

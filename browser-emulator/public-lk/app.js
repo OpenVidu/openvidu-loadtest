@@ -4,8 +4,6 @@ const RECORDING_LAYOUT = Object.freeze({BEST_FIT:'BEST_FIT', CUSTOM: 'CUSTOM' })
 
 
 var OPENVIDU_SERVER_URL;
-var LIVEKIT_API_KEY;
-var LIVEKIT_API_SECRET;
 var OPENVIDU_TOKEN;
 var SESSION_ID;
 var USER_ID;
@@ -33,8 +31,6 @@ var recordingChunks = new Map();
 window.onload = () => {
 	var url = new URL(window.location.href);
 	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl");
-	LIVEKIT_API_KEY = url.searchParams.get("livekitapikey");
-	LIVEKIT_API_SECRET = url.searchParams.get("livekitapisecret");
 	OPENVIDU_TOKEN = url.searchParams.get("token");
 	SESSION_ID = url.searchParams.get("sessionId");
 	USER_ID = url.searchParams.get("userId");
@@ -48,10 +44,9 @@ window.onload = () => {
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 
 	const userCond = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL;
-	const lkApiCond = !!LIVEKIT_API_KEY && !!LIVEKIT_API_SECRET;
 	const token = !!OPENVIDU_TOKEN;
 
-	if(userCond && lkApiCond && token){
+	if(userCond && token){
 		showVideoRoom();
 		joinSession();
 	} else {
@@ -63,8 +58,7 @@ window.onload = () => {
 function joinWithForm() {
 
 	OPENVIDU_SERVER_URL = document.getElementById("form-publicurl").value;
-	LIVEKIT_API_KEY = document.getElementById("form-apikey").value;
-	LIVEKIT_API_SECRET = document.getElementById("form-secret").value;
+	OPENVIDU_TOKEN = document.getElementById("form-token").value;
 	SESSION_ID = document.getElementById("form-sessionId").value;
 	USER_ID = document.getElementById("form-userId").value;
 	RESOLUTION = document.getElementById("form-resolution").value;
@@ -93,30 +87,36 @@ function recordStartDelay(time) {
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
 	session = new LivekitClient.Room();
+	//session.prepareConnection(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN);
+	var room = session;
 	//OV.enableProdMode();
+
 	room.on(LivekitClient.RoomEvent.Connected, () => {
 		appendElement('local-connection-created');
 		sendEvent({ event: "connectionCreated" });
 
 	});
+
 	room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
 		sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote' });
-
-		const element = track.attach();
 		if (SHOW_VIDEO_ELEMENTS) {
-			insertSubscriberContainer(track, element, participant.sid);
+			const element = track.attach();
+			const videoContainer = insertSubscriberTrack(element, participant.sid);
+			if (track.kind === LivekitClient.Track.Kind.Audio) {
+				createUnmuteButton('subscriber-need-to-be-unmuted', element);
+			}
 		}
 
 		if (!!QOE_ANALYSIS) {
 			// var remoteControl = new ElasTestRemoteControl();
 			// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
-			var remoteUser = participant.name;
+			var remoteUser = participant.identity;
 			if (!trackUser.has(participant.sid)) {
 				trackUser.set(participant.sid, track);
 			} else {
 				console.log(USER_ID + " starting recording user " + remoteUser);
-				var tracks = [trackUser.get(participant.sid).mediaStreamTrack, track.mediaStreamTrack];
-				const mediaRecorder = new MediaRecorder(tracks, { 
+				var stream = new MediaStream([trackUser.get(participant.sid).mediaStreamTrack, track.mediaStreamTrack]);
+				const mediaRecorder = new MediaRecorder(stream, { 
 					mimeType: 'video/webm' 
 				});
 				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
@@ -173,19 +173,15 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-		// TODO
-	});
-
-	session.on("streamDestroyed", event => {
-		sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
+		sendEvent({event: "streamDestroyed", connectionId: participant.sid,  connection: 'remote'});
+		track.detach();
 		if (!!QOE_ANALYSIS) {
-			var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+			var remoteUser = participant.identity;
 			var remoteControl = remoteControls.get(remoteUser);
 			remoteControl.stop().then(() => {
 				console.log("Recording stopped because of streamDestroyed");
 				return remoteControl.getBlob()
 			}).then((blob) => {
-				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				recordingBlobs.set(remoteUser, blob);
 				console.log("Blob created");
 			}).catch(err => {
@@ -195,77 +191,75 @@ async function joinSession() {
 		}
 	});
 
-	session.on("sessionDisconnected", event => {
+	room.on(LivekitClient.RoomEvent.Disconnected, () => {
 		document.querySelectorAll('.video-remote-container').forEach(a => {
 			a.remove();
 		});
-		sendEvent({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local' });
+		sendEvent({event: "sessionDisconnected", connection: 'local' });
 	});
 
-	session.on('exception', exception => {
-		if (exception.name === 'ICE_CANDIDATE_ERROR') {
-			sendEvent({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message });
+	room.on(LivekitClient.RoomEvent.MediaDevicesError, error => {
+		sendEvent({ event: "exception", reason: error.message });
+	});
+
+	room.on(LivekitClient.RoomEvent.LocalTrackPublished, (localTrackPublication, localParticipant) => {
+		sendEvent({ event: "streamCreated", connectionId: localParticipant.sid, connection: 'local' });
+		if (SHOW_VIDEO_ELEMENTS) {
+			const element = localTrackPublication.track.attach();
+			document.getElementById('video-publisher').appendChild(element);
 		}
+		appendElement('local-stream-created');
 	});
 
-	if (!OPENVIDU_TOKEN) {
-		console.log("Obtaining OpenVidu Token for session " + SESSION_ID + "...");
-		OPENVIDU_TOKEN = await getToken();
-	}
+	room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (localTrackPublication, localParticipant) => {
+		sendEvent({ event: "streamDestroyed", connectionId: localParticipant.sid, connection: 'local' });
+		localTrackPublication.track.detach();
+		document.getElementById('video-publisher').outerHTML = "";
+	});
 
-	session.connect(OPENVIDU_TOKEN, {clientData: `Real_browser_${USER_ID}`})
+	var resSplit = RESOLUTION.split('x');
+	var width = resSplit[0];
+	var height = resSplit[1];
+	var roomOptions = {
+		adaptiveStream: false,
+		publishDefaults: {
+			simulcast: false,
+			videoEncoding: {
+				maxFramerate: FRAME_RATE
+			}
+		}
+	}
+	if (AUDIO) {
+		roomOptions.audioCaptureDefaults = {
+			autoGainControl: false,
+			echoCancellation: false,
+			noiseSuppression: false,
+		}
+	}
+	if (VIDEO) {
+		roomOptions.videoCaptureDefaults = {
+			resolution: {
+				frameRate: FRAME_RATE,
+				width,
+				height
+			}
+		}
+	
+	}
+	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN, roomOptions)
 		.then(async () => {
 			console.log("Connected to session " + SESSION_ID);
-			if(ROLE === 'PUBLISHER') {
-				var videoContainer = null;
-				if(SHOW_VIDEO_ELEMENTS){
-					videoContainer = 'video-publisher';
-				}
+			if (ROLE === 'PUBLISHER') {
 				console.log("User " + USER_ID + " is publisher, publishing video and audio...");
-				var audioSource = AUDIO ? undefined : null;
-				var videoSource = VIDEO ? undefined : null;
-				OV.getUserMedia({
-					audioSource,
-					videoSource,
-					publishAudio: AUDIO,
-					publishVideo: VIDEO,
-					resolution:  RESOLUTION,
-					frameRate: FRAME_RATE,
-					mirror: false
-				}).then((mediaStream) => {
-					if (AUDIO) {
-						var audioTrack = mediaStream.getAudioTracks()[0];
-						return audioTrack.applyConstraints({
-							echoCancellation: false,
-							noiseSuppression: false,
-							autoGainControl: false,
-						}).then(() => {
-							return audioTrack;
-						}).catch(err => {
-							console.error(err);
-							sendError(err);
-						});
-					} else {
-						return null;
-					}
-				}).then((audioTrack) => {
-					const publisher = OV.initPublisher(videoContainer, {
-						audioSource: audioTrack,
-						videoSource: videoSource,
-						publishAudio: AUDIO,
-						publishVideo: VIDEO,
-						resolution:  RESOLUTION,
-						frameRate: FRAME_RATE,
-						mirror: false
-					});
-					session.publish(publisher);
+				try {
+					await room.localParticipant.enableCameraAndMicrophone();
 					console.log("Publisher initialized");
-					setPublisherButtonsActions(publisher);
-				}).catch((err) => {
+					setPublisherButtonsActions(room);
+				} catch (err) {
 					console.error(err);
 					console.error(JSON.stringify(err));
 					sendError(err);
-				})
+				}
 			} else {
 				console.log("User " + USER_ID + " is subscriber");
 				initMainVideoThumbnail();
@@ -285,8 +279,6 @@ function leaveSession() {
 	session = null;
 	OPENVIDU_TOKEN = null;
 	OPENVIDU_SERVER_URL = null;
-	LIVEKIT_API_KEY = null;
-	LIVEKIT_API_SECRET = null;
 	OPENVIDU_TOKEN = null;
 	SESSION_ID = null;
 	USER_ID = null;
@@ -319,6 +311,7 @@ function initMainVideoThumbnail() {
 }
 
 function createUnmuteButton(buttonId, videoContainer){
+	videoContainer.muted = true;
 	const container = document.getElementById('remote');
 	const button = document.createElement('button');
 	button.innerText = 'Unmute';
@@ -330,16 +323,23 @@ function createUnmuteButton(buttonId, videoContainer){
 	container.appendChild(button);
 }
 
-function setPublisherButtonsActions(publisher) {
+function setPublisherButtonsActions(room) {
+	var publisher = room.localParticipant;
 	if(ROLE === 'PUBLISHER'){
-		document.getElementById('mute').onclick = (e) => {
-			event.target.innerText = event.target.innerText === 'Mute' ? 'Unmute' : 'Mute';
-			publisher.publishAudio(!publisher.stream.audioActive);
-			publisher.publishVideo(!publisher.stream.videoActive);
+		document.getElementById('mute').onclick = (event) => {
+			var isMuted = event.target.innerText === 'Unmute';
+			Promise.all([
+				publisher.setCameraEnabled(!isMuted),
+				publisher.setMicrophoneEnabled(!isMuted)
+			]).then(() => {
+				event.target.innerText = isMuted ? 'Mute' : 'Unmute';
+			}).catch(err => {
+				console.error(err);
+			})
 		}
-		document.getElementById('unpublish').onclick = () => {
+		document.getElementById('unpublish').onclick = (event) => {
 			if (event.target.innerText === 'Unpublish') {
-				session.unpublish(publisher);
+				publisher.unpublishTracks(publisher.tracks);
 				event.target.innerText = 'Publish';
 			} else {
 				var elem = document.getElementById('video-publisher');
@@ -359,25 +359,6 @@ function setPublisherButtonsActions(publisher) {
 				event.target.innerText = 'Unpublish';
 			}
 		}
-
-		publisher.once("accessAllowed", e => {
-			sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
-
-		});
-		publisher.once("streamCreated", e => {
-			sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
-			appendElement('local-stream-created');
-		});
-		publisher.once("streamPlaying", e => {
-			sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' });
-		});
-		publisher.once("streamDestroyed", e => {
-			sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
-
-			if (e.reason !== 'unpublish') {
-				document.getElementById('video-publisher').outerHTML = "";
-			}
-		});
 	}
 
 
@@ -386,91 +367,30 @@ function setPublisherButtonsActions(publisher) {
 	};
 }
 
-function insertSubscriberContainer(track, element, participantSid) {
+function createOrGetVideoContainer(participantSid) {
+	var videoContainer = document.getElementById('video-' + participantSid);
+	if (videoContainer === null) {
+		var remotes = document.getElementById('remote-video-publisher');
+		videoContainer = document.createElement('div');
+		videoContainer.id = 'video-' + participantSid;
+		remotes.appendChild(videoContainer);
+	}
+	return videoContainer;
+}
 
-	var remotes = document.getElementById('remote-video-publisher');
-	var videoContainer = document.createElement('div');
-	videoContainer.id = 'video-' + participantSid;
-	remotes.appendChild(videoContainer);
+function insertSubscriberTrack(element, participantSid) {
+	var videoContainer = createOrGetVideoContainer(participantSid);
 	videoContainer.appendChild(element);
-	
-	videoContainer.muted = true;
-	videoContainer.play();
-	createUnmuteButton('subscriber-need-to-be-unmuted', videoContainer);
 	return videoContainer;
 }
 
 function initFormValues() {
 	document.getElementById("form-publicurl").value = OPENVIDU_SERVER_URL;
-	document.getElementById("form-apikey").value = LIVEKIT_API_KEY;
-	document.getElementById("form-secret").value = LIVEKIT_API_SECRET;
 	document.getElementById("form-sessionId").value = SESSION_ID;
 	document.getElementById("form-userId").value = USER_ID;
 	document.getElementById("form-showVideoElements").checked = SHOW_VIDEO_ELEMENTS;
 	document.getElementById("form-resolution").value = RESOLUTION;
 	document.getElementById("form-frameRate").value = FRAME_RATE;
-}
-
-
-function getToken() {
-	return createSession(SESSION_ID).then(sessionId => createToken(sessionId)).catch(err => {
-		console.error(err);
-		sendError(err);
-	});
-}
-
-function createSession(sessionId) {
-	return new Promise((resolve, reject) => {
-
-		var properties = { customSessionId: sessionId };
-
-		const recording = RECORDING_OUTPUT_MODE === OUTPUT_MODE.COMPOSED || RECORDING_OUTPUT_MODE === OUTPUT_MODE.INDIVIDUAL;
-		if(recording){
-			properties.defaultOutputMode = RECORDING_OUTPUT_MODE;
-			properties.defaultRecordingLayout = RECORDING_LAYOUT.BEST_FIT;
-			properties.recordingMode = RECORDING_MODE.ALWAYS;
-		}
-		const requestOptions = {
-			method: 'POST',
-			headers: {
-				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
-				"Content-Type": "application/json"
-			},
-			body: JSON.stringify(properties)
-		}
-		
-		fetch(OPENVIDU_SERVER_URL + "/openvidu/api/sessions", requestOptions)
-		.then(response => {
-			if (!response.ok) {
-				if (response.status === 409) {
-					resolve(sessionId);
-				} else {
-					console.warn('No connection to OpenVidu Server. This may be a certificate error at ' + OPENVIDU_SERVER_URL);
-					if (window.confirm('No connection to OpenVidu Server. This may be a certificate error at \"' + OPENVIDU_SERVER_URL + '\"\n\nClick OK to navigate and accept it. ' +
-						'If no certificate warning is shown, then check that your OpenVidu Server is up and running at "' + OPENVIDU_SERVER_URL + '"')) {
-						location.assign(OPENVIDU_SERVER_URL + '/accept-certificate');
-					}
-				}
-			}
-			return response.json();
-		}).then(response => resolve(response.id))
-	});
-}
-
-function createToken(sessionId) { // See https://docs.openvidu.io/en/stable/reference-docs/REST-API/#post-openviduapisessionsltsession_idgtconnection
-    return new Promise((resolve, reject) => {
-        $.ajax({
-            type: 'POST',
-            url: OPENVIDU_SERVER_URL + '/openvidu/api/sessions/' + sessionId + '/connection',
-            data: JSON.stringify({role: ROLE}),
-            headers: {
-                'Authorization': 'Basic ' + btoa('OPENVIDUAPP:' + OPENVIDU_SERVER_SECRET),
-                'Content-Type': 'application/json',
-            },
-            success: (response) => resolve(response.token),
-            error: (error) => reject(error)
-        });
-    });
 }
 
 function sendEvent(event) {
@@ -480,16 +400,21 @@ function sendEvent(event) {
 
 	if(url) {
 		return new Promise((resolve, reject) => {
-			$.ajax({
-				type: 'POST',
-				url: url.httpEndpoint,
-				data: JSON.stringify(event),
+			fetch(url.httpEndpoint, {
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				success: (response) => resolve(),
-				error: (error) => reject(error)
-			});
+				body: JSON.stringify(event)
+			})
+			.then(response => {
+				if (response.ok) {
+					resolve();
+				} else {
+					reject(new Error('Request failed'));
+				}
+			})
+			.catch(error => reject(error));
 		});
 	}
 }
@@ -543,7 +468,7 @@ async function getRecordings(fileNamePrefix) {
 }
 
 async function sendBlob(blob, fileNamePrefix, remoteUserId) {
-	return new Promise ((resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		var ITEM_NAME = 'ov-qoe-config';
 
 		const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
@@ -554,19 +479,22 @@ async function sendBlob(blob, fileNamePrefix, remoteUserId) {
 			const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
 			console.log("Sending file: " + fileName);
 			formData.append('file', blob, fileName);
-			$.ajax({
-				type: 'POST',
-				url: url.httpEndpoint,
-				data: formData,
-				processData: false,
-				contentType: false,
-				success: (response) => resolve(),
-				error: (error) => reject(error)
-			});
+
+			fetch(url.httpEndpoint, {
+				method: 'POST',
+				body: formData
+			}).then(response => {
+				if (response.ok) {
+					resolve();
+				} else {
+					reject(new Error('Failed to send file'));
+				}
+			})
+			.catch(error => reject(error));
 		} else {
-			reject("No URL in localStorage for QoE Endpoint")
+			reject("No URL in localStorage for QoE Endpoint");
 		}
-	})
+	});
 }
 
 function sendError(err) {
@@ -574,14 +502,22 @@ function sendError(err) {
 
 	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
 	if (url) {
-		$.ajax({
-			type: 'POST',
-			url: url.httpEndpoint,
-			data: JSON.stringify(err),
-			success: (response) => console.log("Error sent to browser-emulator"),
-			error: (error) => console.error(error)
-		});
+		fetch(url.httpEndpoint, {
+			method: 'POST',
+			body: JSON.stringify(err),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		})
+		.then(response => {
+			if (response.ok) {
+				console.log("Error sent to browser-emulator");
+			} else {
+				console.error(response);
+			}
+		})
+		.catch(error => console.error(error));
 	} else {
-		reject("No URL in localStorage for error Endpoint")
+		reject("No URL in localStorage for error Endpoint");
 	}
 }
