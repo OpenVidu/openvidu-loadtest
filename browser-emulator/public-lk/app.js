@@ -17,7 +17,6 @@ var FRAME_RATE;
 var QOE_ANALYSIS;
 
 var session;
-var mediaRecorderErrors = 0;
 var LivekitClient = window.LivekitClient;
 var trackUser = new Map();
 
@@ -27,6 +26,11 @@ var trackUser = new Map();
 var remoteControls = new Map();
 var recordingBlobs = new Map();
 var recordingChunks = new Map();
+const BLOB_TIMESLICE = 1000;
+const TIME_FOR_ERROR = 1000;
+const NUMBER_OF_ERRORS = 5;
+var recordingErrors = new Map();
+var recordingErrorTimeouts = new Map();
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -130,18 +134,26 @@ async function joinSession() {
 					mediaRecorder.onstart = () => {
 						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
 						remoteControls.set(remoteUser, mediaRecorder);
+						recordingErrors.set(remoteUser, 0)
 					};
 					mediaRecorder.onerror = (error) => {
 						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
-						mediaRecorderErrors++;
+						var mediaRecorderErrors = recordingErrors.get(remoteUser) + 1;
+						recordingErrors.set(remoteUser, mediaRecorderErrors);
+						if (!recordingErrorTimeouts.get(remoteUser)) {
+							var timeoutId = setTimeout(() => {
+								recordingErrors.set(remoteUser, 0);
+							}, TIME_FOR_ERROR)
+							recordingErrorTimeouts.set(timeoutId);
+						}
 						console.error(error)
 						sendEvent({ event: "recordingerror", connectionId: participant.sid, reason: error.error });
-						if (mediaRecorderErrors <= 5) {
+						if (mediaRecorderErrors <= NUMBER_OF_ERRORS) {
 							// restart recording
 							console.info("Restarting recording: " + USER_ID + " recording " + remoteUser);
-							remoteControls.get(remoteUser).start();
+							remoteControls.get(remoteUser).start(BLOB_TIMESLICE);
 						} else {
-							console.info("Too many MediaRecorder errors, trying to save blob: " + USER_ID + " recording " + remoteUser);
+							console.info("Too many MediaRecorder errors in a short time, trying to save blob: " + USER_ID + " recording " + remoteUser);
 							var remoteControl = remoteControls.get(remoteUser);
 							if (!!remoteControl) {
 								var chunks = recordingChunks.get(remoteUser);
@@ -165,7 +177,7 @@ async function joinSession() {
 							sendEvent({ event: "recordingerror", connectionId: participant.sid, reason: error2 });
 						}
 					}
-					mediaRecorder.start()
+					mediaRecorder.start(BLOB_TIMESLICE)
 				})
 			}
 
@@ -177,17 +189,22 @@ async function joinSession() {
 		track.detach();
 		if (!!QOE_ANALYSIS) {
 			var remoteUser = participant.identity;
+			console.log(USER_ID + " stopping recording user " + remoteUser);
 			var remoteControl = remoteControls.get(remoteUser);
-			remoteControl.stop().then(() => {
-				console.log("Recording stopped because of streamDestroyed");
-				return remoteControl.getBlob()
-			}).then((blob) => {
-				recordingBlobs.set(remoteUser, blob);
-				console.log("Blob created");
-			}).catch(err => {
-				console.error(err);
-				sendError(err);
-			});
+			if (!!remoteControl) {
+				remoteControl.stop().then(() => {
+					console.log("Recording stopped because of streamDestroyed");
+					return remoteControl.getBlob()
+				}).then((blob) => {
+					recordingBlobs.set(remoteUser, blob);
+					console.log("Blob created");
+				}).catch(err => {
+					console.error(err);
+					sendError(err);
+				});
+			} else {
+				console.warn("No mediarecorder found for user " + remoteUser);
+			}
 		}
 	});
 
@@ -214,7 +231,9 @@ async function joinSession() {
 	room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (localTrackPublication, localParticipant) => {
 		sendEvent({ event: "streamDestroyed", connectionId: localParticipant.sid, connection: 'local' });
 		localTrackPublication.track.detach();
-		document.getElementById('video-publisher').outerHTML = "";
+		var div = document.getElementById('video-publisher')
+		if (!!div)
+			div.outerHTML = "";
 	});
 
 	var resSplit = RESOLUTION.split('x');
@@ -275,22 +294,23 @@ async function joinSession() {
 }
 
 function leaveSession() {
-	session.disconnect();
-	session = null;
-	OPENVIDU_TOKEN = null;
-	OPENVIDU_SERVER_URL = null;
-	OPENVIDU_TOKEN = null;
-	SESSION_ID = null;
-	USER_ID = null;
-	AUDIO = null;
-	VIDEO = null;
-	SHOW_VIDEO_ELEMENTS = null;
-	RESOLUTION = null;
-	ROLE = null;
-	RECORDING_OUTPUT_MODE = null;
-	FRAME_RATE = null;
-	window.location.href = window.location.origin;
-	showForm();
+	session.disconnect().then(() => {
+		session = null;
+		OPENVIDU_TOKEN = null;
+		OPENVIDU_SERVER_URL = null;
+		OPENVIDU_TOKEN = null;
+		SESSION_ID = null;
+		USER_ID = null;
+		AUDIO = null;
+		VIDEO = null;
+		SHOW_VIDEO_ELEMENTS = null;
+		RESOLUTION = null;
+		ROLE = null;
+		RECORDING_OUTPUT_MODE = null;
+		FRAME_RATE = null;
+		window.location.href = window.location.origin;
+		showForm();
+	});
 }
 
 window.onbeforeunload = () => {
@@ -338,26 +358,27 @@ function setPublisherButtonsActions(room) {
 			})
 		}
 		document.getElementById('unpublish').onclick = (event) => {
-			if (event.target.innerText === 'Unpublish') {
-				publisher.unpublishTracks(publisher.tracks);
-				event.target.innerText = 'Publish';
-			} else {
-				var elem = document.getElementById('video-publisher');
-				elem.parentNode.removeChild(elem);
+			// TODO: Reimplement for LK
+			// if (event.target.innerText === 'Unpublish') {
+			// 	publisher.unpublishTracks(publisher.tracks);
+			// 	event.target.innerText = 'Publish';
+			// } else {
+			// 	var elem = document.getElementById('video-publisher');
+			// 	elem.parentNode.removeChild(elem);
 
-				var videoContainer = null;
-				if(SHOW_VIDEO_ELEMENTS){
-					videoContainer = 'video-publisher';
-				}
-				var publisher2 = OV.initPublisher(videoContainer, {
-					 resolution: RESOLUTION,
-					 frameRate: 30,
-					 mirror: false
-				});
-				setPublisherButtonsActions(publisher2);
-				session.publish(publisher2);
-				event.target.innerText = 'Unpublish';
-			}
+			// 	var videoContainer = null;
+			// 	if(SHOW_VIDEO_ELEMENTS){
+			// 		videoContainer = 'video-publisher';
+			// 	}
+			// 	var publisher2 = OV.initPublisher(videoContainer, {
+			// 		 resolution: RESOLUTION,
+			// 		 frameRate: 30,
+			// 		 mirror: false
+			// 	});
+			// 	setPublisherButtonsActions(publisher2);
+			// 	session.publish(publisher2);
+			// 	event.target.innerText = 'Unpublish';
+			// }
 		}
 	}
 

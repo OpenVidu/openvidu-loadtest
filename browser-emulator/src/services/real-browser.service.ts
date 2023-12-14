@@ -222,7 +222,7 @@ export class RealBrowserService {
 						currentPublishers++;
 					}
 					// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
-					await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
+					// await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
 					await driver.sleep(1000);
 					const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
 					buttons.forEach(button => button.click());
