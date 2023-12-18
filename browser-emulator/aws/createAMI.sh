@@ -3,12 +3,12 @@ set -eu -o pipefail
 
 usage() {
   echo "Usage: $0 [--region <AWS_DEFAULT_REGION>] [--version <CF_URL>]" >&2
-  echo "Defaults: --region us-east-1 --version $PWD/prepare_scripts/livekit/EC2-browser-emulator-no-qoe-firefox.yml" >&2
+  echo "Defaults: --region us-east-1 --version $PWD/livekit/EC2-browser-emulator-no-qoe-firefox.yml" >&2
   exit 1
 }
 
 AWS_DEFAULT_REGION="us-east-1"
-CF_URL="$PWD/EC2-browser-emulator-no-qoe.yml"
+CF_URL="$PWD/livekit/EC2-browser-emulator-no-qoe.yml"
 
 while [[ $# -gt 0 ]]; do
   key="$1"
