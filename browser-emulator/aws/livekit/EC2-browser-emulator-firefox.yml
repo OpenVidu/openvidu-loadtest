@@ -37,5 +37,5 @@ Resources:
 
           echo 'AWS_STACK=${AWS::StackId}' | sudo tee -a /etc/environment
           echo 'AWS_REGION=${AWS::Region}' | sudo tee -a /etc/environment
-          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare_firefox.sh > /var/log/prepare.log 2> /var/log/prepare_error.log 2>&1 && ./notify-aws.sh > /var/log/prepare_aws.log 2> /var/log/prepare_error_aws.log 2>&1' | crontab
+          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare_scripts/livekit/prepare_firefox.sh > /var/log/prepare.log 2> /var/log/prepare_error.log 2>&1 && ./notify-aws.sh > /var/log/prepare_aws.log 2> /var/log/prepare_error_aws.log 2>&1' | crontab
           reboot now

@@ -19,7 +19,7 @@ SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute
 apt-get update
 apt-get upgrade -yq
 apt-get install -yq --no-install-recommends \
-  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip
+  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip build-essential
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 NODE_MAJOR=18
@@ -48,11 +48,26 @@ sudo update-initramfs -c -k $(uname -r)
 sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
 
-install_chrome() {
-    wget -c https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    apt-get install -f -yq ./google-chrome-stable_current_amd64.deb
-    apt-get install -f -yq
-    rm -f google-chrome-stable_current_amd64.deb
+# install_firefox() {
+#     snap remove firefox
+#     add-apt-repository ppa:mozillateam/ppa -y
+#     echo '
+# Package: *
+# Pin: release o=LP-PPA-mozillateam
+# Pin-Priority: 1001
+# ' | sudo tee /etc/apt/preferences.d/mozilla-firefox
+#     apt-get install -f -yq firefox
+# }
+
+install_firefox() {
+    snap remove firefox
+    apt-get install -yq --no-install-recommends libgtk-3-0 libdbus-glib-1-2 xorg libnm0
+    wget https://download-installer.cdn.mozilla.net/pub/firefox/releases/120.0.1/linux-x86_64/en-US/firefox-120.0.1.tar.bz2
+    tar xjf firefox-120.0.1.tar.bz2
+    mv firefox /opt
+    ln -s /opt/firefox/firefox /usr/bin/firefox
+    rm firefox-120.0.1.tar.bz2
+    echo "firefox installed"
 }
 
 install_ffmpeg() {
@@ -64,23 +79,31 @@ install_ffmpeg() {
     # make install
     export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     echo export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} | tee -a /etc/profile
+    echo "ffmpeg installed"
 }
 
 install_node_dependencies_and_build() {
     ## Install node dependencies
-    npm --prefix /opt/openvidu-loadtest/browser-emulator install --save-dev
-    npm --prefix /opt/openvidu-loadtest/browser-emulator run build
+    npm install -g yarn
+    yarn --cwd /opt/openvidu-loadtest/browser-emulator install --verbose
+    yarn --cwd /opt/openvidu-loadtest/browser-emulator run build
+    echo "node build completed"
+}
+
+pull_images() {
+    # Pull images used by browser-emulator for faster initialization time
+    docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
+    docker pull kurento/kurento-media-server:latest
+    docker network create browseremulator
+    echo "docker images pulled"
 }
 
 install_ffmpeg &
+install_firefox &
+pull_images &
 install_node_dependencies_and_build &
-install_chrome &
 wait
 
-# Pull images used by browser-emulator for faster initialization time
-docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
-docker pull kurento/kurento-media-server:latest
-docker network create browseremulator
 
 # Create recording directories
 mkdir -p ./recordings/kms
@@ -89,4 +112,4 @@ mkdir -p ./recordings/qoe
 
 chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
 
-echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -
+echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-firefox > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -

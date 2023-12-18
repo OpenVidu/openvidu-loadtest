@@ -174,6 +174,14 @@ install_node_dependencies_and_build() {
     npm --prefix /opt/openvidu-loadtest/browser-emulator run build
 }
 
+pull_images() {
+    # Pull images used by browser-emulator for faster initialization time
+    docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
+    docker pull kurento/kurento-media-server:latest
+    docker network create browseremulator
+    echo "docker images pulled"
+}
+
 install_ffmpeg &
 install_vqmt &
 install_pesq &
@@ -183,15 +191,8 @@ install_tesseract &
 install_python_dependencies &
 install_node_dependencies_and_build &
 install_firefox &
+pull_images &
 wait
-
-# Needs sudo so it works in crontab
-sudo ldconfig
-
-# Pull images used by browser-emulator for faster initialization time
-docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
-docker pull kurento/kurento-media-server:latest
-docker network create browseremulator
 
 # Create recording directories
 mkdir -p ./recordings/kms

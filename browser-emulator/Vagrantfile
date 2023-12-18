@@ -18,8 +18,8 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder "./qoe_scripts", "/opt/openvidu-loadtest/browser-emulator/qoe_scripts"
   config.vm.synced_folder "./recording_scripts", "/opt/openvidu-loadtest/browser-emulator/recording_scripts"
   config.vm.synced_folder "./recordings", "/opt/openvidu-loadtest/browser-emulator/recordings"
+  config.vm.synced_folder "./prepare_scripts", "/opt/openvidu-loadtest/browser-emulator/prepare_scripts"
   config.vm.provision "file", source: "./package.json", destination: "/opt/openvidu-loadtest/browser-emulator/package.json"
-  config.vm.provision "file", source: "./prepare_no_qoe_firefox.sh", destination: "/opt/openvidu-loadtest/browser-emulator/prepare_no_qoe_firefox.sh"
   config.vm.provision "file", source: "./download_mediafiles.sh", destination: "/opt/openvidu-loadtest/browser-emulator/download_mediafiles.sh"
   config.vm.provision "file", source: "./tsconfig.json", destination: "/opt/openvidu-loadtest/browser-emulator/tsconfig.json"
   config.vm.provision "file", source: "./debug_vnc_local.sh", destination: "/opt/openvidu-loadtest/browser-emulator/debug_vnc.sh"
@@ -35,7 +35,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: <<-SHELL
     cd /opt/openvidu-loadtest/browser-emulator
     chmod +x ./*.sh
-    ./prepare_no_qoe_firefox.sh
+    ./prepare_scripts/livekit/prepare_no_qoe_firefox.sh
     usermod -aG docker vagrant
     usermod -aG syslog vagrant
     usermod -aG video vagrant

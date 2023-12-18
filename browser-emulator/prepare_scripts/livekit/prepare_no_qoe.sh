@@ -19,7 +19,7 @@ SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute
 apt-get update
 apt-get upgrade -yq
 apt-get install -yq --no-install-recommends \
-  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip build-essential
+  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 NODE_MAJOR=18
@@ -48,15 +48,11 @@ sudo update-initramfs -c -k $(uname -r)
 sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
 
-install_firefox() {
-    snap remove firefox
-    add-apt-repository ppa:mozillateam/ppa -y
-    echo '
-Package: *
-Pin: release o=LP-PPA-mozillateam
-Pin-Priority: 1001
-' | sudo tee /etc/apt/preferences.d/mozilla-firefox
-    apt-get install -f -yq firefox
+install_chrome() {
+    wget -c https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    apt-get install -f -yq ./google-chrome-stable_current_amd64.deb
+    apt-get install -f -yq
+    rm -f google-chrome-stable_current_amd64.deb
 }
 
 install_ffmpeg() {
@@ -76,15 +72,20 @@ install_node_dependencies_and_build() {
     npm --prefix /opt/openvidu-loadtest/browser-emulator run build
 }
 
+pull_images() {
+    # Pull images used by browser-emulator for faster initialization time
+    docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
+    docker pull kurento/kurento-media-server:latest
+    docker network create browseremulator
+    echo "docker images pulled"
+}
+
 install_ffmpeg &
 install_node_dependencies_and_build &
-install_firefox &
+install_chrome &
+pull_images &
 wait
 
-# Pull images used by browser-emulator for faster initialization time
-docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
-docker pull kurento/kurento-media-server:latest
-docker network create browseremulator
 
 # Create recording directories
 mkdir -p ./recordings/kms
@@ -93,4 +94,4 @@ mkdir -p ./recordings/qoe
 
 chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
 
-echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-firefox > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -
+echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-livekit > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -

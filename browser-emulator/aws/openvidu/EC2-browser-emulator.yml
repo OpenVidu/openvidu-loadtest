@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Browser Emulator
+
+Parameters:
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: An Amazon EC2 image ID, such as ami-09d56f8956ab235b3.
+    Default: ami-0778521d914d23bc1
+
+Resources:
+  BrowserInstance:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT1H
+        Count: 1
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: "t3.small"
+      Tags:
+      - Key: Name
+        Value: !Ref AWS::StackName
+    # Add KeyName: [your ssh key] to be able to access this instance
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          VolumeType: "gp2"
+          DeleteOnTermination: "true"
+          VolumeSize: "50"
+      UserData:
+        "Fn::Base64":
+          !Sub |
+          #!/bin/bash
+          apt update
+          apt install -y linux-aws-edge 
+          git clone https://github.com/OpenVidu/openvidu-loadtest.git /opt/openvidu-loadtest
+
+          echo 'AWS_STACK=${AWS::StackId}' | sudo tee -a /etc/environment
+          echo 'AWS_REGION=${AWS::Region}' | sudo tee -a /etc/environment
+          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare_scripts/openvidu/prepare.sh > /var/log/prepare.log 2> /var/log/prepare_error.log 2>&1 && ./notify-aws.sh > /var/log/prepare_aws.log 2> /var/log/prepare_error_aws.log 2>&1' | crontab
+          reboot now

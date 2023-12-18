@@ -176,6 +176,14 @@ install_node_dependencies_and_build() {
     npm --prefix /opt/openvidu-loadtest/browser-emulator run build
 }
 
+pull_images() {
+    # Pull images used by browser-emulator for faster initialization time
+    docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
+    docker pull kurento/kurento-media-server:latest
+    docker network create browseremulator
+    echo "docker images pulled"
+}
+
 install_ffmpeg &
 install_vqmt &
 install_pesq &
@@ -185,16 +193,8 @@ install_tesseract &
 install_python_dependencies &
 install_node_dependencies_and_build &
 install_chrome &
+pull_images &
 wait
-
-# Needs sudo so it works in crontab
-sudo ldconfig
-pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-
-# Pull images used by browser-emulator for faster initialization time
-docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
-docker pull kurento/kurento-media-server:latest
-docker network create browseremulator
 
 # Create recording directories
 mkdir -p ./recordings/kms
@@ -203,4 +203,4 @@ mkdir -p ./recordings/qoe
 
 chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
 
-echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -
+echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run start:prod-livekit > /var/log/crontab.log 2>&1' 2>&1 | crontab -u ubuntu -
