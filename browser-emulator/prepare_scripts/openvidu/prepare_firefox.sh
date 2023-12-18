@@ -11,7 +11,11 @@ shopt -s inherit_errexit 2>/dev/null || true
 set -o xtrace
 
 DEBIAN_FRONTEND=noninteractive
-sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
+if [ -f "/etc/needrestart/needrestart.conf" ]; then
+    sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
+else
+    echo "No needrestart, continuing"
+fi
 
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
 
