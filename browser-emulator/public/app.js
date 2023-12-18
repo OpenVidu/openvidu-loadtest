@@ -24,9 +24,8 @@ var mediaRecorderErrors = 0;
 // var subscriptions = 0;
 // const MAX_SUBSCRIPTIONS = 5;
 
-var remoteControls = new Map();
-var recordingBlobs = new Map();
-var recordingChunks = new Map();
+var beConnector = new BrowserEmulatorConnector();
+var recordingManager = new BrowserEmulatorRecorderManager(beConnector);
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -97,12 +96,12 @@ async function joinSession() {
 			appendElement('local-connection-created');
 			connectionType = 'local';
 		}
-		sendEvent({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType  });
+		beConnector.sendEvent({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType  });
 
 	});
 
 	session.on("streamCreated", event => {
-		sendEvent({ event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
+		beConnector.sendEvent({ event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
 
 		var videoContainer = null;
 		if(SHOW_VIDEO_ELEMENTS){
@@ -120,58 +119,9 @@ async function joinSession() {
 				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
 				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				console.log(USER_ID + " starting recording user " + remoteUser);
-				var mediaStream = event.stream.getMediaStream();
-				const mediaRecorder = new MediaRecorder(mediaStream, { 
-					mimeType: 'video/webm' 
-				});
-				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
-				recordStartDelay(5000).then(() => {
-					recordingChunks.set(remoteUser, []);
-					mediaRecorder.ondataavailable = (e) => {
-						if (e.data.size > 0) {
-							recordingChunks.get(remoteUser).push(e.data);
-						}
-					};
-					mediaRecorder.onstart = () => {
-						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
-						remoteControls.set(remoteUser, mediaRecorder);
-					};
-					mediaRecorder.onerror = (error) => {
-						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
-						mediaRecorderErrors++;
-						console.error(error)
-						sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error.error });
-						if (mediaRecorderErrors <= 5) {
-							// restart recording
-							console.info("Restarting recording: " + USER_ID + " recording " + remoteUser);
-							remoteControls.get(remoteUser).start();
-						} else {
-							console.info("Too many MediaRecorder errors, trying to save blob: " + USER_ID + " recording " + remoteUser);
-							var remoteControl = remoteControls.get(remoteUser);
-							if (!!remoteControl) {
-								var chunks = recordingChunks.get(remoteUser);
-								var blob = new Blob(chunks, { type: remoteControl.mimeType });
-								recordingBlobs.set(remoteUser, blob);
-								if (!!blob) {
-									console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-									sendBlob(blob, "QOE_errored_recording", remoteUser)
-								} else {
-									sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
-									reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
-								}
-							}
-						}
-						try {
-							console.warn("Trying to print previous mediarecorder error")
-							console.error(error.error.message)
-							console.error(error.error.name)
-						}  catch (error2) {
-							console.error(error2)
-							sendEvent({ event: "recordingerror", connectionId: event.stream.streamId, reason: error2 });
-						}
-					}
-					mediaRecorder.start()
-				})
+				var stream = event.stream.getMediaStream();
+				const mediaRecorder = recordingManager.createRecorder(USER_ID, remoteUser, SESSION_ID, stream);
+				mediaRecorder.start();
 			}
 
 			if(ROLE === 'SUBSCRIBER'){
@@ -181,12 +131,12 @@ async function joinSession() {
 				document.getElementById(videoId).play();
 				createUnmuteButton('subscriber-need-to-be-unmuted', videoId);
 			}
-			sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
+			beConnector.sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
 		});
 	});
 
 	session.on("streamDestroyed", event => {
-		sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
+		beConnector.sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
 		if (!!QOE_ANALYSIS) {
 			var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 			var remoteControl = remoteControls.get(remoteUser);
@@ -199,7 +149,7 @@ async function joinSession() {
 				console.log("Blob created");
 			}).catch(err => {
 				console.error(err);
-				sendError(err);
+				beConnector.sendError(err);
 			});
 		}
 	});
@@ -208,12 +158,12 @@ async function joinSession() {
 		document.querySelectorAll('.video-remote-container').forEach(a => {
 			a.remove();
 		});
-		sendEvent({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local' });
+		beConnector.sendEvent({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local' });
 	});
 
 	session.on('exception', exception => {
 		if (exception.name === 'ICE_CANDIDATE_ERROR') {
-			sendEvent({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message });
+			beConnector.sendEvent({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message });
 		}
 	});
 
@@ -252,7 +202,7 @@ async function joinSession() {
 							return audioTrack;
 						}).catch(err => {
 							console.error(err);
-							sendError(err);
+							beConnector.sendError(err);
 						});
 					} else {
 						return null;
@@ -273,7 +223,7 @@ async function joinSession() {
 				}).catch((err) => {
 					console.error(err);
 					console.error(JSON.stringify(err));
-					sendError(err);
+					beConnector.sendError(err);
 				})
 			} else {
 				console.log("User " + USER_ID + " is subscriber");
@@ -284,7 +234,7 @@ async function joinSession() {
 		})
 		.catch(error => {
 			console.log("There was an error connecting to the session:", error.code, error.message);
-			sendError(error);
+			beConnector.sendError(error);
 		});
 
 }
@@ -370,18 +320,18 @@ function setPublisherButtonsActions(publisher) {
 		}
 
 		publisher.once("accessAllowed", e => {
-			sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
+			beConnector.sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
 
 		});
 		publisher.once("streamCreated", e => {
-			sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
+			beConnector.sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
 			appendElement('local-stream-created');
 		});
 		publisher.once("streamPlaying", e => {
-			sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' });
+			beConnector.sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' });
 		});
 		publisher.once("streamDestroyed", e => {
-			sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
+			beConnector.sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
 
 			if (e.reason !== 'unpublish') {
 				document.getElementById('video-publisher').outerHTML = "";
@@ -418,7 +368,7 @@ function initFormValues() {
 function getToken() {
 	return createSession(SESSION_ID).then(sessionId => createToken(sessionId)).catch(err => {
 		console.error(err);
-		sendError(err);
+		beConnector.sendError(err);
 	});
 }
 
@@ -473,27 +423,6 @@ function createToken(sessionId) { // See https://docs.openvidu.io/en/stable/refe
     });
 }
 
-function sendEvent(event) {
-	var ITEM_NAME = 'ov-events-config';
-
-	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-
-	if(url) {
-		return new Promise((resolve, reject) => {
-			$.ajax({
-				type: 'POST',
-				url: url.httpEndpoint,
-				data: JSON.stringify(event),
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				success: (response) => resolve(),
-				error: (error) => reject(error)
-			});
-		});
-	}
-}
-
 function showForm() {
 	document.getElementById('join-form').style.display = 'block';
 	document.getElementById('local').style.display = 'none';
@@ -504,84 +433,4 @@ function showVideoRoom() {
 	document.getElementById('join-form').style.display = 'none';
 	document.getElementById('local').style.display = 'block';
 	document.getElementById('remote').style.display = 'block';
-}
-
-async function getRecordings(fileNamePrefix) {
-	const stopPromises = [];
-	for (const remoteControlEntry of remoteControls.entries()) {
-		const remoteUser = remoteControlEntry[0];
-		const remoteControl = remoteControlEntry[1];
-		const stopPromise = new Promise ((resolve, reject) => {
-			console.log("Stopping recording: " + USER_ID + " recording " + remoteUser);
-			remoteControl.onstop = () => {
-				console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
-				var chunks = recordingChunks.get(remoteUser);
-				var blob = new Blob(chunks, { type: remoteControl.mimeType });
-				recordingBlobs.set(remoteUser, blob);
-				if (!!blob) {
-					console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-					resolve({"user": remoteUser, "blob": blob});
-				} else {
-					sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
-					reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
-				}
-			};
-			remoteControl.stop();
-		}).then((blobObject) => sendBlob(blobObject.blob, fileNamePrefix, blobObject.user)).catch((error) => {
-			console.error(error);
-			sendError(error);
-		})
-		stopPromises.push(stopPromise);
-	}
-	try {
-		session.disconnect();
-	} catch (error) {
-		console.error("Can't disconnect from session")
-		console.error(error)
-	}
-	return Promise.all(stopPromises);
-}
-
-async function sendBlob(blob, fileNamePrefix, remoteUserId) {
-	return new Promise ((resolve, reject) => {
-		var ITEM_NAME = 'ov-qoe-config';
-
-		const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-		if (url) {
-			const formData = new FormData();
-			// Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
-			const finalSuffix = remoteUserId === USER_ID ? remoteUserId + '_' + Math.floor(Math.random() * 1000000) : remoteUserId;
-			const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
-			console.log("Sending file: " + fileName);
-			formData.append('file', blob, fileName);
-			$.ajax({
-				type: 'POST',
-				url: url.httpEndpoint,
-				data: formData,
-				processData: false,
-				contentType: false,
-				success: (response) => resolve(),
-				error: (error) => reject(error)
-			});
-		} else {
-			reject("No URL in localStorage for QoE Endpoint")
-		}
-	})
-}
-
-function sendError(err) {
-	var ITEM_NAME = 'ov-errorlog-config';
-
-	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-	if (url) {
-		$.ajax({
-			type: 'POST',
-			url: url.httpEndpoint,
-			data: JSON.stringify(err),
-			success: (response) => console.log("Error sent to browser-emulator"),
-			error: (error) => console.error(error)
-		});
-	} else {
-		reject("No URL in localStorage for error Endpoint")
-	}
 }

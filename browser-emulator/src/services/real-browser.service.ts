@@ -33,11 +33,11 @@ export class RealBrowserService {
 	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
 		const prefs = new logging.Preferences();
 		this.seleniumLogger = logging.getLogger('webdriver');
-		prefs.setLevel(logging.Type.BROWSER, logging.Level.ALL);
-		prefs.setLevel(logging.Type.DRIVER, logging.Level.ALL);
-		prefs.setLevel(logging.Type.CLIENT, logging.Level.ALL);
-		prefs.setLevel(logging.Type.PERFORMANCE, logging.Level.ALL);
-		prefs.setLevel(logging.Type.SERVER, logging.Level.ALL);
+		prefs.setLevel(logging.Type.BROWSER, logging.Level.INFO);
+		prefs.setLevel(logging.Type.DRIVER, logging.Level.INFO);
+		prefs.setLevel(logging.Type.CLIENT, logging.Level.INFO);
+		prefs.setLevel(logging.Type.PERFORMANCE, logging.Level.INFO);
+		prefs.setLevel(logging.Type.SERVER, logging.Level.INFO);
 		logging.installConsoleHandler();
 		if (process.env.REAL_DRIVER === "firefox") {
 			this.firefoxCapabilities.setLoggingPrefs(prefs);
@@ -224,8 +224,11 @@ export class RealBrowserService {
 					// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
 					// await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
 					await driver.sleep(1000);
-					const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
-					buttons.forEach(button => button.click());
+					for (const driverObj of this.driverMap.values()) {
+						const driver = driverObj.driver;
+						const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
+						buttons.forEach(button => button.click());
+					}
 					console.log('Browser works as expected');
 					const publisherVideos = await driver.findElements(By.css("[id^=\"remote-video-str\"]"))
 					this.totalPublishers = currentPublishers + publisherVideos.length;
@@ -327,15 +330,20 @@ export class RealBrowserService {
 			const driver = this.driverMap.get(driverId).driver;
 			if (!!driver) {
 				console.log("Executing getRecordings for driver " + driverId);
-				const fileNamePrefix = `QOE`;
 				try {
 					await driver.executeAsyncScript(`
 						const callback = arguments[arguments.length - 1];
 						try {
-							getRecordings('${fileNamePrefix}')
+							recordingsManager.getRecordings()
 							.catch(error => {
 								console.error(error)
 							}).finally(() => {
+								try {
+									leaveSession();
+								} catch (error) {
+									console.error("Can't disconnect from session")
+									console.error(error)
+								}
 								callback()
 							});
 						} catch (error) {

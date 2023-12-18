@@ -23,14 +23,8 @@ var trackUser = new Map();
 // var subscriptions = 0;
 // const MAX_SUBSCRIPTIONS = 5;
 
-var remoteControls = new Map();
-var recordingBlobs = new Map();
-var recordingChunks = new Map();
-const BLOB_TIMESLICE = 1000;
-const TIME_FOR_ERROR = 1000;
-const NUMBER_OF_ERRORS = 5;
-var recordingErrors = new Map();
-var recordingErrorTimeouts = new Map();
+var beConnector = new BrowserEmulatorConnector();
+var recordingManager = new BrowserEmulatorRecorderManager(beConnector);
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -97,12 +91,12 @@ async function joinSession() {
 
 	room.on(LivekitClient.RoomEvent.Connected, () => {
 		appendElement('local-connection-created');
-		sendEvent({ event: "connectionCreated" });
+		beConnector.sendEvent({ event: "connectionCreated" });
 
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-		sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote' });
+		beConnector.sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote' });
 		if (SHOW_VIDEO_ELEMENTS) {
 			const element = track.attach();
 			const videoContainer = insertSubscriberTrack(element, participant.sid);
@@ -119,73 +113,15 @@ async function joinSession() {
 				trackUser.set(participant.sid, track);
 			} else {
 				console.log(USER_ID + " starting recording user " + remoteUser);
-				var stream = new MediaStream([trackUser.get(participant.sid).mediaStreamTrack, track.mediaStreamTrack]);
-				const mediaRecorder = new MediaRecorder(stream, { 
-					mimeType: 'video/webm' 
-				});
-				console.log("Local recorder initialized: " + USER_ID + " recording " + remoteUser);
-				recordStartDelay(5000).then(() => {
-					recordingChunks.set(remoteUser, []);
-					mediaRecorder.ondataavailable = (e) => {
-						if (e.data.size > 0) {
-							recordingChunks.get(remoteUser).push(e.data);
-						}
-					};
-					mediaRecorder.onstart = () => {
-						console.log("Recording started: " + USER_ID + " recording " + remoteUser);
-						remoteControls.set(remoteUser, mediaRecorder);
-						recordingErrors.set(remoteUser, 0)
-					};
-					mediaRecorder.onerror = (error) => {
-						console.error("Error in recording: " + USER_ID + " recording " + remoteUser);
-						var mediaRecorderErrors = recordingErrors.get(remoteUser) + 1;
-						recordingErrors.set(remoteUser, mediaRecorderErrors);
-						if (!recordingErrorTimeouts.get(remoteUser)) {
-							var timeoutId = setTimeout(() => {
-								recordingErrors.set(remoteUser, 0);
-							}, TIME_FOR_ERROR)
-							recordingErrorTimeouts.set(timeoutId);
-						}
-						console.error(error)
-						sendEvent({ event: "recordingerror", connectionId: participant.sid, reason: error.error });
-						if (mediaRecorderErrors <= NUMBER_OF_ERRORS) {
-							// restart recording
-							console.info("Restarting recording: " + USER_ID + " recording " + remoteUser);
-							remoteControls.get(remoteUser).start(BLOB_TIMESLICE);
-						} else {
-							console.info("Too many MediaRecorder errors in a short time, trying to save blob: " + USER_ID + " recording " + remoteUser);
-							var remoteControl = remoteControls.get(remoteUser);
-							if (!!remoteControl) {
-								var chunks = recordingChunks.get(remoteUser);
-								var blob = new Blob(chunks, { type: remoteControl.mimeType });
-								recordingBlobs.set(remoteUser, blob);
-								if (!!blob) {
-									console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-									sendBlob(blob, "QOE_errored_recording", remoteUser)
-								} else {
-									sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
-									reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
-								}
-							}
-						}
-						try {
-							console.warn("Trying to print previous mediarecorder error")
-							console.error(error.error.message)
-							console.error(error.error.name)
-						}  catch (error2) {
-							console.error(error2)
-							sendEvent({ event: "recordingerror", connectionId: participant.sid, reason: error2 });
-						}
-					}
-					mediaRecorder.start(BLOB_TIMESLICE)
-				})
+				let stream = new MediaStream([trackUser.get(participant.sid).mediaStreamTrack, track.mediaStreamTrack]);
+				const mediaRecorder = recordingManager.createRecorder(USER_ID, remoteUser, SESSION_ID, stream);
+				mediaRecorder.start();
 			}
-
 		}
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-		sendEvent({event: "streamDestroyed", connectionId: participant.sid,  connection: 'remote'});
+		beConnector.sendEvent({event: "streamDestroyed", connectionId: participant.sid,  connection: 'remote'});
 		track.detach();
 		if (!!QOE_ANALYSIS) {
 			var remoteUser = participant.identity;
@@ -200,7 +136,7 @@ async function joinSession() {
 					console.log("Blob created");
 				}).catch(err => {
 					console.error(err);
-					sendError(err);
+					beConnector.sendError(err);
 				});
 			} else {
 				console.warn("No mediarecorder found for user " + remoteUser);
@@ -212,15 +148,15 @@ async function joinSession() {
 		document.querySelectorAll('.video-remote-container').forEach(a => {
 			a.remove();
 		});
-		sendEvent({event: "sessionDisconnected", connection: 'local' });
+		beConnector.sendEvent({event: "sessionDisconnected", connection: 'local' });
 	});
 
 	room.on(LivekitClient.RoomEvent.MediaDevicesError, error => {
-		sendEvent({ event: "exception", reason: error.message });
+		beConnector.sendEvent({ event: "exception", reason: error.message });
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackPublished, (localTrackPublication, localParticipant) => {
-		sendEvent({ event: "streamCreated", connectionId: localParticipant.sid, connection: 'local' });
+		beConnector.sendEvent({ event: "streamCreated", connectionId: localParticipant.sid, connection: 'local' });
 		if (SHOW_VIDEO_ELEMENTS) {
 			const element = localTrackPublication.track.attach();
 			document.getElementById('video-publisher').appendChild(element);
@@ -229,7 +165,7 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (localTrackPublication, localParticipant) => {
-		sendEvent({ event: "streamDestroyed", connectionId: localParticipant.sid, connection: 'local' });
+		beConnector.sendEvent({ event: "streamDestroyed", connectionId: localParticipant.sid, connection: 'local' });
 		localTrackPublication.track.detach();
 		var div = document.getElementById('video-publisher')
 		if (!!div)
@@ -277,7 +213,7 @@ async function joinSession() {
 				} catch (err) {
 					console.error(err);
 					console.error(JSON.stringify(err));
-					sendError(err);
+					beConnector.sendError(err);
 				}
 			} else {
 				console.log("User " + USER_ID + " is subscriber");
@@ -288,7 +224,7 @@ async function joinSession() {
 		})
 		.catch(error => {
 			console.log("There was an error connecting to the session:", error.code, error.message);
-			sendError(error);
+			beConnector.sendError(error);
 		});
 
 }
@@ -414,32 +350,6 @@ function initFormValues() {
 	document.getElementById("form-frameRate").value = FRAME_RATE;
 }
 
-function sendEvent(event) {
-	var ITEM_NAME = 'ov-events-config';
-
-	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-
-	if(url) {
-		return new Promise((resolve, reject) => {
-			fetch(url.httpEndpoint, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(event)
-			})
-			.then(response => {
-				if (response.ok) {
-					resolve();
-				} else {
-					reject(new Error('Request failed'));
-				}
-			})
-			.catch(error => reject(error));
-		});
-	}
-}
-
 function showForm() {
 	document.getElementById('join-form').style.display = 'block';
 	document.getElementById('local').style.display = 'none';
@@ -450,95 +360,4 @@ function showVideoRoom() {
 	document.getElementById('join-form').style.display = 'none';
 	document.getElementById('local').style.display = 'block';
 	document.getElementById('remote').style.display = 'block';
-}
-
-async function getRecordings(fileNamePrefix) {
-	const stopPromises = [];
-	for (const remoteControlEntry of remoteControls.entries()) {
-		const remoteUser = remoteControlEntry[0];
-		const remoteControl = remoteControlEntry[1];
-		const stopPromise = new Promise ((resolve, reject) => {
-			console.log("Stopping recording: " + USER_ID + " recording " + remoteUser);
-			remoteControl.onstop = () => {
-				console.log("Recording stopped, getting blob: " + USER_ID + " recording " + remoteUser);
-				var chunks = recordingChunks.get(remoteUser);
-				var blob = new Blob(chunks, { type: remoteControl.mimeType });
-				recordingBlobs.set(remoteUser, blob);
-				if (!!blob) {
-					console.log("Blob saved for " + USER_ID + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-					resolve({"user": remoteUser, "blob": blob});
-				} else {
-					sendError("Blob is null for: " + USER_ID + " recording " + remoteUser);
-					reject("Blob is null for: " + USER_ID + " recording " + remoteUser);
-				}
-			};
-			remoteControl.stop();
-		}).then((blobObject) => sendBlob(blobObject.blob, fileNamePrefix, blobObject.user)).catch((error) => {
-			console.error(error);
-			sendError(error);
-		})
-		stopPromises.push(stopPromise);
-	}
-	try {
-		session.disconnect();
-	} catch (error) {
-		console.error("Can't disconnect from session")
-		console.error(error)
-	}
-	return Promise.all(stopPromises);
-}
-
-async function sendBlob(blob, fileNamePrefix, remoteUserId) {
-	return new Promise((resolve, reject) => {
-		var ITEM_NAME = 'ov-qoe-config';
-
-		const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-		if (url) {
-			const formData = new FormData();
-			// Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
-			const finalSuffix = remoteUserId === USER_ID ? remoteUserId + '_' + Math.floor(Math.random() * 1000000) : remoteUserId;
-			const fileName = fileNamePrefix + '_' + SESSION_ID + '_' + USER_ID + '_' + finalSuffix + '.webm';
-			console.log("Sending file: " + fileName);
-			formData.append('file', blob, fileName);
-
-			fetch(url.httpEndpoint, {
-				method: 'POST',
-				body: formData
-			}).then(response => {
-				if (response.ok) {
-					resolve();
-				} else {
-					reject(new Error('Failed to send file'));
-				}
-			})
-			.catch(error => reject(error));
-		} else {
-			reject("No URL in localStorage for QoE Endpoint");
-		}
-	});
-}
-
-function sendError(err) {
-	var ITEM_NAME = 'ov-errorlog-config';
-
-	const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-	if (url) {
-		fetch(url.httpEndpoint, {
-			method: 'POST',
-			body: JSON.stringify(err),
-			headers: {
-				'Content-Type': 'application/json'
-			}
-		})
-		.then(response => {
-			if (response.ok) {
-				console.log("Error sent to browser-emulator");
-			} else {
-				console.error(response);
-			}
-		})
-		.catch(error => console.error(error));
-	} else {
-		reject("No URL in localStorage for error Endpoint");
-	}
 }
