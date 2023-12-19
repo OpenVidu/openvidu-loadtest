@@ -82,6 +82,8 @@ function recordStartDelay(time) {
 	return new Promise(resolve => setTimeout(resolve, time));
 }
 
+var localTracks = []
+var remoteTracks = []
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
 	session = new LivekitClient.Room();
@@ -96,6 +98,7 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+		remoteTracks.push(track);
 		beConnector.sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote' });
 		if (SHOW_VIDEO_ELEMENTS) {
 			const element = track.attach();
@@ -156,12 +159,14 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackPublished, (localTrackPublication, localParticipant) => {
+		
 		beConnector.sendEvent({ event: "streamCreated", connectionId: localParticipant.sid, connection: 'local' });
 		if (SHOW_VIDEO_ELEMENTS) {
 			const element = localTrackPublication.track.attach();
 			document.getElementById('video-publisher').appendChild(element);
 		}
 		appendElement('local-stream-created');
+		localTracks.push(localTrackPublication.track);
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (localTrackPublication, localParticipant) => {

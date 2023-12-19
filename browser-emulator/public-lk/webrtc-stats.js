@@ -38,7 +38,7 @@ class WebRTCStats {
 
     async sendStatsToHttpEndpoint() {
         try {
-            const webrtcStats = await this.getCommonStats();
+            const webrtcStats = await getCommonStats();
             const response = this.generateJSONStatsResponse(webrtcStats);
             await this.sendStats(this.POST_URL, response);
         } catch (error) {
@@ -46,15 +46,11 @@ class WebRTCStats {
         }
     }
 
-    async getCommonStats() {
-        // TODO:
-    }
-
-    generateJSONStatsResponse(stream, stats) {
+    generateJSONStatsResponse(participant_id, session_id, stats) {
         return {
             '@timestamp': new Date().toISOString(),
-            participant_id: stream.connection.data,
-            session_id: stream.session.sessionId,
+            participant_id,
+            session_id,
             platform: platform.getName(),
             platform_description: platform.getDescription(),
             stream: 'webRTC',
