@@ -38,10 +38,8 @@ export class BrowserManagerService {
 		let webrtcStorageValue: string;
 		const isRealBrowser = request.browserMode === BrowserMode.REAL;
 
-		if (this.elasticSearchService.isElasticSearchRunning()) {
-			webrtcStorageName = this.webrtcStorageService.getItemName();
-			webrtcStorageValue = this.webrtcStorageService.getConfig();
-		}
+		webrtcStorageName = this.webrtcStorageService.getItemName();
+		webrtcStorageValue = this.webrtcStorageService.getConfig();
 		this.printRequestInfo(request);
 
 		if (isRealBrowser) {
@@ -53,6 +51,7 @@ export class BrowserManagerService {
 				const errorService: ErrorLogService = new ErrorLogService();
 				const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName(), qoeStorageName: qoeService.getItemName(), errorStorageName: errorService.getItemName() };
 				const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig(), qoeStorageValue: qoeService.getConfig(), errorStorageValue: errorService.getConfig() };
+				console.log(storageNameObject, storageValueObject);
 				connectionId = await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
 				this.realBrowserService.storeConnection(connectionId, request.properties);
 			} catch (error) {

@@ -25,6 +25,7 @@ var trackUser = new Map();
 
 var beConnector = new BrowserEmulatorConnector();
 var recordingManager = new BrowserEmulatorRecorderManager(beConnector);
+var statsManager = new WebRTCStatsManager(beConnector);
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -82,8 +83,6 @@ function recordStartDelay(time) {
 	return new Promise(resolve => setTimeout(resolve, time));
 }
 
-var localTracks = []
-var remoteTracks = []
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
 	session = new LivekitClient.Room();
@@ -98,7 +97,6 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-		remoteTracks.push(track);
 		beConnector.sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote' });
 		if (SHOW_VIDEO_ELEMENTS) {
 			const element = track.attach();
@@ -107,6 +105,20 @@ async function joinSession() {
 				createUnmuteButton('subscriber-need-to-be-unmuted', element);
 			}
 		}
+
+		let resSplit = RESOLUTION.split('x');
+		let width = resSplit[0];
+		let height = resSplit[1];
+		const trackInfo = {
+			track: track,
+			participantId: participant.identity,
+			sessionId: SESSION_ID,
+			type: track.kind,
+			videoHeight: height,
+			videoWidth: width,
+			isLocal: false
+		}
+		statsManager.addProvider(new LKWebRTCStatsProvider(statsManager, trackInfo));
 
 		if (!!QOE_ANALYSIS) {
 			// var remoteControl = new ElasTestRemoteControl();
@@ -161,12 +173,26 @@ async function joinSession() {
 	room.on(LivekitClient.RoomEvent.LocalTrackPublished, (localTrackPublication, localParticipant) => {
 		
 		beConnector.sendEvent({ event: "streamCreated", connectionId: localParticipant.sid, connection: 'local' });
+		const track = localTrackPublication.track;
 		if (SHOW_VIDEO_ELEMENTS) {
-			const element = localTrackPublication.track.attach();
+			const element = track.attach();
 			document.getElementById('video-publisher').appendChild(element);
 		}
 		appendElement('local-stream-created');
-		localTracks.push(localTrackPublication.track);
+		// livekit-stats.js
+		let resSplit = RESOLUTION.split('x');
+		let width = resSplit[0];
+		let height = resSplit[1];
+		const trackInfo = {
+			track: track,
+			participantId: USER_ID,
+			sessionId: SESSION_ID,
+			type: track.kind,
+			videoHeight: height,
+			videoWidth: width,
+			isLocal: true
+		}
+		statsManager.addProvider(new LKWebRTCStatsProvider(statsManager, trackInfo));
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (localTrackPublication, localParticipant) => {

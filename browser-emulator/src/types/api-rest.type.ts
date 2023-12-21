@@ -157,13 +157,14 @@ export interface JSONQoEInfo {
     visqol: number
 }
 
-interface IWebrtcStats {
+export interface IWebrtcStats {};
+
+export interface IWebrtcStatsOV extends IWebrtcStats {
     inbound?: {
         audio: {
             bytesReceived: number,
             packetsReceived: number,
             packetsLost: number,
-            jitter: number
         } | {},
         video: {
             bytesReceived: number,
