@@ -35,7 +35,6 @@ export interface IWebrtcStatsLK extends IWebrtcStats {
         } | {},
         video: {
             bytesReceived?: number,
-            decoderImplementation?: any,
             firCount?: number,
             frameHeight?: number,
             frameWidth?: number,

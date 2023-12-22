@@ -79,16 +79,70 @@
                                 "bytesReceived": {
                                     "type": "long"
                                 },
+                                "concealedSamples": {
+                                    "type": "long"
+                                },
+                                "concealedEvents": {
+                                    "type": "long"
+                                },
                                 "jitter": {
                                     "type": "double"
                                 },
+                                "silentConcealedSamples": {
+                                    "type": "long"
+                                },
+                                "silentConcealmentEvents": {
+                                    "type": "long"
+                                },
+                                "timestamp": {
+                                    "type": "long"
+                                },
+                                "totalAudioEnergy": {
+                                    "type": "double"
+                                },
+                                "totalSamplesDuration": {
+                                    "type": "long"
+                                },
+                                "type": {
+                                    "type": "text"
+                                },
+                                "audioLevel": {
+                                    "type": "double"
+                                },
+                                "fecPacketsDiscarded": {
+                                    "type": "long"
+                                },
+                                "fecPacketsReceived": {
+                                    "type": "long"
+                                },
+                                "insertedSamplesForDeceleration": {
+                                    "type": "long"
+                                },
                                 "jitterBufferDelay": {
                                     "type": "double"
+                                },
+                                "jitterBufferEmittedCount": {
+                                    "type": "long"
+                                },
+                                "lastPacketReceivedTimestamp": {
+                                    "type": "long"
+                                },
+                                "packetsDiscarded": {
+                                    "type": "long"
                                 },
                                 "packetsLost": {
                                     "type": "long"
                                 },
                                 "packetsReceived": {
+                                    "type": "long"
+                                },
+                                "removedSamplesForAcceleration": {
+                                    "type": "long"
+                                },
+                                "ssrc": {
+                                    "type": "long"
+                                },
+                                "totalSamplesReceived": {
                                     "type": "long"
                                 }
                             }
@@ -110,11 +164,17 @@
                                 "framesDecoded": {
                                     "type": "long"
                                 },
+                                "framesDropped": {
+                                    "type": "long"
+                                },
                                 "framesReceived": {
                                     "type": "long"
                                 },
                                 "jitter": {
                                     "type": "double"
+                                },
+                                "mimeType": {
+                                    "type": "text"
                                 },
                                 "jitterBufferDelay": {
                                     "type": "double"
@@ -130,6 +190,42 @@
                                 },
                                 "pliCount": {
                                     "type": "long"
+                                },
+                                "timestamp": {
+                                    "type": "long"
+                                },
+                                "type": {
+                                    "type": "text"
+                                },
+                                "ssrc": {
+                                    "type": "long"
+                                },
+                                "packetsDiscarded": {
+                                    "type": "long"
+                                },
+                                "discardedPackets": {
+                                    "type": "long"
+                                },
+                                "framesPerSecond": {
+                                    "type": "double"
+                                },
+                                "jitterBufferEmittedCount": {
+                                    "type": "long"
+                                },
+                                "lastPacketReceivedTimestamp": {
+                                    "type": "long"
+                                },
+                                "totalDecodeTime": {
+                                    "type": "long"
+                                },
+                                "totalInterFrameDelay": {
+                                    "type": "double"
+                                },
+                                "totalProcessingDelay": {
+                                    "type": "double"
+                                },
+                                "totalSquaredInterFrameDelay": {
+                                    "type": "double"
                                 }
                             }
                         }
@@ -147,6 +243,24 @@
                                 },
                                 "packetsSent": {
                                     "type": "long"
+                                },
+                                "packetsLost": {
+                                    "type": "long"
+                                },
+                                "jitter": {
+                                    "type": "double"
+                                },
+                                "timestamp": {
+                                    "type": "long"
+                                },
+                                "roundTripTime": {
+                                    "type": "double"
+                                },
+                                "type": {
+                                    "type": "text"
+                                },
+                                "streamId": {
+                                    "type": "text"
                                 }
                             }
                         },
@@ -170,7 +284,13 @@
                                 "framesSent": {
                                     "type": "long"
                                 },
+                                "jitter": {
+                                    "type": "double"
+                                },
                                 "nackCount": {
+                                    "type": "long"
+                                },
+                                "packetsLost": {
                                     "type": "long"
                                 },
                                 "packetsSent": {
@@ -180,6 +300,33 @@
                                     "type": "long"
                                 },
                                 "qpSum": {
+                                    "type": "long"
+                                },
+                                "qualityLimitationReason": {
+                                    "type": "text"
+                                },
+                                "qualityLimitationResolutionChanges": {
+                                    "type": "long"
+                                },
+                                "timestamp": {
+                                    "type": "long"
+                                },
+                                "retransmittedPacketsSent": {
+                                    "type": "long"
+                                },
+                                "rid": {
+                                    "type": "text"
+                                },
+                                "roundTripTime": {
+                                    "type": "double"
+                                },
+                                "streamId": {
+                                    "type": "text"
+                                },
+                                "framesPerSecond": {
+                                    "type": "double"
+                                },
+                                "hugeFramesSent": {
                                     "type": "long"
                                 }
                             }
