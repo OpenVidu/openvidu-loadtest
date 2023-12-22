@@ -3,6 +3,7 @@ package io.openvidu.loadtest.services;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,12 +23,14 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
 import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
-import io.openvidu.loadtest.models.testcase.RequestBody;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.RequestBody.RequestType;
+import io.openvidu.loadtest.models.testcase.request.InitializeRequestBody;
+import io.openvidu.loadtest.models.testcase.request.modules.LKCreateUserRequestBody;
+import io.openvidu.loadtest.models.testcase.request.CreateUserRequestBody;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -75,22 +78,7 @@ public class BrowserEmulatorClient {
 	}
 
 	public HttpResponse<String> initializeInstance(String workerUrl) {
-		JsonObject body = new RequestBody().elasticSearchHost(this.loadTestConfig.getElasticsearchHost())
-				.elasticSearchUserName(this.loadTestConfig.getElasticsearchUserName())
-				.elasticSearchPassword(this.loadTestConfig.getElasticsearchPassword())
-				.elasticSearchIndex(LOADTEST_INDEX)
-				.awsAccessKey(this.loadTestConfig.getAwsAccessKey())
-				.awsSecretAccessKey(this.loadTestConfig.getAwsSecretAccessKey())
-				.s3BucketName(loadTestConfig.getS3BucketName())
-				.minioAccessKey(loadTestConfig.getMinioAccessKey())
-				.minioSecretKey(loadTestConfig.getMinioSecretKey())
-				.minioHost(loadTestConfig.getMinioHost())
-				.minioPort(loadTestConfig.getMinioPort())
-				.minioBucket(loadTestConfig.getMinioBucket())
-				.browserVideo(loadTestConfig.getVideoType(), loadTestConfig.getVideoWidth(), loadTestConfig.getVideoHeight(),
-					loadTestConfig.getVideoFps(), loadTestConfig.getVideoUrl(), loadTestConfig.getAudioUrl())
-				.qoeAnalysis(loadTestConfig.isQoeAnalysisRecordings(), loadTestConfig.getPaddingDuration(), loadTestConfig.getFragmentDuration())
-				.build().toJson(RequestType.INITIALIZE);
+		JsonObject body = new InitializeRequestBody(this.loadTestConfig, LOADTEST_INDEX).toJson();
 		try {
 			log.info("Initialize worker {}", workerUrl);
 			return this.httpClient.sendPost("https://" + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
@@ -254,12 +242,12 @@ public class BrowserEmulatorClient {
 		}
 
 		String sessionSuffix = String.valueOf(sessionNumber);
-		RequestBody body = this.generateRequestBody(userNumber, sessionSuffix, role, testCase);
+		CreateUserRequestBody body = this.generateRequestBody(userNumber, sessionSuffix, role, testCase);
 		try {
 			log.info("Selected worker: {}", workerUrl);
 			log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
 			HttpResponse<String> response = this.httpClient.sendPost(
-					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(RequestType.PARTICIPANT), null,
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
 					getHeaders());
 
 			if (response.statusCode() != HTTP_STATUS_OK) {
@@ -366,27 +354,15 @@ public class BrowserEmulatorClient {
 	}
 
 // @formatter:off
-	private RequestBody generateRequestBody(int userNumber, String sessionNumber, OpenViduRole role, TestCase testCase) {
+	private LKCreateUserRequestBody generateRequestBody(int userNumber, String sessionNumber, OpenViduRole role, TestCase testCase) {
+		// TODO: make more generic
 		boolean video = (testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.is_TEACHING();
 		OpenViduRole actualRole = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role;
-		
-		return new RequestBody().
-				openviduUrl(this.loadTestConfig.getOpenViduUrl())
-				.openviduSecret(this.loadTestConfig.getOpenViduSecret())
-				.browserMode(testCase.getBrowserMode())
-				.resolution(testCase.getResolution())
-				.frameRate(testCase.getFrameRate())
-				.userId(this.loadTestConfig.getUserNamePrefix() + userNumber)
-				.sessionName(this.loadTestConfig.getSessionNamePrefix() + sessionNumber)
-				.audio(true)
-				.video(video)
-				.role(actualRole)
-				.openviduRecordingMode(testCase.getOpenviduRecordingMode())
-				.browserRecording(testCase.isBrowserRecording())
-				.showVideoElements(testCase.isShowBrowserVideoElements())
-				.headlessBrowser(testCase.isHeadlessBrowser())
-				.recordingMetadata(testCase.getRecordingMetadata())
-				.build();
+		boolean audio = true;
+		String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
+		String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
+
+		return new LKCreateUserRequestBody((LKLoadTestConfig) loadTestConfig, testCase, video, audio, actualRole, userId, sessionId);
 	}
 // @formatter:on
 

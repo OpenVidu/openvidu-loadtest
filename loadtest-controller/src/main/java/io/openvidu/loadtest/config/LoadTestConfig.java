@@ -1,22 +1,19 @@
 package io.openvidu.loadtest.config;
 
-import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.annotation.PostConstruct;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
 
-@Component
 public class LoadTestConfig {
 
-	@Autowired
 	private Environment env;
+
+	protected LoadTestConfig(Environment env) {
+		this.env = env;
+	}
 
 	private List<String> workerUrlList;
 
@@ -321,8 +318,7 @@ public class LoadTestConfig {
 		return this.maxRequests;
 	}
 
-	@PostConstruct
-	private void checkConfigurationProperties() {
+	protected void checkConfigurationProperties() {
 
 		try {
 			openviduUrl = asString("OPENVIDU_URL");
@@ -393,7 +389,7 @@ public class LoadTestConfig {
 
 	}
 
-	private void printInfo() {
+	protected void printInfo() {
 		String format = "%-25s%3s%n";
 		System.out.println("-------- Load Test Parameters --------");
 		System.out.printf(format, "OpenVidu URL:", openviduUrl);
@@ -483,7 +479,7 @@ public class LoadTestConfig {
 	// Format Checkers
 	// -------------------------------------------------------
 
-	private String asOptionalURL(String property) throws Exception {
+	protected String asOptionalURL(String property) throws Exception {
 		String url = env.getProperty(property);
 		try {
 			if (!url.isEmpty()) {
@@ -497,7 +493,7 @@ public class LoadTestConfig {
 		}
 	}
 
-	private String asString(String property) throws Exception {
+	protected String asString(String property) throws Exception {
 		String value = env.getProperty(property);
 		if (value == null || value.isEmpty()) {
 			throw new Exception(property + " is required.");
@@ -505,7 +501,7 @@ public class LoadTestConfig {
 		return value;
 	}
 
-	private List<String> asStringList(String property) throws Exception {
+	protected List<String> asStringList(String property) throws Exception {
 		List<String> value = env.getProperty(property, List.class);
 		if (value == null || value.isEmpty()) {
 			throw new Exception(property + " is required.");
@@ -514,7 +510,7 @@ public class LoadTestConfig {
 		return value;
 	}
 
-	private List<String> asOptionalStringList(String property) {
+	protected List<String> asOptionalStringList(String property) {
 		try {
 			return this.asStringList(property);
 		} catch (Exception e) {
@@ -522,7 +518,7 @@ public class LoadTestConfig {
 		}
 	}
 
-	private int asInt(String property) {
+	protected int asInt(String property) {
 		try {
 			Integer integerValue = Integer.parseInt(env.getProperty(property));
 			if (integerValue < 0) {
@@ -535,7 +531,7 @@ public class LoadTestConfig {
 
 	}
 	
-	private double asDouble(String property) {
+	protected double asDouble(String property) {
 		try {
 			Double doubleValue = Double.parseDouble(env.getProperty(property));
 			if (doubleValue < 0) {
@@ -548,11 +544,11 @@ public class LoadTestConfig {
 
 	}
 
-	private String asOptionalString(String property) {
+	protected String asOptionalString(String property) {
 		return env.getProperty(property);
 	}
 
-	private boolean asBoolean(String property) {
+	protected boolean asBoolean(String property) {
 		try {
 			return Boolean.parseBoolean(env.getProperty(property));
 		} catch (Exception e) {
@@ -560,10 +556,10 @@ public class LoadTestConfig {
 		}
 	}
 
-	private void checkUrl(String url) throws Exception {
+	protected void checkUrl(String url) throws Exception {
 		try {
-			new URL(url).toURI();
-		} catch (MalformedURLException | URISyntaxException e) {
+			new URI(url);
+		} catch (URISyntaxException e) {
 			throw new Exception("String '" + url + "' has not a valid URL format: " + e.getMessage());
 		}
 	}
