@@ -17,7 +17,7 @@ class LKWebRTCStatsProvider extends WebRTCStatsProvider {
     //     isLocal: isLocal
     // }
     constructor(webRtcStatsManager, trackInfo) {
-        super(webRtcStatsManager, this.trackInfo.participantId, this.trackInfo.sessionId);
+        super(webRtcStatsManager, trackInfo.participantId, trackInfo.sessionId);
         this.trackInfo = trackInfo;
     }
 
