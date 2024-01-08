@@ -6,7 +6,7 @@ class BrowserEmulatorRecorder {
         });
         this.errors = 0;
         this.MAX_ERRORS = 5;
-        this.BLOB_TIMESLICE = 5000;
+        this.BLOB_TIMESLICE = 30000;
         this.errorTiemout = null;
         this.ERROR_TIMEOUT = 500;
         this.beConnector = browserEmulatorConnector;
