@@ -1,5 +1,6 @@
 export interface WebrtcStatsConfig {
     interval: number,
+    sendInterval: number,
     httpEndpoint: string
 }
 

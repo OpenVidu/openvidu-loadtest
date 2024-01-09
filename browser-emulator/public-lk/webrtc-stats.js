@@ -29,19 +29,60 @@ class WebRTCStatsManager {
             if (!this.POST_URL) {
                 console.error('WebRtc stats endpoint not found in localStorage item, stats won\'t be sent');
                 this.webRtcStatsEnabled = false;
-            }
-            console.debug('WebRtc stats endpoint: ' + this.POST_URL);
-            this.statsInterval = this.webrtcStatsConfig.interval; // Interval in seconds
-            if (!this.statsInterval) {
-                console.warn('WebRtc stats interval not found in localStorage item, defaulting to 3 seconds');
-                this.statsInterval = 3;
-            }
-            console.debug('WebRtc stats interval: ' + this.statsInterval);
+            } else {
+                console.debug('WebRtc stats endpoint: ' + this.POST_URL);
+                this.statsInterval = this.webrtcStatsConfig.interval; // Interval in seconds
+                if (!this.statsInterval) {
+                    console.warn('WebRtc stats interval not found in localStorage item, defaulting to 3 seconds');
+                    this.statsInterval = 3;
+                }
+                console.debug('WebRtc stats interval: ' + this.statsInterval);
+    
+                this.sendInterval = this.webrtcStatsConfig.sendInterval; // Interval in seconds
+                if (!this.sendInterval) {
+                    console.warn('WebRtc send stats interval not found in localStorage item, defaulting to 15 seconds');
+                    this.sendInterval = 15;
+                }
+                console.debug('WebRtc send stats interval: ' + this.sendInterval);
+    
+                this.savedElements = new Map();
+                this.savedStats = [];
 
-            this.savedElements = new Map();
+                this.sendIntervalId = setInterval(async () => {
+                    const response = [];
+                    for (let stat of this.savedStats) {
+                        response.push(stat.provider.generateJSONStatsResponse(stat.stats));
+                    }
+                    this.savedStats = [];
+                    await this.sendStatsToHttpEndpoint(response);
+                }, this.sendInterval * 1000);
+            }
 
         } else {
             console.warn('WebRtc stats not enabled');
+        }
+    }
+
+    async sendStatsToHttpEndpoint(response) {
+        try {
+            await this.sendStats(this.POST_URL, response);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async sendStats(url, response) {
+        try {
+            const configuration = {
+                headers: {
+                    'Content-type': 'application/json'
+                },
+                body: JSON.stringify(response),
+                method: 'POST'
+            };
+            await fetch(url, configuration);
+        } catch (error) {
+            console.error(`sendStats error: ${JSON.stringify(error)}`);
         }
     }
 
@@ -74,7 +115,12 @@ class WebRTCStatsManager {
             }
             this.savedElements.clear();
         }
+    }
 
+    addStats(provider, stats) {
+        if (this.webRtcStatsEnabled) {
+            this.savedStats.push({provider, stats});
+        }
     }
 }
 
@@ -88,8 +134,8 @@ class WebRTCStatsProvider {
         if (this.webRtcStatsManager.POST_URL) {
             this.webRtcStatsIntervalId = setInterval(async () => {
                 const stats = await this.getStats();
-                await this.sendStatsToHttpEndpoint(stats);
-            }, this.statsInterval * 1000);
+                this.webRtcStatsManager.addStats(this, stats);
+            }, this.webRtcStatsManager.statsInterval * 1000);
         } else {
             console.warn('WebRtc stats not enabled');
         }
@@ -119,30 +165,6 @@ class WebRTCStatsProvider {
     // Should be called when user exists session
     destroy() {
         clearInterval(this.webRtcStatsIntervalId);
-    }
-
-    async sendStatsToHttpEndpoint(stats) {
-        try {
-            const response = this.generateJSONStatsResponse(stats);
-            await this.sendStats(this.webRtcStatsManager.POST_URL, response);
-        } catch (error) {
-            console.error(error);
-        }
-    }
-
-    async sendStats(url, response) {
-        try {
-            const configuration = {
-                headers: {
-                    'Content-type': 'application/json'
-                },
-                body: JSON.stringify(response),
-                method: 'POST'
-            };
-            await fetch(url, configuration);
-        } catch (error) {
-            console.error(`sendStats error: ${JSON.stringify(error)}`);
-        }
     }
 
     generateJSONStatsResponse(stats) {

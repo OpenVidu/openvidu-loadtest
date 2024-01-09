@@ -3,10 +3,12 @@ import { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStat
 export class WebrtcStatsService {
 	private readonly ITEM_NAME: string = 'webrtc-stats-config';
 	private readonly WEBRTC_INTERVAL: number = 3;
+	private readonly SEND_INTERVAL: number = 15;
 
 	public getConfig(): string {
 		const statsConfig: WebrtcStatsConfig = {
 			interval: this.WEBRTC_INTERVAL,
+			sendInterval: this.SEND_INTERVAL,
 			httpEndpoint: `https://${process.env.LOCATION_HOSTNAME}/webrtcStats`,
 		};
 		return JSON.stringify(statsConfig);

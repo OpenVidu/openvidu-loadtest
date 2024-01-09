@@ -13,15 +13,51 @@ export const app = express.Router({
 
 const elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance();
 
+const statsBuffer: JSONStatsResponse[] = [];
+let sendInterval: NodeJS.Timeout;
+
+const randomTimeoutSend = () => {
+	return new Promise<void>((resolve, reject) => {
+		setTimeout(() => {
+				if (statsBuffer.length > 0) {
+					elasticSearchService.sendBulkJsons(statsBuffer).then(() => {
+						statsBuffer.length = 0; // Clear the buffer
+						resolve();
+					}).catch((error) => {
+						console.log('ERROR sending stats to ES', error);
+						reject(error);
+					});
+				}
+		}, getRandomDelay());
+	});
+}
+
+const getRandomDelay = () => {
+	const minDelay = 0; // Minimum delay in milliseconds
+	const maxDelay = 10000; // Maximum delay in milliseconds
+	return Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+};
+
+const startSendingStats = () => {
+	sendInterval = setInterval(async () => {
+		await randomTimeoutSend();
+	}, 30000);
+};
+
+startSendingStats();
+
 app.post('/webrtcStats', async (req: Request, res: Response) => {
 	try {
-		const statsResponse: JSONStatsResponse = req.body;
-		// console.log("Client Stats received: ", statsResponse);
-		// console.log("webrtc: ", statsResponse.webrtc_stats);
-		await elasticSearchService.sendJson(statsResponse);
+		const statsResponse: JSONStatsResponse | JSONStatsResponse[] = req.body;
+		if (Array.isArray(statsResponse)) {
+			statsBuffer.push(...statsResponse);
+		} else {
+			statsBuffer.push(statsResponse);
+		}
+
 		return res.status(200).send();
 	} catch (error) {
-		console.log('ERROR sending stast to ES', error);
+		console.log('ERROR sending stats to ES', error);
 		res.status(500).send(error);
 	}
 });
