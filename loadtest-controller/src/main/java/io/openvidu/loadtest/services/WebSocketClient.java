@@ -74,6 +74,11 @@ public class WebSocketClient extends Endpoint {
 			WorkerExceptionManager.getInstance().setException(message);
 		} else if (message.contains("error") || message.contains("Error")) {
 			log.warn("Received message from {}: {}", this.wsEndpoint, message);
+		} else if (message.contains("sessionDisconnected")) {
+			log.error("Received sessionDisconnected from {}: {}", this.wsEndpoint, message);
+			WorkerExceptionManager.getInstance().setException(message);
+		} else {
+			log.debug("Received message from {}: {}", this.wsEndpoint, message);
 		}
 	}
 
