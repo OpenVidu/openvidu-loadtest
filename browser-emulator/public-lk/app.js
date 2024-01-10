@@ -85,7 +85,34 @@ var statsManager;
 
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
-	session = new LivekitClient.Room();
+
+	var roomOptions = {
+		adaptiveStream: false,
+		publishDefaults: {
+			simulcast: false,
+			videoEncoding: {
+				maxFramerate: FRAME_RATE
+			}
+		}
+	}
+	if (AUDIO) {
+		roomOptions.audioCaptureDefaults = {
+			autoGainControl: false,
+			echoCancellation: false,
+			noiseSuppression: false,
+		}
+	}
+	if (VIDEO) {
+		roomOptions.videoCaptureDefaults = {
+			resolution: {
+				frameRate: FRAME_RATE,
+				width,
+				height
+			}
+		}
+
+	}
+	session = new LivekitClient.Room(roomOptions);
 	//session.prepareConnection(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN);
 	var room = session;
 	//OV.enableProdMode();
@@ -212,33 +239,11 @@ async function joinSession() {
 	var resSplit = RESOLUTION.split('x');
 	var width = resSplit[0];
 	var height = resSplit[1];
-	var roomOptions = {
-		adaptiveStream: false,
-		publishDefaults: {
-			simulcast: false,
-			videoEncoding: {
-				maxFramerate: FRAME_RATE
-			}
-		}
+	var roomConnectOptions = {
+		maxRetries: 5
 	}
-	if (AUDIO) {
-		roomOptions.audioCaptureDefaults = {
-			autoGainControl: false,
-			echoCancellation: false,
-			noiseSuppression: false,
-		}
-	}
-	if (VIDEO) {
-		roomOptions.videoCaptureDefaults = {
-			resolution: {
-				frameRate: FRAME_RATE,
-				width,
-				height
-			}
-		}
-	
-	}
-	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN, roomOptions)
+
+	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN, roomConnectOptions)
 		.then(async () => {
 			console.log("Connected to session " + SESSION_ID);
 			if (ROLE === 'PUBLISHER') {
