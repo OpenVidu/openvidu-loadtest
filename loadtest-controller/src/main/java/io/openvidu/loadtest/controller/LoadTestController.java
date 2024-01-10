@@ -6,8 +6,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,7 +59,7 @@ public class LoadTestController {
 	private static List<Instance> awsWorkersList = new ArrayList<Instance>();
 	private static List<String> devWorkersList = new ArrayList<String>();
 	private static List<Instance> recordingWorkersList = new ArrayList<Instance>();
-	private static List<WebSocketClient> wsSessions = new ArrayList<WebSocketClient>();
+	private static Queue<WebSocketClient> wsSessions = new ConcurrentLinkedQueue<WebSocketClient>();
 
 	private static List<Date> workerStartTimes = new ArrayList<>();
 	private static List<Date> recordingWorkerStartTimes = new ArrayList<>();
