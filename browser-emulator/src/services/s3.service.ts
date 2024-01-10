@@ -35,7 +35,15 @@ export class S3FilesService extends FilesService {
 			const s3 = new AWS.S3();
 
 			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
-				await this.createBucket(process.env.S3_BUCKET);
+				try {
+					await this.createBucket(process.env.S3_BUCKET);
+				} catch (error) {
+					if (error && error.code === 'BucketAlreadyOwnedByYou') {
+						console.log("Bucket already exists");
+					} else {
+						console.error("Error creating bucket", error);
+					}
+				}
 			}
 			const promises = [];
 			this.fileDirs.forEach((dir) => {
@@ -53,15 +61,19 @@ export class S3FilesService extends FilesService {
 								Body: fs.createReadStream(filePath)
 							};
 							uploadPromises.push(new Promise((resolve, reject) => {
-								s3.putObject(params, (err, data) => {
-									if (err) {
-										console.error(err);
-										return reject(err);
-									} else {
-										console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
-										return resolve("");
-									}
-								});
+								const randomDelay = Math.floor(Math.random() * (20000 - 0 + 1)) + 0;
+								console.log(`Uploading file ${fileName} to S3 bucket ${process.env.S3_BUCKET} with delay ${randomDelay} ms`);
+								setTimeout(() => {
+									s3.putObject(params, (err, data) => {
+										if (err) {
+											console.error(err);
+											return reject(err);
+										} else {
+											console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
+											return resolve("");
+										}
+									});
+								}, randomDelay);
 							}));
 						});
 						return Promise.all(uploadPromises);

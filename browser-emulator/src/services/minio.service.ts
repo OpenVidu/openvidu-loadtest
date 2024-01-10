@@ -26,7 +26,15 @@ export class MinioFilesService extends FilesService {
 
     async uploadFiles(): Promise<void> {
         if(!(await this.isBucketCreated(process.env.MINIO_BUCKET))) {
-            await this.createBucket(process.env.MINIO_BUCKET);
+            try {
+                await this.createBucket(process.env.MINIO_BUCKET);
+            } catch (error) {
+                if (error && error.code === 'BucketAlreadyOwnedByYou') {
+                    console.log("Bucket already exists");
+                } else {
+                    console.error("Error creating bucket", error);
+                }
+            }
         }
         const promises = [];
 			this.fileDirs.forEach((dir) => {
@@ -39,15 +47,19 @@ export class MinioFilesService extends FilesService {
 							const filePath = `${dir}/${file}`;
 							const fileName = file.split('/').pop();
 							uploadPromises.push(new Promise((resolve, reject) => {
-                                this.minioClient.fPutObject(process.env.MINIO_BUCKET, fileName, filePath, (err, etag) => {
-                                    if (err) {
-                                        console.error(err);
-                                        return reject(err);
-                                    } else {
-                                        console.log(`Successfully uploaded data to ${process.env.MINIO_BUCKET} / ${file}`);
-                                        return resolve("");
-                                    }
-                                });
+                                const randomDelay = Math.floor(Math.random() * (20000 - 0 + 1)) + 0;
+                                console.log(`Uploading file ${fileName} to MINIO bucket ${process.env.MINIO_BUCKET} with delay ${randomDelay} ms`);
+                                setTimeout(() => {
+                                    this.minioClient.fPutObject(process.env.MINIO_BUCKET, fileName, filePath, (err, etag) => {
+                                        if (err) {
+                                            console.error(err);
+                                            return reject(err);
+                                        } else {
+                                            console.log(`Successfully uploaded data to ${process.env.MINIO_BUCKET} / ${file}`);
+                                            return resolve("");
+                                        }
+                                    });
+                                }, randomDelay);
 							}));
 						});
 						return Promise.all(uploadPromises);
