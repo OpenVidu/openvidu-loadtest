@@ -25,7 +25,7 @@ export class MinioFilesService extends FilesService {
     }
 
     async uploadFiles(): Promise<void> {
-        if(!(await this.isBucketCreated(process.env.MINIO_BUCKET))) {
+        if (!(await this.isBucketCreated(process.env.MINIO_BUCKET))) {
             try {
                 await this.createBucket(process.env.MINIO_BUCKET);
             } catch (error) {
@@ -36,38 +36,59 @@ export class MinioFilesService extends FilesService {
                 }
             }
         }
+    
+        const uploadFile = async (dir: string, file: string): Promise<void> => {
+            const filePath = `${dir}/${file}`;
+            const fileName = file.split('/').pop();
+    
+            return new Promise((resolve, reject) => {
+                let randomDelay = Math.floor(Math.random() * (10000 - 0 + 1)) + 0;
+                console.log(`Uploading file ${fileName} to MINIO bucket ${process.env.MINIO_BUCKET} with delay ${randomDelay} ms`);
+
+                setTimeout(() => {
+                    this.minioClient.fPutObject(process.env.MINIO_BUCKET, fileName, filePath, async (err, etag) => {
+                        if (err) {
+                            if (err.code === 'SlowDown') {
+                                let retryDelay = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000; // Random delay between 5 and 10 seconds
+                                console.warn(`Received SlowDown error. Retrying upload file ${fileName} to MINIO bucket ${process.env.MINIO_BUCKET} after delay ${retryDelay} ms`);
+    
+                                setTimeout(async () => {
+                                    try {
+                                        await uploadFile(dir, file);
+                                        resolve();
+                                    } catch (retryErr) {
+                                        console.error(retryErr);
+                                        reject(retryErr);
+                                    }
+                                }, retryDelay);
+                            } else {
+                                console.error(err);
+                                reject(err);
+                            }
+                        } else {
+                            console.log(`Successfully uploaded data to ${process.env.MINIO_BUCKET} / ${file}`);
+                            resolve();
+                        }
+                    });
+                }, randomDelay);
+            });
+        };
+    
         const promises = [];
-			this.fileDirs.forEach((dir) => {
-				promises.push(
-					fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
-					.then(() => fsPromises.readdir(dir))
-					.then((files) => {
-						const uploadPromises = [];
-						files.forEach((file) => {
-							const filePath = `${dir}/${file}`;
-							const fileName = file.split('/').pop();
-							uploadPromises.push(new Promise((resolve, reject) => {
-                                const randomDelay = Math.floor(Math.random() * (20000 - 0 + 1)) + 0;
-                                console.log(`Uploading file ${fileName} to MINIO bucket ${process.env.MINIO_BUCKET} with delay ${randomDelay} ms`);
-                                setTimeout(() => {
-                                    this.minioClient.fPutObject(process.env.MINIO_BUCKET, fileName, filePath, (err, etag) => {
-                                        if (err) {
-                                            console.error(err);
-                                            return reject(err);
-                                        } else {
-                                            console.log(`Successfully uploaded data to ${process.env.MINIO_BUCKET} / ${file}`);
-                                            return resolve("");
-                                        }
-                                    });
-                                }, randomDelay);
-							}));
-						});
-						return Promise.all(uploadPromises);
-					})
-				);
-			});
-			await Promise.all(promises);
+        this.fileDirs.forEach((dir) => {
+            promises.push(
+                fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
+                    .then(() => fsPromises.readdir(dir))
+                    .then((files) => {
+                        const uploadPromises = files.map((file) => uploadFile(dir, file));
+                        return Promise.all(uploadPromises);
+                    })
+            );
+        });
+    
+        await Promise.all(promises);
     }
+
 
     async isBucketCreated(bucketName: string): Promise<boolean> {
         return new Promise((resolve, reject) => {
