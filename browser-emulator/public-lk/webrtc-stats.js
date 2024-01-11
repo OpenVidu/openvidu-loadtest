@@ -51,7 +51,7 @@ class WebRTCStatsManager {
                 this.sendIntervalId = setInterval(async () => {
                     const response = [];
                     for (let stat of this.savedStats) {
-                        response.push(stat.provider.generateJSONStatsResponse(stat.stats));
+                        response.push(stat);
                     }
                     this.savedStats = [];
                     await this.sendStatsToHttpEndpoint(response);
@@ -117,9 +117,9 @@ class WebRTCStatsManager {
         }
     }
 
-    addStats(provider, stats) {
+    addStats(stats) {
         if (this.webRtcStatsEnabled) {
-            this.savedStats.push({provider, stats});
+            this.savedStats.push(stats);
         }
     }
 }
@@ -134,7 +134,7 @@ class WebRTCStatsProvider {
         if (this.webRtcStatsManager.POST_URL) {
             this.webRtcStatsIntervalId = setInterval(async () => {
                 const stats = await this.getStats();
-                this.webRtcStatsManager.addStats(this, stats);
+                this.webRtcStatsManager.addStats(this.generateJSONStatsResponse(stats));
             }, this.webRtcStatsManager.statsInterval * 1000);
         } else {
             console.warn('WebRtc stats not enabled');
