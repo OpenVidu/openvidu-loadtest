@@ -141,7 +141,8 @@ public class BrowserEmulatorClient {
 				finalTestCase,
 				OpenViduRole.PUBLISHER);
 
-		if (!success.isResponseOk() && loadTestConfig.isRetryMode() && !isResponseLimitReached(failures)) {
+		boolean isFatal = !WorkerExceptionManager.getInstance().isFatal();
+		if (!success.isResponseOk() && !isFatal && loadTestConfig.isRetryMode() && !isResponseLimitReached(failures)) {
 			return this.createPublisher(worker, userNumber, sessionNumber, testCase, failures + 1);
 		}
 		return success;

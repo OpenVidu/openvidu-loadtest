@@ -1,11 +1,13 @@
 package io.openvidu.loadtest.services;
 
-import org.springframework.stereotype.Service;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WorkerExceptionManager {
 	private static WorkerExceptionManager INSTANCE;
 
 	private static String exception = "";
+
+	private static AtomicBoolean fatal = new AtomicBoolean(false);
 
 	private WorkerExceptionManager() {
 
@@ -22,7 +24,18 @@ public class WorkerExceptionManager {
 		return !getException().isBlank();
 	}
 
+	public synchronized boolean isFatal() {
+		return fatal.get();
+	}
+
 	public synchronized void setException(String exception) {
+		if (!isFatal()) {
+			WorkerExceptionManager.exception = exception;
+		}
+	}
+
+	public synchronized void setFatalException(String exception) {
+		WorkerExceptionManager.fatal.set(true);
 		WorkerExceptionManager.exception = exception;
 	}
 
