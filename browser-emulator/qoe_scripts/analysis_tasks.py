@@ -48,7 +48,7 @@ def remove_processing_files(*args):
     files = list(map(lambda x: x[0], args[1:]))
     logger.info(str(files))
     for file in files:
-        if os.path.isfile(file):
+        if ("skip" not in file) and os.path.isfile(file):
             os.remove(file)
         else:
             logger.warning("File not found: %s", file)
@@ -64,7 +64,7 @@ def remove_analysis_files(*args):
             files.append(file)
     logger.info(str(files))
     for file in files:
-        if os.path.isfile(file):
+        if ("skip" not in file) and os.path.isfile(file):
             os.remove(file)
         else:
             logger.warning("File not found: %s", file)
@@ -73,6 +73,8 @@ def remove_analysis_files(*args):
 @ray.remote
 def run_vmaf(vid_file, prefix, cut_index, width, height, debug):
     logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
+    if vid_file == "skip":
+        return vid_file
     logger.info("Starting VMAF Analysis of cut %d", cut_index)
     prefix_with_index = prefix + '-' + str(cut_index)
     vmaf_command = "%s --threads 1 -p 420 -w %d -h %d -b 8 -r presenter.yuv -d %s -m path=/usr/local/share/vmaf/models/vmaf_v0.6.1.json --json -o $PWD/%s_vmaf.json && cat $PWD/%s_vmaf.json | jq '.frames[].metrics.vmaf' > $PWD/%s_vmaf.csv" % (
@@ -84,6 +86,8 @@ def run_vmaf(vid_file, prefix, cut_index, width, height, debug):
 
 @ray.remote
 def run_vqmt(vid_file, prefix, cut_index, width, height, debug):
+    if vid_file == "skip":
+        return vid_file
     logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
     logger.info("Starting VQMT Analysis of cut %d", cut_index)
     prefix_with_index = prefix + '-' + str(cut_index)
@@ -149,12 +153,16 @@ def parse_csv(file, column, headers):
 
 @ray.remote
 def parse_vmaf(analysis_results):
+    if analysis_results == "skip":
+        return analysis_results
     file = analysis_results[1]
     return parse_csv(file, 0, False), [file, analysis_results[2]]
 
 
 @ray.remote
 def parse_vqmt(analysis_results):
+    if analysis_results == "skip":
+        return analysis_results
     files = analysis_results[1:]
     results = []
     for file in files:

@@ -204,6 +204,9 @@ def main():
         if len(tasks) <= 0:
             continue
         cut_results = ray.get(tasks[1:])
+        if isinstance(cut_results[0][0], str):
+            logger.error("Skipped cut %d", tasks[0])
+            continue
         analysis_results_dict = {
             "cut_index": tasks[0],
             "vmaf": (cut_results[0][0] - VMAF_MIN) / VMAF_RANGE,

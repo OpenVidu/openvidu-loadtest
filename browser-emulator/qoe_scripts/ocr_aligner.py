@@ -156,21 +156,31 @@ def align_ocr_alg(frame_numbers_tasks, frames_refs, fragment_duration_secs, targ
         else:
             error_ocr += 1
     # find first frame which number is not -1
-    first_frame_number_idx = np.where(np.array(frame_numbers) > -1)[0][0]
-    first_frame_number = frame_numbers[first_frame_number_idx]
-    first_frame = frames[first_frame_number_idx]
-    for j in range(1, first_frame_number):
-        tmp_frames[j - 1] = first_frame
-        logger.debug(
-            "Inserted frame %d using %d", j, first_frame_number)
-        if j != counter_frames:
-            skipped_frames += 1
-        j -= 1
-    logger.info("Finished OCR Alignment for cut %d", cut_index)
-    logger.debug("Skipped frames: %d", skipped_frames)
-    logger.debug("Error OCR: %d", error_ocr)
-    del frames_refs
-    del frames
-    del frame_numbers_tasks
-    del frame_numbers
-    return tmp_frames
+    # TODO: IndexError: index 0 is out of bounds for axis 0 with size 0
+    filtered_frames = np.where(np.array(frame_numbers) > -1)
+    if len(filtered_frames[0]) == 0:
+        logger.error("No frames with number found, skipping cut %d", cut_index)
+        del frames_refs
+        del frames
+        del frame_numbers_tasks
+        del frame_numbers
+        return "skip"
+    else:
+        first_frame_number_idx = filtered_frames[0][0]
+        first_frame_number = frame_numbers[first_frame_number_idx]
+        first_frame = frames[first_frame_number_idx]
+        for j in range(1, first_frame_number):
+            tmp_frames[j - 1] = first_frame
+            logger.debug(
+                "Inserted frame %d using %d", j, first_frame_number)
+            if j != counter_frames:
+                skipped_frames += 1
+            j -= 1
+        logger.info("Finished OCR Alignment for cut %d", cut_index)
+        logger.debug("Skipped frames: %d", skipped_frames)
+        logger.debug("Error OCR: %d", error_ocr)
+        del frames_refs
+        del frames
+        del frame_numbers_tasks
+        del frame_numbers
+        return tmp_frames

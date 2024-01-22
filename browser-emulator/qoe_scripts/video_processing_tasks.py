@@ -70,6 +70,8 @@ def write_video(cut_frames, cut_index, ffmpeg_path, width, height, fps, prefix, 
     if not presenter_prepared:
         logger.error("Something went wrong, presenter not prepared")
         raise Exception("Something went wrong, presenter not prepared")
+    if isinstance(cut_frames, str):
+        return cut_frames
     logger.info("Starting saving video file on cut %d, for %d frames",
                 cut_index, len(cut_frames))
     ffmpeg_command_to_save = ' '.join([
