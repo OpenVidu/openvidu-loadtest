@@ -2,7 +2,7 @@ import { LoadTestPostRequest, TestProperties } from "../types/api-rest.type";
 import { Request } from "express";
 import BaseComModule from "./base";
 
-export const PUBLIC_DIR = "public-";
+export const PUBLIC_DIR = "public";
 class OpenviduComModule extends BaseComModule {
 
     static getInstance(): BaseComModule {
@@ -41,8 +41,8 @@ class OpenviduComModule extends BaseComModule {
     generateWebappUrl(request: LoadTestPostRequest): string {
         const properties: TestProperties = request.properties;
         const token: string = request.token;
-        const publicUrl = !!process.env.OPENVIDU_URL ? `publicurl=${process.env.OPENVIDU_URL}&` : '';
-		const secret = !!process.env.OPENVIDU_SECRET ? `secret=${process.env.OPENVIDU_SECRET}&` : '';
+        const publicUrl = `publicurl=${request.openviduUrl}&`;
+		const secret = !!request.openviduSecret ? `secret=${request.openviduSecret}&` : '';
 		const recordingMode = !!properties.recordingOutputMode ? `recordingmode=${properties.recordingOutputMode}&` : '';
 		const tokenParam = !!token ? `token=${token}` : '';
 		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
