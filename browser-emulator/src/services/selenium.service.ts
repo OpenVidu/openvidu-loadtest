@@ -7,10 +7,8 @@ import fs = require('fs');
 
 let driver;
 if (process.env.REAL_DRIVER === "firefox") {
-    require('geckodriver');
     driver = firefox;
 } else {
-    require('chromedriver');
     driver = chrome;
 }
 
