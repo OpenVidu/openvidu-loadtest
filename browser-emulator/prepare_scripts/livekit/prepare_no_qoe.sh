@@ -23,7 +23,7 @@ SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute
 apt-get update
 apt-get upgrade -yq
 apt-get install -yq --no-install-recommends \
-  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip
+  	curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip build-essential
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 NODE_MAJOR=18
@@ -72,8 +72,10 @@ install_ffmpeg() {
 
 install_node_dependencies_and_build() {
     ## Install node dependencies
-    npm --prefix /opt/openvidu-loadtest/browser-emulator install --save-dev
-    npm --prefix /opt/openvidu-loadtest/browser-emulator run build
+    npm install -g yarn
+    yarn --cwd /opt/openvidu-loadtest/browser-emulator install --verbose
+    yarn --cwd /opt/openvidu-loadtest/browser-emulator run build
+    echo "node build completed"
 }
 
 pull_images() {

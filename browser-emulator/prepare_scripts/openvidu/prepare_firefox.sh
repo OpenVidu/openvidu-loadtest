@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Shell setup, assumes running on AWS EC2 Ubuntu 20.04
+# Shell setup, assumes running on AWS EC2 Ubuntu 22.04
 # ====================================================
 
 # Bash options for strict error checking.
@@ -98,6 +98,7 @@ install_ffmpeg() {
     # make install
     export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     echo export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} | tee -a /etc/profile
+    echo "ffmpeg installed"
 }
 
 install_vqmt() {
@@ -174,8 +175,10 @@ install_python_dependencies() {
 
 install_node_dependencies_and_build() {
     ## Install node dependencies
-    npm --prefix /opt/openvidu-loadtest/browser-emulator install --save-dev
-    npm --prefix /opt/openvidu-loadtest/browser-emulator run build
+    npm install -g yarn
+    yarn --cwd /opt/openvidu-loadtest/browser-emulator install --verbose
+    yarn --cwd /opt/openvidu-loadtest/browser-emulator run build
+    echo "node build completed"
 }
 
 pull_images() {
