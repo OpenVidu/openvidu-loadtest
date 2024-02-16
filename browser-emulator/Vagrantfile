@@ -1,5 +1,12 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+firefox = ENV['FIREFOX'] || 'false'
+livekit = ENV['LIVEKIT'] || 'false'
+start_server = ENV['START_MEDIASERVER'] || 'true'
+qoe = ENV['QOE'] || 'false'
+memory = ENV['MEMORY'] || 8192
+cpus = ENV['CPUS'] || 4
+provider = ENV['VAGRANT_PROVIDER'] || 'virtualbox'
 
 Vagrant.configure("2") do |config|
   config.ssh.forward_agent = true
@@ -14,37 +21,33 @@ Vagrant.configure("2") do |config|
     chown -R vagrant:vagrant /opt/openvidu-loadtest
   SHELL
 
-  config.vm.synced_folder "./src", "/opt/openvidu-loadtest/browser-emulator/src"
-  config.vm.synced_folder "./qoe_scripts", "/opt/openvidu-loadtest/browser-emulator/qoe_scripts"
-  config.vm.synced_folder "./recording_scripts", "/opt/openvidu-loadtest/browser-emulator/recording_scripts"
-  config.vm.synced_folder "./recordings", "/opt/openvidu-loadtest/browser-emulator/recordings"
-  config.vm.synced_folder "./prepare_scripts", "/opt/openvidu-loadtest/browser-emulator/prepare_scripts"
-  config.vm.provision "file", source: "./package.json", destination: "/opt/openvidu-loadtest/browser-emulator/package.json"
-  config.vm.provision "file", source: "./download_mediafiles.sh", destination: "/opt/openvidu-loadtest/browser-emulator/download_mediafiles.sh"
-  config.vm.provision "file", source: "./tsconfig.json", destination: "/opt/openvidu-loadtest/browser-emulator/tsconfig.json"
-  config.vm.provision "file", source: "./debug_vnc_local.sh", destination: "/opt/openvidu-loadtest/browser-emulator/debug_vnc.sh"
-
-  config.vm.synced_folder "./public", "/opt/openvidu-loadtest/browser-emulator/public"
-  config.vm.synced_folder "./public-lk", "/opt/openvidu-loadtest/browser-emulator/public-lk"
-
-  config.vm.provider "virtualbox" do |vb|
-    vb.memory = "4096"
-    vb.cpus = "6"
+  synced_folders = [
+    "./src:/opt/openvidu-loadtest/browser-emulator/src",
+    "./qoe_scripts:/opt/openvidu-loadtest/browser-emulator/qoe_scripts",
+    "./recording_scripts:/opt/openvidu-loadtest/browser-emulator/recording_scripts",
+    "./recordings:/opt/openvidu-loadtest/browser-emulator/recordings",
+    "./prepare_scripts:/opt/openvidu-loadtest/browser-emulator/prepare_scripts",
+    "./public:/opt/openvidu-loadtest/browser-emulator/public",
+    "./public-lk:/opt/openvidu-loadtest/browser-emulator/public-lk",
+  ]
+  synced_folders.each do |folder|
+    config.vm.synced_folder folder.split(':')[0], folder.split(':')[1]
   end
 
-  config.vm.provision "shell", inline: <<-SHELL
-    cd /opt/openvidu-loadtest/browser-emulator
-    chmod +x ./*.sh
-    ./prepare_scripts/livekit/prepare_no_qoe_firefox.sh
-    usermod -aG docker vagrant
-    usermod -aG syslog vagrant
-    usermod -aG video vagrant
-    chown -R vagrant:vagrant /opt/openvidu-loadtest
-    crontab -r -u ubuntu
-    echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run build && npm run start:prod-livekit-firefox > /var/log/crontab.log 2>&1' 2>&1 | crontab -u vagrant -
-    curl -sSL https://get.livekit.io | bash
-    (crontab -u vagrant -l ; echo '@reboot livekit-server --dev > /var/log/livekit.log 2>&1') | crontab -u vagrant -
-    ./debug_vnc.sh
-    reboot now
-  SHELL
+  files_to_provision = [
+    "./package.json:/opt/openvidu-loadtest/browser-emulator/package.json",
+    "./download_mediafiles.sh:/opt/openvidu-loadtest/browser-emulator/download_mediafiles.sh",
+    "./tsconfig.json:/opt/openvidu-loadtest/browser-emulator/tsconfig.json",
+    "./debug_vnc_local.sh:/opt/openvidu-loadtest/browser-emulator/debug_vnc.sh",
+  ]
+  files_to_provision.each do |file|
+    config.vm.provision "file", source: file.split(':')[0], destination: file.split(':')[1]
+  end
+
+  config.vm.provider provider do |vb|
+    vb.memory = memory
+    vb.cpus = cpus
+  end
+
+  config.vm.provision "shell", :path => "vagrantprovision.sh", :args => [firefox, livekit, start_server, qoe]
 end
