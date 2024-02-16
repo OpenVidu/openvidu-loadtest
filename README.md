@@ -27,21 +27,11 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 ![Load test architecture](resources/diagram.png)
 
-* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library.
-The browser-emulator service provides several connection modes:
+* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library. It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
 
-	+ **Traditional mode**: It is able to start and launch **containerized Chrome browsers** using Docker and Selenium emulating a fully real user.
-
-	+ **Emulated mode**: It is capable to emulate a user connection without use a browser:
-		+ Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a canvas publishing a moving image.
-		+ ~~Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a **video file** using ffmpeg.~~
-		+ Overriding the peerConnection objects using [Kurento](https://www.kurento.org/) and getting the media from a video file.
-
-* [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It read the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
+* [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It reads the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
 
 ## **Usage Instructions**
-
-These instructions assume that OpenVidu CE or PRO is already deployed. See [how deploy OpenVidu PRO](https://docs.openvidu.io/en/stable/openvidu-pro/#how).
 
 ### 1. Launch workers
 
@@ -55,47 +45,77 @@ These instructions assume that OpenVidu CE or PRO is already deployed. See [how 
 <br>
 To start with the load test you will have to start a worker first and the execute the controller.
 
-
-
-In the machines where you want to execute the workers you need to have **NodeJS** and **Docker** platform installed.
-
 Then follow these steps:
 
 - **Clone this repository**
 
 ```bash
 git clone https://github.com/OpenVidu/openvidu-loadtest.git
+cd openvidu-loadtest/browser-emulator
 ```
 
-- **Start browser-emulator service (worker)**
+Now you can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator. Ensure you have Vagrant and VirtualBox (or another Vagrant provider) installed on your system.
+
+
+- **Customizable Parameters in Vagrantfile**
+
+	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 8192. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
+	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
+	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
+	- **FIREFOX**: Set to 'true' to use Firefox instead of Chrome for testing. Default is 'false'.
+	- **START_MEDIASERVER**: Set to 'true' to start the media server (either Openvidu or LiveKit) during provisioning. Default is 'true'.
+	OpenVidu note: with this deployment, the OpenVidu URL is ^*https://localhost* and the OpenVidu secret is *vagrant*.
+	LiveKit note: (Experimental) with this deployment, LiveKit is deployed in dev mode, so the API Key is *devkey* and the API Secret is *secret*.
+	- **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'false'.
+	- **LIVEKIT**: (Experimental) Set to 'true' to use LiveKit instead of OpenVidu. Default: 'false'.
+
+- **Start vagrant**
+
+To customize these parameters, you can set environment variables before running `vagrant up`. For example:
+
+```bash
+export FIREFOX=true
+export QOE=true
+vagrant up
+```
+
+- **(Not recommended) Install and run without Vagrant**
+
+You can also install and run browser-emulator without using Vagrant.
+
+You will need to choose if you want the worker to launch Chrome or Firefox browsers, as well as if you want to run QoE analysis on the worker's recorded videos.
+
+If you are unsure, choose the **prepare_scripts/openvidu/prepare.sh** script to perform the installation (installs the browser-emulator with Chrome), as follows:
 
 ```bash
 cd openvidu-loadtest/browser-emulator/
-# Assuming that you're in a clean environment, the script will install:
-# - NodeJS
-# - Docker
-# - Ffmpeg
-# - Download te required media files for executing the containerized Chrome Browsers
 sudo su
-./prepare.sh
-npm install
-npm run start:dev-canvas
+./prepare_scripts/openvidu/prepare.sh # Install script, use the one you want
+npm run start:prod-none # Start script, use the one you want depending on your installation
 ```
 
+These are all the options available:
+
+| **Browser to use** | **QoE Analysis Ready** | **Install Script to run**                            | **npm run start command to run** |
+|--------------------|------------------------|------------------------------------------------------|----------------------------------|
+| Chrome             | YES                    | ./prepare_scripts/openvidu/prepare.sh                | npm run start:prod-none          |
+| Chrome             | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe.sh         | npm run start:prod-none          |
+| Firefox            | YES                    | ./prepare_scripts/openvidu/prepare_firefox.sh        | npm run start:prod-none-firefox  |
+| Firefox            | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe_firefox.sh | npm run start:prod-none-firefox  |
 <!-- **3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**. -->
 
 ##### Running options
-By default, this worker is listening on port `5000` that you have to specify later in the controller configuration. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start` command:
+By default, this worker is listening on port `5000` that you have to specify later in the controller configuration. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start:` command:
 
 ```bash
-SERVER_PORT=6000 npm run start
+SERVER_PORT=6000 npm run start:prod-none-firefox
 ```
 
-Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS WebRTC:
+<!-- Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS WebRTC:
 
 ```bash
 npm run start:dev-kms
-```
+``` -->
 
 </details>
 
@@ -197,7 +217,7 @@ WORKER_URL_LIST=
 
 #### AWS parameters (only for testing on AWS)
 
-General  AWS parameters
+General AWS parameters
 
 ```properties
 # For testing on AWS
