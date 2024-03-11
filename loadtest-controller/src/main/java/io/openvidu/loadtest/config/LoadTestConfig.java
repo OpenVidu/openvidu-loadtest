@@ -482,7 +482,7 @@ public class LoadTestConfig {
 	protected String asOptionalURL(String property) throws Exception {
 		String url = env.getProperty(property);
 		try {
-			if (!url.isEmpty()) {
+			if ((url != null) && (!url.isEmpty())) {
 				checkUrl(url);
 				return url;
 			}
@@ -545,7 +545,11 @@ public class LoadTestConfig {
 	}
 
 	protected String asOptionalString(String property) {
-		return env.getProperty(property);
+		String value = env.getProperty(property);
+		if (value == null || value.isEmpty()) {
+			return "";
+		}
+		return value;
 	}
 
 	protected boolean asBoolean(String property) {
