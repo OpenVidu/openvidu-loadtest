@@ -87,7 +87,8 @@ public class LoadTestController {
 	private static WebSocketConnectionFactory webSocketConnectionFactory;
 
 	public LoadTestController(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
-			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client, WebSocketConnectionFactory webSocketConnectionFactory,
+			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client,
+			WebSocketConnectionFactory webSocketConnectionFactory,
 			DataIO dataIO) {
 		LoadTestController.browserEmulatorClient = browserEmulatorClient;
 		LoadTestController.loadTestConfig = loadTestConfig;
@@ -108,7 +109,8 @@ public class LoadTestController {
 
 	private static void initializeInstance(String url) {
 		browserEmulatorClient.ping(url);
-		WebSocketClient ws = webSocketConnectionFactory.createConnection("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
+		WebSocketClient ws = webSocketConnectionFactory
+				.createConnection("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
 		wsSessions.add(ws);
 		browserEmulatorClient.initializeInstance(url);
 	}
@@ -148,7 +150,7 @@ public class LoadTestController {
 							.launchInstance(loadTestConfig.getWorkersRumpUp(), workerType);
 					List<Future<?>> futures = new ArrayList<>();
 					ExecutorService executorService = Executors
-								.newFixedThreadPool(nextInstanceList.size());
+							.newFixedThreadPool(nextInstanceList.size());
 					nextInstanceList.forEach(instance -> {
 						futures.add(executorService.submit(new Runnable() {
 							@Override
@@ -243,7 +245,8 @@ public class LoadTestController {
 
 	}
 
-	private boolean estimate(boolean instancesInitialized, String workerUrl, TestCase testCase, int publishers, int subscribers) {
+	private boolean estimate(boolean instancesInitialized, String workerUrl, TestCase testCase, int publishers,
+			int subscribers) {
 		log.info("Starting browser estimation");
 		if (!instancesInitialized) {
 			initializeInstance(workerUrl);
@@ -348,7 +351,7 @@ public class LoadTestController {
 							}
 						});
 						instancesInitialized = true;
-						//sleep(1, "Wait for instances to be cold");
+						// sleep(1, "Wait for instances to be cold");
 					}
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					boolean noEstimateError = true;
@@ -374,7 +377,7 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
-				
+
 				boolean instancesInitialized = false;
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 
@@ -533,9 +536,11 @@ public class LoadTestController {
 		int testCaseSessionsLimit = testCase.getSessions();
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
-		ExecutorService executorService = Executors.newFixedThreadPool(loadTestConfig.getMaxRequests());
+		int maxRequestsInFlight = loadTestConfig.getMaxRequests();
+		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
 		CreateParticipantResponse lastResponse = null;
-		int tasksSubmittedPerWorker = 0;
+		int browsersInWorker = 0;
+		int tasksInProgress = 0;
 		List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
@@ -550,6 +555,12 @@ public class LoadTestController {
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
+				if ((browsersInWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
+					log.info("Browsers in worker: {} is equal than limit: {}",
+							browsersInWorker, browserEstimation);
+					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
+					browsersInWorker = 0;
+				}
 				log.info("Creating PUBLISHER '{}' in session",
 						loadTestConfig.getUserNamePrefix() + userNumber.get());
 				if (needRecordingParticipant()) {
@@ -565,24 +576,28 @@ public class LoadTestController {
 							.submit(new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.PUBLISHER, false, null)));
 				}
-				tasksSubmittedPerWorker++;
-				if ((tasksSubmittedPerWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
-					log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
-							browserEstimation);
+				browsersInWorker++;
+				tasksInProgress++;
+				if (tasksInProgress >= maxRequestsInFlight) {
 					lastResponse = getLastResponse(futureList);
 					streamsPerWorker.add(lastResponse.getStreamsInWorker());
 					if (!lastResponse.isResponseOk()) {
 						return lastResponse;
 					}
 					futureList = new ArrayList<>(browserEstimation);
-					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
-					tasksSubmittedPerWorker = 0;
+					tasksInProgress = 0;
 				}
 				sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 			}
 
 			// Adding all subscribers
 			for (int i = 0; i < subscribers; i++) {
+				if ((browsersInWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
+					log.info("Browsers in worker: {} is equal than limit: {}",
+							browsersInWorker, browserEstimation);
+					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
+					browsersInWorker = 0;
+				}
 				log.info("Creating SUBSCRIBER '{}' in session",
 						loadTestConfig.getUserNamePrefix() + userNumber.get());
 				if (needRecordingParticipant()) {
@@ -597,20 +612,18 @@ public class LoadTestController {
 							.submit(new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.SUBSCRIBER, false, null)));
 				}
-				tasksSubmittedPerWorker++;
+				browsersInWorker++;
+				tasksInProgress++;
 				boolean isLastParticipant = i == subscribers - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					if ((tasksSubmittedPerWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
-						log.info("Browsers in worker: {} is equals than limit: {}", sessionNumber.get(),
-								browserEstimation);
+					if (tasksInProgress >= maxRequestsInFlight) {
 						lastResponse = getLastResponse(futureList);
 						streamsPerWorker.add(lastResponse.getStreamsInWorker());
 						if (!lastResponse.isResponseOk()) {
 							return lastResponse;
 						}
 						futureList = new ArrayList<>(browserEstimation);
-						worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
-						tasksSubmittedPerWorker = 0;
+						tasksInProgress = 0;
 					}
 					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 				} else {
