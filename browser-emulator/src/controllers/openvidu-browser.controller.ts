@@ -75,6 +75,24 @@ app.delete('/streamManager/connection/:connectionId', async (req: Request, res: 
 	}
 });
 
+app.delete('/streamManager/session/:sessionId/user/:userId', async (req: Request, res: Response) => {
+	try {
+		const sessionId: string = req.params.sessionId;
+		const userId: string = req.params.userId;
+
+		if (!sessionId || !userId) {
+			return res.status(400).send('Problem with userId or sessionId parameter. IT DOES NOT EXIST');
+		}
+		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
+		console.log('Deleting streams with sessionId: ' + sessionId + ' and userId: ' + userId);
+		await browserManagerService.deleteStreamManagerWithSessionAndUser(sessionId, userId);
+		res.status(200).send({});
+	} catch (error) {
+		console.log(error);
+		res.status(500).send(error);
+	}
+});
+
 app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	try {
 		let role: any = req.params.role;

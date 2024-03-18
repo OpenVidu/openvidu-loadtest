@@ -95,6 +95,10 @@ export class BrowserManagerService {
 		return await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 	}
 
+	async deleteStreamManagerWithSessionAndUser(sessionId: string, userId: string) {
+		return await this.realBrowserService.deleteStreamManagerWithSessionAndUser(sessionId, userId);
+	}
+
 	async clean(): Promise<void> {
 		this.emulateBrowserService.clean();
 		await this.realBrowserService.clean();

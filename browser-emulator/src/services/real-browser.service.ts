@@ -21,7 +21,7 @@ export class RealBrowserService {
 	private chromeCapabilities = Capabilities.chrome();
 	private firefoxOptions = new firefox.Options();
 	private firefoxCapabilities = Capabilities.firefox();
-	private driverMap: Map<string, {driver: WebDriver, sessionName: string, connectionRole: OpenViduRole}> = new Map();
+	private driverMap: Map<string, {driver: WebDriver, sessionName: string, userName: string, connectionRole: OpenViduRole}> = new Map();
 	private readonly VIDEO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakevideo`;
 	private readonly AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 	private keepAliveIntervals = new Map();
@@ -78,6 +78,43 @@ export class RealBrowserService {
 		await value.driver.quit();
 		this.driverMap.delete(driverId);
 		this.deleteConnection(value.sessionName, driverId, value.connectionRole);
+	}
+
+
+	async deleteStreamManagerWithSessionAndUser(sessionId: string, userId: string) {
+		// find entry in driverMap
+		const driversToDelete: {key: string, value: {
+			driver: WebDriver;
+			sessionName: string;
+			userName: string;
+			connectionRole: OpenViduRole;
+		} }[] = [];
+		const promisesToResolve: Promise<void>[] = [];
+		const recordingPromises: Promise<void>[] = [];
+		this.driverMap.forEach((value, key) => {
+			if (value.sessionName === sessionId && value.userName === userId) {
+				driversToDelete.push({key, value});
+				recordingPromises.push(this.saveQoERecordings(key));
+				this.deleteConnection(sessionId, key, value.connectionRole)
+			}
+		});
+		if (recordingPromises.length > 0) {
+			await Promise.all(recordingPromises)
+		}
+		driversToDelete.forEach((item) => {
+			const keepAliveInterval = this.keepAliveIntervals.get(item.key);
+			if (!!keepAliveInterval) {
+				clearInterval(keepAliveInterval);
+				this.keepAliveIntervals.delete(item.key);
+			}
+			promisesToResolve.push(this.quitDriver(item.key, item.value));
+			this.driverMap.delete(item.key);
+		});
+		try {
+			await Promise.all(promisesToResolve);
+		} catch (error) {
+			console.error('Error quitting driver ', error);
+		}
 	}
 
 	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
@@ -180,7 +217,7 @@ export class RealBrowserService {
 						driver = await this.seleniumService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
 					}
 					driverId = (await driver.getSession()).getId();
-					this.driverMap.set(driverId, {driver, sessionName: properties.sessionName, connectionRole: properties.role});
+					this.driverMap.set(driverId, {driver, sessionName: properties.sessionName, userName: properties.userId,connectionRole: properties.role});
 					await driver.manage().setTimeouts({script: 1800000});
 					await driver.get(webappUrl);
 
