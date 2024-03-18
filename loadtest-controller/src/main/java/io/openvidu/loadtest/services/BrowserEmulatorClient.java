@@ -52,6 +52,10 @@ public class BrowserEmulatorClient {
 
 	private JsonUtils jsonUtils;
 
+	private ConcurrentHashMap<String, ConcurrentHashMap<String, Integer>> clientFailures = new ConcurrentHashMap<>();
+	private ConcurrentHashMap<String, ConcurrentHashMap<String, OpenViduRole>> clientRoles = new ConcurrentHashMap<>();
+	private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
+
 	public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils) {
 		this.loadTestConfig = loadTestConfig;
 		this.httpClient = httpClient;
@@ -94,44 +98,80 @@ public class BrowserEmulatorClient {
 		return null;
 	}
 
-	// public void initializeInstances() {
-	// ExecutorService executorService =
-	// Executors.newFixedThreadPool(workerUrlList.size());
-	// List<Callable<HttpResponse<String>>> callableTasks = new ArrayList<>();
-	//
-	// for (String workerUrl : workerUrlList) {
-	//
-	// Callable<HttpResponse<String>> callableTask = () -> {
-	// return this.initializeInstance(workerUrl);
-	// };
-	// callableTasks.add(callableTask);
-	// }
-	// try {
-	// //TODO: Refactoring callable task in an external class
-	// List<Future<HttpResponse<String>>> futures =
-	// executorService.invokeAll(callableTasks);
-	// futures.forEach((future) -> {
-	// try {
-	// HttpResponse<String> response = future.get();
-	// if(response != null && response.statusCode() != HTTP_STATUS_OK) {
-	// log.error("Error initializing worker {}", response.uri());
-	// }
-	// } catch (InterruptedException | ExecutionException e) {
-	// e.printStackTrace();
-	// }
-	// });
-	// executorService.shutdown();
-	// } catch (InterruptedException e) {
-	// e.printStackTrace();
-	// }
-	// }
-
-	public CreateParticipantResponse createPublisher(String worker, int userNumber, int sessionNumber, TestCase testCase) {
-		return createPublisher(worker, userNumber, sessionNumber, testCase, 0);
+	public void addClientFailure(String workerUrl, String participant, String session) {
+		ConcurrentHashMap<String, Integer> failures = this.clientFailures.get(workerUrl);
+		if (failures == null) {
+			failures = new ConcurrentHashMap<>();
+			this.clientFailures.put(workerUrl, failures);
+		}
+		String user = participant + "-" + session;
+		Integer currentFailures = failures.get(participant);
+		if (currentFailures == null) {
+			currentFailures = 0;
+		}
+		failures.put(user, currentFailures + 1);
+		log.error("Participant {} in session {} failed {} times", participant, session, currentFailures + 1);
+		this.reconnect(workerUrl, participant, session);
 	}
 
-	private CreateParticipantResponse createPublisher(String worker, int userNumber, int sessionNumber, TestCase testCase,
-			int failures) {
+	private void reconnect(String workerUrl, String participant, String session) {
+		ExecutorService executorService = Executors.newFixedThreadPool(1);
+		Callable<String> callableTask = () -> {
+			return this.disconnectUser(workerUrl, participant, session);
+		};
+		try {
+			Future<String> future = executorService.submit(callableTask);
+			log.info(future.get());
+			executorService.shutdown();
+			String user = participant + "-" + session;
+			OpenViduRole role = this.clientRoles.get(workerUrl).get(user);
+			// get user number from participant removing prefix
+			int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
+			// get session number from session removing prefix
+			int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
+			if (role.equals(OpenViduRole.PUBLISHER)) {
+				this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+			} else {
+				this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+			}
+		} catch (InterruptedException ie) {
+			ie.printStackTrace();
+		} catch (ExecutionException ee) {
+			ee.printStackTrace();
+			log.error(ee.getCause().getMessage());
+		}
+	}
+
+	private String disconnectUser(String workerUrl, String participant, String session) {
+		try {
+			log.info("Deleting participant {} from worker {}", participant, workerUrl);
+			Map<String, String> headers = new HashMap<String, String>();
+			headers.put("Content-Type", "application/json");
+			HttpResponse<String> response = this.httpClient.sendDelete(
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session" + session + "/user/" + participant, headers);
+			log.info("Participant {} in worker {} deleted", participant, workerUrl);
+			return response.body();
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			return e.getMessage();
+		}
+	}
+
+	private void addClient(String workerUrl, int userNumber, int sessionNumber, OpenViduRole role, TestCase testCase) {
+		ConcurrentHashMap<String, OpenViduRole> roles = this.clientRoles.get(workerUrl);
+		if (roles == null) {
+			roles = new ConcurrentHashMap<>();
+			this.clientRoles.put(workerUrl, roles);
+		}
+		String participant = this.loadTestConfig.getUserNamePrefix() + userNumber;
+		String session = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
+		String user = participant + "-" + session;
+		roles.put(user, role);
+
+		this.participantTestCases.put(user, testCase);
+	}
+
+	public CreateParticipantResponse createPublisher(String worker, int userNumber, int sessionNumber, TestCase testCase) {
 		TestCase finalTestCase = testCase;
 		if (testCase.isBrowserRecording()) {
 			finalTestCase = new TestCase(testCase);
@@ -140,20 +180,11 @@ public class BrowserEmulatorClient {
 		CreateParticipantResponse success = this.createParticipant(worker, userNumber, sessionNumber,
 				finalTestCase,
 				OpenViduRole.PUBLISHER);
-
-		boolean isFatal = !WorkerExceptionManager.getInstance().isFatal();
-		if (!success.isResponseOk() && !isFatal && loadTestConfig.isRetryMode() && !isResponseLimitReached(failures)) {
-			return this.createPublisher(worker, userNumber, sessionNumber, testCase, failures + 1);
-		}
+		this.addClient(worker, userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
 		return success;
 	}
 
 	public CreateParticipantResponse createSubscriber(String worker, int userNumber, int sessionNumber, TestCase testCase) {
-		return createSubscriber(worker, userNumber, sessionNumber, testCase, 0);
-	}
-
-	private CreateParticipantResponse createSubscriber(String worker, int userNumber, int sessionNumber, TestCase testCase,
-			int failures) {
 		TestCase finalTestCase = testCase;
 		if (testCase.isBrowserRecording()) {
 			finalTestCase = new TestCase(testCase);
@@ -163,9 +194,7 @@ public class BrowserEmulatorClient {
 		CreateParticipantResponse success = this.createParticipant(worker, userNumber, sessionNumber,
 				finalTestCase, role);
 
-		if (!success.isResponseOk() && loadTestConfig.isRetryMode() && !isResponseLimitReached(failures)) {
-			return this.createSubscriber(worker, userNumber, sessionNumber, testCase, failures + 1);
-		}
+		this.addClient(worker, userNumber, sessionNumber, OpenViduRole.SUBSCRIBER, testCase);
 		return success;
 	}
 
@@ -214,7 +243,7 @@ public class BrowserEmulatorClient {
 		return recordingParticipantCreated.contains(sessionNumber);
 	}
 
-	private String disconnect(String workerUrl) {
+	public String disconnect(String workerUrl) {
 		try {
 			log.info("Deleting all participants from worker {}", workerUrl);
 			Map<String, String> headers = new HashMap<String, String>();
@@ -232,14 +261,18 @@ public class BrowserEmulatorClient {
 			TestCase testCase,
 			OpenViduRole role) {
 		CreateParticipantResponse cpr = new CreateParticipantResponse();
+
+		// Get current failures if registered
+		String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
+		String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
+		String user = userId + "-" + sessionId;
+		ConcurrentHashMap<String, Integer> failuresMap = this.clientFailures.get(workerUrl);
 		int failures = 0;
-		// Check if there was an exception on openvidu-browser
-		if (WorkerExceptionManager.getInstance().exceptionExist()) {
-			String stopReason = WorkerExceptionManager.getInstance().getExceptionAndClean();
-			failures++;
-			// lastResponses.add("Failure");
-			log.error("There was an EXCEPTION: {}", stopReason);
-			return cpr.setResponseOk(false).setStopReason(stopReason);
+		if (failuresMap != null) {
+			Integer userFailures = failuresMap.get(user);
+			if (userFailures != null) {
+				failures = userFailures;
+			}
 		}
 
 		String sessionSuffix = String.valueOf(sessionNumber);
@@ -254,26 +287,33 @@ public class BrowserEmulatorClient {
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				log.warn("Error: " + response.body());
 				failures++;
+				if (failuresMap != null) {
+					failuresMap.put(user, failures);
+				} else {
+					failuresMap = new ConcurrentHashMap<>();
+					failuresMap.put(user, failures);
+					this.clientFailures.put(workerUrl, failuresMap);
+				}
 				// lastResponses.add("Failure");
-				if (testCase.getBrowserMode().equals(BrowserMode.REAL)
-						&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
-					String stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser"
-							+ response.body().substring(0, 100);
-					return cpr.setResponseOk(false).setStopReason(stopReason);
-				}
-				if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
-					String stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
-					return cpr.setResponseOk(false).setStopReason(stopReason);
-				}
-				if (response.body().toString().contains("Gateway Time-out")) {
-					String stopReason = "OpenVidu Error: " + response.body();
-					return cpr.setResponseOk(false).setStopReason(stopReason);
-				}
-				log.warn("Retrying");
+				// if (testCase.getBrowserMode().equals(BrowserMode.REAL)
+				// 		&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
+				// 	String stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser"
+				// 			+ response.body().substring(0, 100);
+				// 	return cpr.setResponseOk(false).setStopReason(stopReason);
+				// }
+				// if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
+				// 	String stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
+				// 	return cpr.setResponseOk(false).setStopReason(stopReason);
+				// }
+				// if (response.body().toString().contains("Gateway Time-out")) {
+				// 	String stopReason = "OpenVidu Error: " + response.body();
+				// 	return cpr.setResponseOk(false).setStopReason(stopReason);
+				// }
 				sleep(WAIT_MS);
 				if (loadTestConfig.isRetryMode() && isResponseLimitReached(failures)) {
 					return cpr.setResponseOk(false);
 				}
+				log.warn("Retrying");
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else {
 				this.saveParticipantData(workerUrl, testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role);

@@ -16,6 +16,9 @@ import javax.websocket.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @ClientEndpoint
 public class WebSocketClient extends Endpoint {
 	private final Logger log = LoggerFactory.getLogger(WebSocketClient.class);
@@ -31,9 +34,12 @@ public class WebSocketClient extends Endpoint {
 
 	private WebSocketConnectionFactory factoryCreator;
 
-	public WebSocketClient(String endpointURI, WebSocketConnectionFactory factory) {
+	private BrowserEmulatorClient beInstance;
+
+	public WebSocketClient(String endpointURI, WebSocketConnectionFactory factory, BrowserEmulatorClient beInstance) {
 		this.wsEndpoint = endpointURI;
 		this.factoryCreator = factory;
+		this.beInstance = beInstance;
 	}
 
 	public void setSession(Session session) {
@@ -67,16 +73,32 @@ public class WebSocketClient extends Endpoint {
 		log.info("Websocket connected");
 	}
 
+	private void handleError(String message) {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			JsonNode json = mapper.readTree(message);
+			if(json.has("participant") && json.has("session")) {
+				String participant = json.get("participant").asText();
+				String session = json.get("session").asText();
+				this.beInstance.addClientFailure(this.wsEndpoint, participant, session);
+			} else {
+				log.warn("Participant or session missing from error message: {}", message);
+			}
+		} catch (Exception e) {
+			log.error("Error parsing message: {}", e.getMessage());
+		}
+	}
+
 	@OnMessage
 	public void onMessage(String message) {
 		if(message.contains("exception") || message.contains("Exception")) {
 			log.error("Received exception from {}: {}", this.wsEndpoint, message);
-			WorkerExceptionManager.getInstance().setException(message);
+			this.handleError(message);
 		} else if (message.contains("error") || message.contains("Error")) {
 			log.warn("Received message from {}: {}", this.wsEndpoint, message);
 		} else if (message.contains("sessionDisconnected")) {
 			log.error("Received sessionDisconnected from {}: {}", this.wsEndpoint, message);
-			WorkerExceptionManager.getInstance().setFatalException(message);
+			this.handleError(message);
 		} else {
 			log.debug("Received message from {}: {}", this.wsEndpoint, message);
 		}

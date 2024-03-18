@@ -12,6 +12,7 @@ import javax.websocket.WebSocketContainer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,9 +23,12 @@ public class WebSocketConnectionFactory {
 	private static final int RETRY_TIME_MS = 4000;
 	private static final int MAX_ATTEMPT = 5;
 	private AtomicInteger attempts = new AtomicInteger(1);
+
+	@Autowired
+	private BrowserEmulatorClient beInstance;
 	
 	public WebSocketClient createConnection(String endpointURI) {
-        WebSocketClient wsc = new WebSocketClient(endpointURI, this);
+        WebSocketClient wsc = new WebSocketClient(endpointURI, this, this.beInstance);
 		try {
 			Session session = wsClient.connectToServer(wsc, new URI(endpointURI));
 			wsc.setSession(session);
