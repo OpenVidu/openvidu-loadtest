@@ -96,12 +96,12 @@ async function joinSession() {
 			appendElement('local-connection-created');
 			connectionType = 'local';
 		}
-		beConnector.sendEvent({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType  });
+		beConnector.sendEvent({ event: "connectionCreated", connectionId: event.connection.connectionId, connection: connectionType  }, USER_ID, SESSION_ID);
 
 	});
 
 	session.on("streamCreated", event => {
-		beConnector.sendEvent({ event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'});
+		beConnector.sendEvent({ event: "streamCreated", connectionId: event.stream.streamId,  connection: 'remote'}, USER_ID, SESSION_ID);
 
 		var videoContainer = null;
 		if(SHOW_VIDEO_ELEMENTS){
@@ -131,12 +131,12 @@ async function joinSession() {
 				document.getElementById(videoId).play();
 				createUnmuteButton('subscriber-need-to-be-unmuted', videoId);
 			}
-			beConnector.sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'});
+			beConnector.sendEvent({ event: "streamPlaying", connectionId: event.stream.streamId,  connection: 'remote'}, USER_ID, SESSION_ID);
 		});
 	});
 
 	session.on("streamDestroyed", event => {
-		beConnector.sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'});
+		beConnector.sendEvent({event: "streamDestroyed", connectionId: event.stream.streamId,  connection: 'remote'}, USER_ID, SESSION_ID);
 		if (!!QOE_ANALYSIS) {
 			var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 			var remoteControl = remoteControls.get(remoteUser);
@@ -149,7 +149,7 @@ async function joinSession() {
 				console.log("Blob created");
 			}).catch(err => {
 				console.error(err);
-				beConnector.sendError(err);
+				beConnector.sendError(err, USER_ID, SESSION_ID);
 			});
 		}
 	});
@@ -158,12 +158,12 @@ async function joinSession() {
 		document.querySelectorAll('.video-remote-container').forEach(a => {
 			a.remove();
 		});
-		beConnector.sendEvent({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local' });
+		beConnector.sendEvent({event: "sessionDisconnected", connectionId: session.connection.connectionId, reason: event.reason, connection: 'local' }, USER_ID, SESSION_ID);
 	});
 
 	session.on('exception', exception => {
 		if (exception.name === 'ICE_CANDIDATE_ERROR') {
-			beConnector.sendEvent({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message });
+			beConnector.sendEvent({ event: "exception", connectionId: exception.origin.connection.connectionId, reason: exception.message }, USER_ID, SESSION_ID);
 		}
 	});
 
@@ -202,7 +202,7 @@ async function joinSession() {
 							return audioTrack;
 						}).catch(err => {
 							console.error(err);
-							beConnector.sendError(err);
+							beConnector.sendError(err, USER_ID, SESSION_ID);
 						});
 					} else {
 						return null;
@@ -223,7 +223,7 @@ async function joinSession() {
 				}).catch((err) => {
 					console.error(err);
 					console.error(JSON.stringify(err));
-					beConnector.sendError(err);
+					beConnector.sendError(err, USER_ID, SESSION_ID);
 				})
 			} else {
 				console.log("User " + USER_ID + " is subscriber");
@@ -234,7 +234,7 @@ async function joinSession() {
 		})
 		.catch(error => {
 			console.log("There was an error connecting to the session:", error.code, error.message);
-			beConnector.sendError(error);
+			beConnector.sendError(error, USER_ID, SESSION_ID);
 		});
 
 }
@@ -320,18 +320,18 @@ function setPublisherButtonsActions(publisher) {
 		}
 
 		publisher.once("accessAllowed", e => {
-			beConnector.sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' });
+			beConnector.sendEvent({ event: "accessAllowed", connectionId: '', connection: 'local' }, USER_ID, SESSION_ID);
 
 		});
 		publisher.once("streamCreated", e => {
-			beConnector.sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' });
+			beConnector.sendEvent({ event: "streamCreated", connectionId: e.stream.streamId, connection: 'local' }, USER_ID, SESSION_ID);
 			appendElement('local-stream-created');
 		});
 		publisher.once("streamPlaying", e => {
-			beConnector.sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' });
+			beConnector.sendEvent({ event: "streamPlaying", connectionId: '', connection: 'local' }, USER_ID, SESSION_ID);
 		});
 		publisher.once("streamDestroyed", e => {
-			beConnector.sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' });
+			beConnector.sendEvent({ event: "streamDestroyed", connectionId: e.stream.streamId, connection: 'local' }, USER_ID, SESSION_ID);
 
 			if (e.reason !== 'unpublish') {
 				document.getElementById('video-publisher').outerHTML = "";
@@ -368,7 +368,7 @@ function initFormValues() {
 function getToken() {
 	return createSession(SESSION_ID).then(sessionId => createToken(sessionId)).catch(err => {
 		console.error(err);
-		beConnector.sendError(err);
+		beConnector.sendError(err, USER_ID, SESSION_ID);
 	});
 }
 

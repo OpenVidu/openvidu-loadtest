@@ -1,17 +1,22 @@
 class BrowserEmulatorConnector {
-    sendEvent(event) {
+    sendEvent(event, participant, session) {
         var ITEM_NAME = 'ov-events-config';
     
         const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
-    
+
         if(url) {
             return new Promise((resolve, reject) => {
+                const eventObj = JSON.stringify(event);
+
+                eventObj['participant'] = participant;
+                eventObj['session'] = session;
+
                 fetch(url.httpEndpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(event)
+                    body: eventObj
                 })
                 .then(response => {
                     if (response.ok) {
@@ -25,14 +30,18 @@ class BrowserEmulatorConnector {
         }
     }
     
-    sendError(err) {
+    sendError(err, participant, session) {
         var ITEM_NAME = 'ov-errorlog-config';
     
         const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
         if (url) {
+            const eventObj = JSON.stringify(err);
+
+            eventObj['participant'] = participant;
+            eventObj['session'] = session;
             fetch(url.httpEndpoint, {
                 method: 'POST',
-                body: JSON.stringify(err),
+                body: eventObj,
                 headers: {
                     'Content-Type': 'application/json'
                 }
