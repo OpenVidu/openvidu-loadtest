@@ -32,11 +32,11 @@
   "dependencies": {
     "@elastic/elasticsearch": "7.8.0",
     "aws-sdk": "^2.1148.0",
-    "axios": "0.23.0",
+    "axios": "^1.6.8",
     "btoa": "1.2.1",
     "canvas": "2.10.2",
     "dockerode": "3.3.1",
-    "express": "4.17.1",
+    "express": "4.19.2",
     "fluent-ffmpeg": "2.1.2",
     "fluent-ffmpeg-multistream": "1.0.0",
     "kurento-client": "6.16.0",
@@ -72,5 +72,8 @@
     "prettier": "2.2.0",
     "ts-node": "10.9.1",
     "typescript": "4.9.4"
+  },
+  "overrides": {
+    "@types/mime": "3.0.4"
   }
 }
