@@ -6,10 +6,12 @@ class BrowserEmulatorConnector {
 
         if(url) {
             return new Promise((resolve, reject) => {
-                const eventObj = JSON.stringify(event);
-
-                eventObj['participant'] = participant;
-                eventObj['session'] = session;
+                let eventObj = event;
+                if (typeof eventObj === 'object' && eventObj !== null) {
+                    eventObj['participant'] = participant;
+                    eventObj['session'] = session;
+                    eventObj = JSON.stringify(eventObj);
+                }
 
                 fetch(url.httpEndpoint, {
                     method: 'POST',
@@ -35,10 +37,13 @@ class BrowserEmulatorConnector {
     
         const url = JSON.parse(window.localStorage.getItem(ITEM_NAME));
         if (url) {
-            const eventObj = JSON.stringify(err);
+            let eventObj = err;
+            if (typeof eventObj === 'object' && eventObj !== null) {
+                eventObj['participant'] = participant;
+                eventObj['session'] = session;
+                eventObj = JSON.stringify(eventObj);
+            }
 
-            eventObj['participant'] = participant;
-            eventObj['session'] = session;
             fetch(url.httpEndpoint, {
                 method: 'POST',
                 body: eventObj,
