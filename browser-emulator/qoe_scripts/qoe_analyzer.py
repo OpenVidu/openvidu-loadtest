@@ -145,45 +145,62 @@ def main():
     async_tasks = []
     start_fragment_time = None
     end_fragment_time = None
+    # Start reading video frames
     while cap.isOpened():
+        # Get a video frame
         ret, frame = cap.read()
         if not ret:
             # video ended
             break
+        # resize frame to correct resolution so QoE tests return correct results
         frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+        # If previous frame was padding, check if current frame is padding
         if is_begin_padding:
+            # If the current frame is not padding, then padding has ended and a new fragment begins
             if not match_image(frame, debug_ref):
                 # padding ended
                 is_begin_padding = False
+                # get current position in video in seconds
                 start_fragment_time = (cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
+                # time can sometimes be reported incorrectly, most likely when the video is being read from a network source that is failing
                 if (end_fragment_time is not None) and (start_fragment_time < end_fragment_time):
                     logger.warning("Start fragment time %f is less than last end fragment time %f, using estimate time %f",
                                            start_fragment_time, end_fragment_time, end_fragment_time + fragment_duration_secs)
+                    # estimate start time based on last end time and fragment duration
                     start_fragment_time = end_fragment_time + fragment_duration_secs
                 frames_for_cut.append(frame)
+        # if previous frame was not padding
         else:
             is_begin_padding = match_image(frame, debug_ref)
+            # if padding has begun, then the fragment has ended and analysis can be done
             if is_begin_padding:
                 is_beginning_video = False
                 len_frames = len(frames_for_cut)
                 if len_frames > 0:
                     logger.info("Padding found on frame %d", i)
+                    # if there are more frames than expected, then something went wrong in the video and the fragment should be skipped
                     if len_frames > (fragment_duration_secs * fps):
                         logger.warning(
                             "Fragment is longer than expected, skipping...")
                     else:
+                        # get current position in video in seconds
                         end_fragment_time = (
                             cap.get(cv2.CAP_PROP_POS_MSEC) / 1000)
                         if end_fragment_time <= start_fragment_time:
+                            # time can sometimes be reported incorrectly, most likely when the video is being read from a network source that is failing
                             logger.warning("End fragment time %f is less than start fragment time %f, using estimate time %f",
                                            end_fragment_time, start_fragment_time, start_fragment_time + fragment_duration_secs)
+                            # estimate end time based on fragment start time and fragment duration
                             end_fragment_time = start_fragment_time + fragment_duration_secs
+                        # analyze the fragment
                         tasks = process_cut_frames(
                             frames_for_cut, cut_index, start_fragment_time, end_fragment_time)
                         async_tasks.append(tasks)
                     cut_index += 1
                     frames_for_cut = []
-            elif not is_beginning_video:  # this ignores the first fragment as it is incomplete and QoE stats would be wrong
+            # If the current frame is not padding, then it is part of the fragment
+            # This condition also ignores the first fragment as it is incomplete and QoE stats would be wrong
+            elif not is_beginning_video:
                 frames_for_cut.append(frame)
 
         if debug:
