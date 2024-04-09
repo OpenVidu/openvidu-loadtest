@@ -323,7 +323,7 @@ public class LoadTestConfig {
 		try {
 			openviduUrl = asString("OPENVIDU_URL");
 			openviduUrl = openviduUrl.replaceAll("/$", "");
-			openviduSecret = asString("OPENVIDU_SECRET");
+			openviduSecret = asOptionalString("OPENVIDU_SECRET");
 			sessionNamePrefix = asString("SESSION_NAME_PREFIX");
 			userNamePrefix = asString("USER_NAME_PREFIX");
 			secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");

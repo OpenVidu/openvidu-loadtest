@@ -21,6 +21,11 @@ public class LKCreateUserRequestBody extends CreateUserRequestBody {
 
     public JsonObject toJson() {
         JsonObject jsonBody = super.toJson();
+        boolean nullKeys = (this.livekitApiKey == null) || (this.livekitApiSecret == null);
+        boolean emptyKeys = nullKeys || (this.livekitApiKey.isEmpty()) || (this.livekitApiSecret.isEmpty());
+        if (emptyKeys) {
+            return jsonBody;
+        }
         jsonBody.addProperty("livekitApiKey", this.livekitApiKey);
         jsonBody.addProperty("livekitApiSecret", this.livekitApiSecret);
 
