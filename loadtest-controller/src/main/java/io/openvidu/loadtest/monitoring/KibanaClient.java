@@ -61,7 +61,7 @@ public class KibanaClient {
 				importSavedObjects(resource.getFile());
 			} catch (Exception e) {
 				log.warn("Can't import dashboard to Kibana at {}", this.kibanaHost);
-				System.out.println(e.getMessage());
+				log.error(e.getMessage());
 			}
 			return;
 		}

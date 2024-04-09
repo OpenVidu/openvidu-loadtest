@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ import io.openvidu.loadtest.models.testcase.Typology;
 @Service
 public class DataIO {
 
+	private static final Logger log = LoggerFactory.getLogger(DataIO.class);
 	private static ClassLoader classLoader = DataIO.class.getClassLoader();
 	private static final String TEST_CASES_JSON_FILE = "test_cases.json";
 	private static final String REPORT_FILE_RESULT = "results.txt";
@@ -66,7 +69,7 @@ public class DataIO {
 			e.printStackTrace();
 		}
 
-		System.out.println("Saved result in a " + RESULT_PATH);
+		log.info("Saved result in a " + RESULT_PATH);
 	}
 
 	private List<TestCase> convertJsonArrayToTestCasesList(JsonArray array) {

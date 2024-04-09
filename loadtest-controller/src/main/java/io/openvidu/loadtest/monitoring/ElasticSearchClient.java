@@ -169,7 +169,7 @@ public class ElasticSearchClient {
 			return Double.parseDouble(df2.format(cpu * 100));
 
 		} catch (IOException e) {
-			System.out.println(e);
+			log.error(e.getMessage());
 			e.printStackTrace();
 			return 0.0;
 		}

@@ -280,6 +280,7 @@ public class BrowserEmulatorClient {
 		try {
 			log.info("Selected worker: {}", workerUrl);
 			log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
+			log.debug(body.toJson().toString());
 			HttpResponse<String> response = this.httpClient.sendPost(
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
 					getHeaders());

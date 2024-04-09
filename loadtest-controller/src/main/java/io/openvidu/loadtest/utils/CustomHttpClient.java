@@ -27,6 +27,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.google.gson.JsonObject;
@@ -34,6 +36,7 @@ import com.google.gson.JsonObject;
 @Service
 public class CustomHttpClient {
 
+	private static final Logger log = LoggerFactory.getLogger(CustomHttpClient.class);
 	private HttpClient client;
 
 	public CustomHttpClient() {
@@ -41,7 +44,7 @@ public class CustomHttpClient {
 		try {
 			this.client = this.createClientAllowingInsecureCert();
 		} catch (KeyManagementException | NoSuchAlgorithmException e) {
-			System.out.println("Error creating httpClient allowing insecure cert. Creating a secured one");
+			log.error("Error creating httpClient allowing insecure cert. Creating a secured one");
 			this.client = HttpClient.newBuilder().build();
 		}
 	}
