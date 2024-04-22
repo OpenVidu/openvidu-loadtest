@@ -56,4 +56,36 @@ if [ "$START_MEDIASERVER" = "true" ]; then
 fi
 cd /opt/openvidu-loadtest/browser-emulator
 ./debug_vnc.sh
+
+umount /vagrant
+
+apt-get autoremove -y
+apt-get clean -y
+apt-get autoclean -y
+
+dd if=/dev/zero of=/EMPTY bs=1M
+rm -f /EMPTY
+
+unset HISTFILE
+rm -f /root/.bash_history
+rm -f /home/vagrant/.bash_history
+
+# Whiteout root
+count=`df --sync -kP / | tail -n1  | awk -F ' ' '{print $4}'`;
+count=$((count -= 1))
+dd if=/dev/zero of=/tmp/whitespace bs=1024 count=$count;
+rm /tmp/whitespace;
+
+# Whiteout /boot
+count=`df --sync -kP /boot | tail -n1 | awk -F ' ' '{print $4}'`;
+count=$((count -= 1))
+dd if=/dev/zero of=/boot/whitespace bs=1024 count=$count;
+rm /boot/whitespace;
+
+# Whiteout swap 
+swappart=`cat /proc/swaps | tail -n1 | awk -F ' ' '{print $1}'`
+swapoff $swappart;
+dd if=/dev/zero of=$swappart;
+mkswap $swappart;
+swapon $swappart;
 reboot now
