@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 firefox = ENV['FIREFOX'] || 'true'
-livekit = ENV['LIVEKIT'] || 'true'
+livekit = ENV['LIVEKIT'] || 'false'
 start_server = ENV['START_MEDIASERVER'] || 'false'
 qoe = ENV['QOE'] || 'false'
 memory = ENV['MEMORY'] || 8192
