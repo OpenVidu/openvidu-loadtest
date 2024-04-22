@@ -8,9 +8,9 @@ import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
 import { ContainerName } from '../types/container-info.type';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
-import { FilesService } from '../services/files.service';
-import { S3FilesService } from '../services/s3.service';
-import { MinioFilesService } from '../services/minio.service';
+import { FilesService } from '../services/files/files.service';
+import { S3FilesService } from '../services/files/impl/s3.service';
+import { MinioFilesService } from '../services/files/impl/minio.service';
 import { downloadFile } from '../utils/download-files';
 import { SeleniumService } from '../services/selenium.service';
 

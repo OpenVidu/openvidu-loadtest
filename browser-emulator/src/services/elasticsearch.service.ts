@@ -70,7 +70,7 @@ export class ElasticSearchService {
 	}
 
 	async sendJson(json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo) {
-		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
+		if (this.isElasticSearchRunning() && (APPLICATION_MODE === ApplicationMode.PROD)) {
 			let indexData: Index<Record<string, any>> = {
 				index: this.indexName,
 				body: {},
@@ -89,7 +89,7 @@ export class ElasticSearchService {
 	}
 
 	async sendBulkJsons(jsons: JSONStatsResponse[] | JSONStreamsInfo[] | JSONQoEInfo[]) {
-		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
+		if (this.isElasticSearchRunning() && (APPLICATION_MODE === ApplicationMode.PROD)) {
 			try {
 				const operations = jsons.flatMap((json) => [{ index: { _index: this.indexName } }, json])
 				const bulkResponse = await this.client.bulk({ refresh: "true", body: operations });
@@ -156,7 +156,7 @@ export class ElasticSearchService {
 	}
 
 	async getStartTimes(): Promise<JSONStreamsInfo[]> {
-		if (this.isElasticSearchRunning() && APPLICATION_MODE === ApplicationMode.PROD) {
+		if (this.isElasticSearchRunning() && (APPLICATION_MODE === ApplicationMode.PROD)) {
 			const result = await this.client.search({
 				index: this.indexName,
 				body: {

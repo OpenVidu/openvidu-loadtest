@@ -1,4 +1,4 @@
-import { FilesService } from "./files.service";
+import { FilesService } from "../files.service";
 import fs = require('fs');
 const fsPromises = fs.promises;
 import * as Minio from "minio";
@@ -75,7 +75,7 @@ export class MinioFilesService extends FilesService {
         };
     
         const promises = [];
-        this.fileDirs.forEach((dir) => {
+        FilesService.fileDirs.forEach((dir) => {
             promises.push(
                 fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
                     .then(() => fsPromises.readdir(dir))

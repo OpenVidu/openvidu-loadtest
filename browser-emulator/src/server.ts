@@ -18,6 +18,7 @@ import nodeCleanup = require('node-cleanup');
 import { BrowserManagerService } from './services/browser-manager.service';
 import { killAllDetached } from './utils/run-script';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices';
+import { FilesService } from './services/files/files.service';
 
 async function cleanup() {
 	const browserManager = BrowserManagerService.getInstance();
@@ -77,6 +78,11 @@ server.listen(SERVER_PORT, async () => {
 	try {
 		if (!fs.existsSync(`${process.cwd()}/src/assets/mediafiles`)){
 			fs.mkdirSync(`${process.cwd()}/src/assets/mediafiles`);
+		}
+		for (const directory of FilesService.fileDirs) {
+			if (!fs.existsSync(directory)) {
+				fs.mkdirSync(directory);
+			}
 		}
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
 			console.log('Pulling Docker images needed...');

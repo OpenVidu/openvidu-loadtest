@@ -8,12 +8,16 @@ import { ErrorLogService, OpenViduEventsService, QoERecordingsService, WebrtcSta
 import { OpenViduRole } from '../types/openvidu.type';
 import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
-import { FilesService } from './files.service';
+import { FilesService } from './files/files.service';
+import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
 	private readonly RESPONSE_TIMEOUT = 30_000;
 	private _lastRequestInfo: LoadTestPostRequest;
+	private readonly STATS_DIR = `${process.cwd()}/stats`;
+	private readonly STATS_FILE = `${this.STATS_DIR}/connections.json`;
 
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
@@ -23,7 +27,11 @@ export class BrowserManagerService {
 		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
-	) {}
+	) {
+		if (!fs.existsSync(this.STATS_FILE)) {
+			fs.writeFileSync(this.STATS_FILE, '[]');
+		}
+	}
 
 	static getInstance() {
 		if (!BrowserManagerService.instance) {
@@ -132,11 +140,28 @@ export class BrowserManagerService {
 			new_participant_id,
 			new_participant_session
 		};
+		let existingData: JSONStreamsInfo[] = [];
 		try {
-			await this.elasticSearchService.sendJson(json);
+			// Read existing data from the file
+			const fileContent = await fsp.readFile(this.STATS_FILE, 'utf8');
+			existingData = JSON.parse(fileContent);
 		} catch (error) {
-			console.error('Error sending streams data to ElasticSearch');
-			console.log(error);
+			// If the file doesn't exist or is empty, continue with an empty array
+		}
+
+		// Merge existing data with new data
+		const combinedData = existingData.push(json);
+
+		const promises = [];
+		// Write the combined data back to the file
+		promises.push(fsp.writeFile(this.STATS_FILE, JSON.stringify(combinedData)));
+		if (this.elasticSearchService.isElasticSearchRunning()) {
+			promises.push(this.elasticSearchService.sendJson(json));
+		}
+		try {
+			await Promise.all(promises);
+		} catch (error) {
+			console.error(error);
 		}
 	}
 

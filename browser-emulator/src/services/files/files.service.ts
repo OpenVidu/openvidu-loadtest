@@ -1,7 +1,8 @@
 export abstract class FilesService {
 
     protected static instance: FilesService | undefined;
-    readonly fileDirs = [`${process.cwd()}/recordings/kms`, `${process.cwd()}/recordings/chrome`, `${process.cwd()}/recordings/qoe`];
+    static readonly fileDirs = [`${process.cwd()}/recordings/kms`, `${process.cwd()}/recordings/chrome`,
+        `${process.cwd()}/recordings/qoe`, `${process.cwd()}/stats`];
 
     static getInstance(): FilesService | undefined {
         return this.instance;
