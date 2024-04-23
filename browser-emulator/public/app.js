@@ -21,11 +21,9 @@ var OV;
 var session;
 var mediaRecorderErrors = 0;
 
-// var subscriptions = 0;
-// const MAX_SUBSCRIPTIONS = 5;
-
 var beConnector = new BrowserEmulatorConnector();
 var recordingManager = new BrowserEmulatorRecorderManager(beConnector);
+let webrtcStatsManager = new WebRTCStatsManager(beConnector);
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -87,7 +85,7 @@ function recordStartDelay(time) {
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
 	OV = new OpenVidu();
-	//OV.enableProdMode();
+	OV.enableProdMode();
 	session = OV.initSession();
 
 	session.on("connectionCreated", event => {
@@ -109,15 +107,13 @@ async function joinSession() {
 
 			videoContainer = 'remote-video-publisher';
 		}
-
-		//subscriptions +=1;
+		
 		const subscriber = session.subscribe(event.stream, videoContainer);
 
 		subscriber.on("streamPlaying", e => {
+			let remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
+			webrtcStatsManager.addConnectionToStats(event.stream.getRTCPeerConnection(), remoteUser, event.stream.streamId);
 			if (!!QOE_ANALYSIS) {
-				// var remoteControl = new ElasTestRemoteControl();
-				// remoteControl.startRecording(event.stream.getMediaStream(), FRAME_RATE, RESOLUTION);
-				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
 				console.log(USER_ID + " starting recording user " + remoteUser);
 				var stream = event.stream.getMediaStream();
 				const mediaRecorder = recordingManager.createRecorder(USER_ID, remoteUser, SESSION_ID, stream);
@@ -216,6 +212,10 @@ async function joinSession() {
 						resolution:  RESOLUTION,
 						frameRate: FRAME_RATE,
 						mirror: false
+					});
+					publisher.on("streamPlaying", event => {
+						webrtcStatsManager.addConnectionToStats(event.target.stream.getRTCPeerConnection(),
+							USER_ID, event.target.stream.streamId);
 					});
 					session.publish(publisher);
 					console.log("Publisher initialized");

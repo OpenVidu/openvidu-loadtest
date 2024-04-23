@@ -150,11 +150,11 @@ export class BrowserManagerService {
 		}
 
 		// Merge existing data with new data
-		const combinedData = existingData.push(json);
+		existingData.push(json);
 
 		const promises = [];
 		// Write the combined data back to the file
-		promises.push(fsp.writeFile(this.STATS_FILE, JSON.stringify(combinedData)));
+		promises.push(fsp.writeFile(this.STATS_FILE, JSON.stringify(existingData)));
 		if (this.elasticSearchService.isElasticSearchRunning()) {
 			promises.push(this.elasticSearchService.sendJson(json));
 		}

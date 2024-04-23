@@ -25,6 +25,7 @@ class LKWebRTCStatsProvider extends WebRTCStatsProvider {
         let response = {};
         const stats = await this.trackInfo.track.getRTCStatsReport();
         if (this.trackInfo.isLocal) {
+            console.log(stats);
             response.outbound = {};
             const senderStats = await this.trackInfo.track.getSenderStats();
             if (this.trackInfo.type === 'audio') {

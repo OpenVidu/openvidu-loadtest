@@ -4,6 +4,7 @@ import { BrowserManagerService } from '../services/browser-manager.service';
 import { OpenViduRole, Resolution } from '../types/openvidu.type';
 import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
 import BaseComModule from '../com-modules/base';
+import { saveStats } from './events.controller'
 
 export const app = express.Router({
 	strict: true,
@@ -51,6 +52,7 @@ app.delete('/streamManager', async (req: Request, res: Response) => {
 	console.log('Deleting all participants');
 	try {
 		await browserManagerService.clean();
+		await saveStats();
 		res.status(200).send(`Instance ${req.headers.host} is clean`);
 	} catch (error) {
 		console.error(error);

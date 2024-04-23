@@ -1,9 +1,9 @@
 import { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type';
 
 export class WebrtcStatsService {
-	private readonly ITEM_NAME: string = 'webrtc-stats-config';
-	private readonly WEBRTC_INTERVAL: number = 3;
-	private readonly SEND_INTERVAL: number = 15;
+	private readonly ITEM_NAME: string = 'webrtc-stats-info';
+	private readonly WEBRTC_INTERVAL: number = 1;
+	private readonly SEND_INTERVAL: number = 2;
 
 	public getConfig(): string {
 		const statsConfig: WebrtcStatsConfig = {

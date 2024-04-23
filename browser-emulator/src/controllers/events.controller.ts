@@ -5,6 +5,7 @@ import { WsService } from '../services/ws.service';
 import { JSONStatsResponse } from '../types/api-rest.type';
 import * as fsp from 'fs/promises';
 import * as fs from 'fs';
+import * as lockfile from 'proper-lockfile';
 
 // DEBUG: Print full objects (only uncomment for debug sessions during development)
 // require("util").inspect.defaultOptions.depth = null;
@@ -34,29 +35,41 @@ if (!fs.existsSync(errorsFile)) {
 	fs.writeFileSync(errorsFile, '[]');
 }
 
-const saveStatsToFile = async (file: string) => {
+const saveStatsToFile = async (file: string, data: any) => {
+	// lock is in STATS_DIR/locks/filename.lock
+	const release = await lockfile.lock(STATS_DIR + "/locks/" + file.split("/").pop() + ".lock");
+	console.log("Saving stats to file " + file);
 	let existingData: any[] = [];
     try {
         // Read existing data from the file
         const fileContent = await fsp.readFile(file, 'utf8');
         existingData = JSON.parse(fileContent);
+		console.log("Existing data: " + existingData.length)
     } catch (error) {
         // If the file doesn't exist or is empty, continue with an empty array
     }
 
     // Merge existing data with new data
-    const combinedData = existingData.concat(file);
+	let combinedData: any[];
+	if (Array.isArray(data)) {
+		combinedData = existingData.concat(data);
+	} else {
+		existingData.push(data);
+		combinedData = existingData;
+	}
+	console.log("Combined data: " + combinedData.length);
 
     // Write the combined data back to the file
-    await fsp.writeFile(statsFile, JSON.stringify(file));
+    await fsp.writeFile(file, JSON.stringify(combinedData));
+	await release();
 }
 
 
-const saveStats = async () => {
+export const saveStats = async () => {
 	if (statsBuffer.length > 0) {
 		const promises = [];
 		// Save the stats to file
-		promises.push(saveStatsToFile(statsFile));
+		promises.push(saveStatsToFile(statsFile, statsBuffer));
 		// Send the stats to ElasticSearch
 		if (elasticSearchService.isElasticSearchRunning()) {
 			promises.push(elasticSearchService.sendBulkJsons(statsBuffer));
@@ -105,7 +118,7 @@ app.get('/events/forcesave', async (req: Request, res: Response) => {
 
 app.post('/webrtcStats', async (req: Request, res: Response) => {
 	try {
-		const statsResponse: JSONStatsResponse | JSONStatsResponse[] = req.body;
+		const statsResponse: any = req.body;
 		if (Array.isArray(statsResponse)) {
 			statsBuffer.push(...statsResponse);
 		} else {
@@ -124,7 +137,7 @@ app.post('/events', async (req: Request, res: Response) => {
 		const message: string = JSON.stringify(req.body);
 		WsService.getInstance().send(message);
 
-		await saveStatsToFile(eventsFile);
+		await saveStatsToFile(eventsFile, req.body);
 
 		return res.status(200).send();
 	} catch (error) {
@@ -140,7 +153,7 @@ app.post('/events/errors', async (req: Request, res: Response) => {
 		console.error("Error received from browser: ");
 		console.error(message);
 
-		await saveStatsToFile(errorsFile);
+		await saveStatsToFile(errorsFile, req.body);
 
 		return res.status(200).send();
 	} catch (error) {
