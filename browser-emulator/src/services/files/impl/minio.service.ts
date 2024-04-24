@@ -37,14 +37,21 @@ export class MinioFilesService extends FilesService {
             }
         }
     
-        const uploadFile = async (dir: string, file: string): Promise<void> => {
+        const uploadFile = async (dir: string, file: string, stats?: boolean): Promise<void> => {
             const filePath = `${dir}/${file}`;
-            const fileName = file.split('/').pop();
+            let fileName = file.split('/').pop();
+            if (stats) {
+                fileName = 'stats/' + fileName;
+            }
     
             return new Promise((resolve, reject) => {
+                if (fileName.includes("lock")) {
+                    console.log("Skipping lock file or directory: " + fileName);
+                    resolve();
+                    return;
+                }
                 let randomDelay = Math.floor(Math.random() * (10000 - 0 + 1)) + 0;
                 console.log(`Uploading file ${fileName} to MINIO bucket ${process.env.MINIO_BUCKET} with delay ${randomDelay} ms`);
-
                 setTimeout(() => {
                     this.minioClient.fPutObject(process.env.MINIO_BUCKET, fileName, filePath, async (err, etag) => {
                         if (err) {
@@ -80,7 +87,7 @@ export class MinioFilesService extends FilesService {
                 fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
                     .then(() => fsPromises.readdir(dir))
                     .then((files) => {
-                        const uploadPromises = files.map((file) => uploadFile(dir, file));
+                        const uploadPromises = files.map((file) => uploadFile(dir, file, dir.includes('stats')));
                         return Promise.all(uploadPromises);
                     })
             );

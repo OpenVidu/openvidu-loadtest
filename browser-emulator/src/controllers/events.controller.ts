@@ -3,9 +3,7 @@ import { Request, Response } from 'express';
 import { ElasticSearchService } from '../services/elasticsearch.service';
 import { WsService } from '../services/ws.service';
 import { JSONStatsResponse } from '../types/api-rest.type';
-import * as fsp from 'fs/promises';
-import * as fs from 'fs';
-import * as lockfile from 'proper-lockfile';
+import { createFileAndLock, saveStatsToFile } from '../utils/stats-files';
 
 // DEBUG: Print full objects (only uncomment for debug sessions during development)
 // require("util").inspect.defaultOptions.depth = null;
@@ -18,52 +16,14 @@ const elasticSearchService: ElasticSearchService = ElasticSearchService.getInsta
 
 const statsBuffer: JSONStatsResponse[] = [];
 let sendInterval: NodeJS.Timeout;
-const STATS_DIR = `${process.cwd()}/stats`;
 
-const statsFile = `${STATS_DIR}/stats.json`;
-if (!fs.existsSync(statsFile)) {
-	fs.writeFileSync(statsFile, '[]');
-}
+const statsFile = `stats.json`;
+const eventsFile = `events.json`;
+const errorsFile = `errors.json`;
 
-const eventsFile = `${STATS_DIR}/events.json`;
-if (!fs.existsSync(eventsFile)) {
-	fs.writeFileSync(eventsFile, '[]');
-}
-
-const errorsFile = `${STATS_DIR}/errors.json`;
-if (!fs.existsSync(errorsFile)) {
-	fs.writeFileSync(errorsFile, '[]');
-}
-
-const saveStatsToFile = async (file: string, data: any) => {
-	// lock is in STATS_DIR/locks/filename.lock
-	const release = await lockfile.lock(STATS_DIR + "/locks/" + file.split("/").pop() + ".lock");
-	console.log("Saving stats to file " + file);
-	let existingData: any[] = [];
-    try {
-        // Read existing data from the file
-        const fileContent = await fsp.readFile(file, 'utf8');
-        existingData = JSON.parse(fileContent);
-		console.log("Existing data: " + existingData.length)
-    } catch (error) {
-        // If the file doesn't exist or is empty, continue with an empty array
-    }
-
-    // Merge existing data with new data
-	let combinedData: any[];
-	if (Array.isArray(data)) {
-		combinedData = existingData.concat(data);
-	} else {
-		existingData.push(data);
-		combinedData = existingData;
-	}
-	console.log("Combined data: " + combinedData.length);
-
-    // Write the combined data back to the file
-    await fsp.writeFile(file, JSON.stringify(combinedData));
-	await release();
-}
-
+createFileAndLock(statsFile);
+createFileAndLock(eventsFile);
+createFileAndLock(errorsFile);
 
 export const saveStats = async () => {
 	if (statsBuffer.length > 0) {
@@ -110,6 +70,15 @@ app.get('/events/forcesave', async (req: Request, res: Response) => {
 	try {
 		await saveStats();
 		return res.status(200).send();
+	} catch (error) {
+		console.error('ERROR saving stats', error);
+		return res.status(500).send(error);
+	}
+});
+
+app.get('/events/savedstats', async (req: Request, res: Response) => {
+	try {
+		return res.status(200).send(statsBuffer.toString());
 	} catch (error) {
 		console.error('ERROR saving stats', error);
 		return res.status(500).send(error);

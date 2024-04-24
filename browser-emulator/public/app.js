@@ -21,9 +21,9 @@ var OV;
 var session;
 var mediaRecorderErrors = 0;
 
-var beConnector = new BrowserEmulatorConnector();
-var recordingManager = new BrowserEmulatorRecorderManager(beConnector);
-let webrtcStatsManager = new WebRTCStatsManager(beConnector);
+let beConnector;
+var recordingManager
+let webrtcStatsManager;
 
 window.onload = () => {
 	var url = new URL(window.location.href);
@@ -84,6 +84,9 @@ function recordStartDelay(time) {
 
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
+	beConnector = new BrowserEmulatorConnector();
+	recordingManager = new BrowserEmulatorRecorderManager(beConnector);
+	webrtcStatsManager = new WebRTCStatsManager(beConnector);
 	OV = new OpenVidu();
 	OV.enableProdMode();
 	session = OV.initSession();

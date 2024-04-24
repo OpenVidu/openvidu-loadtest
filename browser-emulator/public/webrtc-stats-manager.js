@@ -26,60 +26,83 @@ class WebRTCStatsManager {
         this.browserEmulatorConnector = browserEmulatorConnector;
         // When cross-site (aka third-party) cookies are blocked by the browser,
         // accessing localStorage in a third-party iframe throws a DOMException.
-        let webrtcObj;
+        this.getItem().then((webrtcObj) => {
+            if (!!webrtcObj) {
+                this.webRtcStatsEnabled = true;
+                this.webrtcStatsConfig = JSON.parse(webrtcObj);
+                // webrtc object found in local storage
+                console.debug(
+                    'WebRtc stats enabled'
+                );
+                console.debug('localStorage item: ' + JSON.stringify(this.webrtcStatsConfig));
+    
+                this.POST_URL = this.webrtcStatsConfig.httpEndpoint;
+                if (!this.POST_URL) {
+                    console.error('WebRtc stats endpoint not found in localStorage item, stats won\'t be sent');
+                    this.webRtcStatsEnabled = false;
+                } else {
+                    console.debug('WebRtc stats endpoint: ' + this.POST_URL);
+                    this.statsInterval = this.webrtcStatsConfig.interval; // Interval in seconds
+                    if (!this.statsInterval) {
+                        console.warn('WebRtc stats interval not found in localStorage item, defaulting to 3 seconds');
+                        this.statsInterval = 3;
+                    }
+                    console.debug('WebRtc stats interval: ' + this.statsInterval);
+        
+                    this.sendInterval = this.webrtcStatsConfig.sendInterval; // Interval in seconds
+                    if (!this.sendInterval) {
+                        console.warn('WebRtc send stats interval not found in localStorage item, defaulting to 15 seconds');
+                        this.sendInterval = 15;
+                    }
+                    console.debug('WebRtc send stats interval: ' + this.sendInterval);
+    
+                    this.sendIntervalId = setInterval(async () => {
+                        const data = [];
+                        if (this.savedStats.length > 0) {
+                            for (let stat of this.savedStats) {
+                                data.push(stat);
+                            }
+                            this.savedStats = [];
+                            const response = {
+                                data: data,
+                                timestamp: new Date().toISOString(),
+                                user: USER_ID,
+                                session: SESSION_ID
+                            };
+                            await this.sendStatsToHttpEndpoint(response);
+                        }
+                    }, this.sendInterval * 1000);
+                }
+    
+            } else {
+                console.warn('WebRtc stats not enabled');
+            }
+        });
+
+    }
+
+    async getItem() {
         try {
             let ITEM_NAME = 'webrtc-stats-info';
-            webrtcObj = localStorage.getItem(ITEM_NAME);
+            let webrtcObj = localStorage.getItem(ITEM_NAME);
+            const maxRetries = 5;
+            const retryCount = 0;
+            const backoffTime = 1000 + Math.floor(Math.random() * 2000);
+
+            while (!webrtcObj && retryCount < maxRetries) {
+                console.warn("WebRTC stats not found in localStorage, retrying in " + backoffTime + "ms...");
+                await new Promise((resolve) => setTimeout(resolve, backoffTime));
+                webrtcObj = localStorage.getItem(ITEM_NAME);
+            }
+
+            if (!webrtcObj) {
+                console.warn("WebRTC stats not found in localStorage after multiple retries, stats won't be sent.");
+            }
+
+            return webrtcObj;
         }
         catch (e) {
             console.warn("localStorage for WebRTC stats not accessible in this context, stats won't be sent.");
-        }
-
-        if (!!webrtcObj) {
-            this.webRtcStatsEnabled = true;
-            this.webrtcStatsConfig = JSON.parse(webrtcObj);
-            // webrtc object found in local storage
-            console.debug(
-                'WebRtc stats enabled'
-            );
-            console.debug('localStorage item: ' + JSON.stringify(this.webrtcStatsConfig));
-
-            this.POST_URL = this.webrtcStatsConfig.httpEndpoint;
-            if (!this.POST_URL) {
-                console.error('WebRtc stats endpoint not found in localStorage item, stats won\'t be sent');
-                this.webRtcStatsEnabled = false;
-            } else {
-                console.debug('WebRtc stats endpoint: ' + this.POST_URL);
-                this.statsInterval = this.webrtcStatsConfig.interval; // Interval in seconds
-                if (!this.statsInterval) {
-                    console.warn('WebRtc stats interval not found in localStorage item, defaulting to 3 seconds');
-                    this.statsInterval = 3;
-                }
-                console.debug('WebRtc stats interval: ' + this.statsInterval);
-    
-                this.sendInterval = this.webrtcStatsConfig.sendInterval; // Interval in seconds
-                if (!this.sendInterval) {
-                    console.warn('WebRtc send stats interval not found in localStorage item, defaulting to 15 seconds');
-                    this.sendInterval = 15;
-                }
-                console.debug('WebRtc send stats interval: ' + this.sendInterval);
-    
-                this.savedElements = new Map();
-
-
-                this.sendIntervalId = setInterval(async () => {
-                    const response = [];
-                    for (let stat of this.savedStats) {
-                        response.push(stat);
-                    }
-                    this.savedStats = [];
-                    // TODO: Add user info
-                    await this.sendStatsToHttpEndpoint(response);
-                }, this.sendInterval * 1000);
-            }
-
-        } else {
-            console.warn('WebRtc stats not enabled');
         }
     }
 
@@ -114,4 +137,3 @@ class WebRTCStatsManager {
         })
     }
 }
-

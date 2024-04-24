@@ -9,15 +9,12 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
 import { FilesService } from './files/files.service';
-import * as fs from 'fs';
-import * as fsp from 'fs/promises';
+import { createFileAndLock, saveStatsToFile } from '../utils/stats-files';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
-	private readonly RESPONSE_TIMEOUT = 30_000;
 	private _lastRequestInfo: LoadTestPostRequest;
-	private readonly STATS_DIR = `${process.cwd()}/stats`;
-	private readonly STATS_FILE = `${this.STATS_DIR}/connections.json`;
+	private readonly STATS_FILE = `connections.json`;
 
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
@@ -28,9 +25,7 @@ export class BrowserManagerService {
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
 	) {
-		if (!fs.existsSync(this.STATS_FILE)) {
-			fs.writeFileSync(this.STATS_FILE, '[]');
-		}
+		createFileAndLock(this.STATS_FILE);
 	}
 
 	static getInstance() {
@@ -140,21 +135,9 @@ export class BrowserManagerService {
 			new_participant_id,
 			new_participant_session
 		};
-		let existingData: JSONStreamsInfo[] = [];
-		try {
-			// Read existing data from the file
-			const fileContent = await fsp.readFile(this.STATS_FILE, 'utf8');
-			existingData = JSON.parse(fileContent);
-		} catch (error) {
-			// If the file doesn't exist or is empty, continue with an empty array
-		}
-
-		// Merge existing data with new data
-		existingData.push(json);
-
 		const promises = [];
 		// Write the combined data back to the file
-		promises.push(fsp.writeFile(this.STATS_FILE, JSON.stringify(existingData)));
+		promises.push(saveStatsToFile(this.STATS_FILE, json));
 		if (this.elasticSearchService.isElasticSearchRunning()) {
 			promises.push(this.elasticSearchService.sendJson(json));
 		}
