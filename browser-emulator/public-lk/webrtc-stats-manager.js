@@ -1,9 +1,28 @@
-/**
- * Based on openvidu-browser implementation
- * Needs platform.js
- */
 class WebRTCStatsManager {
     constructor(browserEmulatorConnector) {
+        this.savedStats = [];
+        this.webrtcStats = new WebRTCStats({
+            // the interval in ms of how often we should get stats
+            getStatsInterval: this.statsInterval * 1000,
+            // if we should include the original RTCStatsReport map when firing the `stats` event
+            rawStats: false,
+            // include an object that resulted from transforming RTCStatsReport into an oject (`report.id` as the key)
+            statsObject: false,
+            // if we should filter out some stats
+            filteredStats: false,
+            // If the data object should contain a remote attribute that will contain stats for the remote peer, from `remote-inbound-rtp`, etc
+            remote: true,
+            // If we should wrap the `geUserMedia` calls so we can gather events when the methods is called or success/error
+            wrapGetUserMedia: true,
+            // If we should log messages
+            debug: false,
+            // Values: 'none', 'error', 'warn', 'info', 'debug'
+            logLevel: 'warn'
+        })
+        
+        this.webrtcStats.on('timeline', (ev) => {
+            this.savedStats.push(ev)
+        })
         this.browserEmulatorConnector = browserEmulatorConnector;
         // When cross-site (aka third-party) cookies are blocked by the browser,
         // accessing localStorage in a third-party iframe throws a DOMException.
@@ -46,7 +65,7 @@ class WebRTCStatsManager {
                 console.debug('WebRtc send stats interval: ' + this.sendInterval);
     
                 this.savedElements = new Map();
-                this.savedStats = [];
+
 
                 this.sendIntervalId = setInterval(async () => {
                     const response = [];
@@ -54,6 +73,7 @@ class WebRTCStatsManager {
                         response.push(stat);
                     }
                     this.savedStats = [];
+                    // TODO: Add user info
                     await this.sendStatsToHttpEndpoint(response);
                 }, this.sendInterval * 1000);
             }
@@ -85,97 +105,13 @@ class WebRTCStatsManager {
             console.error(`sendStats error: ${JSON.stringify(error)}`);
         }
     }
-
-    addProvider(user, provider) {
-        if (this.webRtcStatsEnabled) {
-            this.savedElements.set(user, provider);
-        }
-    }
-
-    getProvider(user) {
-        if (this.webRtcStatsEnabled) {
-            return this.savedElements.get(user);
-        }
-    }
-
-    deleteProvider(user) {
-        if (this.webRtcStatsEnabled) {
-            let provider = this.savedElements.get(user);
-            if (provider) {
-                provider.destroy();
-                this.savedElements.delete(user);
-            }
-        }
-    }
-
-    deleteAllProviders() {
-        if (this.webRtcStatsEnabled) {
-            for (let provider of this.savedElements.values()) {
-                provider.destroy();
-            }
-            this.savedElements.clear();
-        }
-    }
-
-    addStats(stats) {
-        if (this.webRtcStatsEnabled) {
-            this.savedStats.push(stats);
-        }
+    
+    addConnectionToStats(pc, peerId, connectionId) {
+        this.webrtcStats.addConnection({
+            pc: pc,
+            peerId: peerId,
+            connectionId: connectionId
+        })
     }
 }
 
-// For each entity (track/stream) a WebRTCStatsProvider should be created
-class WebRTCStatsProvider {
-    constructor(webRtcStatsManager, participantId, sessionId) {
-        this.webRtcStatsManager = webRtcStatsManager;
-        this.participantId = participantId;
-        this.sessionId = sessionId;
-
-        if (this.webRtcStatsManager.POST_URL) {
-            this.webRtcStatsIntervalId = setInterval(async () => {
-                const stats = await this.getStats();
-                this.webRtcStatsManager.addStats(this.generateJSONStatsResponse(stats));
-            }, this.webRtcStatsManager.statsInterval * 1000);
-        } else {
-            console.warn('WebRtc stats not enabled');
-        }
-    }
-
-    async getStats() {
-        // getCommonStats should be implemented depending on the client sdk
-        // should return a JSON object with the following structure:
-        // {
-        //     inbound?: {
-        //         audio?: {},
-        //         video?: {}
-        //     },
-        //     outbound?: {
-        //         audio?: {},
-        //         video?: {}
-        //     }
-        // }
-        // audio and video objects are filled with the needed stats
-        // check public-lk/livekit-stats.js for an example using LiveKit
-
-        // TODO: implement getStats, throws error on this class as its supposed to be abstract
-        // For LiveKit a class extending this should be implemented based on getCommonStats but for each track
-        throw new Error("Not implemented, implement this class for each client sdk")
-    }
-
-    // Should be called when user exists session
-    destroy() {
-        clearInterval(this.webRtcStatsIntervalId);
-    }
-
-    generateJSONStatsResponse(stats) {
-        return {
-            '@timestamp': new Date().toISOString(),
-            participant_id: this.participantId,
-            session_id: this.sessionId,
-            platform: platform.name,
-            platform_description: platform.description,
-            stream: 'webRTC',
-            webrtc_stats: stats
-        };
-    }
-}

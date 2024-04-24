@@ -4,15 +4,16 @@
 	<title>OpenVidu Load Test</title>
 	<!-- Client SDK -->
 	<!-- TODO: Update to SDK 2.0 -->
-	<script src="https://cdn.jsdelivr.net/npm/livekit-client@1.15.11/dist/livekit-client.umd.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/livekit-client@2.1.0/dist/livekit-client.umd.min.js"></script>
 	<!-- Browser emulator connector -->
 	<script src="browser-emulator-connector.js"></script>
 	<!-- Browser emulator recorder -->
 	<script src="browser-emulator-recorder.js"></script>
 	<!-- Browser emulator stats recorder -->
-	<script src="platform.js"></script>
 	<script src="webrtc-stats-manager.js"></script>
-	<script src="livekit-stats.js"></script>
+	<!-- https://github.com/peermetrics/webrtc-stats -->
+	<script src="webrtc-stats.js"></script>
+	<script src="webrtc-stats-manager.js"></script>
 	<!-- Main app -->
 	<script src="app.js"></script>
 	<link rel="stylesheet" type="text/css" href="styles.css">

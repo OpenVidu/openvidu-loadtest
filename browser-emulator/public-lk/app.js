@@ -20,9 +20,6 @@ var session;
 var LivekitClient = window.LivekitClient;
 var trackUser = new Map();
 
-// var subscriptions = 0;
-// const MAX_SUBSCRIPTIONS = 5;
-
 window.onload = () => {
 	var url = new URL(window.location.href);
 	OPENVIDU_SERVER_URL = url.searchParams.get("publicurl");
@@ -91,7 +88,8 @@ async function joinSession() {
 		publishDefaults: {
 			simulcast: false,
 			videoEncoding: {
-				maxFramerate: FRAME_RATE
+				maxFramerate: FRAME_RATE,
+				maxBitrate: 10_000_000,
 			}
 		}
 	}
@@ -113,9 +111,7 @@ async function joinSession() {
 
 	}
 	session = new LivekitClient.Room(roomOptions);
-	//session.prepareConnection(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN);
 	var room = session;
-	//OV.enableProdMode();
 
 	room.on(LivekitClient.RoomEvent.Connected, () => {
 		beConnector = new BrowserEmulatorConnector();
@@ -149,7 +145,6 @@ async function joinSession() {
 			isLocal: false
 		}
 		let remoteUser = participant.identity;
-		statsManager.addProvider(remoteUser, new LKWebRTCStatsProvider(statsManager, trackInfo));
 
 		if (!!QOE_ANALYSIS) {
 			// var remoteControl = new ElasTestRemoteControl();
@@ -166,7 +161,6 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-		statsManager.deleteProvider(participant.identity);
 		beConnector.sendEvent({event: "streamDestroyed", connectionId: participant.sid,  connection: 'remote'}, USER_ID, SESSION_ID);
 		track.detach();
 		if (!!QOE_ANALYSIS) {
@@ -191,7 +185,7 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.Disconnected, () => {
-		statsManager.deleteAllProviders();
+		//statsManager.deleteAllProviders();
 		document.querySelectorAll('.video-remote-container').forEach(a => {
 			a.remove();
 		});
@@ -211,24 +205,20 @@ async function joinSession() {
 			document.getElementById('video-publisher').appendChild(element);
 		}
 		appendElement('local-stream-created');
-		// livekit-stats.js
-		let resSplit = RESOLUTION.split('x');
-		let width = resSplit[0];
-		let height = resSplit[1];
-		const trackInfo = {
-			track: track,
-			participantId: USER_ID,
-			sessionId: SESSION_ID,
-			type: track.kind,
-			videoHeight: height,
-			videoWidth: width,
-			isLocal: true
+		try {
+			statsManager.addConnectionToStats(room.engine.pcManager?.publisher['_pc'], localParticipant.sid, "outbound");
+			statsManager.addConnectionToStats(room.engine.pcManager?.subscriber['_pc'], localParticipant.sid, "inbound");
+		} catch (error) {
+			if (error.contains("already managing")) {
+				console.warn(error);
+			}
+			else {
+				throw error;
+			}
 		}
-		statsManager.addProvider(USER_ID, new LKWebRTCStatsProvider(statsManager, trackInfo));
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (localTrackPublication, localParticipant) => {
-		statsManager.deleteProvider(USER_ID);
 		beConnector.sendEvent({ event: "streamDestroyed", connectionId: localParticipant.sid, connection: 'local' }, USER_ID, SESSION_ID);
 		localTrackPublication.track.detach();
 		var div = document.getElementById('video-publisher')
