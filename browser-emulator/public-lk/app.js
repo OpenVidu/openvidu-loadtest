@@ -82,9 +82,30 @@ var statsManager;
 
 async function joinSession() {
 	console.log("Joining session " + SESSION_ID + "...");
-
-	var roomOptions = {
+	beConnector = new BrowserEmulatorConnector();
+	recordingManager = new BrowserEmulatorRecorderManager(beConnector);
+	statsManager = new WebRTCStatsManager(beConnector);
+	// TODO: make retries and delays configurable
+	let reconnectPolicy = {
+		nextRetryDelayInMs: (context) => {
+			beConnector.sendEvent({
+				event: "sessionReconnectingRetry",
+				connection: 'local',
+				retryCount: context.retryCount,
+				elapsedMs: context.elapsedMs,
+				retryReason: context.retryReason,
+				serverUrl: context.serverUrl
+			}, USER_ID, SESSION_ID);
+			if (context.retryCount < 5) {
+				return 5000;
+			} else {
+				return null;
+			}
+		}
+	}
+	let roomOptions = {
 		adaptiveStream: false,
+		reconnectPolicy: reconnectPolicy,
 		publishDefaults: {
 			simulcast: false,
 			videoEncoding: {
@@ -114,24 +135,11 @@ async function joinSession() {
 	var room = session;
 
 	room.on(LivekitClient.RoomEvent.Connected, () => {
-		beConnector = new BrowserEmulatorConnector();
-		recordingManager = new BrowserEmulatorRecorderManager(beConnector);
-		statsManager = new WebRTCStatsManager(beConnector);
 		appendElement('local-connection-created');
 		beConnector.sendEvent({ event: "connectionCreated" }, USER_ID, SESSION_ID);
-
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-		beConnector.sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote' }, USER_ID, SESSION_ID);
-		if (SHOW_VIDEO_ELEMENTS) {
-			const element = track.attach();
-			const videoContainer = insertSubscriberTrack(element, participant.sid);
-			if (track.kind === LivekitClient.Track.Kind.Audio) {
-				createUnmuteButton('subscriber-need-to-be-unmuted', element);
-			}
-		}
-
 		let resSplit = RESOLUTION.split('x');
 		let width = resSplit[0];
 		let height = resSplit[1];
@@ -145,6 +153,14 @@ async function joinSession() {
 			isLocal: false
 		}
 		let remoteUser = participant.identity;
+		beConnector.sendEvent({ event: "streamCreated", connectionId: participant.sid,  connection: 'remote', trackInfo, remoteUser }, USER_ID, SESSION_ID);
+		if (SHOW_VIDEO_ELEMENTS) {
+			const element = track.attach();
+			const videoContainer = insertSubscriberTrack(element, participant.sid);
+			if (track.kind === LivekitClient.Track.Kind.Audio) {
+				createUnmuteButton('subscriber-need-to-be-unmuted', element);
+			}
+		}
 
 		if (!!QOE_ANALYSIS) {
 			// var remoteControl = new ElasTestRemoteControl();
@@ -161,10 +177,22 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-		beConnector.sendEvent({event: "streamDestroyed", connectionId: participant.sid,  connection: 'remote'}, USER_ID, SESSION_ID);
+		let resSplit = RESOLUTION.split('x');
+		let width = resSplit[0];
+		let height = resSplit[1];
+		const trackInfo = {
+			track: track,
+			participantId: participant.identity,
+			sessionId: SESSION_ID,
+			type: track.kind,
+			videoHeight: height,
+			videoWidth: width,
+			isLocal: false
+		}
+		let remoteUser = participant.identity;
+		beConnector.sendEvent({event: "streamDestroyed", connectionId: participant.sid,  connection: 'remote', trackInfo, remoteUser }, USER_ID, SESSION_ID);
 		track.detach();
 		if (!!QOE_ANALYSIS) {
-			var remoteUser = participant.identity;
 			console.log(USER_ID + " stopping recording user " + remoteUser);
 			var remoteControl = remoteControls.get(remoteUser);
 			if (!!remoteControl) {
@@ -192,14 +220,33 @@ async function joinSession() {
 		beConnector.sendEvent({event: "sessionDisconnected", connection: 'local' }, USER_ID, SESSION_ID);
 	});
 
+	room.on(LivekitClient.RoomEvent.Reconnecting, () => {
+		beConnector.sendEvent({event: "sessionReconnecting", connection: 'local' }, USER_ID, SESSION_ID);
+	});
+
+	room.on(LivekitClient.RoomEvent.Reconnected, () => {
+		beConnector.sendEvent({event: "sessionReconnected", connection: 'local' }, USER_ID, SESSION_ID);
+	});
+
 	room.on(LivekitClient.RoomEvent.MediaDevicesError, error => {
 		beConnector.sendEvent({ event: "exception", reason: error.message }, USER_ID, SESSION_ID);
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackPublished, (localTrackPublication, localParticipant) => {
-		
-		beConnector.sendEvent({ event: "streamCreated", connectionId: localParticipant.sid, connection: 'local' }, USER_ID, SESSION_ID);
 		const track = localTrackPublication.track;
+		let resSplit = RESOLUTION.split('x');
+		let width = resSplit[0];
+		let height = resSplit[1];
+		const trackInfo = {
+			track: track,
+			participantId: localParticipant.identity,
+			sessionId: SESSION_ID,
+			type: track.kind,
+			videoHeight: height,
+			videoWidth: width,
+			isLocal: true
+		}
+		beConnector.sendEvent({ event: "streamCreated", connectionId: localParticipant.sid, connection: 'local', trackInfo }, USER_ID, SESSION_ID);
 		if (SHOW_VIDEO_ELEMENTS) {
 			const element = track.attach();
 			document.getElementById('video-publisher').appendChild(element);
@@ -219,7 +266,20 @@ async function joinSession() {
 	});
 
 	room.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (localTrackPublication, localParticipant) => {
-		beConnector.sendEvent({ event: "streamDestroyed", connectionId: localParticipant.sid, connection: 'local' }, USER_ID, SESSION_ID);
+		const track = localTrackPublication.track;
+		let resSplit = RESOLUTION.split('x');
+		let width = resSplit[0];
+		let height = resSplit[1];
+		const trackInfo = {
+			track: track,
+			participantId: localParticipant.identity,
+			sessionId: SESSION_ID,
+			type: track.kind,
+			videoHeight: height,
+			videoWidth: width,
+			isLocal: true
+		}
+		beConnector.sendEvent({ event: "streamDestroyed", connectionId: localParticipant.sid, connection: 'local', trackInfo }, USER_ID, SESSION_ID);
 		localTrackPublication.track.detach();
 		var div = document.getElementById('video-publisher')
 		if (!!div)
@@ -233,6 +293,7 @@ async function joinSession() {
 		maxRetries: 5
 	}
 
+	beConnector.sendEvent({ event: "connectionStart" }, USER_ID, SESSION_ID);
 	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN, roomConnectOptions)
 		.then(async () => {
 			console.log("Connected to session " + SESSION_ID);
@@ -241,6 +302,7 @@ async function joinSession() {
 				try {
 					await room.localParticipant.enableCameraAndMicrophone();
 					console.log("Publisher initialized");
+					beConnector.sendEvent({ event: "connectedPublisher" }, USER_ID, SESSION_ID);
 					setPublisherButtonsActions(room);
 				} catch (err) {
 					console.error(err);

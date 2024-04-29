@@ -1,5 +1,14 @@
 class WebRTCStatsManager {
     constructor(browserEmulatorConnector) {
+        this.webRtcIssueDetector = new webrtcIssuesDetector.default({
+            onIssues: (issues) => issues.map((issue) => {
+                this.savedStats.push(issue)
+            }),
+            onNetworkScoresUpdated: (scores) => {
+                this.savedStats.push(scores)
+            },
+            autoAddPeerConnections: false
+        });
         this.savedStats = [];
         this.webrtcStats = new WebRTCStats({
             // the interval in ms of how often we should get stats
@@ -64,7 +73,7 @@ class WebRTCStatsManager {
                             }
                             this.savedStats = [];
                             const response = {
-                                data: data,
+                                webrtcStats: data,
                                 timestamp: new Date().toISOString(),
                                 user: USER_ID,
                                 session: SESSION_ID
@@ -135,5 +144,6 @@ class WebRTCStatsManager {
             peerId: peerId,
             connectionId: connectionId
         })
+        this.webRtcIssueDetector.handleNewPeerConnection(pc);
     }
 }

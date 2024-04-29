@@ -171,6 +171,7 @@ async function joinSession() {
 		OPENVIDU_TOKEN = await getToken();
 	}
 
+	beConnector.sendEvent({ event: "connectionStart" }, USER_ID, SESSION_ID);
 	session.connect(OPENVIDU_TOKEN, {clientData: `Real_browser_${USER_ID}`})
 		.then(async () => {
 			console.log("Connected to session " + SESSION_ID);
@@ -222,6 +223,7 @@ async function joinSession() {
 					});
 					session.publish(publisher);
 					console.log("Publisher initialized");
+					beConnector.sendEvent({ event: "connectedPublisher" }, USER_ID, SESSION_ID);
 					setPublisherButtonsActions(publisher);
 				}).catch((err) => {
 					console.error(err);

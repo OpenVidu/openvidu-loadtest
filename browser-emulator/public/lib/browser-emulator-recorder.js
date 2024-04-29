@@ -6,7 +6,7 @@ class BrowserEmulatorRecorder {
         });
         this.errors = 0;
         this.MAX_ERRORS = 5;
-        this.BLOB_TIMESLICE = 5000;
+        this.BLOB_TIMESLICE = 30000;
         this.errorTiemout = null;
         this.ERROR_TIMEOUT = 500;
         this.beConnector = browserEmulatorConnector;
@@ -25,11 +25,11 @@ class BrowserEmulatorRecorder {
         recordStartDelay(delay).then(() => {
             this.recorder.ondataavailable = (e) => {
                 if (e.data.size > 0) {
-                    console.log("Sending unsent chunks: " + this.localUserId + " recording " + this.remoteUserId + ". New chunk size: " + e.data.size/1024/1024 + " MB. Previous unsent chunks: " + this.unsentChunks.length);
+                    console.debug("Sending unsent chunks: " + this.localUserId + " recording " + this.remoteUserId + ". New chunk size: " + e.data.size/1024/1024 + " MB. Previous unsent chunks: " + this.unsentChunks.length);
                     this.unsentChunks.push(e.data);
                     const chunk = new Blob(this.unsentChunks, { type: this.recorder.mimeType });
                     this.sendBlob(chunk).then(() => {
-                        console.log("Chunk sent: " + this.localUserId + " recording " + this.remoteUserId);
+                        console.debug("Chunk sent: " + this.localUserId + " recording " + this.remoteUserId);
                         this.unsentChunks = [];
                     }).catch((error) => {
                         console.error(error);
@@ -87,7 +87,7 @@ class BrowserEmulatorRecorder {
                 // Name of file: QOE_SESSIONID_THISUSERID_REMOTEUSERID.webm
                 const finalSuffix = this.remoteUserId === this.localUserId ? this.remoteUserId + '_' + Math.floor(Math.random() * 1000000) : this.remoteUserId;
                 const fileName = 'QOE_' + this.sessionId + '_' + this.localUserId + '_' + finalSuffix + '.webm';
-                console.log("Sending chunk: " + fileName);
+                console.debug("Sending chunk: " + fileName);
                 formData.append('file', blob, fileName);
 
                 fetch(url.httpEndpoint, {

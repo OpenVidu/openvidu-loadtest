@@ -10,6 +10,7 @@ class BrowserEmulatorConnector {
                 if (typeof eventObj === 'object' && eventObj !== null) {
                     eventObj['participant'] = participant;
                     eventObj['session'] = session;
+                    eventObj['timestamp'] = new Date().toISOString();
                     eventObj = JSON.stringify(eventObj);
                 }
 
