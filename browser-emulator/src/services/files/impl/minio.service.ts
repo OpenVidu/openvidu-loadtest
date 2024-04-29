@@ -36,20 +36,9 @@ export class MinioFilesService extends FilesService {
                 }
             }
         }
-    
-        const uploadFile = async (dir: string, file: string, stats?: boolean): Promise<void> => {
-            const filePath = `${dir}/${file}`;
-            let fileName = file.split('/').pop();
-            if (stats) {
-                fileName = 'stats/' + fileName;
-            }
-    
+
+        const uploadFile = async (fileName: string, filePath: string): Promise<void> => {
             return new Promise((resolve, reject) => {
-                if (fileName.includes("lock")) {
-                    console.log("Skipping lock file or directory: " + fileName);
-                    resolve();
-                    return;
-                }
                 let randomDelay = Math.floor(Math.random() * (10000 - 0 + 1)) + 0;
                 console.log(`Uploading file ${fileName} to MINIO bucket ${process.env.MINIO_BUCKET} with delay ${randomDelay} ms`);
                 setTimeout(() => {
@@ -58,10 +47,10 @@ export class MinioFilesService extends FilesService {
                             if (err.code === 'SlowDown') {
                                 let retryDelay = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000; // Random delay between 5 and 10 seconds
                                 console.warn(`Received SlowDown error. Retrying upload file ${fileName} to MINIO bucket ${process.env.MINIO_BUCKET} after delay ${retryDelay} ms`);
-    
+
                                 setTimeout(async () => {
                                     try {
-                                        await uploadFile(dir, file);
+                                        await uploadFile(fileName, filePath);
                                         resolve();
                                     } catch (retryErr) {
                                         console.error(retryErr);
@@ -73,12 +62,24 @@ export class MinioFilesService extends FilesService {
                                 reject(err);
                             }
                         } else {
-                            console.log(`Successfully uploaded data to ${process.env.MINIO_BUCKET} / ${file}`);
+                            console.log(`Successfully uploaded data to ${process.env.MINIO_BUCKET} / ${fileName}`);
                             resolve();
                         }
                     });
                 }, randomDelay);
             });
+        }
+
+        const uploadVideo = async (dir: string, file: string): Promise<void> => {
+            const filePath = `${dir}/${file}`;
+            let fileName = file.split('/').pop();
+            return uploadFile(fileName, filePath);
+        };
+
+        const uploadStat = async (dir: string, minioDir: string, file: string): Promise<void> => {
+            const filePath = `${dir}/${file}`;
+            let fileName = file.split('/').pop();
+            return uploadFile(minioDir + fileName, filePath);
         };
     
         const promises = [];
@@ -86,8 +87,24 @@ export class MinioFilesService extends FilesService {
             promises.push(
                 fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
                     .then(() => fsPromises.readdir(dir))
-                    .then((files) => {
-                        const uploadPromises = files.map((file) => uploadFile(dir, file, dir.includes('stats')));
+                    .then(async (files) => {
+                        let uploadPromises = [];
+                        if (dir.includes('stats')) {
+                            const sessions = await fsPromises.readdir(dir);
+                            for (let session of sessions) {
+                                if (!session.includes('lock')) {
+                                    const users = await fsPromises.readdir(`${dir}/${session}`);
+                                    for (let user of users) {
+                                        const absDir = `${dir}/${session}/${user}`;
+                                        const relDir = `stats/${session}/${user}/`;
+                                        const userFiles = await fsPromises.readdir(absDir);
+                                        uploadPromises = userFiles.map((file) => uploadStat(absDir, relDir, file));
+                                    }
+                                }
+                            }
+                        } else {
+                            uploadPromises = files.map((file) => uploadVideo(dir, file));
+                        }
                         return Promise.all(uploadPromises);
                     })
             );

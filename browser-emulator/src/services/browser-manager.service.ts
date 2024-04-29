@@ -9,12 +9,11 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
 import { FilesService } from './files/files.service';
-import { createFileAndLock, saveStatsToFile } from '../utils/stats-files';
+import { CON_FILE, ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFileAndLock, saveStatsToFile } from '../utils/stats-files';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
 	private _lastRequestInfo: LoadTestPostRequest;
-	private readonly STATS_FILE = `connections.json`;
 
 	private constructor(
 		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
@@ -24,9 +23,7 @@ export class BrowserManagerService {
 		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
 		private localStorage: LocalStorageService = new LocalStorageService(),
 		private webrtcStorageService = new WebrtcStatsService()
-	) {
-		createFileAndLock(this.STATS_FILE);
-	}
+	) {}
 
 	static getInstance() {
 		if (!BrowserManagerService.instance) {
@@ -78,6 +75,12 @@ export class BrowserManagerService {
 		const participants = this.getParticipantsCreated();
 		const userId = request.properties.userId;
 		const sessionId = request.properties.sessionName;
+		await Promise.all([
+			createFileAndLock(userId, sessionId, CON_FILE),
+			createFileAndLock(userId, sessionId, EVENTS_FILE),
+			createFileAndLock(userId, sessionId, ERRORS_FILE),
+			createFileAndLock(userId, sessionId, STATS_FILE)
+		]);
 		await this.sendStreamsData(streams, userId, sessionId);
 		console.log(`Participant ${connectionId} created`);
 		this._lastRequestInfo = request;
@@ -137,7 +140,7 @@ export class BrowserManagerService {
 		};
 		const promises = [];
 		// Write the combined data back to the file
-		promises.push(saveStatsToFile(this.STATS_FILE, json));
+		promises.push(saveStatsToFile(new_participant_id, new_participant_session, CON_FILE, json));
 		if (this.elasticSearchService.isElasticSearchRunning()) {
 			promises.push(this.elasticSearchService.sendJson(json));
 		}

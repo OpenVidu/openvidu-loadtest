@@ -77,11 +77,11 @@ server.listen(SERVER_PORT, async () => {
 
 	try {
 		if (!fs.existsSync(`${process.cwd()}/src/assets/mediafiles`)){
-			fs.mkdirSync(`${process.cwd()}/src/assets/mediafiles`);
+			fs.mkdirSync(`${process.cwd()}/src/assets/mediafiles`, { recursive: true });
 		}
 		for (const directory of FilesService.fileDirs) {
 			if (!fs.existsSync(directory)) {
-				fs.mkdirSync(directory);
+				fs.mkdirSync(directory, { recursive: true });
 			}
 		}
 		if (APPLICATION_MODE === ApplicationMode.PROD) {

@@ -4,22 +4,32 @@ import * as lockfile from 'proper-lockfile';
 
 export const STATS_DIR = `${process.cwd()}/stats/`;
 export const LOCKS_DIR = `${STATS_DIR}locks/`;
+export const CON_FILE = `connections.json`;
+export const STATS_FILE = `stats.json`;
+export const EVENTS_FILE = `events.json`;
+export const ERRORS_FILE = `errors.json`;
 
 if (!fs.existsSync(STATS_DIR)) {
-	fs.mkdirSync(STATS_DIR);
+	fs.mkdirSync(STATS_DIR, { recursive: true });
 }
 
 if (!fs.existsSync(LOCKS_DIR)) {
-	fs.mkdirSync(LOCKS_DIR);
+	fs.mkdirSync(LOCKS_DIR, { recursive: true });
 }
 
-export async function createFileAndLock(file: string) {
-	if (!fs.existsSync(STATS_DIR + file)) {
-		fs.writeFileSync(STATS_DIR + file, '[]');
-	}
-	if (!fs.existsSync(LOCKS_DIR + file + ".lock")) {
-		fs.writeFileSync(LOCKS_DIR + file + ".lock", '');
-	}
+export async function createFileAndLock(user: string, session: string, file: string) {
+	const lockDir = LOCKS_DIR + session + "/" + user + "/";
+	// create lock directory if it doesn't exist with promises
+	await fsp.mkdir(lockDir, { recursive: true });
+	const lockPath = lockDir + file + ".lock";
+	await fsp.writeFile(lockPath, "");
+	const fileDir = STATS_DIR + session + "/" + user + "/";
+	const filePath = fileDir + file;
+	const release = await lockfile.lock(lockPath, retryOptions);
+	console.log("Creating file " + filePath);
+	await fsp.mkdir(fileDir, { recursive: true });
+	await fsp.writeFile(filePath, "[]");
+	await release();
 }
 
 const retryOptions = {
@@ -30,14 +40,17 @@ const retryOptions = {
 	randomize: true,
 };
 
-export async function saveStatsToFile(file: string, data: any) {
-	// lock is in STATS_DIR/locks/filename.lock
-	const release = await lockfile.lock(LOCKS_DIR + file + ".lock", retryOptions);
-	console.log("Saving stats to file " + file);
+export async function saveStatsToFile(user: string, session: string, file: string, data: any) {
+	const lockDir = LOCKS_DIR + session + "/" + user + "/";
+	const lockPath = lockDir + file + ".lock";
+	const fileDir = STATS_DIR + session + "/" + user + "/";
+	const filePath = fileDir + file;
+	const release = await lockfile.lock(lockPath, retryOptions);
+	console.log("Saving stats to file " + filePath);
 	let existingData: any[] = [];
     try {
         // Read existing data from the file
-        const fileContent = await fsp.readFile(file, 'utf8');
+        const fileContent = await fsp.readFile(filePath, 'utf8');
         existingData = JSON.parse(fileContent);
 		console.log("Existing data: " + existingData.length)
     } catch (error) {
@@ -55,6 +68,6 @@ export async function saveStatsToFile(file: string, data: any) {
 	console.log("Combined data: " + combinedData.length);
 
     // Write the combined data back to the file
-    await fsp.writeFile(STATS_DIR + file, JSON.stringify(combinedData));
+    await fsp.writeFile(filePath, JSON.stringify(combinedData));
 	await release();
 }
