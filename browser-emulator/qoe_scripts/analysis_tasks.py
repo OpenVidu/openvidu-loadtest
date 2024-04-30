@@ -5,38 +5,44 @@ import math
 import logging as logger
 import ray
 
+vmaf_path = None
+vqmt_path = None
+pesq_path = None
+visqol_path = None
 
-vmaf_path = os.environ.get('VMAF_PATH')
-if not vmaf_path:
-    logger.error("VMAF_PATH environment variable not set")
-    raise Exception("VMAF_PATH environment variable not set")
-vmaf_path = os.path.join(vmaf_path, 'vmaf')
-if not os.path.exists(vmaf_path):
-    logger.error("VMAF not found in VMAF_PATH")
-    raise Exception("VMAF not found in VMAF_PATH")
-vqmt_path = os.environ.get('VQMT_PATH')
-if not vqmt_path:
-    logger.error("VQMT_PATH environment variable not set")
-    raise Exception("VQMT_PATH environment variable not set")
-vqmt_path = os.path.join(vqmt_path, 'vqmt')
-if not os.path.exists(vqmt_path):
-    logger.error("VQMT not found in VQMT_PATH")
-    raise Exception("VQMT not found in VQMT_PATH")
-pesq_path = os.environ.get('PESQ_PATH')
-if not pesq_path:
-    logger.error("PESQ_PATH environment variable not set")
-    raise Exception("PESQ_PATH environment variable not set")
-pesq_path = os.path.join(pesq_path, 'pesq')
-if not os.path.exists(pesq_path):
-    logger.error("PESQ not found in PESQ_PATH")
-    raise Exception("PESQ not found in PESQ_PATH")
-visqol_path = os.environ.get('VISQOL_PATH')
-if not visqol_path:
-    logger.error("VISQOL_PATH environment variable not set")
-    raise Exception("VISQOL_PATH environment variable not set")
-if not os.path.exists(os.path.join(visqol_path, 'bazel-bin/visqol')):
-    logger.error("VISQOL not found in VISQOL_PATH")
-    raise Exception("VISQOL not found in VISQOL_PATH")
+def validate_install(all_analysis):
+    vmaf_path = os.environ.get('VMAF_PATH')
+    if not vmaf_path:
+        logger.error("VMAF_PATH environment variable not set")
+        raise Exception("VMAF_PATH environment variable not set")
+    vmaf_path = os.path.join(vmaf_path, 'vmaf')
+    if not os.path.exists(vmaf_path):
+        logger.error("VMAF not found in VMAF_PATH")
+        raise Exception("VMAF not found in VMAF_PATH")
+    visqol_path = os.environ.get('VISQOL_PATH')
+    if not visqol_path:
+        logger.error("VISQOL_PATH environment variable not set")
+        raise Exception("VISQOL_PATH environment variable not set")
+    if not os.path.exists(os.path.join(visqol_path, 'bazel-bin/visqol')):
+        logger.error("VISQOL not found in VISQOL_PATH")
+        raise Exception("VISQOL not found in VISQOL_PATH")
+    if all_analysis:
+        vqmt_path = os.environ.get('VQMT_PATH')
+        if not vqmt_path:
+            logger.error("VQMT_PATH environment variable not set")
+            raise Exception("VQMT_PATH environment variable not set")
+        vqmt_path = os.path.join(vqmt_path, 'vqmt')
+        if not os.path.exists(vqmt_path):
+            logger.error("VQMT not found in VQMT_PATH")
+            raise Exception("VQMT not found in VQMT_PATH")
+        pesq_path = os.environ.get('PESQ_PATH')
+        if not pesq_path:
+            logger.error("PESQ_PATH environment variable not set")
+            raise Exception("PESQ_PATH environment variable not set")
+        pesq_path = os.path.join(pesq_path, 'pesq')
+        if not os.path.exists(pesq_path):
+            logger.error("PESQ not found in PESQ_PATH")
+            raise Exception("PESQ not found in PESQ_PATH")
 
 # TODO: Use ray shared memory instead of files for saving the analysis results then reading them back
 
