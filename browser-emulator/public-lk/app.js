@@ -232,6 +232,10 @@ async function joinSession() {
 		beConnector.sendEvent({ event: "exception", reason: error.message }, USER_ID, SESSION_ID);
 	});
 
+	room.on(LivekitClient.RoomEvent.SignalConnected, () => {
+		beConnector.sendEvent({ event: "signalConnected" }, USER_ID, SESSION_ID);
+	});
+
 	room.on(LivekitClient.RoomEvent.LocalTrackPublished, (localTrackPublication, localParticipant) => {
 		const track = localTrackPublication.track;
 		let resSplit = RESOLUTION.split('x');
