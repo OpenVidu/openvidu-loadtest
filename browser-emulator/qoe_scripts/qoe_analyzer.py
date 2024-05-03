@@ -36,6 +36,8 @@ parser.add_argument("--presenter", type=str,
 parser.add_argument("--presenter_audio", type=str,
                     default="presenter.wav", help="Original audio")
 parser.add_argument("--max_cpus", type=int, help="Max number of CPUs to use")
+parser.add_argument("--all_analysis", action="store_true", default=False,
+                    help="Analyze also with PESQ and VQMT. Defaults to analyzing with VMAF and VISQOL only.")
 
 args = parser.parse_args()
 debug = args.debug
@@ -50,8 +52,11 @@ remux = args.remux
 viewer = args.viewer
 prefix = args.prefix
 max_cpus = args.max_cpus
+all_analysis = args.all_analysis
 
 logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
+
+at.validate_install(all_analysis)
 
 logger.info("Debug: %s", debug)
 logger.info("FPS: %d", fps)
@@ -63,6 +68,7 @@ logger.info("Presenter audio: %s", presenter_audio)
 logger.info("Viewer video: %s", viewer)
 logger.info("Prefix: %s", prefix)
 logger.info("Max CPUs: %s", max_cpus)
+logger.info("All analysis: %s", all_analysis)
 logger.info("Initializing Ray")
 
 
@@ -105,25 +111,33 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
         ocr_task, cut_index_ref, ffmpeg_path_ref, width_ref, height_ref, fps_ref, prefix_ref, presenter_prepared, debug_ref)
     vmaf_task = at.run_vmaf.remote(
         write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
-    vqmt_task = at.run_vqmt.remote(
-        write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
-    pesq_task = at.run_pesq.remote(
-        extract_audio_task, prefix_ref, cut_index_ref, pesq_ref, debug_ref)
     visqol_task = at.run_visqol.remote(
         extract_audio_task, prefix_ref, cut_index_ref, debug_ref)
+    analysis_tasks = [vmaf_task, visqol_task]
+    if all_analysis:
+        vqmt_task = at.run_vqmt.remote(
+            write_video_task, prefix_ref, cut_index_ref, width_ref, height_ref, debug_ref)
+        pesq_task = at.run_pesq.remote(
+            extract_audio_task, prefix_ref, cut_index_ref, pesq_ref, debug_ref)
+        analysis_tasks.append(vqmt_task)
+        analysis_tasks.append(pesq_task)
     if not debug:
         remove_processing_task = at.remove_processing_files.remote(
-            vmaf_task, vqmt_task, pesq_task, visqol_task)
+            analysis_tasks)
     parse_vmaf_task = at.parse_vmaf.remote(vmaf_task)
-    parse_vqmt_task = at.parse_vqmt.remote(vqmt_task)
-    parse_pesq_task = at.parse_pesq.remote(pesq_task)
     parse_visqol_task = at.parse_visqol.remote(visqol_task)
+    parse_tasks = [parse_vmaf_task, parse_visqol_task]
+    if all_analysis:
+        parse_vqmt_task = at.parse_vqmt.remote(vqmt_task)
+        parse_pesq_task = at.parse_pesq.remote(pesq_task)
+        parse_tasks.append(parse_vqmt_task)
+        parse_tasks.append(parse_pesq_task)
     if not debug:
         remove_analysis_task = at.remove_analysis_files.remote(
-            parse_vmaf_task, parse_vqmt_task, parse_pesq_task, parse_visqol_task)
+            parse_tasks)
 
-    final_tasks = [cut_index, parse_vmaf_task,
-                   parse_vqmt_task, parse_pesq_task, parse_visqol_task]
+    final_tasks = parse_tasks.copy()
+    final_tasks.append(cut_index)
     if not debug:
         final_tasks.append(remove_processing_task)
         final_tasks.append(remove_analysis_task)
