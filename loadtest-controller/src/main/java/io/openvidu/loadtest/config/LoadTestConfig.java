@@ -111,7 +111,19 @@ public class LoadTestConfig {
 
 	private boolean debugVnc;
 
-	private int maxRequests;
+	private int batchMaxRequests;
+
+	private boolean batches;
+
+	private boolean waitCompletion;
+
+	public boolean isWaitCompletion() {
+		return waitCompletion;
+	}
+
+	public boolean isBatches() {
+		return batches;
+	}
 	
 	public String getOpenViduUrl() {
 		return this.openviduUrl;
@@ -314,8 +326,8 @@ public class LoadTestConfig {
 		return this.debugVnc;
 	}
 
-	public int getMaxRequests() {
-		return this.maxRequests;
+	public int getBatchMaxRequests() {
+		return this.batchMaxRequests;
 	}
 
 	protected void checkConfigurationProperties() {
@@ -376,10 +388,12 @@ public class LoadTestConfig {
 			minioPort = asInt("MINIO_PORT");
 			minioBucket = asOptionalString("MINIO_BUCKET");
 			debugVnc = asBoolean("DEBUG_VNC");
-			maxRequests = asInt("MAX_REQUESTS");
-			if (maxRequests == -1) {
-				maxRequests = Runtime.getRuntime().availableProcessors() + 1;
+			batchMaxRequests = asInt("BATCHES_MAX_REQUESTS");
+			if (batchMaxRequests == -1) {
+				batchMaxRequests = Runtime.getRuntime().availableProcessors() + 1;
 			}
+			batches = asBoolean("BATCHES");
+			waitCompletion = asBoolean("WAIT_COMPLETION");
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -469,7 +483,9 @@ public class LoadTestConfig {
 		System.out.println("-------- -------------------- --------");System.out.printf("\n");
 		System.out.printf("--- MISCELANEOUS PARAMETERS ---");
 		System.out.printf("\n");
-		System.out.printf(format, "Maximum number of in flight requests: ", maxRequests);
+		System.out.printf(format, "Use batches for inserting users: ", batches);
+		System.out.printf(format, "Maximum number of in flight requests (batch): ", batchMaxRequests);
+		System.out.printf(format, "Wait for user or batch insertion completion: ", waitCompletion);
 		if (isDebugVnc()) {
 			System.out.printf("Debug VNC Enabled\n");
 		}

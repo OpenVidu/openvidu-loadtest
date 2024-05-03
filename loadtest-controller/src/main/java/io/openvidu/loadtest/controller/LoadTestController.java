@@ -14,8 +14,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -192,7 +194,7 @@ public class LoadTestController {
 		}
 	}
 
-	private static class ParticipantTask implements Callable<CreateParticipantResponse> {
+	private static class ParticipantTask implements Supplier<CreateParticipantResponse> {
 		private String worker;
 		private int user;
 		private int session;
@@ -213,7 +215,7 @@ public class LoadTestController {
 		}
 
 		@Override
-		public CreateParticipantResponse call() throws Exception {
+		public CreateParticipantResponse get() {
 			CreateParticipantResponse response;
 			if (recording) {
 				if (role.equals(OpenViduRole.PUBLISHER)) {
@@ -458,13 +460,15 @@ public class LoadTestController {
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
 
-		int maxRequestsInFlight = loadTestConfig.getMaxRequests();
+		boolean batches = loadTestConfig.isBatches();
+
+		int maxRequestsInFlight = batches ? loadTestConfig.getBatchMaxRequests() : 1;
 		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
 		int browsersInWorker = 0;
 		int tasksInProgress = 0;
 
 		CreateParticipantResponse lastResponse = null;
-		List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(maxRequestsInFlight);
+		List<CompletableFuture<CreateParticipantResponse>> futureList = new ArrayList<>(maxRequestsInFlight);
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (sessionNumber.get() > 0) {
@@ -488,24 +492,24 @@ public class LoadTestController {
 					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_" + participantsBySession
 							+ "_"
 							+ participantsBySession + "PSes";
-					futureList.add(executorService
-							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
-									testCase,
-									OpenViduRole.PUBLISHER,
-									true, recordingMetadata)));
+					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+							new ParticipantTask(recWorker, browsersInWorker, testCaseSessionsLimit, testCase, null,
+									isLastSession, recordingMetadata),
+							executorService);
+					futureList.add(future);
 					tasksInProgress++;
 				} else {
-					futureList.add(executorService
-							.submit(new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-									testCase,
-									OpenViduRole.PUBLISHER,
-									false, null)));
+					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+							new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+									OpenViduRole.PUBLISHER, false, null),
+							executorService);
+					futureList.add(future);
 					browsersInWorker++;
 					tasksInProgress++;
 				}
 				boolean isLastParticipant = i == participantsBySession - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					if (tasksInProgress >= maxRequestsInFlight) {
+					if (!batches || (tasksInProgress >= maxRequestsInFlight)) {
 						lastResponse = getLastResponse(futureList);
 						streamsPerWorker.add(lastResponse.getStreamsInWorker());
 						if (!lastResponse.isResponseOk()) {
@@ -536,12 +540,14 @@ public class LoadTestController {
 		int testCaseSessionsLimit = testCase.getSessions();
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
-		int maxRequestsInFlight = loadTestConfig.getMaxRequests();
+		boolean batches = loadTestConfig.isBatches();
+
+		int maxRequestsInFlight = batches ? loadTestConfig.getBatchMaxRequests() : 1;
 		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
 		CreateParticipantResponse lastResponse = null;
 		int browsersInWorker = 0;
 		int tasksInProgress = 0;
-		List<Future<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
+		List<CompletableFuture<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (sessionNumber.get() > 0) {
@@ -567,18 +573,21 @@ public class LoadTestController {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
 					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
 							+ subscribers + "PSes";
-					futureList.add(executorService
-							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
-									testCase,
-									OpenViduRole.PUBLISHER, true, recordingMetadata)));
+					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+							new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+									OpenViduRole.PUBLISHER, true, recordingMetadata),
+							executorService);
+					futureList.add(future);
 				} else {
-					futureList.add(executorService
-							.submit(new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-									testCase, OpenViduRole.PUBLISHER, false, null)));
+					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+							new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase, OpenViduRole.PUBLISHER, false, null),
+							executorService);
+					futureList.add(future);
 				}
 				browsersInWorker++;
 				tasksInProgress++;
-				if (tasksInProgress >= maxRequestsInFlight) {
+				if (!batches || (tasksInProgress >= maxRequestsInFlight)) {
 					lastResponse = getLastResponse(futureList);
 					streamsPerWorker.add(lastResponse.getStreamsInWorker());
 					if (!lastResponse.isResponseOk()) {
@@ -604,19 +613,23 @@ public class LoadTestController {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
 					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
 							+ subscribers + "PSes";
-					futureList.add(executorService
-							.submit(new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
-									testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata)));
+					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+							new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata),
+							executorService);
+					futureList.add(future);
 				} else {
-					futureList.add(executorService
-							.submit(new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-									testCase, OpenViduRole.SUBSCRIBER, false, null)));
+					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+							new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
+									testCase, OpenViduRole.SUBSCRIBER, false, null),
+							executorService);
+					futureList.add(future);
 				}
 				browsersInWorker++;
 				tasksInProgress++;
 				boolean isLastParticipant = i == subscribers - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					if (tasksInProgress >= maxRequestsInFlight) {
+					if (!batches || (tasksInProgress >= maxRequestsInFlight)) {
 						lastResponse = getLastResponse(futureList);
 						streamsPerWorker.add(lastResponse.getStreamsInWorker());
 						if (!lastResponse.isResponseOk()) {
@@ -642,9 +655,9 @@ public class LoadTestController {
 		return lastResponse;
 	}
 
-	private CreateParticipantResponse getLastResponse(List<Future<CreateParticipantResponse>> futureList) {
+	private CreateParticipantResponse getLastResponse(List<CompletableFuture<CreateParticipantResponse>> futureList) {
 		CreateParticipantResponse lastResponse = null;
-		for (Future<CreateParticipantResponse> future : futureList) {
+		for (CompletableFuture<CreateParticipantResponse> future : futureList) {
 			try {
 				CreateParticipantResponse futureResponse = future.get();
 				if (!futureResponse.isResponseOk()) {

@@ -364,8 +364,12 @@ KIBANA_HOST=https://kibanahost
 Recommended to leave default values unless you know what you are doing.
 
 ```properties
+# Insert the users in batches or one by one
+BATCHES=true
 # Maximum number of concurrent requests. If left blank, defaults to number of available processors + 1.
-MAX_REQUESTS=
+BATCHES_MAX_REQUESTS=10
+# Wait after user or batch insertion
+WAIT_COMPLETE=true
 # Install VNC server on workers for debug purposes
 DEBUG_VNC=false
 ```

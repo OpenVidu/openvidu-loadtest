@@ -78,7 +78,9 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(1);
         when(this.loadTestConfig.getSecondsToWaitBeforeTestFinished()).thenReturn(5);
         // Uncomment if need to test specific number of in flight requests (cores + 1 by default)
-        when(this.loadTestConfig.getMaxRequests()).thenReturn(17);
+        when(this.loadTestConfig.isBatches()).thenReturn(true);
+        when(this.loadTestConfig.isWaitCompletion()).thenReturn(true);
+        when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(17);
 
     }
 
