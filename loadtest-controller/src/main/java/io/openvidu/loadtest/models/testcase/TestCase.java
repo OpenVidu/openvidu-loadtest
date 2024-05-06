@@ -15,6 +15,7 @@ public class TestCase {
 	private boolean headlessBrowser = false;
 	private boolean showBrowserVideoElements = true;
 	private String recordingMetadata = "";
+	private int startingParticipants = 0;
 
 	public TestCase(String typology, List<String> participants, int sessions, BrowserMode browserMode, int frameRate, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
@@ -42,6 +43,8 @@ public class TestCase {
 		this.browserRecording = testCase.browserRecording;
 		this.headlessBrowser = testCase.headlessBrowser;
 		this.showBrowserVideoElements = testCase.showBrowserVideoElements;
+		this.recordingMetadata = testCase.recordingMetadata;
+		this.startingParticipants = testCase.startingParticipants;
 	}
 
 	public boolean is_NxN() {
@@ -129,13 +132,23 @@ public class TestCase {
 		return showBrowserVideoElements && this.browserMode.equals(BrowserMode.REAL) && !this.isHeadlessBrowser();
 	}
 
+	public int getStartingParticipants() {
+		return startingParticipants;
+	}
+
+	public void setStartingParticipants(int startingParticipants) {
+		this.startingParticipants = startingParticipants;
+	}
+
 	@Override
 	public String toString() {
 		// @formatter:off
 
 		String sessionLimit = sessions == -1 ? "No limit" : Integer.toString(sessions);
+		String startingParticipantString = startingParticipants == 0 ? "No starting participants" : Integer.toString(startingParticipants);
 		return "Session typology: " + typology 
-				+ " | Participants in session: " + participants 
+				+ " | Participants in session: " + participants
+				+ " | Starting participants: " + startingParticipantString
 				+ " | Sessions limit: "	+ sessionLimit 
 				+ " | Browser mode: " + browserMode 
 				+ " | Resolution: " + resolution.getValue() 

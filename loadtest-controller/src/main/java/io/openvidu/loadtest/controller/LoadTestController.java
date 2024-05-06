@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -469,6 +468,7 @@ public class LoadTestController {
 		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
 		int browsersInWorker = 0;
 		int tasksInProgress = 0;
+		int participantCounter = 0;
 
 		boolean waitCompletion = loadTestConfig.isWaitCompletion();
 
@@ -491,8 +491,9 @@ public class LoadTestController {
 					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
 					browsersInWorker = 0;
 				}
-				log.info("Creating PUBLISHER '{}' in session",
-						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				log.info("Creating PUBLISHER '{}' in session {}",
+						loadTestConfig.getUserNamePrefix() + userNumber.get(),
+						loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
@@ -512,7 +513,9 @@ public class LoadTestController {
 					browsersInWorker++;
 					tasksInProgress++;
 				}
-				if (!waitCompletion) {
+				participantCounter++;
+				boolean startingParticipantsReached = participantCounter >= testCase.getStartingParticipants();
+				if (!startingParticipantsReached || !waitCompletion) {
 					future.thenAccept((CreateParticipantResponse response) -> {
 						if (!response.isResponseOk()) {
 							lastResponse.set(response);
@@ -523,11 +526,13 @@ public class LoadTestController {
 				futureList.add(future);
 				boolean isLastParticipant = i == participantsBySession - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					if (waitCompletion && (!batches || (tasksInProgress >= maxRequestsInFlight))) {
+					boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
+					boolean waitForResponses = waitCompletion && startingParticipantsReached && (!batches || batchMaxCount);
+					if (waitForResponses) {
 						lastResponse.set(getLastResponse(futureList));
 						CreateParticipantResponse lastResponseValue = lastResponse.get();
 						//streamsPerWorker.add(lastResponse.getStreamsInWorker());
-						if (!lastResponseValue.isResponseOk()) {
+						if ((lastResponseValue != null) && (!lastResponseValue.isResponseOk())) {
 							return lastResponseValue;
 						}
 						futureList = new ArrayList<>(maxRequestsInFlight);
@@ -535,12 +540,14 @@ public class LoadTestController {
 					} else if (!waitCompletion && stop.get()) {
 						return lastResponse.get();
 					}
-					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					if (startingParticipantsReached) {
+						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					}
 				} else {
 					lastResponse.set(getLastResponse(futureList));
 					CreateParticipantResponse lastResponseValue = lastResponse.get();
 					//streamsPerWorker.add(lastResponse.getStreamsInWorker());
-					if (!lastResponseValue.isResponseOk()) {
+					if ((lastResponseValue != null) && !lastResponseValue.isResponseOk()) {
 						return lastResponseValue;
 					}
 					futureList = new ArrayList<>(maxRequestsInFlight);
