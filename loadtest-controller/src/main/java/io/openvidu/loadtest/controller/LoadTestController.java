@@ -148,6 +148,7 @@ public class LoadTestController {
 					}
 				}
 				nextInstance = index + 1 >= actualWorkerList.size() ? null : actualWorkerList.get(index + 1);
+				// TODO: Cover manual participants allocation with ramp up 0
 				if (nextInstance == null) {
 					log.info("Launching a new Ec2 instance... ");
 					List<Instance> nextInstanceList = ec2Client
@@ -485,7 +486,7 @@ public class LoadTestController {
 			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.toString());
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
 			for (int i = 0; i < participantsBySession; i++) {
-				if ((browsersInWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
+				if (browsersInWorker >= browserEstimation) {
 					log.info("Browsers in worker: {} is equal than limit: {}",
 							browsersInWorker, browserEstimation);
 					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
@@ -504,18 +505,25 @@ public class LoadTestController {
 							new ParticipantTask(recWorker, browsersInWorker, testCaseSessionsLimit, testCase, null,
 									isLastSession, recordingMetadata),
 							executorService);
-					tasksInProgress++;
 				} else {
 					future = CompletableFuture.supplyAsync(
 							new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
 									OpenViduRole.PUBLISHER, false, null),
 							executorService);
 					browsersInWorker++;
-					tasksInProgress++;
 				}
+				tasksInProgress++;
 				participantCounter++;
-				boolean startingParticipantsReached = participantCounter >= testCase.getStartingParticipants();
-				if (!startingParticipantsReached || !waitCompletion) {
+
+				boolean dontWait = !waitCompletion;
+				int startingParticipants = testCase.getStartingParticipants();
+				boolean hasStartingParticipants = startingParticipants > 0;
+				boolean isStartingParticipant = participantCounter <= startingParticipants;
+				boolean isLastStartingParticipant = participantCounter == startingParticipants;
+				if (hasStartingParticipants) {
+					dontWait = dontWait && isStartingParticipant;
+				}
+				if (dontWait) {
 					future.thenAccept((CreateParticipantResponse response) -> {
 						if (!response.isResponseOk()) {
 							lastResponse.set(response);
@@ -527,7 +535,7 @@ public class LoadTestController {
 				boolean isLastParticipant = i == participantsBySession - 1;
 				if (!(isLastParticipant && isLastSession)) {
 					boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
-					boolean waitForResponses = waitCompletion && startingParticipantsReached && (!batches || batchMaxCount);
+					boolean waitForResponses = isLastStartingParticipant || (!dontWait && (!batches || batchMaxCount));
 					if (waitForResponses) {
 						lastResponse.set(getLastResponse(futureList));
 						CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -540,7 +548,7 @@ public class LoadTestController {
 					} else if (!waitCompletion && stop.get()) {
 						return lastResponse.get();
 					}
-					if (startingParticipantsReached) {
+					if (isStartingParticipant) {
 						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 					}
 				} else {
@@ -569,9 +577,13 @@ public class LoadTestController {
 
 		int maxRequestsInFlight = batches ? loadTestConfig.getBatchMaxRequests() : 1;
 		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
-		CreateParticipantResponse lastResponse = null;
 		int browsersInWorker = 0;
 		int tasksInProgress = 0;
+		int participantCounter = 0;
+
+		boolean waitCompletion = loadTestConfig.isWaitCompletion();
+		AtomicReference<CreateParticipantResponse> lastResponse = new AtomicReference<>(null);
+		AtomicBoolean stop = new AtomicBoolean(false);
 		List<CompletableFuture<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
@@ -586,7 +598,7 @@ public class LoadTestController {
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
-				if ((browsersInWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
+				if (browsersInWorker >= browserEstimation) {
 					log.info("Browsers in worker: {} is equal than limit: {}",
 							browsersInWorker, browserEstimation);
 					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
@@ -594,34 +606,59 @@ public class LoadTestController {
 				}
 				log.info("Creating PUBLISHER '{}' in session",
 						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
 					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
 							+ subscribers + "PSes";
-					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+					future = CompletableFuture.supplyAsync(
 							new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
 									OpenViduRole.PUBLISHER, true, recordingMetadata),
 							executorService);
-					futureList.add(future);
 				} else {
-					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+					future = CompletableFuture.supplyAsync(
 							new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.PUBLISHER, false, null),
 							executorService);
-					futureList.add(future);
+					browsersInWorker++;
 				}
-				browsersInWorker++;
 				tasksInProgress++;
-				if (!batches || (tasksInProgress >= maxRequestsInFlight)) {
-					lastResponse = getLastResponse(futureList);
-					//streamsPerWorker.add(lastResponse.getStreamsInWorker());
-					if (!lastResponse.isResponseOk()) {
-						return lastResponse;
-					}
-					futureList = new ArrayList<>(browserEstimation);
-					tasksInProgress = 0;
+				participantCounter++;
+				boolean dontWait = !waitCompletion;
+				int startingParticipants = testCase.getStartingParticipants();
+				boolean hasStartingParticipants = startingParticipants > 0;
+				boolean isStartingParticipant = participantCounter <= startingParticipants;
+				boolean isLastStartingParticipant = participantCounter == startingParticipants;
+				if (hasStartingParticipants) {
+					dontWait = dontWait && isStartingParticipant;
 				}
-				sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+				if (dontWait) {
+					future.thenAccept((CreateParticipantResponse response) -> {
+						if (!response.isResponseOk()) {
+							lastResponse.set(response);
+							stop.set(true);
+						}
+					});
+				}
+				futureList.add(future);
+
+				boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
+				boolean waitForResponses = isLastStartingParticipant || (!dontWait && (!batches || batchMaxCount));
+				if (waitForResponses) {
+					lastResponse.set(getLastResponse(futureList));
+					CreateParticipantResponse lastResponseValue = lastResponse.get();
+					//streamsPerWorker.add(lastResponse.getStreamsInWorker());
+					if ((lastResponseValue != null) && (!lastResponseValue.isResponseOk())) {
+						return lastResponseValue;
+					}
+					futureList = new ArrayList<>(maxRequestsInFlight);
+					tasksInProgress = 0;
+				} else if (!waitCompletion && stop.get()) {
+					return lastResponse.get();
+				}
+				if (isStartingParticipant) {
+					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+				}
 			}
 
 			// Adding all subscribers
@@ -634,50 +671,75 @@ public class LoadTestController {
 				}
 				log.info("Creating SUBSCRIBER '{}' in session",
 						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
 					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
 							+ subscribers + "PSes";
-					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+					future = CompletableFuture.supplyAsync(
 							new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata),
 							executorService);
-					futureList.add(future);
 				} else {
-					CompletableFuture<CreateParticipantResponse> future = CompletableFuture.supplyAsync(
+					future = CompletableFuture.supplyAsync(
 							new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
 									testCase, OpenViduRole.SUBSCRIBER, false, null),
 							executorService);
-					futureList.add(future);
+					browsersInWorker++;
 				}
-				browsersInWorker++;
+				futureList.add(future);
 				tasksInProgress++;
+				participantCounter++;
+				boolean dontWait = !waitCompletion;
+				int startingParticipants = testCase.getStartingParticipants();
+				boolean hasStartingParticipants = startingParticipants > 0;
+				boolean isStartingParticipant = participantCounter <= startingParticipants;
+				boolean isLastStartingParticipant = participantCounter == startingParticipants;
+				if (hasStartingParticipants) {
+					dontWait = dontWait && isStartingParticipant;
+				}
+				if (dontWait) {
+					future.thenAccept((CreateParticipantResponse response) -> {
+						if (!response.isResponseOk()) {
+							lastResponse.set(response);
+							stop.set(true);
+						}
+					});
+				}
 				boolean isLastParticipant = i == subscribers - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					if (!batches || (tasksInProgress >= maxRequestsInFlight)) {
-						lastResponse = getLastResponse(futureList);
+					boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
+					boolean waitForResponses = isLastStartingParticipant || (!dontWait && (!batches || batchMaxCount));
+					if (waitForResponses) {
+						lastResponse.set(getLastResponse(futureList));
+						CreateParticipantResponse lastResponseValue = lastResponse.get();
 						//streamsPerWorker.add(lastResponse.getStreamsInWorker());
-						if (!lastResponse.isResponseOk()) {
-							return lastResponse;
+						if ((lastResponseValue != null) && (!lastResponseValue.isResponseOk())) {
+							return lastResponseValue;
 						}
-						futureList = new ArrayList<>(browserEstimation);
+						futureList = new ArrayList<>(maxRequestsInFlight);
 						tasksInProgress = 0;
+					} else if (!waitCompletion && stop.get()) {
+						return lastResponse.get();
 					}
-					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					if (isStartingParticipant) {
+						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					}
 				} else {
-					lastResponse = getLastResponse(futureList);
+					lastResponse.set(getLastResponse(futureList));
+					CreateParticipantResponse lastResponseValue = lastResponse.get();
 					//streamsPerWorker.add(lastResponse.getStreamsInWorker());
-					if (!lastResponse.isResponseOk()) {
-						return lastResponse;
+					if ((lastResponseValue != null) && !lastResponseValue.isResponseOk()) {
+						return lastResponseValue;
 					}
-					futureList = new ArrayList<>(browserEstimation);
+					futureList = new ArrayList<>(maxRequestsInFlight);
 				}
 			}
 			log.info("Session number {} has been succesfully created ", sessionNumber.get());
 			sessionsCompleted.incrementAndGet();
 			userNumber.set(1);
 		}
-		return lastResponse;
+		return lastResponse.get();
 	}
 
 	private CreateParticipantResponse getLastResponse(List<CompletableFuture<CreateParticipantResponse>> futureList) {

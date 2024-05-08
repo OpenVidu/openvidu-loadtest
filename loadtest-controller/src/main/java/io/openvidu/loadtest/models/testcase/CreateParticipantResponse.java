@@ -95,5 +95,14 @@ public class CreateParticipantResponse {
         this.sessionId = sessionId;
         return this;
     }
+
+    @Override
+    public String toString() {
+        return "CreateParticipantResponse [responseOk=" + responseOk + ", stopReason=" + stopReason + ", connectionId="
+                + connectionId + ", workerCpuPct=" + workerCpuPct + ", streamsInWorker=" + streamsInWorker
+                + ", participantsInWorker=" + participantsInWorker + ", userId=" + userId + ", sessionId=" + sessionId
+                + "]";
+    }
+    
     
 }
