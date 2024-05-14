@@ -148,7 +148,7 @@ public class BrowserEmulatorClient {
 			Map<String, String> headers = new HashMap<String, String>();
 			headers.put("Content-Type", "application/json");
 			HttpResponse<String> response = this.httpClient.sendDelete(
-					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session" + session + "/user/" + participant, headers);
+					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session/" + session + "/user/" + participant, headers);
 			log.info("Participant {} in worker {} deleted", participant, workerUrl);
 			return response.body();
 		} catch (Exception e) {
