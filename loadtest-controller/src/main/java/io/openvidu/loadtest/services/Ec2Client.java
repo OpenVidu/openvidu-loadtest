@@ -26,6 +26,7 @@ import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.Placement;
 import com.amazonaws.services.ec2.model.RebootInstancesRequest;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.ResourceType;
@@ -223,6 +224,13 @@ public class Ec2Client {
 				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1).withBlockDeviceMappings(
 						new BlockDeviceMapping().withDeviceName("/dev/sda1").withEbs(new EbsBlockDevice().withVolumeSize(50).withDeleteOnTermination(true)));
 		
+		if (!this.loadTestConfig.getWorkerAvailabilityZone().equals("")) {
+			ec2request.withPlacement(
+				new Placement()
+					.withAvailabilityZone(this.loadTestConfig.getWorkerAvailabilityZone())
+			);
+		}
+
 		if (this.loadTestConfig.isDebugVnc()) {
 			try {
 				ec2request.withUserData(

@@ -117,6 +117,8 @@ public class LoadTestConfig {
 
 	private boolean waitCompletion;
 
+	private String workerAvailabilityZone;
+
 	public boolean isWaitCompletion() {
 		return waitCompletion;
 	}
@@ -330,6 +332,10 @@ public class LoadTestConfig {
 		return this.batchMaxRequests;
 	}
 
+	public String getWorkerAvailabilityZone() {
+		return workerAvailabilityZone;
+	}
+
 	protected void checkConfigurationProperties() {
 
 		try {
@@ -357,6 +363,7 @@ public class LoadTestConfig {
 			workerInstanceType = asOptionalString("WORKER_INSTANCE_TYPE");
 			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
 			workerInstanceRegion = asOptionalString("WORKER_INSTANCE_REGION");
+			workerAvailabilityZone = asOptionalString("WORKER_AVAILABILITY_ZONE");
 			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
 			recordingWorkersNumberAtTheBeginning = asInt("RECORDING_WORKERS_AT_THE_BEGINNING");
 			workerMaxLoad = asInt("WORKER_MAX_LOAD");
@@ -449,6 +456,8 @@ public class LoadTestConfig {
 			System.out.printf(format, "Recording Workers at the beginning:", recordingWorkersNumberAtTheBeginning);
 			System.out.printf(format, "Worker rump up:", workersRumpUp);
 			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
+			System.out.printf(format, "AWS instance availability zone:", workerAvailabilityZone);
+
 		}
 		
 		if(medianodeLoadForStartRecording > 0) {
