@@ -4,7 +4,7 @@
 			"typology": "N:N",
 			"participants": ["8"],
 			"sessions": "infinite",
-			"startingParticipants": "30",
+			"startingParticipants": 30,
 			"browserMode": "REAL",
 			"resolution": "640x480",
 			"recording": false,

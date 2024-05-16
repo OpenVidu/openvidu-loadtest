@@ -89,6 +89,7 @@ public class DataIO {
 			BrowserMode browserMode = BrowserMode.EMULATE;
 			OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
 			String typology = element.get("typology").getAsString();
+			int startingParticipants = 0;
 			if (!typology.equalsIgnoreCase(Typology.TERMINATE.getValue())) {
 				String sessionsStr = element.get("sessions").getAsString();
 				JsonArray participantsArray = (JsonArray) element.get("participants");
@@ -111,6 +112,10 @@ public class DataIO {
 					openviduRecordingModeStr = element.get("openviduRecordingMode").getAsString();
 				}
 
+				if (element.get("startingParticipants") != null && !element.get("startingParticipants").getAsString().isBlank()) {
+					startingParticipants = element.get("startingParticipants").getAsInt();
+				}
+
 				if(!openviduRecordingModeStr.isBlank()) {
 					if(openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.COMPOSED.getValue())) {
 						openviduRecordingMode = OpenViduRecordingMode.COMPOSED;
@@ -131,8 +136,10 @@ public class DataIO {
 				}
 			}
 
-			testCaseList.add(new TestCase(typology, participants, sessions, browserMode, frameRate, resolution, openviduRecordingMode,
-					headlessBrowser, browserRecording, showBrowserVideoElements));
+			TestCase testCase = new TestCase(typology, participants, sessions, browserMode, frameRate, resolution, openviduRecordingMode,
+				headlessBrowser, browserRecording, showBrowserVideoElements);
+			testCase.setStartingParticipants(startingParticipants);
+			testCaseList.add(testCase);
 		}
 
 		return testCaseList;
