@@ -518,8 +518,8 @@ public class LoadTestController {
 				boolean dontWait = !waitCompletion;
 				int startingParticipants = testCase.getStartingParticipants();
 				boolean hasStartingParticipants = startingParticipants > 0;
-				boolean isStartingParticipant = participantCounter <= startingParticipants;
-				boolean isLastStartingParticipant = participantCounter == startingParticipants;
+				boolean isStartingParticipant = hasStartingParticipants && (participantCounter <= startingParticipants);
+				boolean isLastStartingParticipant = hasStartingParticipants && (participantCounter == startingParticipants);
 				if (hasStartingParticipants) {
 					dontWait = dontWait && isStartingParticipant;
 				}
@@ -535,7 +535,8 @@ public class LoadTestController {
 				boolean isLastParticipant = i == participantsBySession - 1;
 				if (!(isLastParticipant && isLastSession)) {
 					boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
-					boolean waitForResponses = isLastStartingParticipant || (!dontWait && (!batches || batchMaxCount));
+					boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
+					boolean waitForResponses = isLastStartingParticipant || waitForBatch;
 					if (waitForResponses) {
 						lastResponse.set(getLastResponse(futureList));
 						CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -545,11 +546,9 @@ public class LoadTestController {
 						}
 						futureList = new ArrayList<>(maxRequestsInFlight);
 						tasksInProgress = 0;
+						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 					} else if (!waitCompletion && stop.get()) {
 						return lastResponse.get();
-					}
-					if (isStartingParticipant) {
-						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 					}
 				} else {
 					lastResponse.set(getLastResponse(futureList));
