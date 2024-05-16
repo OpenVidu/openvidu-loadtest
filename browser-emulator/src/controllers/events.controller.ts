@@ -37,7 +37,7 @@ app.post('/events', async (req: Request, res: Response) => {
 		const message: string = JSON.stringify(req.body);
 		WsService.getInstance().send(message);
 
-		await saveStatsToFile(req.body.user, req.body.session, EVENTS_FILE, req.body);
+		await saveStatsToFile(req.body.participant, req.body.session, EVENTS_FILE, req.body);
 
 		return res.status(200).send();
 	} catch (error) {
@@ -53,7 +53,7 @@ app.post('/events/errors', async (req: Request, res: Response) => {
 		console.error("Error received from browser: ");
 		console.error(message);
 
-		await saveStatsToFile(req.body.user, req.body.session, ERRORS_FILE, req.body);
+		await saveStatsToFile(req.body.participant, req.body.session, ERRORS_FILE, req.body);
 
 		return res.status(200).send();
 	} catch (error) {
