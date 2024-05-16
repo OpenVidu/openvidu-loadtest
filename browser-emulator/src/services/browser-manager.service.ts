@@ -33,6 +33,14 @@ export class BrowserManagerService {
 	}
 
 	async createStreamManager(request: LoadTestPostRequest): Promise<LoadTestPostResponse> {
+		const userId = request.properties.userId;
+		const sessionId = request.properties.sessionName;
+		await Promise.all([
+			createFileAndLock(userId, sessionId, CON_FILE),
+			createFileAndLock(userId, sessionId, EVENTS_FILE),
+			createFileAndLock(userId, sessionId, ERRORS_FILE),
+			createFileAndLock(userId, sessionId, STATS_FILE)
+		]);
 		let connectionId: string;
 		let webrtcStorageName: string;
 		let webrtcStorageValue: string;
@@ -73,14 +81,6 @@ export class BrowserManagerService {
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
 		const streams = this.getStreamsCreated();
 		const participants = this.getParticipantsCreated();
-		const userId = request.properties.userId;
-		const sessionId = request.properties.sessionName;
-		await Promise.all([
-			createFileAndLock(userId, sessionId, CON_FILE),
-			createFileAndLock(userId, sessionId, EVENTS_FILE),
-			createFileAndLock(userId, sessionId, ERRORS_FILE),
-			createFileAndLock(userId, sessionId, STATS_FILE)
-		]);
 		await this.sendStreamsData(streams, userId, sessionId);
 		console.log(`Participant ${connectionId} created`);
 		this._lastRequestInfo = request;
