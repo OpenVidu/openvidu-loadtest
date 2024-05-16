@@ -281,10 +281,15 @@ export class RealBrowserService {
 				} catch (error) {
 					console.log(error);
 					if (!!driverId) {
-						await this.printBrowserLogs(driverId);
-						await this.deleteStreamManagerWithConnectionId(driverId);
+						const driver = this.driverMap.get(driverId);
+						if (driver) {
+							await this.printBrowserLogs(driverId);
+							await this.deleteStreamManagerWithConnectionId(driverId);
+							reject(this.errorGenerator.generateError(error));
+						} else {
+							console.log("Driver already quit.");
+						}
 					}
-					reject(this.errorGenerator.generateError(error));
 				}
 			}, timeout);
 		});
@@ -371,7 +376,7 @@ export class RealBrowserService {
 					await driver.executeAsyncScript(`
 						const callback = arguments[arguments.length - 1];
 						try {
-							recordingsManager.getRecordings()
+							recordingManager.getRecordings()
 							.catch(error => {
 								console.error(error)
 							}).finally(() => {
