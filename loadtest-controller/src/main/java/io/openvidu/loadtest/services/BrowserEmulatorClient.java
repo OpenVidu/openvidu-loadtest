@@ -311,7 +311,7 @@ public class BrowserEmulatorClient {
 				// 	return cpr.setResponseOk(false).setStopReason(stopReason);
 				// }
 				sleep(WAIT_MS);
-				if (loadTestConfig.isRetryMode() && isResponseLimitReached(failures)) {
+				if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures)) {
 					return cpr.setResponseOk(false);
 				}
 				log.warn("Retrying");
