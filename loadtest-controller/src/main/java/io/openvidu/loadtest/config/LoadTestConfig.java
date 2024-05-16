@@ -400,7 +400,7 @@ public class LoadTestConfig {
 				batchMaxRequests = Runtime.getRuntime().availableProcessors() + 1;
 			}
 			batches = asBoolean("BATCHES");
-			waitCompletion = asBoolean("WAIT_COMPLETION");
+			waitCompletion = asBoolean("WAIT_COMPLETE");
 			this.printInfo();
 
 		} catch (Exception e) {
