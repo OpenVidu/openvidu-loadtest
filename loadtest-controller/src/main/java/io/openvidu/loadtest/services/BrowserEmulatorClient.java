@@ -2,6 +2,8 @@ package io.openvidu.loadtest.services;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
+import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -99,6 +101,10 @@ public class BrowserEmulatorClient {
 	}
 
 	public void addClientFailure(String workerUrl, String participant, String session) {
+		addClientFailure(workerUrl, participant, session, true);
+	}
+
+	public void addClientFailure(String workerUrl, String participant, String session, boolean reconnect) {
 		ConcurrentHashMap<String, Integer> failures = this.clientFailures.get(workerUrl);
 		if (failures == null) {
 			failures = new ConcurrentHashMap<>();
@@ -111,38 +117,60 @@ public class BrowserEmulatorClient {
 		}
 		failures.put(user, currentFailures + 1);
 		log.error("Participant {} in session {} failed {} times", participant, session, currentFailures + 1);
-		this.reconnect(workerUrl, participant, session);
+		if (reconnect && ((currentFailures + 1) < this.loadTestConfig.getRetryTimes())) {
+			this.reconnect(workerUrl, participant, session);
+		}
 	}
 
 	private void reconnect(String workerUrl, String participant, String session) {
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
-		Callable<String> callableTask = () -> {
+		Callable<HttpResponse<String>> callableTask = () -> {
 			return this.disconnectUser(workerUrl, participant, session);
 		};
 		try {
-			Future<String> future = executorService.submit(callableTask);
-			log.info(future.get());
+			Future<HttpResponse<String>> future = executorService.submit(callableTask);
+			HttpResponse<String> response = future.get();
 			executorService.shutdown();
-			String user = participant + "-" + session;
-			OpenViduRole role = this.clientRoles.get(workerUrl).get(user);
-			// get user number from participant removing prefix
-			int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
-			// get session number from session removing prefix
-			int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
-			if (role.equals(OpenViduRole.PUBLISHER)) {
-				this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
-			} else {
-				this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+			if ((response == null) || (response.statusCode() != HTTP_STATUS_OK)) {
+				log.error(Integer.toString(response.statusCode()));
+				log.error(response.body());
+				throw new Exception("Error deleting participant " + participant + " from worker " + workerUrl);
 			}
+			afterDisconnect(workerUrl, participant, session);
 		} catch (InterruptedException ie) {
 			ie.printStackTrace();
 		} catch (ExecutionException ee) {
 			ee.printStackTrace();
 			log.error(ee.getCause().getMessage());
+		} catch (HttpTimeoutException te) {
+			log.error(te.getMessage());
+		} catch (Exception e) {
+			log.error(e.getMessage());
 		}
 	}
 
-	private String disconnectUser(String workerUrl, String participant, String session) {
+	private void afterDisconnect(String workerUrl, String participant, String session) {
+		String user = participant + "-" + session;
+		ConcurrentHashMap<String, OpenViduRole> workerRoles = this.clientRoles.get(workerUrl);
+		if (workerRoles == null) {
+			// The connect request hasn't finished yet, wait for it
+			this.sleep(WAIT_MS);
+			this.afterDisconnect(workerUrl, participant, session);
+			return;
+		}
+		OpenViduRole role = workerRoles.get(user);
+		// get user number from participant removing prefix
+		int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
+		// get session number from session removing prefix
+		int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
+		if (role.equals(OpenViduRole.PUBLISHER)) {
+			this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+		} else {
+			this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+		}
+	}
+
+	private HttpResponse<String> disconnectUser(String workerUrl, String participant, String session) {
 		try {
 			log.info("Deleting participant {} from worker {}", participant, workerUrl);
 			Map<String, String> headers = new HashMap<String, String>();
@@ -150,10 +178,15 @@ public class BrowserEmulatorClient {
 			HttpResponse<String> response = this.httpClient.sendDelete(
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session/" + session + "/user/" + participant, headers);
 			log.info("Participant {} in worker {} deleted", participant, workerUrl);
-			return response.body();
+			return response;
+		} catch (ConnectException e) {
+			log.error("Connection refused (ConnectException)");
+			e.printStackTrace();
+			return null;
 		} catch (Exception e) {
 			log.error(e.getMessage());
-			return e.getMessage();
+			e.printStackTrace();
+			return null;
 		}
 	}
 
@@ -295,6 +328,7 @@ public class BrowserEmulatorClient {
 					failuresMap.put(user, failures);
 					this.clientFailures.put(workerUrl, failuresMap);
 				}
+				log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
 				// lastResponses.add("Failure");
 				// if (testCase.getBrowserMode().equals(BrowserMode.REAL)
 				// 		&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
@@ -322,10 +356,12 @@ public class BrowserEmulatorClient {
 			return processResponse(response);
 		} catch (Exception e) {
 			// lastResponses.add("Failure");
-			if (e.getMessage() != null && e.getMessage().contains("Connection timed out")) {
+			if (e.getMessage() != null && e.getMessage().contains("timed out")) {
+				this.addClientFailure(workerUrl, userId, sessionId, false);
 				sleep(WAIT_MS);
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
-			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection refused")) {
+			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("refused")) {
+				this.addClientFailure(workerUrl, userId, sessionId, false);
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
 				sleep(WAIT_MS);
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
