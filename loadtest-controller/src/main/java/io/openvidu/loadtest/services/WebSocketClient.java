@@ -1,6 +1,7 @@
 package io.openvidu.loadtest.services;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.websocket.ClientEndpoint;
@@ -35,6 +36,8 @@ public class WebSocketClient extends Endpoint {
 	private WebSocketConnectionFactory factoryCreator;
 
 	private BrowserEmulatorClient beInstance;
+
+	private AtomicBoolean markedForDeletion = new AtomicBoolean(false);
 
 	public WebSocketClient(String endpointURI, WebSocketConnectionFactory factory, BrowserEmulatorClient beInstance) {
 		this.wsEndpoint = endpointURI;
@@ -74,13 +77,16 @@ public class WebSocketClient extends Endpoint {
 	}
 
 	private void handleError(String message) {
+		this.markedForDeletion.set(true);
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			JsonNode json = mapper.readTree(message);
 			if(json.has("participant") && json.has("session")) {
 				String participant = json.get("participant").asText();
 				String session = json.get("session").asText();
-				this.beInstance.addClientFailure(this.wsEndpoint, participant, session);
+				String workerUrl = this.wsEndpoint.split("/")[2].split(":")[0];
+				this.close();
+				this.beInstance.addClientFailure(workerUrl, participant, session);
 			} else {
 				log.warn("Participant or session missing from error message: {}", message);
 			}
@@ -91,17 +97,23 @@ public class WebSocketClient extends Endpoint {
 
 	@OnMessage
 	public void onMessage(String message) {
-		if(message.contains("exception") || message.contains("Exception")) {
-			log.error("Received exception from {}: {}", this.wsEndpoint, message);
-			this.handleError(message);
-		} else if (message.contains("error") || message.contains("Error")) {
-			log.warn("Received message from {}: {}", this.wsEndpoint, message);
-		} else if (message.contains("sessionDisconnected")) {
-			log.error("Received sessionDisconnected from {}: {}", this.wsEndpoint, message);
-			this.handleError(message);
-		} else {
-			log.debug("Received message from {}: {}", this.wsEndpoint, message);
+		if (!markedForDeletion.get()) {
+			if(message.contains("exception") || message.contains("Exception")) {
+				log.error("Received exception from {}: {}", this.wsEndpoint, message);
+				this.handleError(message);
+			} else if (message.contains("error") || message.contains("Error")) {
+				log.warn("Received message from {}: {}", this.wsEndpoint, message);
+			} else if (message.contains("sessionDisconnected")) {
+				log.error("Received sessionDisconnected from {}: {}", this.wsEndpoint, message);
+				this.handleError(message);
+			} else {
+				log.debug("Received message from {}: {}", this.wsEndpoint, message);
+			}
 		}
+	}
+
+	public void markForDeletion() {
+		this.markedForDeletion.set(true);
 	}
 
 	public void close() {

@@ -808,6 +808,17 @@ public class LoadTestController {
 	private void disconnectAllSessions() {
 		List<String> workersUrl = devWorkersList;
 		if (PROD_MODE) {
+			for (WebSocketClient ws : wsSessions) {
+				if (ws != null) {
+					ws.markForDeletion();
+				}
+			}
+			for (WebSocketClient ws : wsSessions) {
+				if (ws != null) {
+					ws.close();
+				}
+			}
+			wsSessions.clear();
 			// Add all ec2 instances
 			for (Instance ec2 : awsWorkersList) {
 				workersUrl.add(ec2.getPublicDnsName());
@@ -824,12 +835,6 @@ public class LoadTestController {
 				browserEmulatorClient.calculateQoe(allWorkers);
 			}
 
-			for (WebSocketClient ws : wsSessions) {
-				if (ws != null) {
-					ws.close();
-				}
-			}
-			wsSessions.clear();
 			ec2Client.stopInstance(recordingWorkersList);
 			ec2Client.stopInstance(awsWorkersList);
 
