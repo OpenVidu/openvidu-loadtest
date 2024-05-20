@@ -55,7 +55,6 @@ public class WebSocketClient extends Endpoint {
 
 	@OnClose
 	public void onClose(Session session, CloseReason reason) {
-		log.info("closing websocket {}", session.getRequestURI());
 		if(reason.getCloseCode().equals(CloseCodes.CLOSED_ABNORMALLY)) {
 			log.error("Websocket {} closed abnormally", getEndpoint());
 			log.error("Reconnecting ...");
@@ -63,7 +62,7 @@ public class WebSocketClient extends Endpoint {
 			factoryCreator.createConnection(wsEndpoint, this);
 		} 
 	}
-	
+
 	 @Override
      public void onError(Session session, Throwable thr) {
          super.onError(session, thr);
