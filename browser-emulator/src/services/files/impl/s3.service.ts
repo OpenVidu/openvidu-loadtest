@@ -30,11 +30,11 @@ export class S3FilesService extends FilesService {
     }
 
     async uploadFiles(): Promise<void> {
-        if (fs.existsSync(`${this.AWS_CREDENTIALS_PATH}/config.json`)) {
+		if (fs.existsSync(`${this.AWS_CREDENTIALS_PATH}/config.json`)) {
 			AWS.config.loadFromPath(`${this.AWS_CREDENTIALS_PATH}/config.json`);
 			const s3 = new AWS.S3();
 
-			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
+			if (!(await this.isBucketCreated(process.env.S3_BUCKET))) {
 				try {
 					await this.createBucket(process.env.S3_BUCKET);
 				} catch (error) {
@@ -45,44 +45,78 @@ export class S3FilesService extends FilesService {
 					}
 				}
 			}
+
+			const uploadFile = async (fileName: string, filePath: string): Promise<void> => {
+				let randomDelay = Math.floor(Math.random() * (10000 - 0 + 1)) + 0;
+				console.log(`Uploading file ${fileName} to S3 bucket ${process.env.S3_BUCKET} with delay ${randomDelay} ms`);
+				await new Promise(resolve => setTimeout(resolve, randomDelay));
+				try {
+					const params = {
+						Bucket: process.env.S3_BUCKET,
+						Key: fileName,
+						Body: fs.createReadStream(filePath)
+					}
+					await s3.putObject(params).promise();
+					console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${fileName}`);
+				} catch (err) {
+					if (err.code === 'SlowDown') {
+						let retryDelay = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000; // Random delay between 5 and 10 seconds
+						console.warn(`Received SlowDown error. Retrying upload file ${fileName} to S3 bucket ${process.env.S3_BUCKET} after delay ${retryDelay} ms`);
+						await new Promise(resolve => setTimeout(resolve, retryDelay));
+						try {
+							await uploadFile(fileName, filePath);
+						} catch (retryErr) {
+							console.error(retryErr);
+							throw retryErr;
+						}
+					} else {
+						console.error(err);
+						throw err;
+					}
+				}
+			}
+
+			const uploadVideo = async (dir: string, file: string): Promise<void> => {
+				const filePath = `${dir}/${file}`;
+				let fileName = file.split('/').pop();
+				return uploadFile(fileName, filePath);
+			};
+
+			const uploadStat = async (dir: string, s3Dir: string, file: string): Promise<void> => {
+				const filePath = `${dir}/${file}`;
+				let fileName = file.split('/').pop();
+				return uploadFile(s3Dir + fileName, filePath);
+			};
+
 			const promises = [];
 			FilesService.fileDirs.forEach((dir) => {
 				promises.push(
 					fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
-					.then(() => fsPromises.readdir(dir))
-					.then((files) => {
-						const uploadPromises = [];
-						files.forEach((file) => {
-							const filePath = `${dir}/${file}`;
-							const fileName = file.split('/').pop();
-							const params = {
-								Bucket: process.env.S3_BUCKET,
-								Key: fileName,
-								Body: fs.createReadStream(filePath)
-							};
-							uploadPromises.push(new Promise((resolve, reject) => {
-								const randomDelay = Math.floor(Math.random() * (20000 - 0 + 1)) + 0;
-								console.log(`Uploading file ${fileName} to S3 bucket ${process.env.S3_BUCKET} with delay ${randomDelay} ms`);
-								setTimeout(() => {
-									s3.putObject(params, (err, data) => {
-										if (err) {
-											console.error(err);
-											return reject(err);
-										} else {
-											console.log(`Successfully uploaded data to ${process.env.S3_BUCKET} / ${file}`);
-											return resolve("");
+						.then(() => fsPromises.readdir(dir))
+						.then(async (files) => {
+							let uploadPromises = [];
+							if (dir.includes('stats')) {
+								const sessions = await fsPromises.readdir(dir);
+								for (let session of sessions) {
+									if (!session.includes('lock') && !session.startsWith('.')) {
+										const users = await fsPromises.readdir(`${dir}/${session}`);
+										for (let user of users) {
+											const absDir = `${dir}/${session}/${user}`;
+											const relDir = `stats/${session}/${user}/`;
+											const userFiles = await fsPromises.readdir(absDir);
+											uploadPromises = userFiles.map((file) => uploadStat(absDir, relDir, file));
 										}
-									});
-								}, randomDelay);
-							}));
-						});
-						return Promise.all(uploadPromises);
-					})
+									}
+								}
+							} else {
+								uploadPromises = files.map((file) => uploadVideo(dir, file));
+							}
+							return Promise.all(uploadPromises);
+						})
 				);
 			});
+
 			await Promise.all(promises);
-		} else {
-			console.log(`ERROR uploading videos to S3. AWS is not configured. ${this.AWS_CREDENTIALS_PATH}/config.json not found`);
 		}
     }
     async isBucketCreated(bucketName: string): Promise<boolean> {
