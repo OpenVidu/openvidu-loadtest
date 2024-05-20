@@ -138,18 +138,7 @@ async function joinSession() {
 		beConnector.sendEvent({event: "streamDestroyed", reason: event.reason, connectionId: event.stream.streamId,  connection: 'remote'}, USER_ID, SESSION_ID);
 		if (!!QOE_ANALYSIS) {
 			var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
-			var remoteControl = remoteControls.get(remoteUser);
-			remoteControl.stop().then(() => {
-				console.log("Recording stopped because of streamDestroyed");
-				return remoteControl.getBlob()
-			}).then((blob) => {
-				var remoteUser = JSON.parse(event.stream.connection.data).clientData.substring(13);
-				recordingBlobs.set(remoteUser, blob);
-				console.log("Blob created");
-			}).catch(err => {
-				console.error(err);
-				beConnector.sendError(err, USER_ID, SESSION_ID);
-			});
+			recordingManager.stopRecordingFromUser(remoteUser);
 		}
 	});
 

@@ -105,6 +105,14 @@ class BrowserEmulatorRecorder {
             }
         });
     }
+
+    get localUserId() {
+        return this.localUserId;
+    }
+
+    set localUserId(localUserId) {
+        this.localUserId = localUserId;
+    }
 }
 
 class BrowserEmulatorRecorderManager {
@@ -119,30 +127,35 @@ class BrowserEmulatorRecorderManager {
         return ber;
     }
 
+    stopRecordingFromUser(remoteUserId) {
+        const remoteControl = this.remoteControls.get(remoteUserId);
+        if (!!remoteControl) {
+            console.log("Stopping recording: " + remoteControl.localUserId + " recording " + remoteUserId);
+            try {
+                remoteControl.stop();
+            } catch (error) {
+                console.error(error);
+                beConnector.sendError("Error stopping recording: " + remoteControl.localUserId + " recording " + remoteUserId);
+            }
+        } else {
+            console.error(error);
+            beConnector.sendError("No recording to stop for local user recording: " + remoteUserId);
+        }
+    }
+
     async getRecordings() {
         const stopPromises = [];
         for (const remoteControlEntry of this.remoteControls.entries()) {
             const remoteUser = remoteControlEntry[0];
             const remoteControl = remoteControlEntry[1];
             const stopPromise = new Promise ((resolve, reject) => {
-                console.log("Stopping recording: " + this.localUserId + " recording " + remoteUser);
+                console.log("Stopping recording: " + remoteControl.localUserId + " recording " + remoteUser);
                 remoteControl.onstop = () => {
-                    console.log("Recording stopped, getting blob: " + this.localUserId + " recording " + remoteUser);
-                    // var chunks = recordingChunks.get(remoteUser);
-                    // var blob = new Blob(chunks, { type: remoteControl.mimeType });
-                    // recordingBlobs.set(remoteUser, blob);
-                    // if (!!blob) {
-                    //     console.log("Blob saved for " + this.localUserId + " recording " + remoteUser + ": " + blob.size/1024/1024 + " MB");
-                    //     resolve({"user": remoteUser, "blob": blob});
-                    // } else {
-                    //     beConnector.sendError("Blob is null for: " + this.localUserId + " recording " + remoteUser);
-                    //     reject("Blob is null for: " + this.localUserId + " recording " + remoteUser);
-                    // }
+                    console.log("Recording stopped, getting blob: " + remoteControl.localUserId + " recording " + remoteUser);
                     resolve();
                 };
                 remoteControl.stop();
             })
-            //.then((blobObject) => sendBlob(blobObject.blob, fileNamePrefix, blobObject.user))
             .catch((error) => {
                 console.error(error);
                 beConnector.sendError(error);

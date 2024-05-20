@@ -194,21 +194,7 @@ async function joinSession() {
 		track.detach();
 		if (!!QOE_ANALYSIS) {
 			console.log(USER_ID + " stopping recording user " + remoteUser);
-			var remoteControl = remoteControls.get(remoteUser);
-			if (!!remoteControl) {
-				remoteControl.stop().then(() => {
-					console.log("Recording stopped because of streamDestroyed");
-					return remoteControl.getBlob()
-				}).then((blob) => {
-					recordingBlobs.set(remoteUser, blob);
-					console.log("Blob created");
-				}).catch(err => {
-					console.error(err);
-					beConnector.sendError(err, USER_ID, SESSION_ID);
-				});
-			} else {
-				console.warn("No mediarecorder found for user " + remoteUser);
-			}
+			recordingManager.stopRecordingFromUser(remoteUser);
 		}
 	});
 
