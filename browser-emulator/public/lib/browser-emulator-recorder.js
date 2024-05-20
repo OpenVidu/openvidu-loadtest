@@ -10,7 +10,7 @@ class BrowserEmulatorRecorder {
         this.errorTiemout = null;
         this.ERROR_TIMEOUT = 500;
         this.beConnector = browserEmulatorConnector;
-        this.localUserId = localUserId;
+        this._localUserId = localUserId;
         this.remoteUserId = remoteUserId;
         this.sessionId = sessionId;
         this.unsentChunks = [];
@@ -74,6 +74,10 @@ class BrowserEmulatorRecorder {
     }
 
     stop() {
+        this.recorder.onstop = () => {
+            console.log("Recording stopped: " + this.localUserId + " recording " + this.remoteUserId);
+            resolve();
+        };
         this.recorder.stop();
     }
 
@@ -107,11 +111,11 @@ class BrowserEmulatorRecorder {
     }
 
     get localUserId() {
-        return this.localUserId;
+        return this._localUserId;
     }
 
     set localUserId(localUserId) {
-        this.localUserId = localUserId;
+        this._localUserId = localUserId;
     }
 }
 
@@ -150,11 +154,8 @@ class BrowserEmulatorRecorderManager {
             const remoteControl = remoteControlEntry[1];
             const stopPromise = new Promise ((resolve, reject) => {
                 console.log("Stopping recording: " + remoteControl.localUserId + " recording " + remoteUser);
-                remoteControl.onstop = () => {
-                    console.log("Recording stopped, getting blob: " + remoteControl.localUserId + " recording " + remoteUser);
-                    resolve();
-                };
                 remoteControl.stop();
+                resolve();
             })
             .catch((error) => {
                 console.error(error);
