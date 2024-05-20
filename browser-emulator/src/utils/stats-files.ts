@@ -46,13 +46,13 @@ export async function saveStatsToFile(user: string, session: string, file: strin
 	const fileDir = STATS_DIR + session + "/" + user + "/";
 	const filePath = fileDir + file;
 	const release = await lockfile.lock(lockPath, retryOptions);
-	console.log("Saving stats to file " + filePath);
+	//console.log("Saving stats to file " + filePath);
 	let existingData: any[] = [];
     try {
         // Read existing data from the file
         const fileContent = await fsp.readFile(filePath, 'utf8');
         existingData = JSON.parse(fileContent);
-		console.log("Existing data: " + existingData.length)
+		//console.log("Existing data: " + existingData.length)
     } catch (error) {
         // If the file doesn't exist or is empty, continue with an empty array
     }
@@ -65,7 +65,7 @@ export async function saveStatsToFile(user: string, session: string, file: strin
 		existingData.push(data);
 		combinedData = existingData;
 	}
-	console.log("Combined data: " + combinedData.length);
+	//console.log("Combined data: " + combinedData.length);
 
     // Write the combined data back to the file
     await fsp.writeFile(filePath, JSON.stringify(combinedData));
