@@ -260,12 +260,9 @@ async function joinSession() {
 	var resSplit = RESOLUTION.split('x');
 	var width = resSplit[0];
 	var height = resSplit[1];
-	var roomConnectOptions = {
-		maxRetries: 5
-	}
 
 	beConnector.sendEvent({ event: "connectionStart" }, USER_ID, SESSION_ID);
-	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN, roomConnectOptions)
+	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN)
 		.then(async () => {
 			console.log("Connected to session " + SESSION_ID);
 			if (ROLE === 'PUBLISHER') {
