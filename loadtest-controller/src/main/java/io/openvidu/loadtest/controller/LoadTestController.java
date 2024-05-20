@@ -793,6 +793,7 @@ public class LoadTestController {
 		recordingWorkerTimes = new ArrayList<>();
 		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 		waitToMediaServerLiveAgain();
+		browserEmulatorClient.setEndOfTest(false);
 	}
 
 	private void waitToMediaServerLiveAgain() {
@@ -807,6 +808,7 @@ public class LoadTestController {
 
 	private void disconnectAllSessions() {
 		List<String> workersUrl = devWorkersList;
+		browserEmulatorClient.setEndOfTest(true);
 		if (PROD_MODE) {
 			for (WebSocketClient ws : wsSessions) {
 				if (ws != null) {

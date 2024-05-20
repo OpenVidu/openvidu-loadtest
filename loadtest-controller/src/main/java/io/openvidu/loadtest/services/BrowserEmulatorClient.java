@@ -5,7 +5,6 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.net.ConnectException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -54,9 +55,11 @@ public class BrowserEmulatorClient {
 
 	private JsonUtils jsonUtils;
 
-	private ConcurrentHashMap<String, ConcurrentHashMap<String, Integer>> clientFailures = new ConcurrentHashMap<>();
+	private ConcurrentHashMap<String, ConcurrentHashMap<String, AtomicInteger>> clientFailures = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, OpenViduRole>> clientRoles = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
+
+	private AtomicBoolean endOfTest = new AtomicBoolean(false);
 
 	public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils) {
 		this.loadTestConfig = loadTestConfig;
@@ -105,19 +108,20 @@ public class BrowserEmulatorClient {
 	}
 
 	public void addClientFailure(String workerUrl, String participant, String session, boolean reconnect) {
-		ConcurrentHashMap<String, Integer> failures = this.clientFailures.get(workerUrl);
+		ConcurrentHashMap<String, AtomicInteger> failures = this.clientFailures.get(workerUrl);
 		if (failures == null) {
 			failures = new ConcurrentHashMap<>();
 			this.clientFailures.put(workerUrl, failures);
 		}
 		String user = participant + "-" + session;
-		Integer currentFailures = failures.get(participant);
+		AtomicInteger currentFailures = failures.get(participant);
 		if (currentFailures == null) {
-			currentFailures = 0;
+			currentFailures = new AtomicInteger(0);
+			failures.put(user, currentFailures);
 		}
-		failures.put(user, currentFailures + 1);
-		log.error("Participant {} in session {} failed {} times", participant, session, currentFailures + 1);
-		if (reconnect && ((currentFailures + 1) < this.loadTestConfig.getRetryTimes())) {
+		int newFailures = currentFailures.incrementAndGet();
+		log.error("Participant {} in session {} failed {} times", participant, session, newFailures);
+		if (reconnect && (newFailures < this.loadTestConfig.getRetryTimes())) {
 			this.reconnect(workerUrl, participant, session);
 		}
 	}
@@ -132,8 +136,10 @@ public class BrowserEmulatorClient {
 			HttpResponse<String> response = future.get();
 			executorService.shutdown();
 			if ((response == null) || (response.statusCode() != HTTP_STATUS_OK)) {
-				log.error(Integer.toString(response.statusCode()));
-				log.error(response.body());
+				if (response != null) {
+					log.error(Integer.toString(response.statusCode()));
+					log.error(response.body());
+				}
 				throw new Exception("Error deleting participant " + participant + " from worker " + workerUrl);
 			}
 			afterDisconnect(workerUrl, participant, session);
@@ -299,12 +305,12 @@ public class BrowserEmulatorClient {
 		String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
 		String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
 		String user = userId + "-" + sessionId;
-		ConcurrentHashMap<String, Integer> failuresMap = this.clientFailures.get(workerUrl);
+		ConcurrentHashMap<String, AtomicInteger> failuresMap = this.clientFailures.get(workerUrl);
 		int failures = 0;
 		if (failuresMap != null) {
-			Integer userFailures = failuresMap.get(user);
+			AtomicInteger userFailures = failuresMap.get(user);
 			if (userFailures != null) {
-				failures = userFailures;
+				failures = userFailures.get();
 			}
 		}
 
@@ -322,30 +328,16 @@ public class BrowserEmulatorClient {
 				log.warn("Error: " + response.body());
 				failures++;
 				if (failuresMap != null) {
-					failuresMap.put(user, failures);
+					AtomicInteger userFailures = failuresMap.get(user);
+					userFailures.incrementAndGet();
 				} else {
 					failuresMap = new ConcurrentHashMap<>();
-					failuresMap.put(user, failures);
+					failuresMap.put(user, new AtomicInteger(failures));
 					this.clientFailures.put(workerUrl, failuresMap);
 				}
 				log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
-				// lastResponses.add("Failure");
-				// if (testCase.getBrowserMode().equals(BrowserMode.REAL)
-				// 		&& response.body().contains("TimeoutError: Waiting for at least one element to be located")) {
-				// 	String stopReason = "Selenium TimeoutError: Waiting for at least one element to be located on Chrome Browser"
-				// 			+ response.body().substring(0, 100);
-				// 	return cpr.setResponseOk(false).setStopReason(stopReason);
-				// }
-				// if (response.body().contains("Exception") || response.body().contains("Error on publishVideo")) {
-				// 	String stopReason = "OpenVidu Error: " + response.body().substring(0, 100);
-				// 	return cpr.setResponseOk(false).setStopReason(stopReason);
-				// }
-				// if (response.body().toString().contains("Gateway Time-out")) {
-				// 	String stopReason = "OpenVidu Error: " + response.body();
-				// 	return cpr.setResponseOk(false).setStopReason(stopReason);
-				// }
 				sleep(WAIT_MS);
-				if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures)) {
+				if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures) || endOfTest.get()) {
 					return cpr.setResponseOk(false);
 				}
 				log.warn("Retrying");
@@ -525,5 +517,9 @@ public class BrowserEmulatorClient {
 		} catch (Exception e) {
 			log.error(e.getMessage());
 		}
+	}
+
+	public void setEndOfTest(boolean isEndOfTest) {
+		this.endOfTest.set(isEndOfTest);
 	}
 }
