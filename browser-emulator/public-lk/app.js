@@ -85,27 +85,8 @@ async function joinSession() {
 	beConnector = new BrowserEmulatorConnector();
 	recordingManager = new BrowserEmulatorRecorderManager(beConnector);
 	statsManager = new WebRTCStatsManager(beConnector);
-	// TODO: make retries and delays configurable
-	let reconnectPolicy = {
-		nextRetryDelayInMs: (context) => {
-			beConnector.sendEvent({
-				event: "sessionReconnectingRetry",
-				connection: 'local',
-				retryCount: context.retryCount,
-				elapsedMs: context.elapsedMs,
-				retryReason: context.retryReason,
-				serverUrl: context.serverUrl
-			}, USER_ID, SESSION_ID);
-			if (context.retryCount < 5) {
-				return 5000;
-			} else {
-				return null;
-			}
-		}
-	}
 	let roomOptions = {
 		adaptiveStream: false,
-		reconnectPolicy: reconnectPolicy,
 		publishDefaults: {
 			simulcast: false,
 			videoEncoding: {
