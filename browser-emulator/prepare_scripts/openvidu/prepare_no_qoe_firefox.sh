@@ -36,7 +36,7 @@ apt-get install -yq --no-install-recommends \
     ffmpeg docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
-v4l2_version=0.12.7
+v4l2_version=0.13.1
 mkdir -p /usr/src
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /usr/src
 cd /usr/src

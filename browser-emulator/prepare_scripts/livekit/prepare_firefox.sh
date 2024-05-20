@@ -43,7 +43,7 @@ apt-get install -yq --no-install-recommends \
 pkg-config --cflags --libs opencv4
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
-v4l2_version=0.12.7
+v4l2_version=0.13.1
 mkdir -p /usr/src
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /usr/src
 cd /usr/src
