@@ -1,45 +1,50 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 box = ENV['BOX'] || 'ivchicano/browseremulator-ov-ff'
-memory = ENV['MEMORY'] || 8192
+memory = ENV['MEMORY'] || 4092
 cpus = ENV['CPUS'] || 4
 provider = ENV['VAGRANT_PROVIDER'] || 'virtualbox'
+nodes = (ENV['NODES'] || 1).to_i
 
 Vagrant.configure("2") do |config|
-  config.ssh.forward_agent = true
-  config.vm.box = box
+  (1..nodes).each do |i|
+    config.vm.define "node#{i}" do |node|
+      node.ssh.forward_agent = true
+      node.vm.box = box
+      node.vm.hostname = "node#{i}.local"
+      node.vm.network "forwarded_port", guest: 5000, host: 5000 + (i - 1)*10, host_ip: "127.0.0.1"
+      node.vm.network "forwarded_port", guest: 5001, host: 5001 + (i - 1)*10, host_ip: "127.0.0.1"
+      node.vm.network "forwarded_port", guest: 5900, host: 5900 + (i - 1)*10, host_ip: "127.0.0.1"
 
-  config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: "127.0.0.1"
-  config.vm.network "forwarded_port", guest: 5001, host: 5001, host_ip: "127.0.0.1"
-  config.vm.network "forwarded_port", guest: 5900, host: 5900, host_ip: "127.0.0.1"
+      synced_folders = [
+        "./src:/opt/openvidu-loadtest/browser-emulator/src",
+        "./qoe_scripts:/opt/openvidu-loadtest/browser-emulator/qoe_scripts",
+        "./recording_scripts:/opt/openvidu-loadtest/browser-emulator/recording_scripts",
+        "./recordings:/opt/openvidu-loadtest/browser-emulator/recordings",
+        "./prepare_scripts:/opt/openvidu-loadtest/browser-emulator/prepare_scripts",
+        "./public:/opt/openvidu-loadtest/browser-emulator/public",
+        "./public-lk:/opt/openvidu-loadtest/browser-emulator/public-lk",
+        "./stats:/opt/openvidu-loadtest/browser-emulator/stats",
+      ]
+      synced_folders.each do |folder|
+        node.vm.synced_folder folder.split(':')[0], folder.split(':')[1]
+      end
 
-  synced_folders = [
-    "./src:/opt/openvidu-loadtest/browser-emulator/src",
-    "./qoe_scripts:/opt/openvidu-loadtest/browser-emulator/qoe_scripts",
-    "./recording_scripts:/opt/openvidu-loadtest/browser-emulator/recording_scripts",
-    "./recordings:/opt/openvidu-loadtest/browser-emulator/recordings",
-    "./prepare_scripts:/opt/openvidu-loadtest/browser-emulator/prepare_scripts",
-    "./public:/opt/openvidu-loadtest/browser-emulator/public",
-    "./public-lk:/opt/openvidu-loadtest/browser-emulator/public-lk",
-    "./stats:/opt/openvidu-loadtest/browser-emulator/stats",
-  ]
-  synced_folders.each do |folder|
-    config.vm.synced_folder folder.split(':')[0], folder.split(':')[1]
-  end
+      files_to_provision = [
+        "./package.json:/opt/openvidu-loadtest/browser-emulator/package.json",
+        "./download_mediafiles.sh:/opt/openvidu-loadtest/browser-emulator/download_mediafiles.sh",
+        "./tsconfig.json:/opt/openvidu-loadtest/browser-emulator/tsconfig.json",
+        "./debug_vnc_local.sh:/opt/openvidu-loadtest/browser-emulator/debug_vnc.sh",
+      ]
+      files_to_provision.each do |file|
+        node.vm.provision "file", source: file.split(':')[0], destination: file.split(':')[1]
+      end
 
-  files_to_provision = [
-    "./package.json:/opt/openvidu-loadtest/browser-emulator/package.json",
-    "./download_mediafiles.sh:/opt/openvidu-loadtest/browser-emulator/download_mediafiles.sh",
-    "./tsconfig.json:/opt/openvidu-loadtest/browser-emulator/tsconfig.json",
-    "./debug_vnc_local.sh:/opt/openvidu-loadtest/browser-emulator/debug_vnc.sh",
-  ]
-  files_to_provision.each do |file|
-    config.vm.provision "file", source: file.split(':')[0], destination: file.split(':')[1]
-  end
-
-  config.vm.provider provider do |vb|
-    vb.memory = memory
-    vb.cpus = cpus
+      node.vm.provider provider do |vb|
+        vb.memory = memory
+        vb.cpus = cpus
+      end
+    end
   end
 
 end
