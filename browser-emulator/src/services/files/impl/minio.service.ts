@@ -16,7 +16,7 @@ export class MinioFilesService extends FilesService {
             secretKey: minioSecretAccessKey
         })
     }
-    
+
     static getInstance(...args: string[]): FilesService {
         if (!FilesService.instance) {
             FilesService.instance = new MinioFilesService(args[0], args[1]);
@@ -84,7 +84,7 @@ export class MinioFilesService extends FilesService {
                         if (dir.includes('stats')) {
                             const sessions = await fsPromises.readdir(dir);
                             for (let session of sessions) {
-                                if (!session.includes('lock')) {
+                                if (!session.includes('lock') && !session.startsWith('.')) {
                                     const users = await fsPromises.readdir(`${dir}/${session}`);
                                     for (let user of users) {
                                         const absDir = `${dir}/${session}/${user}`;
@@ -101,7 +101,7 @@ export class MinioFilesService extends FilesService {
                     })
             );
         });
-    
+
         await Promise.all(promises);
     }
 
