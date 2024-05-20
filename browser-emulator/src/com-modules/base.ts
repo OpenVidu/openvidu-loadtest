@@ -18,7 +18,7 @@ abstract class BaseComModule {
         if (process.env.IS_DOCKER_CONTAINER === 'true') {
             process.env.LOCATION_HOSTNAME = `${DOCKER_NAME}:${SERVER_PORT}`;
         } else {
-            process.env.LOCATION_HOSTNAME = req.headers.host;
+            process.env.LOCATION_HOSTNAME = `localhost:${SERVER_PORT}`;
         }
         const request: LoadTestPostRequest = req.body;
 	    process.env.KURENTO_RECORDING_ENABLED = String(request.properties.recording && request.browserMode === BrowserMode.EMULATE);
