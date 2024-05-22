@@ -19,17 +19,17 @@ export async function runQoEAnalysisNonBlocking(processingInfo: JSONQoeProcessin
     return files;
 }
 
-export async function runQoEAnalysisBlocking(processingInfo: JSONQoeProcessing, maxCpus?: number, onlyFiles = false) {
+export async function runQoEAnalysisBlocking(processingInfo: JSONQoeProcessing, maxCpus?: number, onlyFiles = false, allAnalysis = false, debug = false) {
     const dir = `${process.cwd()}/recordings/qoe`
     const files = await fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
         .then(() => fsPromises.readdir(dir))
-    await runQoEAnalysis(processingInfo, dir, files, maxCpus, onlyFiles).then(() => {
+    await runQoEAnalysis(processingInfo, dir, files, maxCpus, onlyFiles, allAnalysis, debug).then(() => {
         console.log("Finished running QoE analysis")
     })
     return files;
 }
 
-async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, files: string[], maxCpus?: number, onlyFiles = false) {
+async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, files: string[], maxCpus?: number, onlyFiles = false, allAnalysis = false, debug = false) {
     let timestamps: JSONUserInfo[] = []
     if (!onlyFiles) {
         await elasticSearchService.initialize(processingInfo.index)
@@ -40,7 +40,7 @@ async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, fi
         const filePath = `${dir}/${file}`;
         const fileName = file.split('/').pop();
         const prefix = fileName.split('.')[0];
-        promises.push(limit(() => runSingleAnalysis(filePath, fileName, processingInfo, maxCpus)
+        promises.push(limit(() => runSingleAnalysis(filePath, fileName, processingInfo, maxCpus, allAnalysis, debug)
             .then(async () => {
                 if (!onlyFiles) {
                     return readJSONFile(prefix)
@@ -62,7 +62,7 @@ async function runQoEAnalysis(processingInfo: JSONQoeProcessing, dir: string, fi
         })
 }
 
-async function runSingleAnalysis(filePath: string, fileName: string, processingInfo: JSONQoeProcessing, maxCpus?: number): Promise<string> {
+async function runSingleAnalysis(filePath: string, fileName: string, processingInfo: JSONQoeProcessing, maxCpus?: number, allAnalysis = false, debug = false): Promise<string> {
     const qoeInfo = fileName.split('.')[0].split('_');
     const session = qoeInfo[1];
     const userFrom = qoeInfo[2];
@@ -72,7 +72,15 @@ async function runSingleAnalysis(filePath: string, fileName: string, processingI
     if (maxCpus !== undefined) {
         maxCpusString = " --max_cpus " + maxCpus;
     }
-    return <Promise<string>> runScript(`python3 ${process.cwd()}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` + maxCpusString)
+    let debugString = ""
+    if (debug) {
+        debugString = " --debug"
+    }
+    let allAnalysisString = ""
+    if (allAnalysis) {
+        allAnalysisString = " --all_analysis"
+    }
+    return <Promise<string>> runScript(`python3 ${process.cwd()}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` + maxCpusString + debugString + allAnalysisString)
 }
 
 async function readJSONFile(prefix: string) {
@@ -89,9 +97,11 @@ async function readJSONFile(prefix: string) {
 
 async function getTimestamps(processingInfo: JSONQoeProcessing) {
     if (processingInfo.timestamps && processingInfo.timestamps.length > 0) {
+        console.log("Timestamps found in file");
         return processingInfo.timestamps;
     }
     else {
+        console.log("Timestamps not found in file, searching ELK...");
         return await elasticSearchService.getStartTimes()
     }
 }
@@ -137,18 +147,21 @@ async function processAndUploadResults(timestamps: JSONUserInfo[], info: any[], 
     return elasticSearchService.sendBulkJsons(jsonsELK)
 }
 
-export async function processFilesAndUploadResults(processingInfo: JSONQoeProcessing) {
+export async function processFilesAndUploadResults(processingInfo: JSONQoeProcessing, processPath?: string) {
     await elasticSearchService.initialize(processingInfo.index)
     const timestamps = await getTimestamps(processingInfo)
-    let files = await fsPromises.readdir(process.cwd())
+    let files = !!processPath ? await fsPromises.readdir(processPath) : await fsPromises.readdir(process.env.PWD)
     files = files.filter(f => (path.extname(f).toLowerCase() === ".json") && (f.includes("_cuts.json")))
     const filesInfo = []
     for (const file of files) {
-        const prefix = file.split('_cuts')[0]
+        let prefix = file.split('_cuts')[0];
         const qoeInfo = prefix.split('-');
         const session = qoeInfo[1];
         const userFrom = qoeInfo[2];
         const userTo = qoeInfo[3];
+        if (!!processPath) {
+            prefix = processPath + prefix;
+        }
         const jsonText = await fsPromises.readFile(prefix + "_cuts.json", 'utf-8')
         filesInfo.push([session, userFrom, userTo, jsonText])
     }
