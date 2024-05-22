@@ -11,6 +11,8 @@ pesq_path = None
 visqol_path = None
 
 def validate_install(all_analysis):
+    global vmaf_path
+    global visqol_path
     vmaf_path = os.environ.get('VMAF_PATH')
     if not vmaf_path:
         logger.error("VMAF_PATH environment variable not set")
@@ -27,6 +29,8 @@ def validate_install(all_analysis):
         logger.error("VISQOL not found in VISQOL_PATH")
         raise Exception("VISQOL not found in VISQOL_PATH")
     if all_analysis:
+        global vqmt_path
+        global pesq_path
         vqmt_path = os.environ.get('VQMT_PATH')
         if not vqmt_path:
             logger.error("VQMT_PATH environment variable not set")
