@@ -468,7 +468,10 @@ public class LoadTestController {
 
 		boolean batches = loadTestConfig.isBatches();
 
-		int maxRequestsInFlight = batches ? loadTestConfig.getBatchMaxRequests() : 1;
+		int startingParticipants = testCase.getStartingParticipants();
+		int batchMax = loadTestConfig.getBatchMaxRequests();
+
+		int maxRequestsInFlight = batches ? Math.max(startingParticipants, batchMax) : Math.max(startingParticipants, 1);
 		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
 		int browsersInWorker = 0;
 		int tasksInProgress = 0;
@@ -519,7 +522,6 @@ public class LoadTestController {
 				participantCounter++;
 
 				boolean dontWait = !waitCompletion;
-				int startingParticipants = testCase.getStartingParticipants();
 				boolean hasStartingParticipants = startingParticipants > 0;
 				boolean isStartingParticipant = hasStartingParticipants && (participantCounter <= startingParticipants);
 				boolean isLastStartingParticipant = hasStartingParticipants && (participantCounter == startingParticipants);
@@ -577,7 +579,10 @@ public class LoadTestController {
 		String recWorker = "";
 		boolean batches = loadTestConfig.isBatches();
 
-		int maxRequestsInFlight = batches ? loadTestConfig.getBatchMaxRequests() : 1;
+		int startingParticipants = testCase.getStartingParticipants();
+		int batchMax = loadTestConfig.getBatchMaxRequests();
+
+		int maxRequestsInFlight = batches ? Math.max(startingParticipants, batchMax) : Math.max(startingParticipants, 1);
 		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
 		int browsersInWorker = 0;
 		int tasksInProgress = 0;
@@ -627,7 +632,6 @@ public class LoadTestController {
 				tasksInProgress++;
 				participantCounter++;
 				boolean dontWait = !waitCompletion;
-				int startingParticipants = testCase.getStartingParticipants();
 				boolean hasStartingParticipants = startingParticipants > 0;
 				boolean isStartingParticipant = participantCounter <= startingParticipants;
 				boolean isLastStartingParticipant = participantCounter == startingParticipants;
@@ -693,7 +697,6 @@ public class LoadTestController {
 				tasksInProgress++;
 				participantCounter++;
 				boolean dontWait = !waitCompletion;
-				int startingParticipants = testCase.getStartingParticipants();
 				boolean hasStartingParticipants = startingParticipants > 0;
 				boolean isStartingParticipant = participantCounter <= startingParticipants;
 				boolean isLastStartingParticipant = participantCounter == startingParticipants;
