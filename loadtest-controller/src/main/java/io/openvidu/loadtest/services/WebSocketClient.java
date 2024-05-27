@@ -41,6 +41,8 @@ public class WebSocketClient extends Endpoint {
 
 	private AtomicBoolean markedForDeletion = new AtomicBoolean(false);
 
+	private AtomicBoolean markedForFullDeletion = new AtomicBoolean(false);
+
 	public WebSocketClient(String endpointURI, WebSocketConnectionFactory factory, BrowserEmulatorClient beInstance, Sleeper sleeper) {
 		this.wsEndpoint = endpointURI;
 		this.factoryCreator = factory;
@@ -87,8 +89,8 @@ public class WebSocketClient extends Endpoint {
 				String participant = json.get("participant").asText();
 				String session = json.get("session").asText();
 				String workerUrl = this.wsEndpoint.split("/")[2].split(":")[0];
-				this.close();
 				this.beInstance.addClientFailure(workerUrl, participant, session);
+				this.markedForDeletion.set(false);
 			} else {
 				log.warn("Participant or session missing from error message: {}", message);
 			}
@@ -99,7 +101,7 @@ public class WebSocketClient extends Endpoint {
 
 	@OnMessage
 	public void onMessage(String message) {
-		if (!markedForDeletion.get()) {
+		if (!markedForFullDeletion.get() && !markedForDeletion.get()) {
 			if(message.contains("exception") || message.contains("Exception")) {
 				log.error("Received exception from {}: {}", this.wsEndpoint, message);
 				this.handleError(message);
@@ -114,8 +116,8 @@ public class WebSocketClient extends Endpoint {
 		}
 	}
 
-	public void markForDeletion() {
-		this.markedForDeletion.set(true);
+	public void markForFullDeletion() {
+		this.markedForFullDeletion.set(true);
 	}
 
 	public void close() {
