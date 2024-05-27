@@ -1,6 +1,8 @@
 package io.openvidu.loadtest;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -25,6 +27,7 @@ import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -35,12 +38,14 @@ class BrowserEmulatorClientTests {
     private CustomHttpClient httpClientMock;
     private LKLoadTestConfig loadTestConfigMock;
     private JsonUtils jsonUtilsMock;
+    private Sleeper sleeper;
     
     @BeforeEach
     void setUp() {
         this.httpClientMock = mock(CustomHttpClient.class);
         this.loadTestConfigMock = mock(LKLoadTestConfig.class);
         this.jsonUtilsMock = mock(JsonUtils.class);
+        this.sleeper = mock(Sleeper.class);
 
         when(this.loadTestConfigMock.getVideoType()).thenReturn("BUNNY");
         when(this.loadTestConfigMock.getVideoWidth()).thenReturn(640);
@@ -63,13 +68,14 @@ class BrowserEmulatorClientTests {
         when(this.loadTestConfigMock.getAwsAccessKey()).thenReturn("abc123");
         when(this.loadTestConfigMock.getAwsSecretAccessKey()).thenReturn("def456");
         when(this.loadTestConfigMock.getS3BucketName()).thenReturn("bucketS3");
+        when(this.loadTestConfigMock.getRetryTimes()).thenReturn(5);
 
         when(this.loadTestConfigMock.getOpenViduUrl()).thenReturn("https://localhost:8080");
         when(this.loadTestConfigMock.getOpenViduSecret()).thenReturn("MYSECRET");
         when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
         when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
 
-        this.browserEmulatorClient = new BrowserEmulatorClient(this.loadTestConfigMock, this.httpClientMock, this.jsonUtilsMock);
+        this.browserEmulatorClient = new BrowserEmulatorClient(this.loadTestConfigMock, this.httpClientMock, this.jsonUtilsMock, this.sleeper);
     }
 
     @Test

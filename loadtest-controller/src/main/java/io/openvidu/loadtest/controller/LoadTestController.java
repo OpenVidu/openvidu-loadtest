@@ -37,6 +37,7 @@ import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.services.WebSocketConnectionFactory;
 import io.openvidu.loadtest.utils.DataIO;
@@ -56,6 +57,7 @@ public class LoadTestController {
 	private static KibanaClient kibanaClient;
 	private static ElasticSearchClient esClient;
 	private static Ec2Client ec2Client;
+	private static Sleeper sleeper;
 
 	private static DataIO io;
 
@@ -93,7 +95,7 @@ public class LoadTestController {
 	public LoadTestController(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
 			KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client,
 			WebSocketConnectionFactory webSocketConnectionFactory,
-			DataIO dataIO) {
+			DataIO dataIO, Sleeper sleeper) {
 		LoadTestController.browserEmulatorClient = browserEmulatorClient;
 		LoadTestController.loadTestConfig = loadTestConfig;
 		LoadTestController.kibanaClient = kibanaClient;
@@ -101,6 +103,7 @@ public class LoadTestController {
 		LoadTestController.ec2Client = ec2Client;
 		LoadTestController.webSocketConnectionFactory = webSocketConnectionFactory;
 		LoadTestController.io = dataIO;
+		LoadTestController.sleeper = sleeper;
 
 		PROD_MODE = loadTestConfig.getWorkerUrlList().isEmpty();
 		devWorkersList = loadTestConfig.getWorkerUrlList();
@@ -275,7 +278,7 @@ public class LoadTestController {
 					log.error("Response status is not 200 OK. Exiting");
 					return false;
 				}
-				sleep(5, "sleep between participants in estimation");
+				sleeper.sleep(5, "sleep between participants in estimation");
 			}
 			if (!overloaded) {
 				for (int i = 0; i < subscribers; i++) {
@@ -295,7 +298,7 @@ public class LoadTestController {
 						log.error("Response status is not 200 OK. Exiting");
 						return false;
 					}
-					sleep(5, "sleep between participants in estimation");
+					sleeper.sleep(5, "sleep between participants in estimation");
 				}
 			}
 			iteration++;
@@ -375,7 +378,7 @@ public class LoadTestController {
 								participantsBySession);
 						this.startTime = Calendar.getInstance();
 						CreateParticipantResponse lastCPR = this.startNxNTest(participantsBySession, testCase);
-						sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, String.valueOf(participantsBySession), lastCPR);
 					}
 					this.disconnectAllSessions();
@@ -441,7 +444,7 @@ public class LoadTestController {
 
 						this.startTime = Calendar.getInstance();
 						CreateParticipantResponse lastCPR = this.startNxMTest(publishers, subscribers, testCase);
-						sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, participants, lastCPR);
 					}
 					this.disconnectAllSessions();
@@ -479,7 +482,7 @@ public class LoadTestController {
 		while (needCreateNewSession(testCaseSessionsLimit)) {
 
 			if (sessionNumber.get() > 0) {
-				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+				sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
 			}
 
 			sessionNumber.getAndIncrement();
@@ -546,7 +549,7 @@ public class LoadTestController {
 						}
 						futureList = new ArrayList<>(maxRequestsInFlight);
 						tasksInProgress = 0;
-						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+						sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 					} else if (!waitCompletion && stop.get()) {
 						return lastResponse.get();
 					}
@@ -588,7 +591,7 @@ public class LoadTestController {
 
 			if (sessionNumber.get() > 0) {
 				// Waiting time between sessions
-				sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+				sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
 			}
 
 			sessionNumber.getAndIncrement();
@@ -656,7 +659,7 @@ public class LoadTestController {
 					return lastResponse.get();
 				}
 				if (isStartingParticipant) {
-					sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 				}
 			}
 
@@ -722,7 +725,7 @@ public class LoadTestController {
 						return lastResponse.get();
 					}
 					if (isStartingParticipant) {
-						sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+						sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 					}
 				} else {
 					lastResponse.set(getLastResponse(futureList));
@@ -791,7 +794,7 @@ public class LoadTestController {
 		recordingWorkerStartTimes = new ArrayList<>();
 		workerTimes = new ArrayList<>();
 		recordingWorkerTimes = new ArrayList<>();
-		sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
+		sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 		waitToMediaServerLiveAgain();
 		browserEmulatorClient.setEndOfTest(false);
 	}
@@ -799,10 +802,10 @@ public class LoadTestController {
 	private void waitToMediaServerLiveAgain() {
 		if (esClient.isInitialized()) {
 			while (esClient.getMediaNodeCpu() > 5.00) {
-				this.sleep(5, "Waiting MediaServer recovers his CPU");
+				sleeper.sleep(5, "Waiting MediaServer recovers his CPU");
 			}
 		} else {
-			this.sleep(5, "Waiting MediaServer recovers his CPU");
+			sleeper.sleep(5, "Waiting MediaServer recovers his CPU");
 		}
 	}
 
@@ -886,18 +889,6 @@ public class LoadTestController {
 				.build();
 
 		io.exportResults(rr);
-
-	}
-
-	private void sleep(int seconds, String reason) {
-		if (seconds > 0) {
-			try {
-				log.info("Waiting {} seconds because of {}", seconds, reason);
-				Thread.sleep(seconds * 1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
 
 	}
 

@@ -2,6 +2,8 @@ package io.openvidu.loadtest;
 
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -37,6 +39,7 @@ import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.services.WebSocketConnectionFactory;
 import io.openvidu.loadtest.utils.DataIO;
@@ -64,6 +67,9 @@ public class LoadTestControllerTests {
     @Mock
     private DataIO dataIO;
 
+    @Mock
+    private Sleeper sleeper;
+
     private LoadTestController loadTestController;
     
     private static final Logger log = LoggerFactory.getLogger(LoadTestControllerTests.class);
@@ -71,7 +77,8 @@ public class LoadTestControllerTests {
     @BeforeEach
     public void init() {
         MockitoAnnotations.openMocks(this);
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient, elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO);
+        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+                elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
 
         when(this.loadTestConfig.getOpenViduUrl()).thenReturn("https://url.com");
         when(this.loadTestConfig.getOpenViduSecret()).thenReturn("MY_SECRET");
@@ -98,7 +105,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
         when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
-        when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(0);
+        when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(5);
         when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(0);
         when(this.loadTestConfig.getSecondsToWaitBeforeTestFinished()).thenReturn(0);
         when(this.loadTestConfig.isBatches()).thenReturn(true);
@@ -174,6 +181,8 @@ public class LoadTestControllerTests {
         }
         verify(this.browserEmulatorClient, times(1)).disconnectAll(instanceUrls);
         verify(this.ec2Client, times(1)).stopInstance(instances);
+
+        verify(this.sleeper, times(2)).sleep(eq(5), anyString());
 
         // TODO: Check result report
         verify(this.dataIO, times(1)).exportResults(any());
@@ -308,7 +317,7 @@ public class LoadTestControllerTests {
                 true, "", "connectionId" + i, streamsInWorker, i, "User" + i,
                 "LoadTestSession" + session, 0
             );
-            log.info(instanceUrl + ": " + response.toString());
+            //log.info(instanceUrl + ": " + response.toString());
             when(this.browserEmulatorClient.createPublisher(instanceUrl, i, session, testCase)).thenReturn(
                 response
             );

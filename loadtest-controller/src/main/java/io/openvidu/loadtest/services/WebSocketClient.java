@@ -29,7 +29,7 @@ public class WebSocketClient extends Endpoint {
 	private Session session;
 
 	private String wsEndpoint;
-	private final int RETRY_TIME_MS = 4000;
+	private final int RETRY_TIME_S = 4;
 	private final int MAX_ATTEMPT = 5;
 	private AtomicInteger attemptsClose = new AtomicInteger(1);
 
@@ -37,12 +37,15 @@ public class WebSocketClient extends Endpoint {
 
 	private BrowserEmulatorClient beInstance;
 
+	private Sleeper sleeper;
+
 	private AtomicBoolean markedForDeletion = new AtomicBoolean(false);
 
-	public WebSocketClient(String endpointURI, WebSocketConnectionFactory factory, BrowserEmulatorClient beInstance) {
+	public WebSocketClient(String endpointURI, WebSocketConnectionFactory factory, BrowserEmulatorClient beInstance, Sleeper sleeper) {
 		this.wsEndpoint = endpointURI;
 		this.factoryCreator = factory;
 		this.beInstance = beInstance;
+		this.sleeper = sleeper;
 	}
 
 	public void setSession(Session session) {
@@ -123,11 +126,7 @@ public class WebSocketClient extends Endpoint {
 			} catch (IOException e) {
 				log.error(e.getMessage());
 				log.info("Retrying ...");
-				try {
-					Thread.sleep(RETRY_TIME_MS);
-				} catch (InterruptedException e1) {
-					e1.printStackTrace();
-				}
+				sleeper.sleep(RETRY_TIME_S, "Closing websocket session retry");
 				if(attemptsClose.getAndIncrement() < MAX_ATTEMPT) {
 					this.close();
 				} else {

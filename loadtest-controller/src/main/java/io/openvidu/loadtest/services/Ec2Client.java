@@ -61,12 +61,15 @@ public class Ec2Client {
 	private static final Tag LOADTEST_WORKER_TAG = new Tag().withKey("Type").withValue("OpenViduLoadTest");
 	private static final Tag RECORDING_TAG = new Tag().withKey("Type").withValue("RecordingLoadTest");
 
-	private static final int WAIT_RUNNING_STATE_MS = 5000;
+	private static final int WAIT_RUNNING_STATE_S = 5;
 
 	private static AmazonEC2 ec2;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
+
+	@Autowired
+	private Sleeper sleeper;
 
 	@PostConstruct
 	public void init() {
@@ -130,7 +133,7 @@ public class Ec2Client {
 			log.info("Launching {} instance(s)", numberAtBeginning - resultList.size());
 			resultList.addAll(launchInstance(numberAtBeginning - resultList.size(), workerType));
 		}
-		this.sleep(WAIT_RUNNING_STATE_MS);
+		sleeper.sleep(WAIT_RUNNING_STATE_S, "Waiting for instances to be ready");
 		return resultList;
 	}
 
@@ -198,7 +201,7 @@ public class Ec2Client {
 
 //		if(runningInstance.size() > 0) {
 //			rebootInstance(Arrays.asList(runningInstance.get(0).getInstanceId()));
-//			this.sleep(WAIT_RUNNING_STATE_MS);		
+//			this.sleep(WAIT_RUNNING_STATE_S);		
 //			return runningInstance;
 //		} 
 		
@@ -294,7 +297,7 @@ public class Ec2Client {
 		ec2.rebootInstances(request);
 		log.info("Instance {} is being rebooted", instanceIds);
 		// Avoided start test before reboot instances
-		sleep(WAIT_RUNNING_STATE_MS);
+		sleeper.sleep(WAIT_RUNNING_STATE_S, "Waiting for instances to be ready");
 	}
 	
 	public void startInstances(List<String> instanceIds) {
@@ -303,7 +306,7 @@ public class Ec2Client {
 			ec2.startInstances(request);
 			log.info("Instance {} is being starting", instanceIds);
 			// Avoided start test before start instances
-			sleep(WAIT_RUNNING_STATE_MS);
+			sleeper.sleep(WAIT_RUNNING_STATE_S, "Waiting for instances to be ready");
 		}
 	}
 
@@ -372,7 +375,7 @@ public class Ec2Client {
 
 		if (needsWait) {
 			log.info("{} ... Waiting until instance will be {} ... ", instanceState.getName(), finalState);
-			sleep(WAIT_RUNNING_STATE_MS);
+			sleeper.sleep(WAIT_RUNNING_STATE_S, "Waiting for instance to be ready");
 			return waitUntilInstanceState(instanceId, finalState);
 		} 
 		
@@ -390,13 +393,5 @@ public class Ec2Client {
 
 	private Filter getInstanceStateFilter(InstanceStateName state) {
 		return new Filter().withName("instance-state-name").withValues(state.toString());
-	}
-	
-	private void sleep(int ms) {
-		try {
-			Thread.sleep(ms);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
 	}
 }

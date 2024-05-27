@@ -47,7 +47,7 @@ public class BrowserEmulatorClient {
 	private static List<Integer> recordingParticipantCreated = new ArrayList<Integer>();
 	private static Map<String, int[]> publishersAndSubscribersInWorker = new ConcurrentHashMap<String, int[]>();
 
-	private static final int WAIT_MS = 1000;
+	private static final int WAIT_S = 1;
 
 	private LoadTestConfig loadTestConfig;
 
@@ -55,16 +55,19 @@ public class BrowserEmulatorClient {
 
 	private JsonUtils jsonUtils;
 
+	private Sleeper sleeper;
+
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, AtomicInteger>> clientFailures = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, OpenViduRole>> clientRoles = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
 
 	private AtomicBoolean endOfTest = new AtomicBoolean(false);
 
-	public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils) {
+	public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils, Sleeper sleeper) {
 		this.loadTestConfig = loadTestConfig;
 		this.httpClient = httpClient;
 		this.jsonUtils = jsonUtils;
+		this.sleeper = sleeper;
 	}
 
 	public void ping(String workerUrl) {
@@ -74,7 +77,7 @@ public class BrowserEmulatorClient {
 					.sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				log.error("Error doing ping. Retry...");
-				sleep(WAIT_MS);
+				sleeper.sleep(WAIT_S, "Error doing ping. Retry...");
 				ping(workerUrl);
 			} else {
 				log.info("Ping success. Response {}", response.body());
@@ -94,7 +97,7 @@ public class BrowserEmulatorClient {
 					null, getHeaders());
 		} catch (IOException | InterruptedException e) {
 			log.error(e.getMessage());
-			this.sleep(WAIT_MS);
+			sleeper.sleep(WAIT_S, "Error initializing worker " + workerUrl);
 			if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				log.warn("Retrying");
 				return this.initializeInstance(workerUrl);
@@ -160,7 +163,7 @@ public class BrowserEmulatorClient {
 		ConcurrentHashMap<String, OpenViduRole> workerRoles = this.clientRoles.get(workerUrl);
 		if (workerRoles == null) {
 			// The connect request hasn't finished yet, wait for it
-			this.sleep(WAIT_MS);
+			sleeper.sleep(WAIT_S, "Waiting for connect request to finish");
 			this.afterDisconnect(workerUrl, participant, session);
 			return;
 		}
@@ -336,7 +339,7 @@ public class BrowserEmulatorClient {
 					this.clientFailures.put(workerUrl, failuresMap);
 				}
 				log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
-				sleep(WAIT_MS);
+				sleeper.sleep(WAIT_S, "Error creating participant");
 				if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures) || endOfTest.get()) {
 					return cpr.setResponseOk(false);
 				}
@@ -350,12 +353,12 @@ public class BrowserEmulatorClient {
 			// lastResponses.add("Failure");
 			if (e.getMessage() != null && e.getMessage().contains("timed out")) {
 				this.addClientFailure(workerUrl, userId, sessionId, false);
-				sleep(WAIT_MS);
+				sleeper.sleep(WAIT_S, "Timeout error. Retrying...");
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("refused")) {
 				this.addClientFailure(workerUrl, userId, sessionId, false);
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
-				sleep(WAIT_MS);
+				sleeper.sleep(WAIT_S, "Connection refused. Retrying...");
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
 				log.error(workerUrl + ": " + e.getMessage());
@@ -440,14 +443,6 @@ public class BrowserEmulatorClient {
 		Map<String, String> headers = new HashMap<String, String>();
 		headers.put("Content-Type", "application/json");
 		return headers;
-	}
-
-	private void sleep(int seconds) {
-		try {
-			Thread.sleep(seconds);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
 	}
 
 	public int getRoleInWorker(String workerUrl, OpenViduRole role) {
