@@ -378,6 +378,7 @@ public class LoadTestController {
 								participantsBySession);
 						this.startTime = Calendar.getInstance();
 						CreateParticipantResponse lastCPR = this.startNxNTest(participantsBySession, testCase);
+						browserEmulatorClient.setEndOfTest(true);
 						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, String.valueOf(participantsBySession), lastCPR);
 					}
@@ -444,6 +445,7 @@ public class LoadTestController {
 
 						this.startTime = Calendar.getInstance();
 						CreateParticipantResponse lastCPR = this.startNxMTest(publishers, subscribers, testCase);
+						browserEmulatorClient.setEndOfTest(true);
 						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, participants, lastCPR);
 					}
@@ -814,11 +816,10 @@ public class LoadTestController {
 
 	private void disconnectAllSessions() {
 		List<String> workersUrl = devWorkersList;
-		browserEmulatorClient.setEndOfTest(true);
 		if (PROD_MODE) {
 			for (WebSocketClient ws : wsSessions) {
 				if (ws != null) {
-					ws.markForDeletion();
+					ws.markForFullDeletion();
 				}
 			}
 			for (WebSocketClient ws : wsSessions) {
