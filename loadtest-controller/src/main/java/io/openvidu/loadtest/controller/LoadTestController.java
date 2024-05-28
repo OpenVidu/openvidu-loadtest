@@ -541,7 +541,7 @@ public class LoadTestController {
 				futureList.add(future);
 				boolean isLastParticipant = i == participantsBySession - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
+					boolean batchMaxCount = tasksInProgress >= batchMax;
 					boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
 					boolean waitForResponses = isLastStartingParticipant || waitForBatch;
 					if (waitForResponses) {
@@ -660,7 +660,7 @@ public class LoadTestController {
 				}
 				futureList.add(future);
 
-				boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
+				boolean batchMaxCount = tasksInProgress >= batchMax;
 				boolean waitForResponses = isLastStartingParticipant || (!dontWait && (!batches || batchMaxCount));
 				if (waitForResponses) {
 					lastResponse.set(getLastResponse(futureList));
@@ -736,11 +736,10 @@ public class LoadTestController {
 						}
 						futureList = new ArrayList<>(maxRequestsInFlight);
 						tasksInProgress = 0;
+						sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+						waitReconnectingUsers();
 					} else if (!waitCompletion && stop.get()) {
 						return lastResponse.get();
-					}
-					if (isStartingParticipant) {
-						sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 					}
 				} else {
 					lastResponse.set(getLastResponse(futureList));
