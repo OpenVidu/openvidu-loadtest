@@ -152,8 +152,12 @@ public class BrowserEmulatorClient {
 		}
 		int newFailures = currentFailures.incrementAndGet();
 		log.error("Participant {} in session {} failed {} times", participant, session, newFailures);
-		if (reconnect && (newFailures < this.loadTestConfig.getRetryTimes())) {
+		if (reconnect && this.loadTestConfig.isRetryMode() && (newFailures < this.loadTestConfig.getRetryTimes())) {
 			this.reconnect(workerUrl, participant, session);
+		} else {
+			this.lastErrorReconnectingResponse = new CreateParticipantResponse()
+				.setResponseOk(false)
+				.setStopReason("Participant " + participant + " in session " + session + " failed " + newFailures + " times");
 		}
 	}
 

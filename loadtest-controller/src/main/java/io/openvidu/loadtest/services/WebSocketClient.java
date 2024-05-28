@@ -90,7 +90,9 @@ public class WebSocketClient extends Endpoint {
 				String session = json.get("session").asText();
 				String workerUrl = this.wsEndpoint.split("/")[2].split(":")[0];
 				this.beInstance.addClientFailure(workerUrl, participant, session);
-				this.markedForDeletion.set(false);
+				if (this.beInstance.getLastErrorReconnectingResponse() == null) {
+					this.markedForDeletion.set(false);
+				}
 			} else {
 				log.warn("Participant or session missing from error message: {}", message);
 			}
