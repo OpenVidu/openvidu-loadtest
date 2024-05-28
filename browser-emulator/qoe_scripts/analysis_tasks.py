@@ -56,13 +56,11 @@ def remove_processing_files(*args):
     logger.basicConfig(level=logger.INFO)
     logger.info("Remove processed files")
     for arg in args:
-        data = ray.get(arg)
-        for d in data:
-            file = d[0]
-            if ("skip" not in file) and os.path.isfile(file):
-                os.remove(file)
-            else:
-                logger.warning("File not found: %s", file)
+        file = arg[0]
+        if ("skip" not in file) and os.path.isfile(file):
+            os.remove(file)
+        else:
+            logger.warning("File not found: %s", file)
 
 
 @ray.remote
@@ -71,14 +69,12 @@ def remove_analysis_files(*args):
     files = []
     logger.info("Remove analysis files")
     for arg in args:
-        data = ray.get(arg)
-        for d in data:
-            files = d[1:]
-            for file in files:
-                if ("skip" not in file) and os.path.isfile(file):
-                    os.remove(file)
-                else:
-                    logger.warning("File not found: %s", file)
+        files = arg[1]
+        for file in files:
+            if ("skip" not in file) and os.path.isfile(file):
+                os.remove(file)
+            else:
+                logger.warning("File not found: %s", file)
 
 
 @ray.remote

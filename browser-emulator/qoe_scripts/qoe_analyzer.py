@@ -123,7 +123,7 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
         analysis_tasks.append(pesq_task)
     if not debug:
         remove_processing_task = at.remove_processing_files.remote(
-            analysis_tasks)
+            *analysis_tasks)
     parse_vmaf_task = at.parse_vmaf.remote(vmaf_task)
     parse_visqol_task = at.parse_visqol.remote(visqol_task)
     parse_tasks = [parse_vmaf_task, parse_visqol_task]
@@ -134,10 +134,11 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
         parse_tasks.append(parse_pesq_task)
     if not debug:
         remove_analysis_task = at.remove_analysis_files.remote(
-            parse_tasks)
+            *parse_tasks)
 
-    final_tasks = parse_tasks.copy()
-    final_tasks.append(cut_index)
+    final_tasks = []
+    final_tasks.append(cut_index_ref)
+    final_tasks.extend(parse_tasks)
     if not debug:
         final_tasks.append(remove_processing_task)
         final_tasks.append(remove_analysis_task)
@@ -241,15 +242,16 @@ def main():
         analysis_results_dict = {
             "cut_index": tasks[0],
             "vmaf": (cut_results[0][0] - VMAF_MIN) / VMAF_RANGE,
-            "msssim": cut_results[1][0][0],
-            "psnr": cut_results[1][0][1],
-            "psnrhvs": cut_results[1][0][2],
-            "ssim": cut_results[1][0][3],
-            "vifp": cut_results[1][0][4],
-            "psnrhvsm": cut_results[1][0][5],
-            "pesq": (cut_results[2][0] - AUDIO_MIN) / AUDIO_RANGE,
-            "visqol": (cut_results[3][0] - AUDIO_MIN) / AUDIO_RANGE
+            "visqol": (cut_results[1][0] - AUDIO_MIN) / AUDIO_RANGE
         }
+        if all_analysis:
+            analysis_results_dict["msssim"] = cut_results[1][0][0]
+            analysis_results_dict["psnr"] = cut_results[1][0][1]
+            analysis_results_dict["psnrhvs"] = cut_results[1][0][2]
+            analysis_results_dict["ssim"] = cut_results[1][0][3]
+            analysis_results_dict["vifp"] = cut_results[1][0][4]
+            analysis_results_dict["psnrhvsm"] = cut_results[1][0][5]
+            analysis_results_dict["pesq"] = (cut_results[2][0] - AUDIO_MIN) / AUDIO_RANGE
         results_list.append(analysis_results_dict)
     with open(prefix + "_cuts.json", 'w') as f:
         json.dump(results_list, f)
