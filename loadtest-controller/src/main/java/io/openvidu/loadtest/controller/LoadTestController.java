@@ -554,6 +554,7 @@ public class LoadTestController {
 						futureList = new ArrayList<>(maxRequestsInFlight);
 						tasksInProgress = 0;
 						sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+						waitReconnectingUsers();
 					} else if (!waitCompletion && stop.get()) {
 						return lastResponse.get();
 					}
@@ -573,6 +574,15 @@ public class LoadTestController {
 			userNumber.set(1);
 		}
 		return lastResponse.get();
+	}
+
+	private void waitReconnectingUsers() {
+		boolean isAnyReconnecting = browserEmulatorClient.isAnyParticipantReconnecting();
+		boolean isNotReconnectingError = browserEmulatorClient.getLastErrorReconnectingResponse() == null;
+		while (isAnyReconnecting && isNotReconnectingError) {
+			sleeper.sleep(5, "waiting for reconnecting users");
+			isAnyReconnecting = browserEmulatorClient.isAnyParticipantReconnecting();
+		}
 	}
 
 	public CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase) {
@@ -749,7 +759,15 @@ public class LoadTestController {
 		return lastResponse.get();
 	}
 
+	private CreateParticipantResponse checkReconnectingResponse() {
+		return browserEmulatorClient.getLastErrorReconnectingResponse();
+	}
+
 	private CreateParticipantResponse getLastResponse(List<CompletableFuture<CreateParticipantResponse>> futureList) {
+		CreateParticipantResponse reconnectingResponse = checkReconnectingResponse();
+		if (reconnectingResponse != null) {
+			return reconnectingResponse;
+		}
 		CreateParticipantResponse lastResponse = null;
 		for (CompletableFuture<CreateParticipantResponse> future : futureList) {
 			try {

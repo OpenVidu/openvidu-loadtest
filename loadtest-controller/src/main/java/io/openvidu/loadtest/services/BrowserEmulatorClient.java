@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,7 +63,9 @@ public class BrowserEmulatorClient {
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, OpenViduRole>> clientRoles = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, AtomicBoolean> participantConnecting = new ConcurrentHashMap<>();
-	private ConcurrentHashMap<String, AtomicBoolean> participantReconnecting = new ConcurrentHashMap<>();
+	private Set<String> participantReconnecting = new CopyOnWriteArraySet<>();
+	
+	private CreateParticipantResponse lastErrorReconnectingResponse;
 
 	private AtomicBoolean endOfTest = new AtomicBoolean(false);
 
@@ -78,6 +82,14 @@ public class BrowserEmulatorClient {
 		this.participantTestCases.clear();
 		this.participantConnecting.clear();
 		this.participantReconnecting.clear();
+	}
+
+	public boolean isAnyParticipantReconnecting() {
+		return !this.participantReconnecting.isEmpty();
+	}
+
+	public CreateParticipantResponse getLastErrorReconnectingResponse() {
+		return this.lastErrorReconnectingResponse;
 	}
 
 	public void ping(String workerUrl) {
@@ -133,7 +145,7 @@ public class BrowserEmulatorClient {
 			this.clientFailures.put(workerUrl, failures);
 		}
 		String user = participant + "-" + session;
-		AtomicInteger currentFailures = failures.get(participant);
+		AtomicInteger currentFailures = failures.get(user);
 		if (currentFailures == null) {
 			currentFailures = new AtomicInteger(0);
 			failures.put(user, currentFailures);
@@ -146,6 +158,7 @@ public class BrowserEmulatorClient {
 	}
 
 	private void reconnect(String workerUrl, String participant, String session) {
+		this.participantReconnecting.add(participant + "-" + session);
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
 		Callable<HttpResponse<String>> callableTask = () -> {
 			return this.disconnectUser(workerUrl, participant, session);
@@ -188,10 +201,17 @@ public class BrowserEmulatorClient {
 		int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
 		// get session number from session removing prefix
 		int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
+		CreateParticipantResponse response = null;
 		if (role.equals(OpenViduRole.PUBLISHER)) {
-			this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+			response = this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
 		} else {
-			this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+			response = this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+		}
+		if (response.isResponseOk()) {
+			this.participantReconnecting.remove(user);
+		} else {
+			this.lastErrorReconnectingResponse = response;
+			log.error("Response status is not 200 OK. Exit");
 		}
 	}
 
@@ -318,20 +338,14 @@ public class BrowserEmulatorClient {
 	private CreateParticipantResponse createParticipant(String workerUrl, int userNumber, int sessionNumber,
 			TestCase testCase,
 			OpenViduRole role) {
-		CreateParticipantResponse cpr = new CreateParticipantResponse();
-
 		// Get current failures if registered
 		String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
 		String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
 		String user = userId + "-" + sessionId;
-		ConcurrentHashMap<String, AtomicInteger> failuresMap = this.clientFailures.get(workerUrl);
-		int failures = 0;
-		if (failuresMap != null) {
-			AtomicInteger userFailures = failuresMap.get(user);
-			if (userFailures != null) {
-				failures = userFailures.get();
-			}
-		}
+
+		this.participantConnecting.put(user, new AtomicBoolean(true));
+
+		CreateParticipantResponse cpr = new CreateParticipantResponse();
 
 		String sessionSuffix = String.valueOf(sessionNumber);
 		CreateUserRequestBody body = this.generateRequestBody(userNumber, sessionSuffix, role, testCase);
@@ -339,18 +353,20 @@ public class BrowserEmulatorClient {
 			log.info("Selected worker: {}", workerUrl);
 			log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
 			log.debug(body.toJson().toString());
-			this.participantConnecting.put(user, new AtomicBoolean(true));
 			HttpResponse<String> response = this.httpClient.sendPost(
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
 					getHeaders());
 
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				log.warn("Error: " + response.body());
-				failures++;
+
+				ConcurrentHashMap<String, AtomicInteger> failuresMap = this.clientFailures.get(workerUrl);
+				int failures;
 				if (failuresMap != null) {
 					AtomicInteger userFailures = failuresMap.get(user);
-					userFailures.incrementAndGet();
+					failures = userFailures.incrementAndGet();
 				} else {
+					failures = 1;
 					failuresMap = new ConcurrentHashMap<>();
 					failuresMap.put(user, new AtomicInteger(failures));
 					this.clientFailures.put(workerUrl, failuresMap);
@@ -425,10 +441,7 @@ public class BrowserEmulatorClient {
 			int participantsInWorker = jsonResponse.get("participants").getAsInt();
 			String userId = jsonResponse.get("userId").getAsString();
 			String sessionId = jsonResponse.get("sessionId").getAsString();
-			log.info("Connection {} created", connectionId);
-			log.info("Worker CPU USAGE: {}% ", workerCpuPct);
-			log.info("Worker STREAMS PROCESSED: {} ", streamsInWorker);
-			log.info("Worker PARTICIPANTS: {} ", participantsInWorker);
+			log.info("Connection {} created for user {} and session {}", connectionId, userId, sessionId);
 			return cpr.setResponseOk(true).setConnectionId(connectionId)
 					.setUserId(userId).setSessionId(sessionId)
 					.setWorkerCpuPct(workerCpuPct).setStreamsInWorker(streamsInWorker)

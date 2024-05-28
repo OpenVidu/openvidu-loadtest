@@ -192,8 +192,8 @@ class BrowserEmulatorClientTests {
         responseBody.addProperty("workerCpuUsage", 0.0);
         responseBody.addProperty("streams", 2);
         responseBody.addProperty("participants", 1);
-        responseBody.addProperty("userId", "User0");
-        responseBody.addProperty("sessionId", "LoadTestSession0");
+        responseBody.addProperty("userId", "User2");
+        responseBody.addProperty("sessionId", "LoadTestSession13");
         String responseString = responseBody.toString();
         when(response.body()).thenReturn(responseString);
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
@@ -203,9 +203,9 @@ class BrowserEmulatorClientTests {
 
         CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", participantId, sessionId, testCase);
         this.browserEmulatorClient.addClientFailure("localhost", participant, session);
-        //this.browserEmulatorClient.addClientFailure("localhost", participant, session);
+        this.browserEmulatorClient.addClientFailure("localhost", participant, session);
 
         assertTrue(cpr.isResponseOk());
-        verify(this.httpClientMock, times(2)).sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null, headers);
+        verify(this.httpClientMock, times(3)).sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null, headers);
     }
 }
