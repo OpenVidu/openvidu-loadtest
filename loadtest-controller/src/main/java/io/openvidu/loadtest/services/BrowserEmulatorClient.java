@@ -60,6 +60,7 @@ public class BrowserEmulatorClient {
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, AtomicInteger>> clientFailures = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, OpenViduRole>> clientRoles = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
+	private ConcurrentHashMap<String, AtomicBoolean> participantConnecting = new ConcurrentHashMap<>();
 
 	private AtomicBoolean endOfTest = new AtomicBoolean(false);
 
@@ -77,7 +78,7 @@ public class BrowserEmulatorClient {
 					.sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				log.error("Error doing ping. Retry...");
-				sleeper.sleep(WAIT_S, "Error doing ping. Retry...");
+				sleeper.sleep(WAIT_S, null);
 				ping(workerUrl);
 			} else {
 				log.info("Ping success. Response {}", response.body());
@@ -111,6 +112,12 @@ public class BrowserEmulatorClient {
 	}
 
 	public void addClientFailure(String workerUrl, String participant, String session, boolean reconnect) {
+		while (this.participantConnecting.get(participant + "-" + session).get()) {
+			if (endOfTest.get()) {
+				return;
+			}
+			sleeper.sleep(WAIT_S, null);
+		}
 		ConcurrentHashMap<String, AtomicInteger> failures = this.clientFailures.get(workerUrl);
 		if (failures == null) {
 			failures = new ConcurrentHashMap<>();
@@ -163,7 +170,7 @@ public class BrowserEmulatorClient {
 		ConcurrentHashMap<String, OpenViduRole> workerRoles = this.clientRoles.get(workerUrl);
 		if (workerRoles == null) {
 			// The connect request hasn't finished yet, wait for it
-			sleeper.sleep(WAIT_S, "Waiting for connect request to finish");
+			sleeper.sleep(WAIT_S, null);
 			this.afterDisconnect(workerUrl, participant, session);
 			return;
 		}
@@ -323,6 +330,7 @@ public class BrowserEmulatorClient {
 			log.info("Selected worker: {}", workerUrl);
 			log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
 			log.debug(body.toJson().toString());
+			this.participantConnecting.put(user, new AtomicBoolean(true));
 			HttpResponse<String> response = this.httpClient.sendPost(
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
 					getHeaders());
@@ -339,13 +347,14 @@ public class BrowserEmulatorClient {
 					this.clientFailures.put(workerUrl, failuresMap);
 				}
 				log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
-				sleeper.sleep(WAIT_S, "Error creating participant");
+				sleeper.sleep(WAIT_S, null);
 				if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures) || endOfTest.get()) {
 					return cpr.setResponseOk(false);
 				}
 				log.warn("Retrying");
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else {
+				this.participantConnecting.get(user).set(false);
 				this.saveParticipantData(workerUrl, testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role);
 			}
 			return processResponse(response);
