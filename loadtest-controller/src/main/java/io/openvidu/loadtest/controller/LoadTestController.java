@@ -799,6 +799,7 @@ public class LoadTestController {
 		recordingWorkerStartTimes = new ArrayList<>();
 		workerTimes = new ArrayList<>();
 		recordingWorkerTimes = new ArrayList<>();
+		browserEmulatorClient.clean();
 		sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
 		waitToMediaServerLiveAgain();
 		browserEmulatorClient.setEndOfTest(false);

@@ -61,6 +61,7 @@ public class BrowserEmulatorClient {
 	private ConcurrentHashMap<String, ConcurrentHashMap<String, OpenViduRole>> clientRoles = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, AtomicBoolean> participantConnecting = new ConcurrentHashMap<>();
+	private ConcurrentHashMap<String, AtomicBoolean> participantReconnecting = new ConcurrentHashMap<>();
 
 	private AtomicBoolean endOfTest = new AtomicBoolean(false);
 
@@ -69,6 +70,14 @@ public class BrowserEmulatorClient {
 		this.httpClient = httpClient;
 		this.jsonUtils = jsonUtils;
 		this.sleeper = sleeper;
+	}
+
+	public void clean() {
+		this.clientFailures.clear();
+		this.clientRoles.clear();
+		this.participantTestCases.clear();
+		this.participantConnecting.clear();
+		this.participantReconnecting.clear();
 	}
 
 	public void ping(String workerUrl) {
