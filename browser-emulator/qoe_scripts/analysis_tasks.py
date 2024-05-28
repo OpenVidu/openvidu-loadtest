@@ -55,13 +55,14 @@ def validate_install(all_analysis):
 def remove_processing_files(*args):
     logger.basicConfig(level=logger.INFO)
     logger.info("Remove processed files")
-    files = list(map(lambda x: x[0], args[1:]))
-    logger.info(str(files))
-    for file in files:
-        if ("skip" not in file) and os.path.isfile(file):
-            os.remove(file)
-        else:
-            logger.warning("File not found: %s", file)
+    for arg in args:
+        data = ray.get(arg)
+        for d in data:
+            file = d[0]
+            if ("skip" not in file) and os.path.isfile(file):
+                os.remove(file)
+            else:
+                logger.warning("File not found: %s", file)
 
 
 @ray.remote
@@ -70,14 +71,14 @@ def remove_analysis_files(*args):
     files = []
     logger.info("Remove analysis files")
     for arg in args:
-        for file in arg[1]:
-            files.append(file)
-    logger.info(str(files))
-    for file in files:
-        if ("skip" not in file) and os.path.isfile(file):
-            os.remove(file)
-        else:
-            logger.warning("File not found: %s", file)
+        data = ray.get(arg)
+        for d in data:
+            files = d[1:]
+            for file in files:
+                if ("skip" not in file) and os.path.isfile(file):
+                    os.remove(file)
+                else:
+                    logger.warning("File not found: %s", file)
 
 
 @ray.remote
