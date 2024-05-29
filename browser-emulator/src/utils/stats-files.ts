@@ -22,13 +22,18 @@ export async function createFileAndLock(user: string, session: string, file: str
 	// create lock directory if it doesn't exist with promises
 	await fsp.mkdir(lockDir, { recursive: true });
 	const lockPath = lockDir + file + ".lock";
-	await fsp.writeFile(lockPath, "");
+	// create lock file if it doesn't exist with promises
+	if (!fs.existsSync(lockPath)) {
+		await fsp.writeFile(lockPath, "");
+	}
 	const fileDir = STATS_DIR + session + "/" + user + "/";
 	const filePath = fileDir + file;
 	const release = await lockfile.lock(lockPath, retryOptions);
 	console.log("Creating file " + filePath);
 	await fsp.mkdir(fileDir, { recursive: true });
-	await fsp.writeFile(filePath, "[]");
+	if (!fs.existsSync(filePath)) {
+		await fsp.writeFile(filePath, "[]");
+	}
 	await release();
 }
 
