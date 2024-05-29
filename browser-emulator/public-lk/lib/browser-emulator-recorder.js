@@ -76,7 +76,6 @@ class BrowserEmulatorRecorder {
     stop() {
         this.recorder.onstop = () => {
             console.log("Recording stopped: " + this.localUserId + " recording " + this.remoteUserId);
-            resolve();
         };
         this.recorder.stop();
     }
