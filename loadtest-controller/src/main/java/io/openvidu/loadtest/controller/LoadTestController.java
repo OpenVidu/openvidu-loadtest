@@ -582,13 +582,16 @@ public class LoadTestController {
 		while (isAnyReconnecting && isNotReconnectingError) {
 			sleeper.sleep(5, "waiting for reconnecting users");
 			isAnyReconnecting = browserEmulatorClient.isAnyParticipantReconnecting();
+			isNotReconnectingError = browserEmulatorClient.getLastErrorReconnectingResponse() == null;
 		}
 	}
 
 	public CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase) {
 		int testCaseSessionsLimit = testCase.getSessions();
+
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
+
 		boolean batches = loadTestConfig.isBatches();
 
 		int startingParticipants = testCase.getStartingParticipants();
@@ -601,6 +604,7 @@ public class LoadTestController {
 		int participantCounter = 0;
 
 		boolean waitCompletion = loadTestConfig.isWaitCompletion();
+
 		AtomicReference<CreateParticipantResponse> lastResponse = new AtomicReference<>(null);
 		AtomicBoolean stop = new AtomicBoolean(false);
 		List<CompletableFuture<CreateParticipantResponse>> futureList = new ArrayList<>(browserEstimation);
@@ -612,8 +616,7 @@ public class LoadTestController {
 			}
 
 			sessionNumber.getAndIncrement();
-			// log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() +
-			// sessionNumberStr);
+			log.info("Starting session '{}'", loadTestConfig.getSessionNamePrefix() + sessionNumber.toString());
 			boolean isLastSession = sessionNumber.get() == testCaseSessionsLimit;
 			// Adding all publishers
 			for (int i = 0; i < publishers; i++) {
@@ -623,8 +626,9 @@ public class LoadTestController {
 					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
 					browsersInWorker = 0;
 				}
-				log.info("Creating PUBLISHER '{}' in session",
-						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				log.info("Creating PUBLISHER '{}' in session {}",
+						loadTestConfig.getUserNamePrefix() + userNumber.get(),
+						loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
@@ -645,8 +649,8 @@ public class LoadTestController {
 				participantCounter++;
 				boolean dontWait = !waitCompletion;
 				boolean hasStartingParticipants = startingParticipants > 0;
-				boolean isStartingParticipant = participantCounter <= startingParticipants;
-				boolean isLastStartingParticipant = participantCounter == startingParticipants;
+				boolean isStartingParticipant = hasStartingParticipants && (participantCounter <= startingParticipants);
+				boolean isLastStartingParticipant = hasStartingParticipants && (participantCounter == startingParticipants);
 				if (hasStartingParticipants) {
 					dontWait = dontWait && isStartingParticipant;
 				}
@@ -659,9 +663,9 @@ public class LoadTestController {
 					});
 				}
 				futureList.add(future);
-
 				boolean batchMaxCount = tasksInProgress >= batchMax;
-				boolean waitForResponses = isLastStartingParticipant || (!dontWait && (!batches || batchMaxCount));
+				boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
+				boolean waitForResponses = isLastStartingParticipant || waitForBatch;
 				if (waitForResponses) {
 					lastResponse.set(getLastResponse(futureList));
 					CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -671,24 +675,24 @@ public class LoadTestController {
 					}
 					futureList = new ArrayList<>(maxRequestsInFlight);
 					tasksInProgress = 0;
+					sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+					waitReconnectingUsers();
 				} else if (!waitCompletion && stop.get()) {
 					return lastResponse.get();
-				}
-				if (isStartingParticipant) {
-					sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
 				}
 			}
 
 			// Adding all subscribers
 			for (int i = 0; i < subscribers; i++) {
-				if ((browsersInWorker >= browserEstimation) && (loadTestConfig.getWorkersRumpUp() > 0)) {
+				if (browsersInWorker >= browserEstimation) {
 					log.info("Browsers in worker: {} is equal than limit: {}",
 							browsersInWorker, browserEstimation);
 					worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
 					browsersInWorker = 0;
 				}
-				log.info("Creating SUBSCRIBER '{}' in session",
-						loadTestConfig.getUserNamePrefix() + userNumber.get());
+				log.info("Creating SUBSCRIBER '{}' in session {}",
+						loadTestConfig.getUserNamePrefix() + userNumber.get(),
+						loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
 				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
@@ -710,8 +714,8 @@ public class LoadTestController {
 				participantCounter++;
 				boolean dontWait = !waitCompletion;
 				boolean hasStartingParticipants = startingParticipants > 0;
-				boolean isStartingParticipant = participantCounter <= startingParticipants;
-				boolean isLastStartingParticipant = participantCounter == startingParticipants;
+				boolean isStartingParticipant = hasStartingParticipants && (participantCounter <= startingParticipants);
+				boolean isLastStartingParticipant = hasStartingParticipants && (participantCounter == startingParticipants);
 				if (hasStartingParticipants) {
 					dontWait = dontWait && isStartingParticipant;
 				}
@@ -726,7 +730,8 @@ public class LoadTestController {
 				boolean isLastParticipant = i == subscribers - 1;
 				if (!(isLastParticipant && isLastSession)) {
 					boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
-					boolean waitForResponses = isLastStartingParticipant || (!dontWait && (!batches || batchMaxCount));
+					boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
+					boolean waitForResponses = isLastStartingParticipant || waitForBatch;
 					if (waitForResponses) {
 						lastResponse.set(getLastResponse(futureList));
 						CreateParticipantResponse lastResponseValue = lastResponse.get();
