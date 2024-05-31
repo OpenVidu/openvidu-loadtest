@@ -729,7 +729,7 @@ public class LoadTestController {
 				}
 				boolean isLastParticipant = i == subscribers - 1;
 				if (!(isLastParticipant && isLastSession)) {
-					boolean batchMaxCount = tasksInProgress >= maxRequestsInFlight;
+					boolean batchMaxCount = tasksInProgress >= batchMax;
 					boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
 					boolean waitForResponses = isLastStartingParticipant || waitForBatch;
 					if (waitForResponses) {

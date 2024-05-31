@@ -34,6 +34,7 @@ import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.models.testcase.Typology;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
@@ -189,6 +190,98 @@ public class LoadTestControllerTests {
     }
 
     @Test
+    public void NxMTest3Publishers10SubscribersStartingParticipantsThenBatches() {
+        when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
+        when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
+        when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
+        when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(5);
+        when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(0);
+        when(this.loadTestConfig.getSecondsToWaitBeforeTestFinished()).thenReturn(0);
+        when(this.loadTestConfig.isBatches()).thenReturn(true);
+        when(this.loadTestConfig.isWaitCompletion()).thenReturn(true);
+        when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(5);
+        when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
+        when(this.loadTestConfig.getSessionsPerWorker()).thenReturn(1);
+
+        // Create list of instances for ec2 client mock
+        List<Instance> instances = new ArrayList<>(40);
+        for (int i = 0; i < 40; i++) {
+            instances.add(generateRandomInstance());
+        }
+
+        when(this.ec2Client.launchAndCleanInitialInstances()).thenReturn(instances);
+        when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
+
+        Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
+        for (Instance instance : instances) {
+            String instanceUrl = instance.getPublicDnsName();
+            webSocketMocks.put(instanceUrl, mockWebSocket(instanceUrl));
+        }
+
+        List<String> participants = List.of("3:10");
+
+        TestCase testCase = new TestCase("N:M", participants, -1, BrowserMode.REAL,
+            30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+        testCase.setStartingParticipants(30);
+        List<TestCase> testCases = List.of(testCase);
+
+        int userCounter = 1;
+        int sessionCounter = 1;
+        for (Instance instance : instances.subList(0, 39)) {
+            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, sessionCounter);
+            if (userCounter < 13) {
+                userCounter++;
+            } else {
+                userCounter = 1;
+                sessionCounter++;
+            }
+        }
+        // Failure when adding participant
+        CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3", -1, -1, "", "", 0);
+        when(this.browserEmulatorClient.createPublisher(instances.get(39).getPublicDnsName(), 1, 4, testCase)).thenReturn(
+            failureResponse
+        );
+
+        // Test start
+        this.loadTestController.startLoadTests(testCases);
+
+        List<String> instanceUrls = instances.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
+        verify(this.kibanaClient, times(1)).importDashboards();
+        for (Instance instance : instances) {
+            String instanceUrl = instance.getPublicDnsName();
+            verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(webSocketMocks.get(instance.getPublicDnsName()), times(1)).close();
+            verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
+        }
+        userCounter = 1;
+        sessionCounter = 1;
+        // Check all minimum used instances
+        for (Instance instance : instances) {
+            String instanceUrl = instance.getPublicDnsName();
+            // Last one may be called may not be called depending on number of cores
+            if (userCounter <= 3) {
+                verify(this.browserEmulatorClient, times(1)).createPublisher(instanceUrl, userCounter, sessionCounter, testCase);
+            } else {
+                verify(this.browserEmulatorClient, times(1)).createSubscriber(instanceUrl, userCounter, sessionCounter, testCase);
+            }
+            if (userCounter < 13) {
+                userCounter++;
+            } else {
+                userCounter = 1;
+                sessionCounter++;
+            }
+        }
+        verify(this.browserEmulatorClient, times(1)).disconnectAll(instanceUrls);
+        verify(this.ec2Client, times(1)).stopInstance(instances);
+
+        verify(this.sleeper, times(3)).sleep(eq(5), anyString());
+
+        // TODO: Check result report
+        verify(this.dataIO, times(1)).exportResults(any());
+    }
+
+    @Test
     public void NxNTest8ParticipantsWithEstimationWithRampUpNoQOENoRecording() {
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
@@ -318,9 +411,21 @@ public class LoadTestControllerTests {
                 "LoadTestSession" + session, 0
             );
             //log.info(instanceUrl + ": " + response.toString());
-            when(this.browserEmulatorClient.createPublisher(instanceUrl, i, session, testCase)).thenReturn(
-                response
-            );
+            if (testCase.getTypology().equals(Typology.NxN)) {
+                when(this.browserEmulatorClient.createPublisher(instanceUrl, i, session, testCase)).thenReturn(
+                    response
+                );
+            } else {
+                if (i <= 3) {
+                    when(this.browserEmulatorClient.createPublisher(instanceUrl, i, session, testCase)).thenReturn(
+                        response
+                    );
+                } else {
+                    when(this.browserEmulatorClient.createSubscriber(instanceUrl, i, session, testCase)).thenReturn(
+                        response
+                    );
+                }
+            }
         }
     }
 
