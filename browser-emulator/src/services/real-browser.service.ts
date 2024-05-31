@@ -1,5 +1,5 @@
 import fs = require('fs');
-import { By, Capabilities, until, WebDriver, logging, Browser } from 'selenium-webdriver';
+import { By, Capabilities, until, WebDriver, logging, WebElement } from 'selenium-webdriver';
 import chrome = require('selenium-webdriver/chrome');
 import firefox = require('selenium-webdriver/firefox');
 import { LoadTestPostRequest, TestProperties } from '../types/api-rest.type';
@@ -261,11 +261,7 @@ export class RealBrowserService {
 					// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
 					// await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
 					await driver.sleep(1000);
-					for (const driverObj of this.driverMap.values()) {
-						const driver = driverObj.driver;
-						const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
-						buttons.forEach(button => button.click());
-					}
+					await this.clickUnmuteButtons();
 					console.log('Browser works as expected');
 					const publisherVideos = await driver.findElements(By.css("[id^=\"remote-video-str\"]"))
 					this.totalPublishers = currentPublishers + publisherVideos.length;
@@ -293,6 +289,32 @@ export class RealBrowserService {
 				}
 			}, timeout);
 		});
+	}
+
+	async clickUnmuteButtons() {
+		for (const driverObj of this.driverMap.values()) {
+			const driver = driverObj.driver;
+			await this.clickButtonsWithRetry(driver);
+		}
+	}
+
+	async clickButtonsWithRetry(driver: WebDriver, retries = 4) {
+		let attempt = 0;
+		let time = 1000;
+		while (attempt < retries) {
+			try {
+				const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
+				for (const button of buttons) {
+					await button.click();
+				}
+				return;
+			} catch (error) {
+				attempt++;
+				await new Promise(resolve => setTimeout(resolve, time));
+				time *= 2;
+			}
+		}
+		throw new Error("Button could not be clicked after multiple attempts");
 	}
 
 	getStreamsCreated(): number {
