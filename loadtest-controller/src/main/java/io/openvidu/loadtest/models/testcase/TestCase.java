@@ -59,6 +59,10 @@ public class TestCase {
 		return this.typology.getValue().equals(Typology.TEACHING.getValue());
 	}
 
+	public boolean is_ONE_SESSION() {
+		return this.typology.getValue().equals(Typology.ONE_SESSION.getValue());
+	}
+
 	public boolean is_TERMINATE() {
 		return this.typology.getValue().equals(Typology.TERMINATE.getValue());
 	}
@@ -146,7 +150,7 @@ public class TestCase {
 
 		String sessionLimit = sessions == -1 ? "No limit" : Integer.toString(sessions);
 		String startingParticipantString = startingParticipants == 0 ? "No starting participants" : Integer.toString(startingParticipants);
-		return "Session typology: " + typology 
+		return "Session typology: " + typology
 				+ " | Participants in session: " + participants
 				+ " | Starting participants: " + startingParticipantString
 				+ " | Sessions limit: "	+ sessionLimit 

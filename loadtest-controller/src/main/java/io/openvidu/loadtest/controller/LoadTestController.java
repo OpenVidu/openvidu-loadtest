@@ -307,6 +307,48 @@ public class LoadTestController {
 		return true;
 	}
 
+	private boolean launchInitialInstances() {
+		boolean instancesInitialized = false;
+		if (PROD_MODE) {
+			// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
+			awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
+			recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
+			ExecutorService executorService = Executors
+					.newFixedThreadPool(Math.max(awsWorkersList.size(), recordingWorkersList.size()));
+			List<Future<?>> futures = new ArrayList<>();
+			awsWorkersList.forEach(instance -> {
+				futures.add(executorService.submit(new Runnable() {
+					@Override
+					public void run() {
+						initializeInstance(instance.getPublicDnsName());
+					}
+				}));
+			});
+			recordingWorkersList.forEach(instance -> {
+				futures.add(executorService.submit(new Runnable() {
+					@Override
+					public void run() {
+						initializeInstance(instance.getPublicDnsName());
+					}
+				}));
+			});
+			workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+					.collect(Collectors.toList()));
+			recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+					.collect(Collectors.toList()));
+			futures.forEach(future -> {
+				try {
+					future.get();
+				} catch (InterruptedException | ExecutionException e) {
+					log.error("Error while initializing instance", e);
+				}
+			});
+			instancesInitialized = true;
+			// sleep(1, "Wait for instances to be cold");
+		}
+		return instancesInitialized;
+	}
+
 	public void startLoadTests(List<TestCase> testCasesList) {
 
 		if (loadTestConfig.isTerminateWorkers()) {
@@ -323,44 +365,7 @@ public class LoadTestController {
 
 			if (testCase.is_NxN()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-					boolean instancesInitialized = false;
-					if (PROD_MODE) {
-						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
-						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
-						ExecutorService executorService = Executors
-								.newFixedThreadPool(Math.max(awsWorkersList.size(), recordingWorkersList.size()));
-						List<Future<?>> futures = new ArrayList<>();
-						awsWorkersList.forEach(instance -> {
-							futures.add(executorService.submit(new Runnable() {
-								@Override
-								public void run() {
-									initializeInstance(instance.getPublicDnsName());
-								}
-							}));
-						});
-						recordingWorkersList.forEach(instance -> {
-							futures.add(executorService.submit(new Runnable() {
-								@Override
-								public void run() {
-									initializeInstance(instance.getPublicDnsName());
-								}
-							}));
-						});
-						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						futures.forEach(future -> {
-							try {
-								future.get();
-							} catch (InterruptedException | ExecutionException e) {
-								log.error("Error while initializing instance", e);
-							}
-						});
-						instancesInitialized = true;
-						// sleep(1, "Wait for instances to be cold");
-					}
+					boolean instancesInitialized = launchInitialInstances();
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					boolean noEstimateError = true;
 					if (loadTestConfig.isManualParticipantsAllocation()) {
@@ -386,46 +391,8 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
-
-				boolean instancesInitialized = false;
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-
-					if (PROD_MODE) {
-						// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
-						awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
-						recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
-						ExecutorService executorService = Executors
-								.newFixedThreadPool(Math.max(awsWorkersList.size(), recordingWorkersList.size()));
-						List<Future<?>> futures = new ArrayList<>();
-						awsWorkersList.forEach(instance -> {
-							futures.add(executorService.submit(new Runnable() {
-								@Override
-								public void run() {
-									initializeInstance(instance.getPublicDnsName());
-								}
-							}));
-						});
-						recordingWorkersList.forEach(instance -> {
-							futures.add(executorService.submit(new Runnable() {
-								@Override
-								public void run() {
-									initializeInstance(instance.getPublicDnsName());
-								}
-							}));
-						});
-						workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-								.collect(Collectors.toList()));
-						futures.forEach(future -> {
-							try {
-								future.get();
-							} catch (InterruptedException | ExecutionException e) {
-								log.error("Error while initializing instance", e);
-							}
-						});
-						instancesInitialized = true;
-					}
+					boolean instancesInitialized = launchInitialInstances();
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
 					int subscribers = Integer.parseInt(participants.split(":")[1]);
@@ -453,6 +420,54 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 
+			} else if (testCase.is_ONE_SESSION()) {
+				for (int i = 0; i < testCase.getParticipants().size(); i++) {
+					boolean instancesInitialized = launchInitialInstances();
+					String participants = testCase.getParticipants().get(i);
+					if (participants.contains(":")) {
+						int publishers = Integer.parseInt(participants.split(":")[0]);
+						boolean noEstimateError = true;
+						if (loadTestConfig.isManualParticipantsAllocation()) {
+							browserEstimation = loadTestConfig.getSessionsPerWorker();
+						} else {
+							noEstimateError = estimate(instancesInitialized,
+									PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+									testCase, publishers, Integer.MAX_VALUE);
+						}
+						if (noEstimateError) {
+							log.info("Starting test with one session {}:N typology", publishers);
+							log.info("{} Publisher will be added to one session, and then it will be filled with Subscribers",
+									publishers);
+
+							this.startTime = Calendar.getInstance();
+							CreateParticipantResponse lastCPR = this.startOneSessionXxNTest(publishers, testCase);
+							browserEmulatorClient.setEndOfTest(true);
+							sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+							this.saveResultReport(testCase, participants, lastCPR);
+						}
+					} else {
+						boolean noEstimateError = true;
+						if (loadTestConfig.isManualParticipantsAllocation()) {
+							browserEstimation = loadTestConfig.getSessionsPerWorker();
+						} else {
+							noEstimateError = estimate(instancesInitialized,
+									PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+									testCase, Integer.MAX_VALUE, 0);
+						}
+						if (noEstimateError) {
+							log.info("Starting test with one session N:N typology");
+							log.info("One session will be filled with Pubscribers");
+
+							this.startTime = Calendar.getInstance();
+							CreateParticipantResponse lastCPR = this.startOneSessionNxNTest(testCase);
+							browserEmulatorClient.setEndOfTest(true);
+							sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+							this.saveResultReport(testCase, participants, lastCPR);
+						}
+					}
+					this.disconnectAllSessions();
+					this.cleanEnvironment();
+				}
 			} else if (testCase.is_TERMINATE() && PROD_MODE) {
 				log.info("TERMINATE typology. Terminate all EC2 instances");
 				ec2Client.terminateAllInstances();
@@ -460,6 +475,237 @@ public class LoadTestController {
 				log.error("Test case has wrong typology, SKIPPED.");
 			}
 		});
+	}
+
+	public CreateParticipantResponse startOneSessionNxNTest(TestCase testCase) {
+		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
+		String recWorker = "";
+
+		boolean batches = loadTestConfig.isBatches();
+
+		int startingParticipants = testCase.getStartingParticipants();
+		int batchMax = loadTestConfig.getBatchMaxRequests();
+
+		int maxRequestsInFlight = batches ? Math.max(startingParticipants, batchMax) : Math.max(startingParticipants, 1);
+		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
+		int browsersInWorker = 0;
+		int tasksInProgress = 0;
+		int participantCounter = 0;
+
+		boolean waitCompletion = loadTestConfig.isWaitCompletion();
+
+		AtomicReference<CreateParticipantResponse> lastResponse = new AtomicReference<>(null);
+		AtomicBoolean stop = new AtomicBoolean(false);
+		List<CompletableFuture<CreateParticipantResponse>> futureList = new ArrayList<>(maxRequestsInFlight);
+		sessionNumber.set(1);
+		log.info("Starting session '1'");
+		while (true) {
+			if (browsersInWorker >= browserEstimation) {
+				log.info("Browsers in worker: {} is equal than limit: {}",
+						browsersInWorker, browserEstimation);
+				worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
+				browsersInWorker = 0;
+			}
+			log.info("Creating PUBLISHER '{}' in session {}",
+					loadTestConfig.getUserNamePrefix() + userNumber.get(),
+					loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
+			CompletableFuture<CreateParticipantResponse> future;
+			if (needRecordingParticipant()) {
+				recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
+				String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_ONE";
+				future = CompletableFuture.supplyAsync(
+						new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+								OpenViduRole.PUBLISHER, true, recordingMetadata),
+						executorService);
+			} else {
+				future = CompletableFuture.supplyAsync(
+						new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
+								testCase, OpenViduRole.PUBLISHER, false, null),
+						executorService);
+				browsersInWorker++;
+			}
+			tasksInProgress++;
+			participantCounter++;
+			boolean dontWait = !waitCompletion;
+			boolean hasStartingParticipants = startingParticipants > 0;
+			boolean isStartingParticipant = hasStartingParticipants && (participantCounter <= startingParticipants);
+			boolean isLastStartingParticipant = hasStartingParticipants && (participantCounter == startingParticipants);
+			if (hasStartingParticipants) {
+				dontWait = dontWait && isStartingParticipant;
+			}
+			if (dontWait) {
+				future.thenAccept((CreateParticipantResponse response) -> {
+					if (!response.isResponseOk()) {
+						lastResponse.set(response);
+						stop.set(true);
+					}
+				});
+			}
+			futureList.add(future);
+			boolean batchMaxCount = tasksInProgress >= batchMax;
+			boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
+			boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+			if (waitForResponses) {
+				lastResponse.set(getLastResponse(futureList));
+				CreateParticipantResponse lastResponseValue = lastResponse.get();
+				//streamsPerWorker.add(lastResponse.getStreamsInWorker());
+				if ((lastResponseValue != null) && (!lastResponseValue.isResponseOk())) {
+					return lastResponseValue;
+				}
+				futureList = new ArrayList<>(maxRequestsInFlight);
+				tasksInProgress = 0;
+				sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+				waitReconnectingUsers();
+			} else if (!waitCompletion && stop.get()) {
+				return lastResponse.get();
+			}
+		}
+	}
+
+	public CreateParticipantResponse startOneSessionXxNTest(int publishers, TestCase testCase) {
+		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
+		String recWorker = "";
+
+		boolean batches = loadTestConfig.isBatches();
+
+		int startingParticipants = testCase.getStartingParticipants();
+		int batchMax = loadTestConfig.getBatchMaxRequests();
+
+		int maxRequestsInFlight = batches ? Math.max(startingParticipants, batchMax) : Math.max(startingParticipants, 1);
+		ExecutorService executorService = Executors.newFixedThreadPool(maxRequestsInFlight);
+		int browsersInWorker = 0;
+		int tasksInProgress = 0;
+		int participantCounter = 0;
+
+		boolean waitCompletion = loadTestConfig.isWaitCompletion();
+
+		AtomicReference<CreateParticipantResponse> lastResponse = new AtomicReference<>(null);
+		AtomicBoolean stop = new AtomicBoolean(false);
+		List<CompletableFuture<CreateParticipantResponse>> futureList = new ArrayList<>(maxRequestsInFlight);
+		sessionNumber.set(1);
+		log.info("Starting session '1'");
+		for (int i = 0; i < publishers; i++) {
+			if (browsersInWorker >= browserEstimation) {
+				log.info("Browsers in worker: {} is equal than limit: {}",
+						browsersInWorker, browserEstimation);
+				worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
+				browsersInWorker = 0;
+			}
+			log.info("Creating PUBLISHER '{}' in session {}",
+					loadTestConfig.getUserNamePrefix() + userNumber.get(),
+					loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
+			CompletableFuture<CreateParticipantResponse> future;
+			if (needRecordingParticipant()) {
+				recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
+				String recordingMetadata = testCase.getBrowserMode().getValue() + "_X-M_" + publishers + "_ONE";
+				future = CompletableFuture.supplyAsync(
+						new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
+								OpenViduRole.PUBLISHER, true, recordingMetadata),
+						executorService);
+			} else {
+				future = CompletableFuture.supplyAsync(
+						new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
+								testCase, OpenViduRole.PUBLISHER, false, null),
+						executorService);
+				browsersInWorker++;
+			}
+			tasksInProgress++;
+			participantCounter++;
+			boolean dontWait = !waitCompletion;
+			boolean hasStartingParticipants = startingParticipants > 0;
+			boolean isStartingParticipant = hasStartingParticipants && (participantCounter <= startingParticipants);
+			boolean isLastStartingParticipant = hasStartingParticipants && (participantCounter == startingParticipants);
+			if (hasStartingParticipants) {
+				dontWait = dontWait && isStartingParticipant;
+			}
+			if (dontWait) {
+				future.thenAccept((CreateParticipantResponse response) -> {
+					if (!response.isResponseOk()) {
+						lastResponse.set(response);
+						stop.set(true);
+					}
+				});
+			}
+			futureList.add(future);
+			boolean batchMaxCount = tasksInProgress >= batchMax;
+			boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
+			boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+			if (waitForResponses) {
+				lastResponse.set(getLastResponse(futureList));
+				CreateParticipantResponse lastResponseValue = lastResponse.get();
+				//streamsPerWorker.add(lastResponse.getStreamsInWorker());
+				if ((lastResponseValue != null) && (!lastResponseValue.isResponseOk())) {
+					return lastResponseValue;
+				}
+				futureList = new ArrayList<>(maxRequestsInFlight);
+				tasksInProgress = 0;
+				sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+				waitReconnectingUsers();
+			} else if (!waitCompletion && stop.get()) {
+				return lastResponse.get();
+			}
+		}
+		while (true) {
+			if (browsersInWorker >= browserEstimation) {
+				log.info("Browsers in worker: {} is equal than limit: {}",
+						browsersInWorker, browserEstimation);
+				worker = setAndInitializeNextWorker(worker, WorkerType.WORKER);
+				browsersInWorker = 0;
+			}
+			log.info("Creating SUBSCRIBER '{}' in session {}",
+					loadTestConfig.getUserNamePrefix() + userNumber.get(),
+					loadTestConfig.getSessionNamePrefix() + sessionNumber.get());
+			CompletableFuture<CreateParticipantResponse> future;
+			if (needRecordingParticipant()) {
+				recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
+				String recordingMetadata = testCase.getBrowserMode().getValue() + "_X-M_" + publishers + "_ONE";
+				future = CompletableFuture.supplyAsync(
+						new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
+								testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata),
+						executorService);
+			} else {
+				future = CompletableFuture.supplyAsync(
+						new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
+								testCase, OpenViduRole.SUBSCRIBER, false, null),
+						executorService);
+				browsersInWorker++;
+			}
+			futureList.add(future);
+			tasksInProgress++;
+			participantCounter++;
+			boolean dontWait = !waitCompletion;
+			boolean hasStartingParticipants = startingParticipants > 0;
+			boolean isStartingParticipant = hasStartingParticipants && (participantCounter <= startingParticipants);
+			boolean isLastStartingParticipant = hasStartingParticipants && (participantCounter == startingParticipants);
+			if (hasStartingParticipants) {
+				dontWait = dontWait && isStartingParticipant;
+			}
+			if (dontWait) {
+				future.thenAccept((CreateParticipantResponse response) -> {
+					if (!response.isResponseOk()) {
+						lastResponse.set(response);
+						stop.set(true);
+					}
+				});
+			}
+			boolean batchMaxCount = tasksInProgress >= batchMax;
+			boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
+			boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+			if (waitForResponses) {
+				lastResponse.set(getLastResponse(futureList));
+				CreateParticipantResponse lastResponseValue = lastResponse.get();
+				//streamsPerWorker.add(lastResponse.getStreamsInWorker());
+				if ((lastResponseValue != null) && (!lastResponseValue.isResponseOk())) {
+					return lastResponseValue;
+				}
+				futureList = new ArrayList<>(maxRequestsInFlight);
+				tasksInProgress = 0;
+				sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
+				waitReconnectingUsers();
+			} else if (!waitCompletion && stop.get()) {
+				return lastResponse.get();
+			}
+		}
 	}
 
 	public CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase) {

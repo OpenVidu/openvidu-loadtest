@@ -7,7 +7,9 @@ public enum Typology {
 	NxM("N:M", "N PUBLISHERS and M SUBSCRIBERS"),
 
 	TEACHING("TEACHING", "TEACHING"),
-	
+
+	ONE_SESSION("ONE_SESSION", "One session with N publishers or X:M subscribers"),
+
 	TERMINATE("TERMINATE", "Terminate all Ec2 instances launched");
 
 	private String value;
