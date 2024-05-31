@@ -24,6 +24,7 @@ public class WebSocketConnectionFactory {
 	private static final int MAX_ATTEMPT = 5;
 	private AtomicInteger attempts = new AtomicInteger(1);
 
+	@Autowired
 	private Sleeper sleeper;
 
 	@Autowired
