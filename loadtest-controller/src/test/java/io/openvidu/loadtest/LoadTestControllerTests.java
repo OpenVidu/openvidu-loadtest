@@ -140,7 +140,7 @@ public class LoadTestControllerTests {
         int userCounter = 1;
         int sessionCounter = 1;
         for (Instance instance : instances.subList(0, 39)) {
-            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, sessionCounter);
+            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, sessionCounter, -1);
             if (userCounter < 8) {
                 userCounter++;
             } else {
@@ -228,7 +228,7 @@ public class LoadTestControllerTests {
         int userCounter = 1;
         int sessionCounter = 1;
         for (Instance instance : instances.subList(0, 39)) {
-            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, sessionCounter);
+            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, sessionCounter, 3);
             if (userCounter < 13) {
                 userCounter++;
             } else {
@@ -336,7 +336,7 @@ public class LoadTestControllerTests {
         for (Instance instance : allInstances) {
             for (int i = 0; i < 4; i++) {
                 if (!((userCounter == 7) && (sessionCounter == 2))) {
-                    createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 4, userCounter, sessionCounter);
+                    createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 4, userCounter, sessionCounter, -1);
                 }
                 if (userCounter < 8) {
                     userCounter++;
@@ -389,6 +389,87 @@ public class LoadTestControllerTests {
         verify(this.dataIO, times(1)).exportResults(any());
     }
 
+    @Test
+    public void OneSession1xNTestStartingParticipantsThenBatches() {
+        when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
+        when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
+        when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
+        when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(5);
+        when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(0);
+        when(this.loadTestConfig.getSecondsToWaitBeforeTestFinished()).thenReturn(0);
+        when(this.loadTestConfig.isBatches()).thenReturn(true);
+        when(this.loadTestConfig.isWaitCompletion()).thenReturn(true);
+        when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(5);
+        when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
+        when(this.loadTestConfig.getSessionsPerWorker()).thenReturn(1);
+
+        // Create list of instances for ec2 client mock
+        List<Instance> instances = new ArrayList<>(40);
+        for (int i = 0; i < 40; i++) {
+            instances.add(generateRandomInstance());
+        }
+
+        when(this.ec2Client.launchAndCleanInitialInstances()).thenReturn(instances);
+        when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
+
+        Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
+        for (Instance instance : instances) {
+            String instanceUrl = instance.getPublicDnsName();
+            webSocketMocks.put(instanceUrl, mockWebSocket(instanceUrl));
+        }
+
+        List<String> participants = List.of("1:N");
+
+        TestCase testCase = new TestCase("ONE_SESSION", participants, -1, BrowserMode.REAL,
+            30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+        testCase.setStartingParticipants(30);
+        List<TestCase> testCases = List.of(testCase);
+
+        int userCounter = 1;
+        for (Instance instance : instances.subList(0, 39)) {
+            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, 1, 1);
+            userCounter++;
+        }
+        // Failure when adding participant
+        CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3", -1, -1, "", "", 0);
+        when(this.browserEmulatorClient.createSubscriber(instances.get(39).getPublicDnsName(), 40, 1, testCase)).thenReturn(
+            failureResponse
+        );
+
+        // Test start
+        this.loadTestController.startLoadTests(testCases);
+
+        List<String> instanceUrls = instances.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
+        verify(this.kibanaClient, times(1)).importDashboards();
+        for (Instance instance : instances) {
+            String instanceUrl = instance.getPublicDnsName();
+            verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(webSocketMocks.get(instance.getPublicDnsName()), times(1)).close();
+            verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
+        }
+        userCounter = 1;
+        // Check all minimum used instances
+        for (Instance instance : instances) {
+            String instanceUrl = instance.getPublicDnsName();
+            // Last one may be called may not be called depending on number of cores
+            if (userCounter <= 1) {
+                verify(this.browserEmulatorClient, times(1)).createPublisher(instanceUrl, userCounter, 1, testCase);
+            } else {
+                verify(this.browserEmulatorClient, times(1)).createSubscriber(instanceUrl, userCounter, 1, testCase);
+            }
+            userCounter++;
+        }
+        verify(this.browserEmulatorClient, times(1)).disconnectAll(instanceUrls);
+        verify(this.ec2Client, times(1)).stopInstance(instances);
+
+        verify(this.sleeper, times(3)).sleep(eq(5), anyString());
+
+        // TODO: Check result report
+        verify(this.dataIO, times(1)).exportResults(any());
+    }
+
+
     private void createEstimationResponseMock(String instance1Url, TestCase testCase) {
         when(this.browserEmulatorClient.createPublisher(instance1Url, 0, 0, testCase)).thenReturn(
             new CreateParticipantResponse(true, "", "connectionId1", 1, 1, "User0", "LoadTestSession0", 5));
@@ -403,7 +484,7 @@ public class LoadTestControllerTests {
         );
     }
 
-    private void createSuccessfulResponsesMock(String instanceUrl, TestCase testCase, int usersInWorker, int startingUser, int session) {
+    private void createSuccessfulResponsesMock(String instanceUrl, TestCase testCase, int usersInWorker, int startingUser, int session, int lastPublisher) {
         for (int i = startingUser; i < startingUser + usersInWorker; i++) {
             int streamsInWorker = startingUser < (usersInWorker + 1) ? i * i: i * i + usersInWorker;
             CreateParticipantResponse response = new CreateParticipantResponse(
@@ -416,7 +497,7 @@ public class LoadTestControllerTests {
                     response
                 );
             } else {
-                if (i <= 3) {
+                if (i <= lastPublisher) {
                     when(this.browserEmulatorClient.createPublisher(instanceUrl, i, session, testCase)).thenReturn(
                         response
                     );
