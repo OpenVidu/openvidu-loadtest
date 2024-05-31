@@ -38,7 +38,7 @@ window.onload = () => {
 	ROLE = url.searchParams.get("role");
 	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
 	FRAME_RATE = url.searchParams.get("frameRate");
-	QOE_ANALYSIS = url.searchParams.get("qoeAnalysis");
+	QOE_ANALYSIS = url.searchParams.get("qoeAnalysis") === 'true';
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
 
 	const tokenCanBeCreated = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL && !!OPENVIDU_SERVER_SECRET;
