@@ -12,6 +12,8 @@ import { SeleniumService } from './selenium.service';
 import { runScript, stopDetached } from '../utils/run-script';
 import { ApplicationMode } from '../types/config.type';
 import BaseComModule from '../com-modules/base';
+import { Mutex } from 'async-mutex';
+
 declare var localStorage: Storage;
 export class RealBrowserService {
 	private connections: Map<string, { publishers: string[]; subscribers: string[] }> = new Map();
@@ -29,6 +31,7 @@ export class RealBrowserService {
 	private seleniumService: SeleniumService;
 	private recordingScript: any;
 	private seleniumLogger: logging.Logger;
+	private muteButtonMutex = new Mutex();
 
 	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
 		const prefs = new logging.Preferences();
@@ -294,13 +297,20 @@ export class RealBrowserService {
 	async clickUnmuteButtons() {
 		for (const driverObj of this.driverMap.values()) {
 			const driver = driverObj.driver;
-			await this.clickButtonsWithRetry(driver);
+			// Add mutex here to ensure only one browser is clicking buttons at a time
+			await this.muteButtonMutex.runExclusive(async () => {
+				try {
+					await this.clickButtonsWithRetry(driver);
+				} catch (error) {
+					console.error("Error clicking buttons", error);
+				}
+			});
 		}
 	}
 
-	async clickButtonsWithRetry(driver: WebDriver, retries = 4) {
+	async clickButtonsWithRetry(driver: WebDriver, retries = 3) {
 		let attempt = 0;
-		let time = 1000;
+		let time = 500;
 		while (attempt < retries) {
 			try {
 				const buttons = await driver.findElements(By.id('subscriber-need-to-be-unmuted'));
@@ -312,6 +322,7 @@ export class RealBrowserService {
 				attempt++;
 				await new Promise(resolve => setTimeout(resolve, time));
 				time *= 2;
+				console.error("Error clicking buttons, retrying", error);
 			}
 		}
 		throw new Error("Button could not be clicked after multiple attempts");
