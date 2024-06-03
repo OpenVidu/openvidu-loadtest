@@ -209,6 +209,7 @@ public class BrowserEmulatorClient {
 		ConcurrentHashMap<String, OpenViduRole> workerRoles = this.clientRoles.get(workerUrl);
 		if (workerRoles == null) {
 			// The connect request hasn't finished yet, wait for it
+			log.debug("Worker roles is null for {} in session {} in {}. Waiting ...", participant, session, workerUrl);
 			sleeper.sleep(WAIT_S, null);
 			this.afterDisconnect(workerUrl, participant, session);
 			return;
@@ -373,7 +374,7 @@ public class BrowserEmulatorClient {
 			HttpResponse<String> response = this.httpClient.sendPost(
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
 					getHeaders());
-
+			log.debug("Response received: {}", response.body());
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				log.warn("Error: " + response.body());
 
