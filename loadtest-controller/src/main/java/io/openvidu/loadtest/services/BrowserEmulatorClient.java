@@ -129,10 +129,14 @@ public class BrowserEmulatorClient {
 	}
 
 	public void addClientFailure(String workerUrl, String participant, String session) {
-		addClientFailure(workerUrl, participant, session, true);
+		addClientFailure(workerUrl, participant, session, false, true);
 	}
 
-	public void addClientFailure(String workerUrl, String participant, String session, boolean reconnect) {
+	public void addClientFailure(String workerUrl, String participant, String session, boolean waitForConnection) {
+		addClientFailure(workerUrl, participant, session, waitForConnection, true);
+	}
+
+	public void addClientFailure(String workerUrl, String participant, String session, boolean waitForConnection, boolean reconnect) {
 		while (this.participantConnecting.get(participant + "-" + session).get()) {
 			if (endOfTest.get()) {
 				return;

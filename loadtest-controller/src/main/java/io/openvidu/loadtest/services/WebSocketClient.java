@@ -80,7 +80,7 @@ public class WebSocketClient extends Endpoint {
 		log.info("Websocket connected");
 	}
 
-	private void handleError(String message) {
+	private void handleError(String message, boolean waitForConnection) {
 		this.markedForDeletion.set(true);
 		ObjectMapper mapper = new ObjectMapper();
 		try {
@@ -89,7 +89,7 @@ public class WebSocketClient extends Endpoint {
 				String participant = json.get("participant").asText();
 				String session = json.get("session").asText();
 				String workerUrl = this.wsEndpoint.split("/")[2].split(":")[0];
-				this.beInstance.addClientFailure(workerUrl, participant, session);
+				this.beInstance.addClientFailure(workerUrl, participant, session, waitForConnection);
 				if (this.beInstance.getLastErrorReconnectingResponse() == null) {
 					this.markedForDeletion.set(false);
 				}
@@ -106,12 +106,12 @@ public class WebSocketClient extends Endpoint {
 		if (!markedForFullDeletion.get() && !markedForDeletion.get()) {
 			if(message.contains("exception") || message.contains("Exception")) {
 				log.error("Received exception from {}: {}", this.wsEndpoint, message);
-				this.handleError(message);
+				this.handleError(message, false);
 			} else if (message.contains("error") || message.contains("Error")) {
 				log.warn("Received message from {}: {}", this.wsEndpoint, message);
 			} else if (message.contains("sessionDisconnected")) {
 				log.error("Received sessionDisconnected from {}: {}", this.wsEndpoint, message);
-				this.handleError(message);
+				this.handleError(message, true);
 			} else {
 				log.debug("Received message from {}: {}", this.wsEndpoint, message);
 			}
