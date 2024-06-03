@@ -82,6 +82,7 @@ public class WebSocketClient extends Endpoint {
 
 	private void handleError(String message, boolean waitForConnection) {
 		this.markedForDeletion.set(true);
+		log.debug("Marked for deletion set to true");
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			JsonNode json = mapper.readTree(message);
@@ -92,6 +93,9 @@ public class WebSocketClient extends Endpoint {
 				this.beInstance.addClientFailure(workerUrl, participant, session, waitForConnection);
 				if (this.beInstance.getLastErrorReconnectingResponse() == null) {
 					this.markedForDeletion.set(false);
+					log.debug("Marked for deletion set to false");
+				} else {
+					log.info("Response from last reconnection is not 200 OK");
 				}
 			} else {
 				log.warn("Participant or session missing from error message: {}", message);
@@ -106,12 +110,12 @@ public class WebSocketClient extends Endpoint {
 		if (!markedForFullDeletion.get() && !markedForDeletion.get()) {
 			if(message.contains("exception") || message.contains("Exception")) {
 				log.error("Received exception from {}: {}", this.wsEndpoint, message);
-				this.handleError(message, false);
+				this.handleError(message, true);
 			} else if (message.contains("error") || message.contains("Error")) {
 				log.warn("Received message from {}: {}", this.wsEndpoint, message);
 			} else if (message.contains("sessionDisconnected")) {
 				log.error("Received sessionDisconnected from {}: {}", this.wsEndpoint, message);
-				this.handleError(message, true);
+				this.handleError(message, false);
 			} else {
 				log.debug("Received message from {}: {}", this.wsEndpoint, message);
 			}

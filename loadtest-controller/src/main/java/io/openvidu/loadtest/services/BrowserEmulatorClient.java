@@ -137,7 +137,9 @@ public class BrowserEmulatorClient {
 	}
 
 	public void addClientFailure(String workerUrl, String participant, String session, boolean waitForConnection, boolean reconnect) {
-		while (this.participantConnecting.get(participant + "-" + session).get()) {
+		log.debug("Adding client failure for participant {} in session {}", participant, session);
+		log.debug("Wait for connection: {}", waitForConnection);
+		while (waitForConnection && this.participantConnecting.get(participant + "-" + session).get()) {
 			if (endOfTest.get()) {
 				return;
 			}

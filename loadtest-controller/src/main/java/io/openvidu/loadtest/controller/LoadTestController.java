@@ -1021,6 +1021,7 @@ public class LoadTestController {
 		CreateParticipantResponse lastResponse = null;
 		for (CompletableFuture<CreateParticipantResponse> future : futureList) {
 			try {
+				log.debug("Waiting for future ", future);
 				CreateParticipantResponse futureResponse = future.get();
 				if (!futureResponse.isResponseOk()) {
 					lastResponse = futureResponse;
