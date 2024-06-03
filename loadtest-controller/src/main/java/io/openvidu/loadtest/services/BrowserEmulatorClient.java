@@ -158,9 +158,15 @@ public class BrowserEmulatorClient {
 		}
 		int newFailures = currentFailures.incrementAndGet();
 		log.error("Participant {} in session {} failed {} times", participant, session, newFailures);
+		log.debug("Retry mode: {}", this.loadTestConfig.isRetryMode());
+		log.debug("Retry times: {}", this.loadTestConfig.getRetryTimes());
+		log.debug("New failures: {}", newFailures);
+		log.debug("Reconnect: {}", reconnect);
 		if (reconnect && this.loadTestConfig.isRetryMode() && (newFailures < this.loadTestConfig.getRetryTimes())) {
+			log.debug("Reconnecting participant {} in session {}", participant, session);
 			this.reconnect(workerUrl, participant, session);
 		} else {
+			log.debug("Stop reconnecting participant {} in session {}", participant, session);
 			this.lastErrorReconnectingResponse = new CreateParticipantResponse()
 				.setResponseOk(false)
 				.setStopReason("Participant " + participant + " in session " + session + " failed " + newFailures + " times");
@@ -198,6 +204,7 @@ public class BrowserEmulatorClient {
 	}
 
 	private void afterDisconnect(String workerUrl, String participant, String session) {
+		log.debug("After disconnect user {} session {} in {}", participant, session, workerUrl);
 		String user = participant + "-" + session;
 		ConcurrentHashMap<String, OpenViduRole> workerRoles = this.clientRoles.get(workerUrl);
 		if (workerRoles == null) {
