@@ -113,7 +113,7 @@ public class WebSocketClient extends Endpoint {
 				this.handleError(message, true);
 			} else if (message.contains("error") || message.contains("Error")) {
 				log.warn("Received message from {}: {}", this.wsEndpoint, message);
-			} else if (message.contains("sessionDisconnected")) {
+			} else if (message.contains("Disconnected") && !message.contains("ParticipantDisconnected")) {
 				log.error("Received sessionDisconnected from {}: {}", this.wsEndpoint, message);
 				this.handleError(message, true);
 			} else {
