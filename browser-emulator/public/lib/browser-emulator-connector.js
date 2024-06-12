@@ -23,65 +23,65 @@ class BrowserEmulatorConnector {
         }
     }
 
-    sendEvent(event, participant, session) {
-        var ITEM_NAME = 'ov-events-config';
-
-        this.getItem(ITEM_NAME).then((url) => {
-            const urlObj = JSON.parse(url);
+    async sendEvent(event, participant, session) {
+        let ITEM_NAME = 'ov-events-config';
+        let timestamp = new Date().toISOString();
+        try {
+            const url = JSON.parse(await this.getItem(ITEM_NAME));
             let eventObj = event;
             if (typeof eventObj === 'object' && eventObj !== null) {
                 eventObj['participant'] = participant;
                 eventObj['session'] = session;
-                eventObj['timestamp'] = new Date().toISOString();
+                eventObj['timestamp'] = timestamp;
                 eventObj = JSON.stringify(eventObj);
             }
 
-            return fetch(urlObj.httpEndpoint, {
+            const response = await fetch(url.httpEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: eventObj
-            })
-        }).then((response) => {
+            });
+
             if (response.ok) {
                 console.log("Event sent to browser-emulator");
             } else {
                 console.error(response);
             }
-        }).catch((error) => {
+        } catch (error) {
             console.error(error);
-        });
+        }
     }
 
-    sendError(err, participant, session) {
-        var ITEM_NAME = 'ov-errorlog-config';
-
-        this.getItem(ITEM_NAME).then((url) => {
-            const urlObj = JSON.parse(url);
+    async sendError(err, participant, session) {
+        let ITEM_NAME = 'ov-errorlog-config';
+        let timestamp = new Date().toISOString();
+        try {
+            const url = JSON.parse(await this.getItem(ITEM_NAME));
             let eventObj = err;
             if (typeof eventObj === 'object' && eventObj !== null) {
                 eventObj['participant'] = participant;
                 eventObj['session'] = session;
-                eventObj['timestamp'] = new Date().toISOString();
+                eventObj['timestamp'] = timestamp;
                 eventObj = JSON.stringify(eventObj);
             }
 
-            return fetch(urlObj.httpEndpoint, {
+            const response = await fetch(url.httpEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: eventObj
-            })
-        }).then((response) => {
+            });
+
             if (response.ok) {
                 console.log("Error sent to browser-emulator");
             } else {
                 console.error(response);
             }
-        }).catch((error) => {
+        } catch (error) {
             console.error(error);
-        });
+        }
     }
 }
