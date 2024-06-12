@@ -135,6 +135,17 @@ async function joinSession() {
 			videoWidth: width,
 			isLocal: false
 		}
+		try {
+			statsManager.addConnectionToStats(room.engine.pcManager?.publisher['_pc'], participant.sid, "outbound");
+			statsManager.addConnectionToStats(room.engine.pcManager?.subscriber['_pc'], participant.sid, "inbound");
+		} catch (error) {
+			if (error.contains("already managing")) {
+				console.warn(error);
+			}
+			else {
+				throw error;
+			}
+		}
 		let remoteUser = participant.identity;
 		beConnector.sendEvent({ event: "TrackSubscribed", connectionId: participant.sid,  connection: 'remote', trackInfo, remoteUser }, USER_ID, SESSION_ID);
 		if (SHOW_VIDEO_ELEMENTS) {
