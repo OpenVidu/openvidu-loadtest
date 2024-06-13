@@ -162,14 +162,16 @@ public class BrowserEmulatorClient {
 		log.debug("Retry times: {}", this.loadTestConfig.getRetryTimes());
 		log.debug("New failures: {}", newFailures);
 		log.debug("Reconnect: {}", reconnect);
-		if (reconnect && this.loadTestConfig.isRetryMode() && (newFailures < this.loadTestConfig.getRetryTimes())) {
-			log.debug("Reconnecting participant {} in session {}", participant, session);
-			this.reconnect(workerUrl, participant, session);
-		} else {
-			log.debug("Stop reconnecting participant {} in session {}", participant, session);
-			this.lastErrorReconnectingResponse = new CreateParticipantResponse()
-				.setResponseOk(false)
-				.setStopReason("Participant " + participant + " in session " + session + " failed " + newFailures + " times");
+		if (reconnect) {
+			if (this.loadTestConfig.isRetryMode() && (newFailures < this.loadTestConfig.getRetryTimes())) {
+				log.debug("Reconnecting participant {} in session {}", participant, session);
+				this.reconnect(workerUrl, participant, session);
+			} else {
+				log.debug("Stop reconnecting participant {} in session {}", participant, session);
+				this.lastErrorReconnectingResponse = new CreateParticipantResponse()
+					.setResponseOk(false)
+					.setStopReason("Participant " + participant + " in session " + session + " failed " + newFailures + " times");
+			}
 		}
 	}
 
@@ -404,12 +406,12 @@ public class BrowserEmulatorClient {
 		} catch (Exception e) {
 			// lastResponses.add("Failure");
 			if (e.getMessage() != null && e.getMessage().contains("timed out")) {
-				this.addClientFailure(workerUrl, userId, sessionId, false);
+				this.addClientFailure(workerUrl, userId, sessionId, false, false);
 				sleeper.sleep(WAIT_S, "Timeout error. Retrying...");
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("refused")) {
-				this.addClientFailure(workerUrl, userId, sessionId, false);
 				log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
+				this.addClientFailure(workerUrl, userId, sessionId, false, false);
 				sleeper.sleep(WAIT_S, "Connection refused. Retrying...");
 				return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
 			} else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
