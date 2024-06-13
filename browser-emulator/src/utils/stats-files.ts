@@ -27,7 +27,15 @@ export async function createFileAndLock(userId: string, sessionId: string, fileN
   console.log("Creating file: " + filePath);
   await fsp.mkdir(dirname(filePath), { recursive: true });
   console.log("Created dir for file: " + filePath);
-  await fsp.writeFile(filePath, "[]", { flag: "w" });
+  try {
+    await fsp.writeFile(filePath, "[]", { flag: "wx" });
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      console.log("File already exists: " + filePath);
+    } else {
+      throw error;
+    }
+  }
 }
 
 export async function saveStatsToFile(userId: string, sessionId: string, fileName: string, data: any) {
