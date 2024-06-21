@@ -44,7 +44,7 @@ pkg-config --cflags --libs opencv4
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
 mkdir -p /usr/src
-v4l2_version=0.13.1
+v4l2_version=0.12.7
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /usr/src
 cd /usr/src
 sudo dkms add -m v4l2loopback -v ${v4l2_version}
@@ -55,6 +55,7 @@ sudo modprobe v4l2loopback devices=1 exclusive_caps=1
 echo "v4l2loopback" | tee /etc/modules-load.d/v4l2loopback.conf 
 echo "options v4l2loopback devices=1 exclusive_caps=1" | tee /etc/modprobe.d/v4l2loopback.conf
 sudo update-initramfs -c -k $(uname -r)
+apt-get install -yq --no-install-recommends v4l2loopback-utils
 # Add user ubuntu to docker and syslog groups
 sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu

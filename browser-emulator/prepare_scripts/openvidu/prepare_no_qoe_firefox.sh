@@ -36,7 +36,7 @@ apt-get install -yq --no-install-recommends \
     ffmpeg docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
-v4l2_version=0.13.1
+v4l2_version=0.12.7
 mkdir -p /usr/src
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /usr/src
 cd /usr/src
@@ -48,6 +48,7 @@ sudo modprobe v4l2loopback devices=1 exclusive_caps=1
 echo "v4l2loopback" | tee /etc/modules-load.d/v4l2loopback.conf 
 echo "options v4l2loopback devices=1 exclusive_caps=1" | tee /etc/modprobe.d/v4l2loopback.conf
 sudo update-initramfs -c -k $(uname -r)
+apt-get install -yq --no-install-recommends v4l2loopback-utils
 # Add user ubuntu to docker and syslog groups
 sudo usermod -a -G docker ubuntu
 sudo usermod -a -G syslog ubuntu
