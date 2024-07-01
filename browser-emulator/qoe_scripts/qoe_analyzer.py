@@ -143,7 +143,7 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
             *parse_tasks)
 
     final_tasks = []
-    final_tasks.append(cut_index_ref)
+    final_tasks.append(cut_index)
     final_tasks.extend(parse_tasks)
     if not debug:
         final_tasks.append(remove_processing_task)
@@ -179,7 +179,7 @@ def main():
         # frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
         # logger.debug("Frame %d resized to: %d x %d", i, frame.shape[1], frame.shape[0])
         if debug:
-            write_result = cv2.imwrite(f"frames/{viewer}-{i}.png", frame)
+            write_result = cv2.imwrite(os.path.join(os.getcwd(), "frames", f"{viewer}-{i}.png"), frame)
             if not write_result:
                 logger.error("Error writing frame %d", i)
         # If previous frame was padding, check if current frame is padding
