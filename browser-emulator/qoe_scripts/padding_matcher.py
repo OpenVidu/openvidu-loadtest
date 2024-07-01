@@ -14,8 +14,8 @@ colors_rgb = np.array([
 
 
 def match_image(frame, debug_ref):
-    height = frame.shape[0]
-    width = frame.shape[1]
+    height, width = frame.shape[:2]
+    logger.debug("resolution: %d x %d", width, height)
     match_height = math.floor(height / 3)
     bar = math.floor(width / 8)
     halfbar = math.floor(bar / 2)
@@ -23,13 +23,6 @@ def match_image(frame, debug_ref):
     colors_widths = np.array([math.floor(halfbar + (bar * x))
                               for x in range(1, 7)])
     logger.debug("coords: %s", str(colors_widths))
-    # resolved_tasks = pool.map(match_color,
-    #                         repeat(frame),
-    #                         colors_widths,
-    #                         repeat(match_height),
-    #                         repeat(threshold),
-    #                         colors_rgb
-    #                         )
     put_frame = ray.put(frame)
     match_height_ref = ray.put(match_height)
     # batch match color calls by splitting into half the array and creating a task per half instead of creating a task per color

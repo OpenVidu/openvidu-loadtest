@@ -1,3 +1,4 @@
 .vagrant/
 stats/*
 !stats/locks/*
+outputs/fixed/*
