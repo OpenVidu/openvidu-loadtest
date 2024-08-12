@@ -102,6 +102,11 @@ async function joinSession() {
 			noiseSuppression: false,
 		}
 	}
+
+	let resSplit = RESOLUTION.split('x');
+	let width = resSplit[0];
+	let height = resSplit[1];
+
 	if (VIDEO) {
 		roomOptions.videoCaptureDefaults = {
 			resolution: {
@@ -329,10 +334,6 @@ async function joinSession() {
 	room.on(LivekitClient.RoomEvent.VideoPlaybackStatusChanged, () => {
 		beConnector.sendEvent({ event: "VideoPlaybackStatusChanged" }, USER_ID, SESSION_ID);
 	});
-
-	var resSplit = RESOLUTION.split('x');
-	var width = resSplit[0];
-	var height = resSplit[1];
 
 	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN)
 		.then(async () => {
