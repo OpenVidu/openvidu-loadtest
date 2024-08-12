@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { ElasticSearchService } from '../services/elasticsearch.service';
 import { WsService } from '../services/ws.service';
 import { JSONStatsResponse } from '../types/api-rest.type';
-import { ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFileAndLock, saveStatsToFile } from '../utils/stats-files';
+import { ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFile, saveStatsToFile } from '../utils/stats-files';
 
 // DEBUG: Print full objects (only uncomment for debug sessions during development)
 // require("util").inspect.defaultOptions.depth = null;

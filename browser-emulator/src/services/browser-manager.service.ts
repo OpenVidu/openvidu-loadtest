@@ -9,7 +9,7 @@ import { OpenViduRole } from '../types/openvidu.type';
 import { APPLICATION_MODE } from '../config';
 import { ApplicationMode } from '../types/config.type';
 import { FilesService } from './files/files.service';
-import { CON_FILE, ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFileAndLock, saveStatsToFile } from '../utils/stats-files';
+import { CON_FILE, ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFile, saveStatsToFile } from '../utils/stats-files';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
@@ -36,10 +36,10 @@ export class BrowserManagerService {
 		const userId = request.properties.userId;
 		const sessionId = request.properties.sessionName;
 		await Promise.all([
-			createFileAndLock(userId, sessionId, CON_FILE),
-			createFileAndLock(userId, sessionId, EVENTS_FILE),
-			createFileAndLock(userId, sessionId, ERRORS_FILE),
-			createFileAndLock(userId, sessionId, STATS_FILE)
+			createFile(userId, sessionId, CON_FILE),
+			createFile(userId, sessionId, EVENTS_FILE),
+			createFile(userId, sessionId, ERRORS_FILE),
+			createFile(userId, sessionId, STATS_FILE)
 		]);
 		let connectionId: string;
 		let webrtcStorageName: string;
