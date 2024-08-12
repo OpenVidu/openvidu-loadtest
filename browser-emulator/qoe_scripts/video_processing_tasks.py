@@ -98,3 +98,24 @@ def write_video(cut_frames, cut_index, ffmpeg_path, width, height, fps, prefix, 
     logger.info("Finished writing cut %d", cut_index)
     del cut_frames
     return "outputs/%s_%d.yuv" % (prefix, cut_index)
+
+def fix_video_resolution(ffmpeg_path, video_path, width, height, debug=False):
+    logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
+    logger.info("Starting fixing video resolution")
+    video_file_parts = video_path.split('/')[-1].split('.')
+    video_file = video_file_parts[0]
+    video_extension = video_file_parts[1]
+    video_file_fixed = f"outputs/fixed/{video_file}_fixed.{video_extension}"
+    ffmpeg_command_to_save = ' '.join([
+        ffmpeg_path, "-y", "-i", video_path, "-vf", "scale=%d:%d" % (width, height), "-c:a", "copy", video_file_fixed])
+    if debug:
+        out = sp.PIPE
+        logger.debug("Executing FFmpeg command: %s", ffmpeg_command_to_save)
+    else:
+        out = sp.DEVNULL
+    errout = sp.STDOUT
+    ffmpeg_process = sp.Popen(
+        ffmpeg_command_to_save, stdout=out, stderr=errout, shell=True)
+    ffmpeg_process.wait()
+    logger.info("Finished fixing video resolution")
+    return video_file_fixed

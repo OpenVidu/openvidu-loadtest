@@ -69,6 +69,12 @@ logger.info("Viewer video: %s", viewer)
 logger.info("Prefix: %s", prefix)
 logger.info("Max CPUs: %s", max_cpus)
 logger.info("All analysis: %s", all_analysis)
+
+os.makedirs("./outputs/fixed", exist_ok=True)
+os.makedirs("./outputs_audio", exist_ok=True)
+os.makedirs("./ocr", exist_ok=True)
+os.makedirs("./frames", exist_ok=True)
+
 logger.info("Initializing Ray")
 
 
@@ -137,7 +143,7 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
             *parse_tasks)
 
     final_tasks = []
-    final_tasks.append(cut_index_ref)
+    final_tasks.append(cut_index)
     final_tasks.extend(parse_tasks)
     if not debug:
         final_tasks.append(remove_processing_task)
@@ -146,12 +152,13 @@ def process_cut_frames(cut_frames, cut_index, start_fragment_time, end_fragment_
 
 
 def main():
-    os.makedirs("./outputs", exist_ok=True)
-    os.makedirs("./outputs_audio", exist_ok=True)
-    os.makedirs("./ocr", exist_ok=True)
-    os.makedirs("./frames", exist_ok=True)
+    # some videos can have changing resolutions because of browser side libraries that change the resolution of the sent video
+    fixed_video = vpt.fix_video_resolution(ffmpeg_path, viewer, width, height, debug)
     logger.info("Starting video processing")
-    cap = cv2.VideoCapture(viewer)
+    cap = cv2.VideoCapture(fixed_video)
+    if not cap.isOpened():
+        logger.error("Error opening video stream or file")
+        return
     i = 0
     is_begin_padding = False
     is_beginning_video = True
@@ -168,7 +175,13 @@ def main():
             # video ended
             break
         # resize frame to correct resolution so QoE tests return correct results
-        frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+        # logger.debug("Frame %d original size: %d x %d", i, frame.shape[1], frame.shape[0])
+        # frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+        # logger.debug("Frame %d resized to: %d x %d", i, frame.shape[1], frame.shape[0])
+        if debug:
+            write_result = cv2.imwrite(os.path.join(os.getcwd(), "frames", f"{viewer}-{i}.png"), frame)
+            if not write_result:
+                logger.error("Error writing frame %d", i)
         # If previous frame was padding, check if current frame is padding
         if is_begin_padding:
             # If the current frame is not padding, then padding has ended and a new fragment begins
@@ -217,9 +230,6 @@ def main():
             # This condition also ignores the first fragment as it is incomplete and QoE stats would be wrong
             elif not is_beginning_video:
                 frames_for_cut.append(frame)
-
-        if debug:
-            cv2.imwrite("frames/" + viewer + str(i) + ".jpg", frame)
         i += 1
 
     cap.release()
