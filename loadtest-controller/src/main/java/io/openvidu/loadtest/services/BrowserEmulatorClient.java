@@ -384,7 +384,13 @@ public class BrowserEmulatorClient {
 				int failures;
 				if (failuresMap != null) {
 					AtomicInteger userFailures = failuresMap.get(user);
-					failures = userFailures.incrementAndGet();
+					if (userFailures != null) {
+						failures = userFailures.incrementAndGet();
+					} else {
+						failures = 1;
+						userFailures = new AtomicInteger(failures);
+						failuresMap.put(user, userFailures);
+					}
 				} else {
 					failures = 1;
 					failuresMap = new ConcurrentHashMap<>();
