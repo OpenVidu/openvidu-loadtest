@@ -34,7 +34,7 @@ fi
 if [ "$FIREFOX" = "true" ]; then
     NPM_COMMAND=${NPM_COMMAND}-firefox
 fi
-echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && npm run build && $NPM_COMMAND > /var/log/crontab.log 2>&1" 2>&1 | crontab -u vagrant -
+echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && pnpm run build > /var/log/build.log 2>&1 && $NPM_COMMAND > /var/log/crontab.log 2>&1" 2>&1 | crontab -u vagrant -
 
 if [ "$START_MEDIASERVER" = "true" ]; then
     if [ "$LIVEKIT" = "true" ]; then
@@ -82,7 +82,7 @@ rm -f /home/vagrant/.bash_history
 # dd if=/dev/zero of=/boot/whitespace bs=1024 count=$count;
 # rm /boot/whitespace;
 
-# # Whiteout swap 
+# # Whiteout swap
 # swappart=`cat /proc/swaps | tail -n1 | awk -F ' ' '{print $1}'`
 # swapoff $swappart;
 # dd if=/dev/zero of=$swappart;
