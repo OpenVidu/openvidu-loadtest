@@ -17,7 +17,7 @@ else
     echo "No needrestart, continuing"
 fi
 
-SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
+SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)" # Absolute canonical path
 
 ## Install necessary packages
 apt-get update
@@ -33,7 +33,7 @@ source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
 add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
 apt-get update
 apt-get install -yq --no-install-recommends \
-    ffmpeg docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin xvfb linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
+    ffmpeg docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin xvfb linux-generic linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
 # Enable fake webcam for real browsers
 # Needs sudo so it works in crontab
 v4l2_version=0.12.7
@@ -41,7 +41,13 @@ mkdir -p /usr/src
 curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /usr/src
 cd /usr/src
 sudo dkms add -m v4l2loopback -v ${v4l2_version}
-sudo dkms build -m v4l2loopback -v ${v4l2_version}
+if sudo dkms build -m v4l2loopback -v ${v4l2_version} 2>&1 | grep -q "BUILD_EXCLUSIVE"; then
+    # Modify the dkms.conf file
+    conf_file="/var/lib/dkms/v4l2loopback/${v4l2_version}/source/dkms.conf"
+    # use fixed_v4l2_dkms.conf
+    cp $SELF_PATH/fixed_v4l2_dkms.conf $conf_file
+    sudo dkms build -m v4l2loopback -v ${v4l2_version}
+fi
 sudo dkms install -m v4l2loopback -v ${v4l2_version}
 cd $SELF_PATH
 sudo modprobe v4l2loopback devices=1 exclusive_caps=1
