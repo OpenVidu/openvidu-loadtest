@@ -368,7 +368,9 @@ public class LoadTestController {
 					boolean instancesInitialized = launchInitialInstances();
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					boolean noEstimateError = true;
-					if (loadTestConfig.isManualParticipantsAllocation()) {
+					if (!PROD_MODE) {
+						browserEstimation = 1;
+					} else if (loadTestConfig.isManualParticipantsAllocation()) {
 						browserEstimation = loadTestConfig.getSessionsPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
@@ -397,7 +399,9 @@ public class LoadTestController {
 					int publishers = Integer.parseInt(participants.split(":")[0]);
 					int subscribers = Integer.parseInt(participants.split(":")[1]);
 					boolean noEstimateError = true;
-					if (loadTestConfig.isManualParticipantsAllocation()) {
+					if (!PROD_MODE) {
+						browserEstimation = 1;
+					} else if (loadTestConfig.isManualParticipantsAllocation()) {
 						browserEstimation = loadTestConfig.getSessionsPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
@@ -427,7 +431,9 @@ public class LoadTestController {
 					if (participants.contains(":")) {
 						int publishers = Integer.parseInt(participants.split(":")[0]);
 						boolean noEstimateError = true;
-						if (loadTestConfig.isManualParticipantsAllocation()) {
+						if (!PROD_MODE) {
+							browserEstimation = 1;
+						} else if (loadTestConfig.isManualParticipantsAllocation()) {
 							browserEstimation = loadTestConfig.getSessionsPerWorker();
 						} else {
 							noEstimateError = estimate(instancesInitialized,
@@ -447,7 +453,9 @@ public class LoadTestController {
 						}
 					} else {
 						boolean noEstimateError = true;
-						if (loadTestConfig.isManualParticipantsAllocation()) {
+						if (!PROD_MODE) {
+							browserEstimation = 1;
+						} else if (loadTestConfig.isManualParticipantsAllocation()) {
 							browserEstimation = loadTestConfig.getSessionsPerWorker();
 						} else {
 							noEstimateError = estimate(instancesInitialized,
