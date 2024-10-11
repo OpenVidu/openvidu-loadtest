@@ -74,9 +74,10 @@ install_ffmpeg() {
 
 install_node_dependencies_and_build() {
     ## Install node dependencies
-    npm install -g yarn
-    yarn --cwd /opt/openvidu-loadtest/browser-emulator install --verbose
-    yarn --cwd /opt/openvidu-loadtest/browser-emulator run build
+    corepack enable pnpm
+    corepack use pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4
+    pnpm --cwd /opt/openvidu-loadtest/browser-emulator install
+    pnpm --cwd /opt/openvidu-loadtest/browser-emulator run build
     echo "node build completed"
 }
 
