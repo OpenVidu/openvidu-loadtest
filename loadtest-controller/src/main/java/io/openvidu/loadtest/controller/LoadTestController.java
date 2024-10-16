@@ -1155,6 +1155,13 @@ public class LoadTestController {
 		if (stopReason == null) {
 			stopReason = "Test finished";
 		}
+		String videoControl = "None";
+		if ((loadTestConfig.getS3BucketName() != null) && !loadTestConfig.getS3BucketName().equals("")) {
+			videoControl = "https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName();
+		} else if ((loadTestConfig.getMinioBucket() != null) && !loadTestConfig.getMinioBucket().equals("")) {
+			videoControl = loadTestConfig.getMinioHost() + ":" + loadTestConfig.getMinioPort() + "/"
+					+ loadTestConfig.getMinioBucket();
+		}
 		ResultReport rr = new ResultReport().setTotalParticipants(totalParticipants.get())
 				.setNumSessionsCompleted(sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())
 				.setWorkersUsed(workersUsed)
@@ -1166,8 +1173,7 @@ public class LoadTestController {
 				.setEndTime(endTime).setKibanaUrl(kibanaUrl)
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
 				.setSessionsPerWorker(loadTestConfig.getSessionsPerWorker())
-				.setS3BucketName(
-						"https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName())
+				.setS3BucketName(videoControl)
 				.setTimePerWorker(workerTimes).setTimePerRecordingWorker(recordingWorkerTimes)
 				.setUserStartTimes(userStartTimes)
 				.build();

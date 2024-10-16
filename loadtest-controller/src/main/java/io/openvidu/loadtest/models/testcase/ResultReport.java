@@ -221,7 +221,7 @@ public class ResultReport {
 				+ (timePerRecordingWorker.size() == 0 ? "" :
 					"Time each worker has been alive (minutes, recording workers):	" + timePerRecordingWorker + System.getProperty("line.separator"))
 				+ "Test duration:	" + getDuration() + System.getProperty("line.separator") + "Kibana url:	" + kibanaUrl
-				+ System.getProperty("line.separator") + "Video quality control:	" + s3BucketName
+				+ System.getProperty("line.separator") + "Video quality control and stats:	" + s3BucketName
 				+ System.getProperty("line.separator") 
 				+ (userStartTimes.size() == 0 ? "" : "User start times:	" + getUserStartTime() + System.getProperty("line.separator"))
 				+ System.getProperty("line.separator")
