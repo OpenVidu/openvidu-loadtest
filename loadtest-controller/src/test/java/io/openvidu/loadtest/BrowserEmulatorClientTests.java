@@ -1,8 +1,6 @@
 package io.openvidu.loadtest;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,7 +19,6 @@ import java.net.http.HttpResponse;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
-import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
@@ -110,13 +107,12 @@ class BrowserEmulatorClientTests {
         Map<String, String> headers = new HashMap<String, String>();
 		headers.put("Content-Type", "application/json");
 
-        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1, BrowserMode.REAL,
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
             30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
             true);
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
         expectedBody.addProperty("openviduSecret", "MYSECRET");
-        expectedBody.addProperty("browserMode", "REAL");
         JsonObject properties = new JsonObject();
         properties.addProperty("userId", "User0");
         properties.addProperty("sessionName", "LoadTestSession0");
@@ -165,7 +161,7 @@ class BrowserEmulatorClientTests {
                 "https://localhost:5000/openvidu-browser/streamManager/session/" + session + "/user/" + participant, headers)
         ).thenReturn(response);
 
-        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1, BrowserMode.REAL,
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
             30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
             true);
 
@@ -173,7 +169,6 @@ class BrowserEmulatorClientTests {
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
         expectedBody.addProperty("openviduSecret", "MYSECRET");
-        expectedBody.addProperty("browserMode", "REAL");
         JsonObject properties = new JsonObject();
         properties.addProperty("userId", participant);
         properties.addProperty("sessionName", session);
@@ -215,13 +210,12 @@ class BrowserEmulatorClientTests {
         Map<String, String> headers = new HashMap<String, String>();
 		headers.put("Content-Type", "application/json");
 
-        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1, BrowserMode.REAL,
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
             30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
             true);
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
         expectedBody.addProperty("openviduSecret", "MYSECRET");
-        expectedBody.addProperty("browserMode", "REAL");
         JsonObject properties = new JsonObject();
         properties.addProperty("userId", "User0");
         properties.addProperty("sessionName", "LoadTestSession0");

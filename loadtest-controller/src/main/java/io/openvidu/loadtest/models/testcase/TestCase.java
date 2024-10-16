@@ -7,7 +7,6 @@ public class TestCase {
 	private Typology typology;
 	private List<String> participants;
 	private int sessions;
-	private BrowserMode browserMode;
 	private Resolution resolution;
 	private int frameRate;
 	private OpenViduRecordingMode openviduRecordingMode;
@@ -17,13 +16,12 @@ public class TestCase {
 	private String recordingMetadata = "";
 	private int startingParticipants = 0;
 
-	public TestCase(String typology, List<String> participants, int sessions, BrowserMode browserMode, int frameRate, Resolution resolution,
+	public TestCase(String typology, List<String> participants, int sessions, int frameRate, Resolution resolution,
 			OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
 			boolean showBrowserVideoElements) {
 		this.typology = getTypology(typology);
 		this.participants = participants;
 		this.sessions = sessions;
-		this.browserMode = browserMode;
 		this.resolution = resolution;
 		this.frameRate = frameRate;
 		this.openviduRecordingMode = openviduRecordingMode;
@@ -36,7 +34,6 @@ public class TestCase {
 		this.typology = testCase.typology;
 		this.participants = testCase.participants;
 		this.sessions = testCase.sessions;
-		this.browserMode = testCase.browserMode;
 		this.resolution = testCase.resolution;
 		this.frameRate = testCase.frameRate;
 		this.openviduRecordingMode = testCase.openviduRecordingMode;
@@ -86,16 +83,7 @@ public class TestCase {
 	public void setSessions(int sessions) {
 		this.sessions = sessions;
 	}
-
-	public BrowserMode getBrowserMode() {
-		return browserMode;
-	}
-
-	public void setBrowserMode(BrowserMode browserMode) {
-		this.browserMode = browserMode;
-	}
 	
-
 	public Resolution getResolution() {
 		return resolution;
 	}
@@ -113,7 +101,7 @@ public class TestCase {
 	}
 
 	public boolean isBrowserRecording() {
-		return browserRecording && this.browserMode.equals(BrowserMode.REAL);
+		return browserRecording;
 	}
 
 	public void setBrowserRecording(boolean browserRecording) {
@@ -121,7 +109,7 @@ public class TestCase {
 	}
 
 	public boolean isHeadlessBrowser() {
-		return headlessBrowser && this.browserMode.equals(BrowserMode.REAL);
+		return headlessBrowser;
 	}
 
 	public void setHeadlessBrowser(boolean headless) {
@@ -133,7 +121,7 @@ public class TestCase {
 	}
 
 	public boolean isShowBrowserVideoElements() {
-		return showBrowserVideoElements && this.browserMode.equals(BrowserMode.REAL) && !this.isHeadlessBrowser();
+		return showBrowserVideoElements && !this.isHeadlessBrowser();
 	}
 
 	public int getStartingParticipants() {
@@ -154,7 +142,6 @@ public class TestCase {
 				+ " | Participants in session: " + participants
 				+ " | Starting participants: " + startingParticipantString
 				+ " | Sessions limit: "	+ sessionLimit 
-				+ " | Browser mode: " + browserMode 
 				+ " | Resolution: " + resolution.getValue() 
 				+ " | Frame rate: " + frameRate 
 				+ " | Headless browser: " + isHeadlessBrowser() 

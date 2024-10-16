@@ -18,7 +18,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
 
-import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
@@ -86,7 +85,6 @@ public class DataIO {
 			Resolution resolution = Resolution.MEDIUM;
 			List<String> participants = new ArrayList<String>();
 			int sessions = 0;
-			BrowserMode browserMode = BrowserMode.EMULATE;
 			OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
 			String typology = element.get("typology").getAsString();
 			int startingParticipants = 0;
@@ -94,10 +92,6 @@ public class DataIO {
 				String sessionsStr = element.get("sessions").getAsString();
 				JsonArray participantsArray = (JsonArray) element.get("participants");
 				participants = jsonUtils.getStringList(participantsArray);
-				String browserModeStr = element.get("browserMode").getAsString();
-				if(!browserModeStr.isBlank() ) {
-					browserMode = browserModeStr.equalsIgnoreCase(BrowserMode.EMULATE.getValue()) ? BrowserMode.EMULATE : BrowserMode.REAL;
-				}
 
 				if(element.get("frameRate") !=null && !element.get("frameRate").getAsString().isBlank()) {
 					frameRate = element.get("frameRate").getAsInt();
@@ -126,17 +120,15 @@ public class DataIO {
 
 				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr);
 
-				if (browserMode.equals(BrowserMode.REAL)) {
-					browserRecording = element.has("recording") ? element.get("recording").getAsBoolean() : false;
-					headlessBrowser = element.has("headless") ? element.get("headless").getAsBoolean() : false;
-					showBrowserVideoElements = element.has("showBrowserVideoElements")
-							? element.get("showBrowserVideoElements").getAsBoolean()
-							: false;
+				browserRecording = element.has("recording") ? element.get("recording").getAsBoolean() : false;
+				headlessBrowser = element.has("headless") ? element.get("headless").getAsBoolean() : false;
+				showBrowserVideoElements = element.has("showBrowserVideoElements")
+						? element.get("showBrowserVideoElements").getAsBoolean()
+						: false;
 
-				}
 			}
 
-			TestCase testCase = new TestCase(typology, participants, sessions, browserMode, frameRate, resolution, openviduRecordingMode,
+			TestCase testCase = new TestCase(typology, participants, sessions, frameRate, resolution, openviduRecordingMode,
 				headlessBrowser, browserRecording, showBrowserVideoElements);
 			testCase.setStartingParticipants(startingParticipants);
 			testCaseList.add(testCase);

@@ -3,7 +3,6 @@ package io.openvidu.loadtest.models.testcase.request;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
-import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.Resolution;
@@ -11,7 +10,6 @@ import io.openvidu.loadtest.models.testcase.TestCase;
 
 public class CreateUserRequestBody {
 
-    private BrowserMode browserMode = BrowserMode.EMULATE;
 	private String userId = "";
 	private String sessionName = "";
 	private String token = "";
@@ -33,7 +31,6 @@ public class CreateUserRequestBody {
 
         this.openviduUrl = config.getOpenViduUrl();
         this.openviduSecret = config.getOpenViduSecret();
-        this.browserMode = testCase.getBrowserMode();
         this.userId = userId;
         this.sessionName = sessionId;
         this.role = role;
@@ -56,7 +53,6 @@ public class CreateUserRequestBody {
         JsonObject jsonBody = new JsonObject();
         jsonBody.addProperty("openviduUrl", this.openviduUrl);
         jsonBody.addProperty("openviduSecret", this.openviduSecret);
-        jsonBody.addProperty("browserMode", this.browserMode.getValue());
 
         JsonObject properties = new JsonObject();
 
@@ -74,11 +70,9 @@ public class CreateUserRequestBody {
         if (this.openviduRecordingMode != null && !this.openviduRecordingMode.getValue().isEmpty()) {
             properties.addProperty("recordingOutputMode", this.openviduRecordingMode.getValue());
         }
-        if (this.browserMode.getValue().equals(BrowserMode.REAL.getValue())) {
-            properties.addProperty("recording", this.browserRecording);
-            properties.addProperty("showVideoElements", this.showVideoElements);
-            properties.addProperty("headless", this.headlessBrowser);
-        }
+        properties.addProperty("recording", this.browserRecording);
+        properties.addProperty("showVideoElements", this.showVideoElements);
+        properties.addProperty("headless", this.headlessBrowser);
 
         if (!this.recordingMetadata.isBlank()) {
             properties.addProperty("recordingMetadata", this.recordingMetadata);

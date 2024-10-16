@@ -29,7 +29,6 @@ import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
-import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.TestCase;
@@ -445,7 +444,6 @@ public class BrowserEmulatorClient {
 			TestCase testCase, String recordingMetadata, OpenViduRole role) {
 
 		TestCase testCaseAux = new TestCase(testCase);
-		testCaseAux.setBrowserMode(BrowserMode.REAL);
 		testCaseAux.setBrowserRecording(true);
 		testCaseAux.setRecordingMetadata(recordingMetadata);
 		log.info("Creating a participant using a REAL BROWSER for recoding");

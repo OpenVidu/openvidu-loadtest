@@ -29,7 +29,6 @@ import com.amazonaws.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.controller.LoadTestController;
-import io.openvidu.loadtest.models.testcase.BrowserMode;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
@@ -132,7 +131,7 @@ public class LoadTestControllerTests {
 
         List<String> participants = List.of("8");
 
-        TestCase testCase = new TestCase("N:N", participants, -1, BrowserMode.REAL,
+        TestCase testCase = new TestCase("N:N", participants, -1,
             30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
         testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
@@ -220,7 +219,7 @@ public class LoadTestControllerTests {
 
         List<String> participants = List.of("3:10");
 
-        TestCase testCase = new TestCase("N:M", participants, -1, BrowserMode.REAL,
+        TestCase testCase = new TestCase("N:M", participants, -1,
             30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
         testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
@@ -319,7 +318,7 @@ public class LoadTestControllerTests {
 
         List<String> participants = List.of("8");
 
-        TestCase testCase = new TestCase("N:N", participants, -1, BrowserMode.REAL,
+        TestCase testCase = new TestCase("N:N", participants, -1,
             30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
 
         List<TestCase> testCases = List.of(testCase);
@@ -420,7 +419,7 @@ public class LoadTestControllerTests {
 
         List<String> participants = List.of("1:N");
 
-        TestCase testCase = new TestCase("ONE_SESSION", participants, -1, BrowserMode.REAL,
+        TestCase testCase = new TestCase("ONE_SESSION", participants, -1,
             30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
         testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);

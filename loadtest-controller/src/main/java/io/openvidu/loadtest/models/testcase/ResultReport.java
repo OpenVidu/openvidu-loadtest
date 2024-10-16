@@ -17,7 +17,6 @@ public class ResultReport {
 	private List<Long> timePerWorker = new ArrayList<>();
 	private List<Long> timePerRecordingWorker = new ArrayList<>();
 	private String sessionTypology;
-	private String browserModeSelected;
 	private boolean browserRecording;
 	private String openviduRecording = "";
 	private String participantsPerSession = "";
@@ -35,7 +34,7 @@ public class ResultReport {
 
 	public ResultReport build() {
 		return new ResultReport(this.totalParticipants, this.numSessionsCompleted, this.numSessionsCreated,
-				this.workersUsed, this.streamsPerWorker, this.sessionTypology, this.browserModeSelected,
+				this.workersUsed, this.streamsPerWorker, this.sessionTypology,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
 				this.sessionsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
 				this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
@@ -84,11 +83,6 @@ public class ResultReport {
 
 	public ResultReport setSessionTypology(String sessionTypology) {
 		this.sessionTypology = sessionTypology;
-		return this;
-	}
-
-	public ResultReport setBrowserModeSelected(String browserModeSelected) {
-		this.browserModeSelected = browserModeSelected;
 		return this;
 	}
 
@@ -143,7 +137,7 @@ public class ResultReport {
 	}
 
 	private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
-			List<Integer> streamsPerWorker, String sessionTypology, String browserModeSelected,
+			List<Integer> streamsPerWorker, String sessionTypology,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
 			int sessionsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
 			Calendar endTime, String kibanaUrl, String s3BucketName, List<Long> timePerWorker,
@@ -155,7 +149,6 @@ public class ResultReport {
 		this.streamsPerWorker = streamsPerWorker;
 		this.sessionTypology = sessionTypology;
 		this.openviduRecording = openviduRecording;
-		this.browserModeSelected = browserModeSelected;
 		this.browserRecording = browserRecording;
 		this.isManualParticipantAllocation = manualParticipantsAllocation;
 		this.sessionsPerWorker = sessionsPerWorker;
@@ -207,10 +200,7 @@ public class ResultReport {
 	public String toString() {
 
 		return " ----- Test Case Report " + startTime.getTime() + " ----- " + System.getProperty("line.separator")
-				+ "Browser approach:	" + browserModeSelected + System.getProperty("line.separator")
-				+ (browserModeSelected.equals(BrowserMode.REAL)
-						? "Browser with recording:	" + browserRecording + System.getProperty("line.separator")
-						: "")
+				+ "Browser with recording:	" + browserRecording + System.getProperty("line.separator")
 				+ "OpenVidu recording:	" + openviduRecording + System.getProperty("line.separator")
 				+ "Session typology:	" + sessionTypology + System.getProperty("line.separator")
 				+ "Participants per session:	" + participantsPerSession + System.getProperty("line.separator")

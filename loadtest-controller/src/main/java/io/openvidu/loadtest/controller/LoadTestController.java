@@ -520,7 +520,7 @@ public class LoadTestController {
 			CompletableFuture<CreateParticipantResponse> future;
 			if (needRecordingParticipant()) {
 				recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
-				String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_ONE";
+				String recordingMetadata = "N-N_ONE";
 				future = CompletableFuture.supplyAsync(
 						new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
 								OpenViduRole.PUBLISHER, true, recordingMetadata),
@@ -605,7 +605,7 @@ public class LoadTestController {
 			CompletableFuture<CreateParticipantResponse> future;
 			if (needRecordingParticipant()) {
 				recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
-				String recordingMetadata = testCase.getBrowserMode().getValue() + "_X-M_" + publishers + "_ONE";
+				String recordingMetadata = "X-M_" + publishers + "_ONE";
 				future = CompletableFuture.supplyAsync(
 						new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
 								OpenViduRole.PUBLISHER, true, recordingMetadata),
@@ -666,7 +666,7 @@ public class LoadTestController {
 			CompletableFuture<CreateParticipantResponse> future;
 			if (needRecordingParticipant()) {
 				recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
-				String recordingMetadata = testCase.getBrowserMode().getValue() + "_X-M_" + publishers + "_ONE";
+				String recordingMetadata = "X-M_" + publishers + "_ONE";
 				future = CompletableFuture.supplyAsync(
 						new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
 								testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata),
@@ -760,7 +760,7 @@ public class LoadTestController {
 				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
-					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-N_" + participantsBySession
+					String recordingMetadata = "N-N_" + participantsBySession
 							+ "_"
 							+ participantsBySession + "PSes";
 					future = CompletableFuture.supplyAsync(
@@ -886,7 +886,7 @@ public class LoadTestController {
 				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
-					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
+					String recordingMetadata = "N-M_" + publishers + "_"
 							+ subscribers + "PSes";
 					future = CompletableFuture.supplyAsync(
 							new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
@@ -950,7 +950,7 @@ public class LoadTestController {
 				CompletableFuture<CreateParticipantResponse> future;
 				if (needRecordingParticipant()) {
 					recWorker = setAndInitializeNextWorker(recWorker, WorkerType.RECORDING_WORKER);
-					String recordingMetadata = testCase.getBrowserMode().getValue() + "_N-M_" + publishers + "_"
+					String recordingMetadata = "N-M_" + publishers + "_"
 							+ subscribers + "PSes";
 					future = CompletableFuture.supplyAsync(
 							new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
@@ -1157,7 +1157,6 @@ public class LoadTestController {
 				.setWorkersUsed(workersUsed)
 				//.setStreamsPerWorker(streamsPerWorker)
 				.setSessionTypology(testCase.getTypology().toString())
-				.setBrowserModeSelected(testCase.getBrowserMode().toString())
 				.setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
 				.setBrowserRecording(testCase.isBrowserRecording()).setParticipantsPerSession(participantsBySession)
 				.setStopReason(lastCPR.getStopReason()).setStartTime(this.startTime)

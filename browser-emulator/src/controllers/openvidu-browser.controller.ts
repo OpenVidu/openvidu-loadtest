@@ -2,7 +2,7 @@ import * as express from 'express';
 import { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service';
 import { OpenViduRole, Resolution } from '../types/openvidu.type';
-import { BrowserMode, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
+import { LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
 import BaseComModule from '../com-modules/base';
 
 export const app = express.Router({
@@ -19,7 +19,6 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			comModuleInstance.processNewUserRequest(request);
 			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 
-			request.browserMode = request.browserMode || BrowserMode.EMULATE;
 			request.properties.frameRate = request.properties.frameRate || 30;
 			// Setting default role for publisher properties
 			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
@@ -30,9 +29,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 				request.properties.resolution = Resolution.DEFAULT;
 			}
 
-			if (request.browserMode === BrowserMode.REAL) {
-				request.properties.showVideoElements = request.properties.showVideoElements || true;
-			}
+			request.properties.showVideoElements = request.properties.showVideoElements || true;
 
 			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
 			return res.status(200).send(response);
