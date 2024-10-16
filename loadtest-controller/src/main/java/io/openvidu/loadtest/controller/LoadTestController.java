@@ -1151,7 +1151,10 @@ public class LoadTestController {
 		String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
 		String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T");
 		String kibanaUrl = kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
-
+		String stopReason = lastCPR.getStopReason();
+		if (stopReason == null) {
+			stopReason = "Test finished";
+		}
 		ResultReport rr = new ResultReport().setTotalParticipants(totalParticipants.get())
 				.setNumSessionsCompleted(sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())
 				.setWorkersUsed(workersUsed)
@@ -1159,7 +1162,7 @@ public class LoadTestController {
 				.setSessionTypology(testCase.getTypology().toString())
 				.setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
 				.setBrowserRecording(testCase.isBrowserRecording()).setParticipantsPerSession(participantsBySession)
-				.setStopReason(lastCPR.getStopReason()).setStartTime(this.startTime)
+				.setStopReason(stopReason).setStartTime(this.startTime)
 				.setEndTime(endTime).setKibanaUrl(kibanaUrl)
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
 				.setSessionsPerWorker(loadTestConfig.getSessionsPerWorker())
