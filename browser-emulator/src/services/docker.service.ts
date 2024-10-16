@@ -22,7 +22,7 @@ export class DockerService {
 				await container.stop();
 				console.log('Container ' + container.id + ' stopped');
 			} catch (error) {
-				console.error('KMS has already stopped. Skipping');
+				console.error('Container has already stopped. Skipping');
 			}
 		}
 	}

@@ -1,8 +1,7 @@
 import fs = require('fs');
 import https = require('https');
 import * as express from 'express';
-import { APPLICATION_MODE, COM_MODULE, EMULATED_USER_TYPE, SERVER_PORT, WEBSOCKET_PORT } from './config';
-import { HackService } from './services/hack.service';
+import { APPLICATION_MODE, COM_MODULE, SERVER_PORT, WEBSOCKET_PORT } from './config';
 
 import { app as ovBrowserController } from './controllers/openvidu-browser.controller';
 import { app as eventsController } from './controllers/events.controller';
@@ -10,7 +9,7 @@ import { app as instanceController } from './controllers/instance.controller';
 import { app as qoeController } from './controllers/qoe.controller';
 
 import { InstanceService } from './services/instance.service';
-import { ApplicationMode, EmulatedUserType } from './types/config.type';
+import { ApplicationMode } from './types/config.type';
 import { WsService } from './services/ws.service';
 import WebSocket = require('ws');
 import nodeCleanup = require('node-cleanup');
@@ -72,7 +71,6 @@ app.use('/qoe', qoeController);
 const server = https.createServer(options, app);
 
 server.listen(SERVER_PORT, async () => {
-	const hack = new HackService();
 	const instanceService = InstanceService.getInstance();
 
 	try {
@@ -88,17 +86,6 @@ server.listen(SERVER_PORT, async () => {
 			console.log('Pulling Docker images needed...');
 			await instanceService.pullImagesNeeded();
 		}
-
-		if (EMULATED_USER_TYPE === EmulatedUserType.KMS) {
-			await instanceService.cleanEnvironment();
-			await instanceService.launchKMS();
-		}
-
-		hack.openviduBrowser();
-		await hack.webrtc();
-		hack.websocket();
-		hack.platform();
-		hack.allowSelfSignedCertificate();
 
 		const pythonpath = process.env['PYTHONPATH']
 		if (!pythonpath) {
@@ -116,7 +103,6 @@ server.listen(SERVER_PORT, async () => {
 		console.log('---------------------------------------------------------');
 		console.log(' ');
 		console.log(`Service started in ${APPLICATION_MODE} mode`);
-		console.log(`Emulated user type: ${EMULATED_USER_TYPE}`);
 		console.log(`API REST is listening in port ${SERVER_PORT}`);
 		console.log(`WebSocket is listening in port ${WEBSOCKET_PORT}`);
 		console.log(' ');

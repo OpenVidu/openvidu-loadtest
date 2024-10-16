@@ -1,8 +1,5 @@
 import * as os from 'node-os-utils';
 import { ContainerCreateOptions } from 'dockerode';
-
-import { EMULATED_USER_TYPE } from '../config';
-import { EmulatedUserType } from '../types/config.type';
 import { DockerService } from './docker.service';
 import { LocalStorageService } from './local-storage.service';
 import { WebrtcStatsService } from './config-storage.service';
@@ -14,9 +11,6 @@ export class InstanceService {
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
-	private readonly KMS_IMAGE = 'kurento/kurento-media-server:latest';
-	private readonly KMS_RECORDINGS_PATH = '/home/ubuntu/recordings';
-	private readonly KMS_MEDIAFILES_PATH = '/home/ubuntu/mediafiles';
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
 	private pullImagesRetries: number = 0;
@@ -39,8 +33,6 @@ export class InstanceService {
 	}
 
 	async cleanEnvironment() {
-		await this.dockerService.stopContainer(ContainerName.KMS);
-		await this.dockerService.removeContainer(ContainerName.KMS);
 		new LocalStorageService().clear(new WebrtcStatsService().getItemName());
 	}
 
@@ -77,44 +69,6 @@ export class InstanceService {
 		await this.dockerService.startContainer(options);
 	}
 
-	async launchKMS(): Promise<void> {
-		try {
-			const options: ContainerCreateOptions = {
-				Image: this.KMS_IMAGE,
-				name: ContainerName.KMS,
-				User: 'root',
-				Env: ['KMS_MIN_PORT=40000', 'KMS_MAX_PORT=65535', `KURENTO_RECORDING_ENABLED=${process.env.KURENTO_RECORDING_ENABLED}`],
-				HostConfig: {
-					Binds: [
-						`${process.cwd()}/recordings/kms:${this.KMS_RECORDINGS_PATH}`,
-						`${process.cwd()}/src/assets/mediafiles:${this.KMS_MEDIAFILES_PATH}`,
-					],
-					AutoRemove: false,
-					NetworkMode: 'browseremulator',
-					RestartPolicy: {
-						Name: 'always',
-					},
-				},
-			};
-
-			// Debug logging variables:
-			// GST_DEBUG is used directly by the Kurento Docker image.
-			if ('GST_DEBUG' in process.env) {
-				options.Env.push(`GST_DEBUG=${process.env.GST_DEBUG}`);
-			}
-			// KMS_DOCKER_ENV_GST_DEBUG is used by .env files of OpenVidu.
-			if ('KMS_DOCKER_ENV_GST_DEBUG' in process.env) {
-				options.Env.push(`GST_DEBUG=${process.env.KMS_DOCKER_ENV_GST_DEBUG}`);
-			}
-
-			await this.dockerService.startContainer(options);
-		} catch (error) {
-			console.error(error);
-			// this.dockerService.stopContainer(ContainerName.KMS);
-			// this.dockerService.removeContainer(ContainerName.KMS);
-		}
-	}
-
 	async removeContainer(containerNameOrId: string) {
 		await this.dockerService.removeContainer(containerNameOrId);
 	}
@@ -123,9 +77,6 @@ export class InstanceService {
 		try {
 			if (!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))) {
 				await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
-			}
-			if (!(await this.dockerService.imageExists(this.KMS_IMAGE)) && EMULATED_USER_TYPE === EmulatedUserType.KMS) {
-				await this.dockerService.pullImage(this.KMS_IMAGE);
 			}
 		} catch (err) {
 			console.error("Error pulling images: ");

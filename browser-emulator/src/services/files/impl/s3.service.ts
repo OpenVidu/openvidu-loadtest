@@ -156,33 +156,5 @@ export class S3FilesService extends FilesService {
 			});
 		});
     }
-
-    // async uploadQoeAnalysisToS3(file: string): Promise<void> {
-    // 	return new Promise(async (resolve, reject) => {
-    // 		if (fs.existsSync(`${this.AWS_CREDENTIALS_PATH}/config.json`)) {
-    // 			AWS.config.loadFromPath(`${this.AWS_CREDENTIALS_PATH}/config.json`);
-    // 			const s3 = new AWS.S3();
-    // 			if(!(await this.isBucketCreated(process.env.S3_BUCKET))) {
-    // 				await this.createS3Bucket(process.env.S3_BUCKET);
-    // 			}
-    // 			const filePath = `${process.cwd()}/${file}`;
-    // 			const params = {
-    // 				Bucket: process.env.S3_BUCKET,
-    // 				Key: file,
-    // 				Body: fs.createReadStream(filePath)
-    // 			};
-    // 			s3.putObject(params, (err, data) => {
-    // 				if (err) {
-    // 					console.error(err);
-    // 					return reject(err);
-    // 				} else {
-    // 					console.log(`Successfully uploaded Qoe Analysis to ${process.env.S3_BUCKET} / ${file}`);
-    // 					return resolve(fsPromises.rm(filePath, { force: true }));
-    // 				}
-    // 			});
-    // 		}
-    // 	});
-
-
-    // }
+    
 }

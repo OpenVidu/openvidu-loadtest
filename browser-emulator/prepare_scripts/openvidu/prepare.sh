@@ -195,7 +195,6 @@ install_node_dependencies_and_build() {
 pull_images() {
     # Pull images used by browser-emulator for faster initialization time
     docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
-    docker pull kurento/kurento-media-server:latest
     docker network create browseremulator
     echo "docker images pulled"
 }
@@ -213,7 +212,6 @@ pull_images &
 wait
 
 # Create recording directories
-mkdir -p ./recordings/kms
 mkdir -p ./recordings/chrome
 mkdir -p ./recordings/qoe
 

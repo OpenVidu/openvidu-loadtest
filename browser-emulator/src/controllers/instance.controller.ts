@@ -97,7 +97,6 @@ function createRecordingsDirectory() {
 	const dir = `${process.cwd()}/recordings`;
 	if (!fs.existsSync(dir)) {
 		fs.mkdirSync(dir);
-		fs.mkdirSync(dir + '/kms');
 		fs.mkdirSync(dir + '/chrome');
 		fs.mkdirSync(dir + '/qoe');
 	}

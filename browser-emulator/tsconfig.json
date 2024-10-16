@@ -1,16 +1,10 @@
 {
   // TSConfig Base (https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#tsconfig-bases)
   // Use recommended base settings for the Node.js runtime.
-  "extends": "@tsconfig/node16/tsconfig.json",
+  "extends": "@tsconfig/node18/tsconfig.json",
 
   // Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
   "compilerOptions": {
-    // Type Declarations (https://www.typescriptlang.org/tsconfig#declaration)
-    // Generate type files (*.d.ts) for both TypeScript and JavaScript.
-    // This helps with type-checking the Kurento JS client files.
-    "declaration": true,
-    "declarationMap": true,
-    "module": "commonjs",
     // Linter Checks (https://www.typescriptlang.org/tsconfig#Additional_Checks_6176)
     // These help with writing better code. Enable as many as possible.
     //"noFallthroughCasesInSwitch": true,

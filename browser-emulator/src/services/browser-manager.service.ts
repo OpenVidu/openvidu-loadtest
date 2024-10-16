@@ -1,5 +1,4 @@
-import { EmulateBrowserService } from './emulate-browser.service';
-import { BrowserMode, JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
+import { JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
 import { InstanceService } from './instance.service';
 import { RealBrowserService } from './real-browser.service';
 import { ElasticSearchService } from './elasticsearch.service';
@@ -16,7 +15,6 @@ export class BrowserManagerService {
 	private _lastRequestInfo: LoadTestPostRequest;
 
 	private constructor(
-		private emulateBrowserService: EmulateBrowserService = new EmulateBrowserService(),
 		private realBrowserService: RealBrowserService = new RealBrowserService(),
 		private instanceService: InstanceService = InstanceService.getInstance(),
 		private filesService: FilesService | undefined = FilesService.getInstance(),
@@ -44,38 +42,24 @@ export class BrowserManagerService {
 		let connectionId: string;
 		let webrtcStorageName: string;
 		let webrtcStorageValue: string;
-		const isRealBrowser = request.browserMode === BrowserMode.REAL;
 
 		webrtcStorageName = this.webrtcStorageService.getItemName();
 		webrtcStorageValue = this.webrtcStorageService.getConfig();
 		this.printRequestInfo(request);
 
-		if (isRealBrowser) {
-			// Create new stream manager using launching a normal Chrome browser
-			await this.realBrowserService.startSelenium(request.properties);
-			try {
-				const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
-				const qoeService: QoERecordingsService = new QoERecordingsService();
-				const errorService: ErrorLogService = new ErrorLogService();
-				const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName(), qoeStorageName: qoeService.getItemName(), errorStorageName: errorService.getItemName() };
-				const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig(), qoeStorageValue: qoeService.getConfig(), errorStorageValue: errorService.getConfig() };
-				console.log(storageNameObject, storageValueObject);
-				connectionId = await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
-				this.realBrowserService.storeConnection(connectionId, request.properties);
-			} catch (error) {
-				throw error;
-			}
-		} else {
-			if (this.elasticSearchService.isElasticSearchRunning() && !this.localStorage.exist(webrtcStorageName)) {
-				// Create webrtc stats item in virtual localStorage
-				try {
-					this.localStorage.setItem(webrtcStorageName, webrtcStorageValue);
-				} catch (error) {
-					console.error(error);
-				}
-			}
-
-			connectionId = await this.emulateBrowserService.createStreamManager(request.token, request.properties);
+		// Create new stream manager using launching a normal Chrome browser
+		await this.realBrowserService.startSelenium(request.properties);
+		try {
+			const ovEventsService: OpenViduEventsService = new OpenViduEventsService();
+			const qoeService: QoERecordingsService = new QoERecordingsService();
+			const errorService: ErrorLogService = new ErrorLogService();
+			const storageNameObject = { webrtcStorageName, ovEventStorageName: ovEventsService.getItemName(), qoeStorageName: qoeService.getItemName(), errorStorageName: errorService.getItemName() };
+			const storageValueObject = { webrtcStorageValue, ovEventStorageValue: ovEventsService.getConfig(), qoeStorageValue: qoeService.getConfig(), errorStorageValue: errorService.getConfig() };
+			console.log(storageNameObject, storageValueObject);
+			connectionId = await this.realBrowserService.launchBrowser(request, storageNameObject, storageValueObject);
+			this.realBrowserService.storeConnection(connectionId, request.properties);
+		} catch (error) {
+			throw error;
 		}
 
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
@@ -88,16 +72,10 @@ export class BrowserManagerService {
 	}
 
 	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
-		this.emulateBrowserService.deleteStreamManagerWithRole(role);
 		await this.realBrowserService.deleteStreamManagerWithRole(role);
 	}
 
 	async deleteStreamManagerWithConnectionId(connectionId: string): Promise<void> {
-		const isConnectionFromEmulatedBrowser = connectionId.includes('con_');
-		if (isConnectionFromEmulatedBrowser) {
-			return this.emulateBrowserService.deleteStreamManagerWithConnectionId(connectionId);
-		}
-
 		return await this.realBrowserService.deleteStreamManagerWithConnectionId(connectionId);
 	}
 
@@ -106,7 +84,6 @@ export class BrowserManagerService {
 	}
 
 	async clean(): Promise<void> {
-		this.emulateBrowserService.clean();
 		await this.realBrowserService.clean();
 		console.log("Browsers cleaned");
 		if (this.elasticSearchService.isElasticSearchRunning()) {
@@ -122,11 +99,11 @@ export class BrowserManagerService {
 	}
 
 	private getStreamsCreated(): number {
-		return this.emulateBrowserService.getStreamsCreated() + this.realBrowserService.getStreamsCreated();
+		return this.realBrowserService.getStreamsCreated();
 	}
 
 	private getParticipantsCreated(): number {
-		return this.emulateBrowserService.getParticipantsCreated() + this.realBrowserService.getParticipantsCreated();
+		return this.realBrowserService.getParticipantsCreated();
 	}
 
 	private async sendStreamsData(streams: number, new_participant_id: string, new_participant_session: string) {
@@ -153,7 +130,7 @@ export class BrowserManagerService {
 
 	private printRequestInfo(req: LoadTestPostRequest): void {
 		const info =
-			`\nStarting a ${req.properties.role} participant in a ${req.browserMode} browser with: \n` +
+			`\nStarting a ${req.properties.role} participant in a browser with: \n` +
 			`Audio: ${req.properties.audio} \n` +
 			`Video: ${req.properties.video} \n` +
 			`Frame Rate: ${req.properties.frameRate} \n` +

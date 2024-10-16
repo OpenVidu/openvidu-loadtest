@@ -204,7 +204,7 @@ export class RealBrowserService {
 		}
 		if (!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
-			this.firefoxOptions.headless();
+			this.firefoxOptions.addArguments('--headless');
 		}
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
@@ -226,7 +226,6 @@ export class RealBrowserService {
 
 					if (!!storageNameObj && !!storageValueObj) {
 						// Add webrtc stats config to LocalStorage
-						// TODO: Possible race condition where openvidu-browser runs before the localStorage is updated so it doesn't record webrtc stats
 						await driver.executeScript(
 							() => {
 								localStorage.setItem(arguments[0].webrtcStorageName, arguments[1].webrtcStorageValue);

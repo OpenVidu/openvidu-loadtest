@@ -1,4 +1,5 @@
 import fs = require('fs');
+import { URL } from 'url';
 const fsPromises = fs.promises;
 
 export async function downloadFile(name: string, fileUrl: string, fileDir: string): Promise<string> {

@@ -5,7 +5,6 @@ export interface LoadTestPostRequest {
 	openviduUrl: string,
 	openviduSecret?: string,
 	token?: string,
-    browserMode: BrowserMode,
     properties: TestProperties
 }
 
@@ -55,11 +54,6 @@ export interface QoeAnalysisRequest {
     padding_duration: number;
 }
 
-export enum BrowserMode {
-	EMULATE = 'EMULATE',
-	REAL = 'REAL'
-}
-
 export enum RecordingMode {
 	ALWAYS = 'ALWAYS',
 	// MANUAL = 'MANUAL'
@@ -84,7 +78,6 @@ export interface TestProperties {
 	resolution: Resolution;
 	recordingOutputMode?: RecordingOutputMode;
 	frameRate: number;
-	// Only with BrowserMode=REAL;
 	recording?: boolean;
 	showVideoElements?: boolean;
 	headless?: boolean;
