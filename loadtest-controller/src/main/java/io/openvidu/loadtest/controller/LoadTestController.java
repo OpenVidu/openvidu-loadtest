@@ -388,6 +388,8 @@ public class LoadTestController {
 						browserEmulatorClient.setEndOfTest(true);
 						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, String.valueOf(participantsBySession), lastCPR);
+					} else {
+						log.error("Error while estimating number of users per browser. Test case skipped.");
 					}
 					this.disconnectAllSessions();
 					this.cleanEnvironment();
@@ -419,6 +421,8 @@ public class LoadTestController {
 						browserEmulatorClient.setEndOfTest(true);
 						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, participants, lastCPR);
+					} else {
+						log.error("Error while estimating number of users per browser. Test case skipped.");
 					}
 					this.disconnectAllSessions();
 					this.cleanEnvironment();
@@ -450,6 +454,8 @@ public class LoadTestController {
 							browserEmulatorClient.setEndOfTest(true);
 							sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 							this.saveResultReport(testCase, participants, lastCPR);
+						} else {
+							log.error("Error while estimating number of users per browser. Test case skipped.");
 						}
 					} else {
 						boolean noEstimateError = true;
