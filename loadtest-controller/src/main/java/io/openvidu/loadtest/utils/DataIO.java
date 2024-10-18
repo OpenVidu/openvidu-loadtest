@@ -138,4 +138,16 @@ public class DataIO {
 
 	}
 
+	public boolean askForConfirmation(String message) {
+		log.warn(message);
+		String confirmation;
+		do {
+			confirmation = System.console().readLine();
+			if (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N")) {
+				log.warn("Please answer with Y or N.");
+			}
+		} while (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N"));
+		return confirmation.equalsIgnoreCase("Y");
+	}
+
 }

@@ -196,6 +196,11 @@ public class ResultReport {
 		return sb.toString();
 	}
 
+
+	public String getStopReason() {
+		return stopReason;
+	}
+
 	@Override
 	public String toString() {
 

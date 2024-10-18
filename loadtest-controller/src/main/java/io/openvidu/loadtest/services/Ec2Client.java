@@ -53,6 +53,7 @@ public class Ec2Client {
 	private static String INSTANCE_REGION = "";
 	private static int WORKERS_NUMBER_AT_THE_BEGINNING;
 	private static int RECORDING_WORKERS_NUMBER_AT_THE_BEGINNING;
+	private static int WORKERS_RAMP_UP;
 
 	private static Path USER_DATA_VNC = Path.of("debug_vnc.sh");
 
@@ -79,6 +80,7 @@ public class Ec2Client {
 		INSTANCE_REGION = this.loadTestConfig.getWorkerInstanceRegion();
 		WORKERS_NUMBER_AT_THE_BEGINNING = this.loadTestConfig.getWorkersNumberAtTheBeginning();
 		RECORDING_WORKERS_NUMBER_AT_THE_BEGINNING = this.loadTestConfig.getRecordingWorkersNumberAtTheBeginning();
+		WORKERS_RAMP_UP = this.loadTestConfig.getWorkersRumpUp();
 
 		if(!this.loadTestConfig.getAwsAccessKey().isBlank() && !this.loadTestConfig.getAwsSecretAccessKey().isBlank()) {
 			BasicAWSCredentials awsCreds = new BasicAWSCredentials(this.loadTestConfig.getAwsAccessKey(), this.loadTestConfig.getAwsSecretAccessKey());
@@ -138,6 +140,11 @@ public class Ec2Client {
 	}
 
 	public List<Instance> launchAndCleanInitialInstances() {
+		if (WORKERS_NUMBER_AT_THE_BEGINNING == 0) {
+			if (WORKERS_RAMP_UP > 0) {
+				return launchAndCleanAux(WorkerType.WORKER, getTagWorkerFilter(), WORKERS_RAMP_UP);
+			}
+		}
 		return launchAndCleanAux(WorkerType.WORKER, getTagWorkerFilter(), WORKERS_NUMBER_AT_THE_BEGINNING);
 	}
 

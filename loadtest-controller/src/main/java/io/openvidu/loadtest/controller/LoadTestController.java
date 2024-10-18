@@ -28,6 +28,7 @@ import org.springframework.stereotype.Controller;
 import com.amazonaws.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.ResultReport;
@@ -109,7 +110,7 @@ public class LoadTestController {
 		devWorkersList = loadTestConfig.getWorkerUrlList();
 	}
 
-	private static String setAndInitializeNextWorker(String currentWorker, WorkerType workerType) {
+	private static String setAndInitializeNextWorker(String currentWorker, WorkerType workerType) throws NoWorkersAvailableException {
 		String nextWorkerUrl = getNextWorker(currentWorker, workerType);
 		return nextWorkerUrl;
 	}
@@ -122,7 +123,7 @@ public class LoadTestController {
 		browserEmulatorClient.initializeInstance(url);
 	}
 
-	private static String getNextWorker(String actualCurrentWorkerUrl, WorkerType workerType) {
+	private static String getNextWorker(String actualCurrentWorkerUrl, WorkerType workerType) throws NoWorkersAvailableException {
 		if (PROD_MODE) {
 			workersUsed++;
 			String newWorkerUrl = "";
@@ -153,6 +154,10 @@ public class LoadTestController {
 				nextInstance = index + 1 >= actualWorkerList.size() ? null : actualWorkerList.get(index + 1);
 				// TODO: Cover manual participants allocation with ramp up 0
 				if (nextInstance == null) {
+					if (loadTestConfig.getWorkersRumpUp() == 0) {
+						log.error("No more workers available. Exiting");
+						throw new NoWorkersAvailableException("No more workers available. Exiting");
+					}
 					log.info("Launching a new Ec2 instance... ");
 					List<Instance> nextInstanceList = ec2Client
 							.launchInstance(loadTestConfig.getWorkersRumpUp(), workerType);
@@ -191,12 +196,14 @@ public class LoadTestController {
 			if (devWorkersList.size() > 1) {
 				int index = devWorkersList.indexOf(actualCurrentWorkerUrl);
 				if (index + 1 >= devWorkersList.size()) {
-					return devWorkersList.get(0);
+					log.error("No more workers available. Exiting");
+					throw new NoWorkersAvailableException("No more workers available. Exiting");
 				}
 				return devWorkersList.get(index + 1);
 			}
 			log.info("Development workers list has 1 element and cannot create a new one.");
-			return devWorkersList.get(0);
+			log.error("No more workers available. Exiting");
+			throw new NoWorkersAvailableException("No more workers available. Exiting");
 		}
 	}
 
@@ -349,6 +356,25 @@ public class LoadTestController {
 		return instancesInitialized;
 	}
 
+	private boolean checkEnoughWorkers(int sessions, int participants) {
+		String warning = "Number of available workers might not be enough to host all users. The test will stop when there are no more workers available. Continue? (Y/N)";
+		int workersAvailable = PROD_MODE ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+		int workersRumpUp = loadTestConfig.getWorkersRumpUp();
+
+		if (workersAvailable == 0) {
+			if (!(PROD_MODE && workersRumpUp > 0)) {
+				log.error("No workers available. Exiting");
+				return false;
+			}
+		}
+
+		if (workersRumpUp < 1 && (sessions == -1 || (sessions * participants > browserEstimation * workersAvailable))) {
+			return io.askForConfirmation(warning);
+		}
+
+		return true;
+	}
+
 	public void startLoadTests(List<TestCase> testCasesList) {
 
 		if (loadTestConfig.isTerminateWorkers()) {
@@ -365,8 +391,13 @@ public class LoadTestController {
 
 			if (testCase.is_NxN()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-					boolean instancesInitialized = launchInitialInstances();
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
+					boolean continueTest = checkEnoughWorkers(testCase.getSessions(), participantsBySession);
+					if (!continueTest) {
+						log.warn("Test case skipped.");
+						continue;
+					}
+					boolean instancesInitialized = launchInitialInstances();
 					boolean noEstimateError = true;
 					if (!PROD_MODE) {
 						browserEstimation = 1;
@@ -384,7 +415,15 @@ public class LoadTestController {
 						log.info("Each session will be composed by {} USERS. All of them will be PUBLISHERS",
 								participantsBySession);
 						this.startTime = Calendar.getInstance();
-						CreateParticipantResponse lastCPR = this.startNxNTest(participantsBySession, testCase);
+						CreateParticipantResponse lastCPR;
+						try {
+							lastCPR = this.startNxNTest(participantsBySession, testCase);
+						} catch (NoWorkersAvailableException e) {
+							lastCPR = new CreateParticipantResponse().setStopReason("No more workers available");
+						} catch (Exception e) {
+							lastCPR = new CreateParticipantResponse().setStopReason("An unexpected error occurred: " + e.getMessage());
+							log.error("An unexpected error occurred", e);
+						}
 						browserEmulatorClient.setEndOfTest(true);
 						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, String.valueOf(participantsBySession), lastCPR);
@@ -396,10 +435,15 @@ public class LoadTestController {
 				}
 			} else if (testCase.is_NxM() || testCase.is_TEACHING()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-					boolean instancesInitialized = launchInitialInstances();
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
 					int subscribers = Integer.parseInt(participants.split(":")[1]);
+					boolean continueTest = checkEnoughWorkers(testCase.getSessions(), publishers + subscribers);
+					if (!continueTest) {
+						log.warn("Test case skipped.");
+						continue;
+					}
+					boolean instancesInitialized = launchInitialInstances();
 					boolean noEstimateError = true;
 					if (!PROD_MODE) {
 						browserEstimation = 1;
@@ -417,7 +461,15 @@ public class LoadTestController {
 								publishers + subscribers, publishers, subscribers);
 
 						this.startTime = Calendar.getInstance();
-						CreateParticipantResponse lastCPR = this.startNxMTest(publishers, subscribers, testCase);
+						CreateParticipantResponse lastCPR;
+						try {
+							lastCPR = this.startNxMTest(publishers, subscribers, testCase);
+						} catch (NoWorkersAvailableException e) {
+							lastCPR = new CreateParticipantResponse().setStopReason("No more workers available");
+						} catch (Exception e) {
+							lastCPR = new CreateParticipantResponse().setStopReason("An unexpected error occurred: " + e.getMessage());
+							log.error("An unexpected error occurred", e);
+						}
 						browserEmulatorClient.setEndOfTest(true);
 						sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 						this.saveResultReport(testCase, participants, lastCPR);
@@ -430,6 +482,11 @@ public class LoadTestController {
 
 			} else if (testCase.is_ONE_SESSION()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
+					boolean continueTest = checkEnoughWorkers(-1, -1);
+					if (!continueTest) {
+						log.warn("Test case skipped.");
+						continue;
+					}
 					boolean instancesInitialized = launchInitialInstances();
 					String participants = testCase.getParticipants().get(i);
 					if (participants.contains(":")) {
@@ -450,7 +507,15 @@ public class LoadTestController {
 									publishers);
 
 							this.startTime = Calendar.getInstance();
-							CreateParticipantResponse lastCPR = this.startOneSessionXxNTest(publishers, testCase);
+							CreateParticipantResponse lastCPR;
+							try {
+								lastCPR = this.startOneSessionXxNTest(publishers, testCase);
+							} catch (NoWorkersAvailableException e) {
+								lastCPR = new CreateParticipantResponse().setStopReason("No more workers available");
+							} catch (Exception e) {
+								lastCPR = new CreateParticipantResponse().setStopReason("An unexpected error occurred: " + e.getMessage());
+								log.error("An unexpected error occurred", e);
+							}
 							browserEmulatorClient.setEndOfTest(true);
 							sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 							this.saveResultReport(testCase, participants, lastCPR);
@@ -473,7 +538,15 @@ public class LoadTestController {
 							log.info("One session will be filled with Pubscribers");
 
 							this.startTime = Calendar.getInstance();
-							CreateParticipantResponse lastCPR = this.startOneSessionNxNTest(testCase);
+							CreateParticipantResponse lastCPR;
+							try {
+								lastCPR = this.startOneSessionNxNTest(testCase);
+							} catch (NoWorkersAvailableException e) {
+								lastCPR = new CreateParticipantResponse().setStopReason("No more workers available");
+							} catch (Exception e) {
+								lastCPR = new CreateParticipantResponse().setStopReason("An unexpected error occurred: " + e.getMessage());
+								log.error("An unexpected error occurred", e);
+							}
 							browserEmulatorClient.setEndOfTest(true);
 							sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
 							this.saveResultReport(testCase, participants, lastCPR);
@@ -491,7 +564,7 @@ public class LoadTestController {
 		});
 	}
 
-	public CreateParticipantResponse startOneSessionNxNTest(TestCase testCase) {
+	public CreateParticipantResponse startOneSessionNxNTest(TestCase testCase) throws NoWorkersAvailableException {
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
 
@@ -576,7 +649,7 @@ public class LoadTestController {
 		}
 	}
 
-	public CreateParticipantResponse startOneSessionXxNTest(int publishers, TestCase testCase) {
+	public CreateParticipantResponse startOneSessionXxNTest(int publishers, TestCase testCase) throws NoWorkersAvailableException {
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
 		String recWorker = "";
 
@@ -722,7 +795,7 @@ public class LoadTestController {
 		}
 	}
 
-	public CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase) {
+	public CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase) throws NoWorkersAvailableException {
 		int testCaseSessionsLimit = testCase.getSessions();
 
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);
@@ -846,7 +919,7 @@ public class LoadTestController {
 		}
 	}
 
-	public CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase) {
+	public CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase) throws NoWorkersAvailableException {
 		int testCaseSessionsLimit = testCase.getSessions();
 
 		String worker = setAndInitializeNextWorker("", WorkerType.WORKER);

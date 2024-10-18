@@ -119,6 +119,8 @@ public class LoadTestConfig {
 
 	private String workerAvailabilityZone;
 
+	private boolean forceContinue;
+
 	public boolean isWaitCompletion() {
 		return waitCompletion;
 	}
@@ -336,6 +338,10 @@ public class LoadTestConfig {
 		return workerAvailabilityZone;
 	}
 
+	public boolean isForceContinue() {
+		return forceContinue;
+	}
+
 	protected void checkConfigurationProperties() {
 
 		try {
@@ -401,6 +407,7 @@ public class LoadTestConfig {
 			}
 			batches = asBoolean("BATCHES");
 			waitCompletion = asBoolean("WAIT_COMPLETE");
+			forceContinue = asBoolean("FORCE_CONTINUE");
 			this.printInfo();
 
 		} catch (Exception e) {
@@ -454,7 +461,10 @@ public class LoadTestConfig {
 			System.out.printf(format, "Worker max load:", workerMaxLoad);
 			System.out.printf(format, "Workers at the beginning:", workersNumberAtTheBeginning);
 			System.out.printf(format, "Recording Workers at the beginning:", recordingWorkersNumberAtTheBeginning);
-			System.out.printf(format, "Worker rump up:", workersRumpUp);
+			System.out.printf(format, "Worker ramp up:", workersRumpUp);
+			if (workersRumpUp == 0) {
+				System.out.printf(format, "Continue test if there aren't enough workers", forceContinue);
+			}
 			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
 			System.out.printf(format, "AWS instance availability zone:", workerAvailabilityZone);
 

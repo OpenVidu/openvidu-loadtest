@@ -1,9 +1,11 @@
 package io.openvidu.loadtest;
 
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,9 +31,11 @@ import com.amazonaws.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.controller.LoadTestController;
+import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
+import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Typology;
 import io.openvidu.loadtest.models.testcase.WorkerType;
@@ -71,7 +75,9 @@ public class LoadTestControllerTests {
     private Sleeper sleeper;
 
     private LoadTestController loadTestController;
-    
+
+    private ResultReport capturedResultReport;
+
     private static final Logger log = LoggerFactory.getLogger(LoadTestControllerTests.class);
 
     @BeforeEach
@@ -87,6 +93,14 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.getWorkerUrlList()).thenReturn(new ArrayList<>(1));
         when(this.loadTestConfig.isTerminateWorkers()).thenReturn(false);
         when(this.loadTestConfig.isKibanaEstablished()).thenReturn(true);
+        when(this.dataIO.askForConfirmation(anyString())).thenReturn(true);
+        doAnswer(invocation -> {
+            ResultReport resultReport = invocation.getArgument(0);
+            // Store the resultReport for later verification
+            this.capturedResultReport = resultReport;
+            return null;
+        }).when(this.dataIO).exportResults(any());
+
     }
 
     private Instance generateRandomInstance() {
@@ -94,7 +108,7 @@ public class LoadTestControllerTests {
 
         Random random = new Random();
         instance.setInstanceId("i-" + RandomStringUtils.random(17, true, true).toLowerCase());
-        instance.setPublicDnsName("ec2-" + random.nextInt(255) + "-" 
+        instance.setPublicDnsName("ec2-" + random.nextInt(255) + "-"
             + random.nextInt(255) + "-" + random.nextInt(255) + "-" + random.nextInt(255) + 
             ".compute-1.amazonaws.com");
         return instance;
@@ -104,6 +118,8 @@ public class LoadTestControllerTests {
     public void NxNTest8ParticipantsStartingParticipantsThenBatches() {
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
+        int workersAtStart = 40;
+        when(this.loadTestConfig.getWorkersNumberAtTheBeginning()).thenReturn(workersAtStart);
         when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
         when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(5);
         when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(0);
@@ -112,11 +128,11 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isWaitCompletion()).thenReturn(true);
         when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(10);
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
-        when(this.loadTestConfig.getSessionsPerWorker()).thenReturn(1);
+        when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
         // Create list of instances for ec2 client mock
-        List<Instance> instances = new ArrayList<>(40);
-        for (int i = 0; i < 40; i++) {
+        List<Instance> instances = new ArrayList<>(workersAtStart);
+        for (int i = 0; i < workersAtStart; i++) {
             instances.add(generateRandomInstance());
         }
 
@@ -192,6 +208,8 @@ public class LoadTestControllerTests {
     public void NxMTest3Publishers10SubscribersStartingParticipantsThenBatches() {
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
+        int workersAtStart = 40;
+        when(this.loadTestConfig.getWorkersNumberAtTheBeginning()).thenReturn(workersAtStart);
         when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
         when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(5);
         when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(0);
@@ -200,11 +218,11 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isWaitCompletion()).thenReturn(true);
         when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(5);
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
-        when(this.loadTestConfig.getSessionsPerWorker()).thenReturn(1);
+        when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
         // Create list of instances for ec2 client mock
-        List<Instance> instances = new ArrayList<>(40);
-        for (int i = 0; i < 40; i++) {
+        List<Instance> instances = new ArrayList<>(workersAtStart);
+        for (int i = 0; i < workersAtStart; i++) {
             instances.add(generateRandomInstance());
         }
 
@@ -392,6 +410,8 @@ public class LoadTestControllerTests {
     public void OneSession1xNTestStartingParticipantsThenBatches() {
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
+        int workersAtStart = 40;
+        when(this.loadTestConfig.getWorkersNumberAtTheBeginning()).thenReturn(workersAtStart);
         when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
         when(this.loadTestConfig.getSecondsToWaitBetweenParticipants()).thenReturn(5);
         when(this.loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(0);
@@ -400,11 +420,11 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isWaitCompletion()).thenReturn(true);
         when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(5);
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
-        when(this.loadTestConfig.getSessionsPerWorker()).thenReturn(1);
+        when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
         // Create list of instances for ec2 client mock
-        List<Instance> instances = new ArrayList<>(40);
-        for (int i = 0; i < 40; i++) {
+        List<Instance> instances = new ArrayList<>(workersAtStart);
+        for (int i = 0; i < workersAtStart; i++) {
             instances.add(generateRandomInstance());
         }
 
@@ -431,7 +451,7 @@ public class LoadTestControllerTests {
         }
         // Failure when adding participant
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3", -1, -1, "", "", 0);
-        when(this.browserEmulatorClient.createSubscriber(instances.get(39).getPublicDnsName(), 40, 1, testCase)).thenReturn(
+        when(this.browserEmulatorClient.createSubscriber(instances.get(39).getPublicDnsName(), workersAtStart, 1, testCase)).thenReturn(
             failureResponse
         );
 
@@ -468,6 +488,59 @@ public class LoadTestControllerTests {
         verify(this.dataIO, times(1)).exportResults(any());
     }
 
+    @Test
+    public void noWorkersAvailableProdManualTest() {
+        int workersAtStart = 5;
+        when(this.loadTestConfig.getWorkersNumberAtTheBeginning()).thenReturn(workersAtStart);
+        when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
+        when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
+        when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
+        when(this.loadTestConfig.getWorkerMaxLoad()).thenReturn(75);
+        // Create list of instances for ec2 client mock
+
+        List<Instance> instances = new ArrayList<>(workersAtStart);
+        for (int i = 0; i < workersAtStart; i++) {
+            instances.add(generateRandomInstance());
+        }
+        when(this.ec2Client.launchAndCleanInitialInstances()).thenReturn(instances);
+        when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
+        List<String> participants = List.of("1:N");
+        TestCase testCase = new TestCase("ONE_SESSION", participants, -1,
+            30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+        createEstimationResponseMock(null, testCase);
+
+        List<TestCase> testCases = List.of(testCase);
+        this.loadTestController.startLoadTests(testCases);
+        verify(this.dataIO, times(1)).exportResults(any());
+        assertEquals(this.capturedResultReport.getStopReason(), "No more workers available");
+    }
+
+    @Test
+    public void noWorkersAvailableProdAutoTest() {
+        int workersAtStart = 5;
+        when(this.loadTestConfig.getWorkersNumberAtTheBeginning()).thenReturn(workersAtStart);
+        when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
+        when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(false);
+        // Create list of instances for ec2 client mock
+        Instance instance1 = generateRandomInstance();
+        String instance1Url = instance1.getPublicDnsName();
+        List<Instance> instances = new ArrayList<>(workersAtStart);
+        instances.add(instance1);
+        for (int i = 0; i < workersAtStart - 1; i++) {
+            instances.add(generateRandomInstance());
+        }
+        when(this.ec2Client.launchAndCleanInitialInstances()).thenReturn(instances);
+        when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
+        List<String> participants = List.of("8");
+        TestCase testCase = new TestCase("N:N", participants, 10,
+            30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+        when(this.loadTestConfig.getWorkerMaxLoad()).thenReturn(75); // 4 browsers per worker
+        createEstimationResponseMock(instance1Url, testCase);
+        List<TestCase> testCases = List.of(testCase);
+        this.loadTestController.startLoadTests(testCases);
+        verify(this.dataIO, times(1)).exportResults(any());
+        assertEquals(this.capturedResultReport.getStopReason(), "No more workers available");
+    }
 
     private void createEstimationResponseMock(String instance1Url, TestCase testCase) {
         when(this.browserEmulatorClient.createPublisher(instance1Url, 0, 0, testCase)).thenReturn(

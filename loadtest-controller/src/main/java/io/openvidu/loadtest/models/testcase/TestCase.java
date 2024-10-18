@@ -141,10 +141,10 @@ public class TestCase {
 		return "Session typology: " + typology
 				+ " | Participants in session: " + participants
 				+ " | Starting participants: " + startingParticipantString
-				+ " | Sessions limit: "	+ sessionLimit 
-				+ " | Resolution: " + resolution.getValue() 
+				+ " | Sessions limit: "	+ sessionLimit
+				+ " | Resolution: " + resolution.getValue()
 				+ " | Frame rate: " + frameRate 
-				+ " | Headless browser: " + isHeadlessBrowser() 
+				+ " | Headless browser: " + isHeadlessBrowser()
 				+ " | Browser recording: " + isBrowserRecording()
 				+ " | Browser show video elements: " + isShowBrowserVideoElements();
 		
