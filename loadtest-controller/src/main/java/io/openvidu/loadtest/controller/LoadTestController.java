@@ -320,36 +320,40 @@ public class LoadTestController {
 			// Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
 			awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
 			recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
-			ExecutorService executorService = Executors
-					.newFixedThreadPool(Math.max(awsWorkersList.size(), recordingWorkersList.size()));
-			List<Future<?>> futures = new ArrayList<>();
-			awsWorkersList.forEach(instance -> {
-				futures.add(executorService.submit(new Runnable() {
-					@Override
-					public void run() {
-						initializeInstance(instance.getPublicDnsName());
+			int tasks = Math.max(awsWorkersList.size(), recordingWorkersList.size());
+			if (tasks > 0) {
+				ExecutorService executorService = Executors
+					.newFixedThreadPool(tasks);
+				List<Future<?>> futures = new ArrayList<>();
+				awsWorkersList.forEach(instance -> {
+					futures.add(executorService.submit(new Runnable() {
+						@Override
+						public void run() {
+							initializeInstance(instance.getPublicDnsName());
+						}
+					}));
+				});
+				recordingWorkersList.forEach(instance -> {
+					futures.add(executorService.submit(new Runnable() {
+						@Override
+						public void run() {
+							initializeInstance(instance.getPublicDnsName());
+						}
+					}));
+				});
+				workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+						.collect(Collectors.toList()));
+				recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
+						.collect(Collectors.toList()));
+				futures.forEach(future -> {
+					try {
+						future.get();
+					} catch (InterruptedException | ExecutionException e) {
+						log.error("Error while initializing instance", e);
 					}
-				}));
-			});
-			recordingWorkersList.forEach(instance -> {
-				futures.add(executorService.submit(new Runnable() {
-					@Override
-					public void run() {
-						initializeInstance(instance.getPublicDnsName());
-					}
-				}));
-			});
-			workerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-					.collect(Collectors.toList()));
-			recordingWorkerStartTimes.addAll(awsWorkersList.stream().map(inst -> new Date())
-					.collect(Collectors.toList()));
-			futures.forEach(future -> {
-				try {
-					future.get();
-				} catch (InterruptedException | ExecutionException e) {
-					log.error("Error while initializing instance", e);
-				}
-			});
+				});
+			}
+
 			instancesInitialized = true;
 			// sleep(1, "Wait for instances to be cold");
 		}
@@ -359,19 +363,12 @@ public class LoadTestController {
 	private boolean checkEnoughWorkers(int sessions, int participants) {
 		int workersAvailable = PROD_MODE ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
 		int workersRumpUp = loadTestConfig.getWorkersRumpUp();
-
-		if (workersAvailable == 0) {
-			if (!(PROD_MODE && workersRumpUp > 0)) {
-				log.error("No workers available. Exiting");
-				return false;
-			}
-		}
 		int nParticipants = sessions * participants;
 		int estimatedParticipants = browserEstimation * workersAvailable;
-		if (workersRumpUp < 1 && (sessions == -1 || (nParticipants >= estimatedParticipants))) {
+		if (workersRumpUp < 1 && (sessions == -1 || (nParticipants > estimatedParticipants))) {
 
 			String warning = "Number of available workers might not be enough to host all users (" + nParticipants
-					+ " participants trying to fit in " + workersAvailable + " at " + browserEstimation
+					+ " participants trying to fit in " + workersAvailable + " users at " + browserEstimation
 					+ " browsers per worker). The test will stop when there are no more workers available. Continue? (Y/N)";
 			return io.askForConfirmation(warning);
 		}
@@ -391,6 +388,15 @@ public class LoadTestController {
 			kibanaClient.importDashboards();
 		}
 
+		int workersAvailable = PROD_MODE ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+		int workersRumpUp = loadTestConfig.getWorkersRumpUp();
+
+		if (workersAvailable == 0) {
+			if (!(PROD_MODE && workersRumpUp > 0)) {
+				log.error("No workers available. Exiting");
+			}
+			return;
+		}
 		testCasesList.forEach(testCase -> {
 
 			if (testCase.is_NxN()) {
