@@ -25,7 +25,7 @@ public class ResultReport {
 	private Calendar endTime;
 	private String kibanaUrl = "";
 	private boolean isManualParticipantAllocation = false;
-	private int sessionsPerWorker = 0;
+	private int usersPerWorker = 0;
 	private String s3BucketName = "";
 	private Map<Calendar, List<String>> userStartTimes = new TreeMap<>();
 
@@ -36,7 +36,7 @@ public class ResultReport {
 		return new ResultReport(this.totalParticipants, this.numSessionsCompleted, this.numSessionsCreated,
 				this.workersUsed, this.streamsPerWorker, this.sessionTypology,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
-				this.sessionsPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
+				this.usersPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
 				this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
 				this.userStartTimes);
 	}
@@ -56,8 +56,8 @@ public class ResultReport {
 		return this;
 	}
 
-	public ResultReport setSessionsPerWorker(int sessionsPerWorker) {
-		this.sessionsPerWorker = sessionsPerWorker;
+	public ResultReport setUsersPerWorker(int usersPerWorker) {
+		this.usersPerWorker = usersPerWorker;
 		return this;
 	}
 
@@ -139,7 +139,7 @@ public class ResultReport {
 	private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
 			List<Integer> streamsPerWorker, String sessionTypology,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
-			int sessionsPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
+			int usersPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
 			Calendar endTime, String kibanaUrl, String s3BucketName, List<Long> timePerWorker,
 			List<Long> timePerRecordingWorker, Map<Calendar, List<String>> userStartTimes) {
 		this.totalParticipants = totalParticipants;
@@ -151,7 +151,7 @@ public class ResultReport {
 		this.openviduRecording = openviduRecording;
 		this.browserRecording = browserRecording;
 		this.isManualParticipantAllocation = manualParticipantsAllocation;
-		this.sessionsPerWorker = sessionsPerWorker;
+		this.usersPerWorker = usersPerWorker;
 		this.participantsPerSession = participantsPerSession;
 		this.stopReason = stopReason;
 		this.startTime = startTime;
@@ -211,7 +211,7 @@ public class ResultReport {
 				+ "Is manual participants allocation:	" + isManualParticipantAllocation
 				+ System.getProperty("line.separator")
 				+ (isManualParticipantAllocation
-						? "Number of sessions per worker:	" + sessionsPerWorker + System.getProperty("line.separator")
+						? "Number of users per worker:	" + usersPerWorker + System.getProperty("line.separator")
 						: "")
 				+ (isManualParticipantAllocation ? ""
 						: "Number of streams per worker:	" + streamsPerWorker + System.getProperty("line.separator"))

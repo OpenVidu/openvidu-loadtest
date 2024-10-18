@@ -371,7 +371,7 @@ public class LoadTestController {
 					if (!PROD_MODE) {
 						browserEstimation = 1;
 					} else if (loadTestConfig.isManualParticipantsAllocation()) {
-						browserEstimation = loadTestConfig.getSessionsPerWorker();
+						browserEstimation = loadTestConfig.getUsersPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
 								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
@@ -404,7 +404,7 @@ public class LoadTestController {
 					if (!PROD_MODE) {
 						browserEstimation = 1;
 					} else if (loadTestConfig.isManualParticipantsAllocation()) {
-						browserEstimation = loadTestConfig.getSessionsPerWorker();
+						browserEstimation = loadTestConfig.getUsersPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
 								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
@@ -438,7 +438,7 @@ public class LoadTestController {
 						if (!PROD_MODE) {
 							browserEstimation = 1;
 						} else if (loadTestConfig.isManualParticipantsAllocation()) {
-							browserEstimation = loadTestConfig.getSessionsPerWorker();
+							browserEstimation = loadTestConfig.getUsersPerWorker();
 						} else {
 							noEstimateError = estimate(instancesInitialized,
 									PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
@@ -462,7 +462,7 @@ public class LoadTestController {
 						if (!PROD_MODE) {
 							browserEstimation = 1;
 						} else if (loadTestConfig.isManualParticipantsAllocation()) {
-							browserEstimation = loadTestConfig.getSessionsPerWorker();
+							browserEstimation = loadTestConfig.getUsersPerWorker();
 						} else {
 							noEstimateError = estimate(instancesInitialized,
 									PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
@@ -1178,7 +1178,7 @@ public class LoadTestController {
 				.setStopReason(stopReason).setStartTime(this.startTime)
 				.setEndTime(endTime).setKibanaUrl(kibanaUrl)
 				.setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
-				.setSessionsPerWorker(loadTestConfig.getSessionsPerWorker())
+				.setUsersPerWorker(loadTestConfig.getUsersPerWorker())
 				.setS3BucketName(videoControl)
 				.setTimePerWorker(workerTimes).setTimePerRecordingWorker(recordingWorkerTimes)
 				.setUserStartTimes(userStartTimes)
