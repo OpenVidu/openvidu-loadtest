@@ -357,7 +357,6 @@ public class LoadTestController {
 	}
 
 	private boolean checkEnoughWorkers(int sessions, int participants) {
-		String warning = "Number of available workers might not be enough to host all users. The test will stop when there are no more workers available. Continue? (Y/N)";
 		int workersAvailable = PROD_MODE ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
 		int workersRumpUp = loadTestConfig.getWorkersRumpUp();
 
@@ -367,8 +366,13 @@ public class LoadTestController {
 				return false;
 			}
 		}
+		int nParticipants = sessions * participants;
+		int estimatedParticipants = browserEstimation * workersAvailable;
+		if (workersRumpUp < 1 && (sessions == -1 || (nParticipants >= estimatedParticipants))) {
 
-		if (workersRumpUp < 1 && (sessions == -1 || (sessions * participants > browserEstimation * workersAvailable))) {
+			String warning = "Number of available workers might not be enough to host all users (" + nParticipants
+					+ " participants trying to fit in " + workersAvailable + " at " + browserEstimation
+					+ " browsers per worker). The test will stop when there are no more workers available. Continue? (Y/N)";
 			return io.askForConfirmation(warning);
 		}
 
@@ -392,11 +396,6 @@ public class LoadTestController {
 			if (testCase.is_NxN()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
-					boolean continueTest = checkEnoughWorkers(testCase.getSessions(), participantsBySession);
-					if (!continueTest) {
-						log.warn("Test case skipped.");
-						continue;
-					}
 					boolean instancesInitialized = launchInitialInstances();
 					boolean noEstimateError = true;
 					if (!PROD_MODE) {
@@ -409,6 +408,11 @@ public class LoadTestController {
 								testCase, participantsBySession, 0);
 					}
 					if (noEstimateError) {
+						boolean continueTest = checkEnoughWorkers(testCase.getSessions(), participantsBySession);
+						if (!continueTest) {
+							log.warn("Test case skipped.");
+							continue;
+						}
 						log.info("Starting test with N:N session typology");
 						log.info("The number of session that will be created are {}",
 								testCase.getSessions() < 0 ? "infinite" : testCase.getSessions());
@@ -438,11 +442,6 @@ public class LoadTestController {
 					String participants = testCase.getParticipants().get(i);
 					int publishers = Integer.parseInt(participants.split(":")[0]);
 					int subscribers = Integer.parseInt(participants.split(":")[1]);
-					boolean continueTest = checkEnoughWorkers(testCase.getSessions(), publishers + subscribers);
-					if (!continueTest) {
-						log.warn("Test case skipped.");
-						continue;
-					}
 					boolean instancesInitialized = launchInitialInstances();
 					boolean noEstimateError = true;
 					if (!PROD_MODE) {
@@ -455,6 +454,11 @@ public class LoadTestController {
 								testCase, publishers, subscribers);
 					}
 					if (noEstimateError) {
+						boolean continueTest = checkEnoughWorkers(testCase.getSessions(), publishers + subscribers);
+						if (!continueTest) {
+							log.warn("Test case skipped.");
+							continue;
+						}
 						log.info("Starting test with N:M session typology");
 						log.info("The number of session that will be created are {}", testCase.getSessions());
 						log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",
@@ -482,11 +486,6 @@ public class LoadTestController {
 
 			} else if (testCase.is_ONE_SESSION()) {
 				for (int i = 0; i < testCase.getParticipants().size(); i++) {
-					boolean continueTest = checkEnoughWorkers(-1, -1);
-					if (!continueTest) {
-						log.warn("Test case skipped.");
-						continue;
-					}
 					boolean instancesInitialized = launchInitialInstances();
 					String participants = testCase.getParticipants().get(i);
 					if (participants.contains(":")) {
@@ -502,6 +501,11 @@ public class LoadTestController {
 									testCase, publishers, Integer.MAX_VALUE);
 						}
 						if (noEstimateError) {
+							boolean continueTest = checkEnoughWorkers(-1, -1);
+							if (!continueTest) {
+								log.warn("Test case skipped.");
+								continue;
+							}
 							log.info("Starting test with one session {}:N typology", publishers);
 							log.info("{} Publisher will be added to one session, and then it will be filled with Subscribers",
 									publishers);
