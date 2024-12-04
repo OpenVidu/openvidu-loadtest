@@ -193,17 +193,16 @@ public class LoadTestController {
 			return newWorkerUrl;
 		} else {
 			workersUsed = devWorkersList.size();
-			if (devWorkersList.size() > 1) {
-				int index = devWorkersList.indexOf(actualCurrentWorkerUrl);
+			int index = devWorkersList.indexOf(actualCurrentWorkerUrl);
+			if (actualCurrentWorkerUrl.isBlank()) {
+				return devWorkersList.get(0);
+			} else {
 				if (index + 1 >= devWorkersList.size()) {
 					log.error("No more workers available. Exiting");
 					throw new NoWorkersAvailableException("No more workers available. Exiting");
 				}
-				return devWorkersList.get(index + 1);
 			}
-			log.info("Development workers list has 1 element and cannot create a new one.");
-			log.error("No more workers available. Exiting");
-			throw new NoWorkersAvailableException("No more workers available. Exiting");
+			return devWorkersList.get(index + 1);
 		}
 	}
 
@@ -262,7 +261,7 @@ public class LoadTestController {
 
 	private boolean estimate(boolean instancesInitialized, String workerUrl, TestCase testCase, int publishers,
 			int subscribers) {
-		log.info("Starting browser estimation");
+		log.info("Starting browser estimation of CPU usage");
 		if (!instancesInitialized) {
 			initializeInstance(workerUrl);
 		}
@@ -356,13 +355,27 @@ public class LoadTestController {
 
 			instancesInitialized = true;
 			// sleep(1, "Wait for instances to be cold");
+		} else {
+			List<Future<?>> futures = new ArrayList<>();
+			ExecutorService executorService = Executors.newFixedThreadPool(devWorkersList.size());
+			for (String workerUrl : devWorkersList) {
+				futures.add(executorService.submit(() -> initializeInstance(workerUrl)));
+			}
+			for (Future<?> future : futures) {
+				try {
+					future.get();
+				} catch (InterruptedException | ExecutionException e) {
+					log.error("Error while initializing instance", e);
+				}
+			}
+			instancesInitialized = true;
 		}
 		return instancesInitialized;
 	}
 
 	private boolean checkEnoughWorkers(int sessions, int participants) {
 		int workersAvailable = PROD_MODE ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
-		int workersRumpUp = loadTestConfig.getWorkersRumpUp();
+		int workersRumpUp = PROD_MODE ? loadTestConfig.getWorkersRumpUp() : 0;
 		int nParticipants = sessions * participants;
 		int estimatedParticipants = browserEstimation * workersAvailable;
 		if (workersRumpUp < 1 && (sessions == -1 || (nParticipants > estimatedParticipants))) {
@@ -394,8 +407,8 @@ public class LoadTestController {
 		if (workersAvailable == 0) {
 			if (!(PROD_MODE && workersRumpUp > 0)) {
 				log.error("No workers available. Exiting");
+				return;
 			}
-			return;
 		}
 		testCasesList.forEach(testCase -> {
 
@@ -404,9 +417,7 @@ public class LoadTestController {
 					int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
 					boolean instancesInitialized = launchInitialInstances();
 					boolean noEstimateError = true;
-					if (!PROD_MODE) {
-						browserEstimation = 1;
-					} else if (loadTestConfig.isManualParticipantsAllocation()) {
+					if (loadTestConfig.isManualParticipantsAllocation()) {
 						browserEstimation = loadTestConfig.getUsersPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
@@ -450,9 +461,7 @@ public class LoadTestController {
 					int subscribers = Integer.parseInt(participants.split(":")[1]);
 					boolean instancesInitialized = launchInitialInstances();
 					boolean noEstimateError = true;
-					if (!PROD_MODE) {
-						browserEstimation = 1;
-					} else if (loadTestConfig.isManualParticipantsAllocation()) {
+					if (loadTestConfig.isManualParticipantsAllocation()) {
 						browserEstimation = loadTestConfig.getUsersPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
@@ -497,9 +506,7 @@ public class LoadTestController {
 					if (participants.contains(":")) {
 						int publishers = Integer.parseInt(participants.split(":")[0]);
 						boolean noEstimateError = true;
-						if (!PROD_MODE) {
-							browserEstimation = 1;
-						} else if (loadTestConfig.isManualParticipantsAllocation()) {
+						if (loadTestConfig.isManualParticipantsAllocation()) {
 							browserEstimation = loadTestConfig.getUsersPerWorker();
 						} else {
 							noEstimateError = estimate(instancesInitialized,
@@ -1182,19 +1189,19 @@ public class LoadTestController {
 	}
 
 	private void disconnectAllSessions() {
+		for (WebSocketClient ws : wsSessions) {
+			if (ws != null) {
+				ws.markForFullDeletion();
+			}
+		}
+		for (WebSocketClient ws : wsSessions) {
+			if (ws != null) {
+				ws.close();
+			}
+		}
+		wsSessions.clear();
 		List<String> workersUrl = devWorkersList;
 		if (PROD_MODE) {
-			for (WebSocketClient ws : wsSessions) {
-				if (ws != null) {
-					ws.markForFullDeletion();
-				}
-			}
-			for (WebSocketClient ws : wsSessions) {
-				if (ws != null) {
-					ws.close();
-				}
-			}
-			wsSessions.clear();
 			// Add all ec2 instances
 			for (Instance ec2 : awsWorkersList) {
 				workersUrl.add(ec2.getPublicDnsName());
@@ -1214,21 +1221,27 @@ public class LoadTestController {
 			ec2Client.stopInstance(recordingWorkersList);
 			ec2Client.stopInstance(awsWorkersList);
 
-			Date stopDate = new Date();
-			workerTimes = workerStartTimes.stream()
-					.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(),
-							TimeUnit.MILLISECONDS))
-					.collect(Collectors.toList());
-			recordingWorkerTimes = recordingWorkerStartTimes.stream()
-					.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(),
-							TimeUnit.MILLISECONDS))
-					.collect(Collectors.toList());
 			awsWorkersList = new ArrayList<Instance>();
 			recordingWorkersList = new ArrayList<Instance>();
 
 		} else {
 			browserEmulatorClient.disconnectAll(workersUrl);
+			// Calculate QoE
+			if (loadTestConfig.isQoeAnalysisRecordings() && loadTestConfig.isQoeAnalysisInSitu()) {
+				List<Instance> allWorkers = new ArrayList<>(awsWorkersList);
+				allWorkers.addAll(recordingWorkersList);
+				browserEmulatorClient.calculateQoe(allWorkers);
+			}
 		}
+		Date stopDate = new Date();
+		workerTimes = workerStartTimes.stream()
+			.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(),
+					TimeUnit.MILLISECONDS))
+			.collect(Collectors.toList());
+		recordingWorkerTimes = recordingWorkerStartTimes.stream()
+			.map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(),
+					TimeUnit.MILLISECONDS))
+			.collect(Collectors.toList());
 	}
 
 	private void saveResultReport(TestCase testCase, String participantsBySession, CreateParticipantResponse lastCPR) {
