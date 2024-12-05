@@ -81,7 +81,18 @@ The *loadtest-controller* will use the BrowserEmulator AMI (previously created) 
 
 <br>
 
->WARNING: This instructions assume you are using **Ubuntu** and that your kernel can build and install the module v4l2loopback.
+>WARNING: These instructions assume you are using **Ubuntu** and that your kernel can build and install the module v4l2loopback. To check if you can build v4l2loopback, run the following commands:
+```bash
+cat /usr/src/linux-headers-$(uname -r)/.config | grep CONFIG_VIDEO_DEV
+cat /usr/src/linux-headers-$(uname -r)/.config | grep CONFIG_VIDEO_V4L2
+```
+If one of them has output similar to:
+```
+CONFIG_VIDEO_DEV=m
+or
+CONFIG_VIDEO_V4L2=m
+```
+It means your system is compatible. If there is no output, your system is not compatible with v4l2loopback (this is common when using virtualized kernel releases such as kvm or wsl2).
 
 <br>
 To start with the load test you will have to start a worker first and the execute the controller.
