@@ -29,7 +29,7 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 <br>
 
->This instructions assume you are using a **linux system**. Windows and Mac can require some adaptation.
+>This instructions assume you are using **Ubuntu** and that your kernel can build and install the module v4l2loopback.
 
 <br>
 To start with the load test you will have to start a worker first and the execute the controller.
