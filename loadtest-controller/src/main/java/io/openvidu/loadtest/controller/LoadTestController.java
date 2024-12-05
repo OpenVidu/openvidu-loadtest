@@ -380,8 +380,8 @@ public class LoadTestController {
 		int estimatedParticipants = browserEstimation * workersAvailable;
 		if (workersRumpUp < 1 && (sessions == -1 || (nParticipants > estimatedParticipants))) {
 
-			String warning = "Number of available workers might not be enough to host all users (" + nParticipants
-					+ " participants trying to fit in " + workersAvailable + " users at " + browserEstimation
+			String warning = "Number of available workers might not be enough to host all users (" + (nParticipants < 0 ? "infinite" : nParticipants)
+					+ " participants trying to fit in " + workersAvailable + " worker at " + browserEstimation
 					+ " browsers per worker). The test will stop when there are no more workers available. Continue? (Y/N)";
 			return io.askForConfirmation(warning);
 		}
