@@ -1,6 +1,6 @@
 # OpenVidu Load Test
 
-This repository contains a distributed tool that allows you to perform a load test against an OpenVidu CE or an OpenVidu PRO deployment.
+This repository contains a distributed tool that allows you to perform a load test against an OpenVidu 3 or OpenVidu 2 deployment.
 
 Take into account that you must to deploy OpenVidu platform before using this tool.
 
@@ -16,65 +16,16 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 ![Load test architecture](resources/diagram.png)
 
-* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library. It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
-
 * [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It reads the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
+
+* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library. It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
 
 ## **Usage Instructions**
 
 ### 1. Launch workers
 
 <details>
-  <summary><strong>For testing locally</strong></summary>
-
-<br>
-
->This instructions assume you are using **Ubuntu** and that your kernel can build and install the module v4l2loopback.
-
-<br>
-To start with the load test you will have to start a worker first and the execute the controller.
-
-Then follow these steps:
-
-- **Clone this repository**
-
-```bash
-git clone https://github.com/OpenVidu/openvidu-loadtest.git
-cd openvidu-loadtest/browser-emulator
-```
-- **Install and run**
-
-You will need to choose if you want the worker to launch Chrome or Firefox browsers, as well as if you want to run QoE analysis on the worker's recorded videos.
-
-If you are unsure, choose the **prepare_scripts/openvidu/prepare.sh** script to perform the installation (installs the browser-emulator with Chrome), as follows:
-
-```bash
-cd openvidu-loadtest/browser-emulator/
-sudo su
-./prepare_scripts/openvidu/prepare.sh # Install script, use the one you want
-npm run start:prod-none # Start script, use the one you want depending on your installation
-```
-
-These are all the options available:
-
-| **Browser to use** | **QoE Analysis Ready** | **Install Script to run**                            | **npm run start command to run** |
-|--------------------|------------------------|------------------------------------------------------|----------------------------------|
-| Chrome             | YES                    | ./prepare_scripts/openvidu/prepare.sh                | npm run start:prod-none          |
-| Chrome             | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe.sh         | npm run start:prod-none          |
-| Firefox            | YES                    | ./prepare_scripts/openvidu/prepare_firefox.sh        | npm run start:prod-none-firefox  |
-| Firefox            | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe_firefox.sh | npm run start:prod-none-firefox  |
-<!-- **3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**. -->
-
-<!-- Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS WebRTC:
-
-```bash
-npm run start:dev-kms
-``` -->
-
-</details>
-
-<details>
-  <summary><strong>For testing on AWS</strong></summary>
+  <summary><strong>For testing on AWS (Recommended)</strong></summary>
 
 <br>
   If you want to launch the load tests in a production environment, you can do that with AWS.
@@ -125,7 +76,54 @@ The *loadtest-controller* will use the BrowserEmulator AMI (previously created) 
 
 
 </details>
+<details>
+  <summary><strong>For testing with manually provisioned workers</strong></summary>
 
+<br>
+
+>WARNING: This instructions assume you are using **Ubuntu** and that your kernel can build and install the module v4l2loopback.
+
+<br>
+To start with the load test you will have to start a worker first and the execute the controller.
+
+Then follow these steps:
+
+- **Clone this repository**
+
+```bash
+git clone https://github.com/OpenVidu/openvidu-loadtest.git
+cd openvidu-loadtest/browser-emulator
+```
+- **Install and run**
+
+You will need to choose if you want the worker to launch Chrome or Firefox browsers, as well as if you want to run QoE analysis on the worker's recorded videos.
+
+If you are unsure, choose the **prepare_scripts/openvidu/prepare.sh** script to perform the installation (installs the browser-emulator with Chrome), as follows:
+
+```bash
+cd openvidu-loadtest/browser-emulator/
+sudo su
+./prepare_scripts/openvidu/prepare.sh # Install script, use the one you want
+npm run start:prod-none # Start script, use the one you want depending on your installation
+```
+
+These are all the options available:
+
+| **Browser to use** | **QoE Analysis Ready** | **Install Script to run**                            | **npm run start command to run** |
+|--------------------|------------------------|------------------------------------------------------|----------------------------------|
+| Chrome             | YES                    | ./prepare_scripts/openvidu/prepare.sh                | npm run start:prod-none          |
+| Chrome             | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe.sh         | npm run start:prod-none          |
+| Firefox            | YES                    | ./prepare_scripts/openvidu/prepare_firefox.sh        | npm run start:prod-none-firefox  |
+| Firefox            | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe_firefox.sh | npm run start:prod-none-firefox  |
+<!-- **3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**. -->
+
+<!-- Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS WebRTC:
+
+```bash
+npm run start:dev-kms
+``` -->
+
+</details>
 
 ### 2. Execute controller
 
@@ -151,10 +149,16 @@ In this file you will see:
 
 #### Required parameters
 
+By default, OpenVidu 3 is enabled, to use this tool for OpenVidu 2 please comment and uncomment the indicated properties.
+
 ```properties
 # Load Test Parameters (Required)
-OPENVIDU_URL=https://openvidu_pro_url
-OPENVIDU_SECRET=openvidu_pro_secret
+# Uncomment the following property and add your OpenVidu Secret if you are using OpenVidu 2
+# OPENVIDU_SECRET=
+# If using OpenVidu 3 fill these properties with the LiveKit API Key and Secret, otherwise comment the following 2 properties
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
+
 SESSION_NAME_PREFIX=LoadTestSession
 USER_NAME_PREFIX=User
 SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS=1
@@ -162,10 +166,30 @@ SECONDS_TO_WAIT_BETWEEN_SESSIONS=2
 SECONDS_TO_WAIT_BEFORE_TEST_FINISHED=10
 SECONDS_TO_WAIT_BETWEEN_TEST_CASES=10
 ```
-#### Development mode parameters (only for testing locally)
+
+#### Monitoring parameters (optional)
+
+>WARNING: **The experiments we made have been tested with Elasticsearch 7.8.0 version. A deployment with a different version could cause errors**.
 
 ```properties
-# For testing locally use, fill it with the workers ip addresses: WORKER_URL_LIST=195.166.0.1, 195.166.0.2
+# Monitoring Parameters (Optional)
+ELASTICSEARCH_USERNAME=elasticusername
+ELASTICSEARCH_PASSWORD=password
+KIBANA_HOST=https://kibanahost
+```
+
+| Make sure your OpenVidu Configuration has the following properties for a good monitoring:
+
+- `OPENVIDU_PRO_STATS_MONITORING_INTERVAL=1`
+- `OPENVIDU_PRO_STATS_WEBRTC_INTERVAL=1`
+
+#### Manual provisioning of workers
+
+```properties
+################################################
+#### Manual provisioning of workers
+################################################
+# For manual provision of workers, fill it with the workers ip addresses: WORKER_URL_LIST=195.166.0.1, 195.166.0.2
 WORKER_URL_LIST=127.0.0.1
 ```
 
@@ -174,35 +198,36 @@ WORKER_URL_LIST=127.0.0.1
 General AWS parameters
 
 ```properties
-# For testing on AWS
+################################################
+#### For testing with AWS
+################################################
 
 # For launching EC2 instances and allowing to workers upload recordings to S3 bucket
-AWS_ACCESS_KEY=your-aws-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_ACCESS_KEY=
+AWS_SECRET_ACCESS_KEY=
+
 # Browser Emulator AMI which will be used for deploying worker instances
-WORKER_AMI_ID=ami-xxxxxxxxxxx
-# We recommend c5 type. https://aws.amazon.com/ec2/instance-types/
+WORKER_AMI_ID=
 WORKER_INSTANCE_TYPE=c5.xlarge
+
+# Key pair name for worker instances to allow ssh manually connect
+WORKER_INSTANCE_KEY_PAIR_NAME=
+
 # By default, the browser-emulator service is listening on:
-# 5000 (REST API)
+# 5000 (API REST)
 # 5001 (WebSocket)
+# 5900 (VNC, only needed if DEBUG_VNC=true)
 # The SG will need these ports opened.
-WORKER_SECURITY_GROUP_ID=sg-xxxxxxxxx
+WORKER_SECURITY_GROUP_ID=
+# AWS Region where the workers will be launched, beware of them being in the same region as the AMI
 WORKER_INSTANCE_REGION=us-east-1
 WORKER_AVAILABILITY_ZONE=us-east-1f
 # Numbers of workers to launch before the test starts
-WORKERS_NUMBER_AT_THE_BEGINNING=10
-# Number of new workers incrementation, if 0 it won't launch a any workers
-WORKERS_RAMP_UP=10
-```
-
-
-##### For the AUTOMATIC distribution of participants to workers
-```properties
-# Percentage worker limit (based on streams created)
-# Reacher this limit, the controller will use a new worker
-# An estimation will be done before starting the test
-WORKER_MAX_LOAD=70
+WORKERS_NUMBER_AT_THE_BEGINNING=
+# Number of new workers incrementation, if 0 it won't launch a any workers during the test
+WORKERS_RAMP_UP=
+# Continue the test without asking if there aren't enough workers when ramp up is 0
+FORCE_CONTINUE=false
 ```
 
 ##### For the MANUAL distribution of participants to workers
@@ -211,6 +236,55 @@ WORKER_MAX_LOAD=70
 MANUAL_PARTICIPANTS_ALLOCATION=false
 # Number of participants per worker
 USERS_PER_WORKER=
+```
+
+
+##### For the AUTOMATIC distribution of participants to workers
+```properties
+# Percentage worker limit (based on streams created)
+# Reacher this limit, the controller will use a new worker
+# An estimation of CPU load will be done before starting the test using one worker
+WORKER_MAX_LOAD=70
+```
+
+##### For video quality control
+These properties allow record a participant (launching an external browser) for check the received video quality. Another option is to record in-browser media streams, which can be used for QoE Analysis later.
+
+When test finishes, the recording(s) will be saved in the S3 Bucket if MinIO isn't configured.
+
+```properties
+################################################
+#### For VIDEO QUALITY control
+################################################
+
+# AWS only
+# It will start a new ec2 instance where a new participant will be connected using a real browser
+# it will start to record the session when media node has archieved this value
+# Needs an ElasticSearch instance to work
+MEDIANODE_LOAD_FOR_START_RECORDING=0
+# it will start to record the sessions gruped by the specifyed value. 
+# 0: Recording disabled, 1 recording starts each session, 2 recording starts each two session ...
+RECORDING_SESSION_GRUPED_BY=0
+# Number of new recording workers incrementation, if 0 it won't launch a any workers
+RECORDING_WORKERS_AT_THE_BEGINNING=0
+
+################################################
+#### QoE Analysis
+################################################
+
+# Record each MediaStream in each worker for Quality of Experience analysis
+QOE_ANALYSIS_RECORDINGS=false
+# Perform qoe analysis in the same worker as they were recorded in, if false the recordings will only be uploaded to S3 or MinIO
+QOE_ANALYSIS_IN_SITU=false
+# Video information needed for in situ QoE analysis, read https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#running-qoe-analysis for more information
+VIDEO_PADDING_DURATION=1
+VIDEO_FRAGMENT_DURATION=15
+
+################################################
+#### For saving recordings in S3
+################################################
+# Bucket name where the recordings will be saved. Remember to set AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY
+S3_BUCKET_NAME=
 ```
 
 ##### If you want to save the recordings in MinIO
@@ -229,33 +303,6 @@ MINIO_SECRET_KEY=
 # MinIO Bucket Name
 MINIO_BUCKET=
 ```
-
-##### For video quality control
-These properties allow record a participant (launching an external browser) for check the received video quality.
-
-When test finishes, it will saved in the S3 Bucket if MinIO isn't configured.
-
-```properties
-# It'll start a new ec2 instance where a new participant will be connected using a real Chrome Browser
-# it will start to record the session when media node has archieved this value
-# Needs an ElasticSearch instance to work
-MEDIANODE_LOAD_FOR_START_RECORDING=0
-# Number of new recording workers incrementation, if 0 it won't launch a any workers
-RECORDING_WORKERS_AT_THE_BEGINNING=0
-# it will start to record the sessions gruped by the specifyed value.
-# 0: Recording disabled, 1 recording starts each session, 2 recording starts each two session ...
-RECORDING_SESSION_GRUPED_BY=0
-# Record each MediaStream in each worker for Quality of Experience analysis
-QOE_ANALYSIS_RECORDINGS=false
-# Perform qoe analysis in the same worker as they were recorded in, if false the recordings will only be uploaded to S3
-QOE_ANALYSIS_IN_SITU=false
-# Video information needed for in situ QoE analysis, read https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#running-qoe-analysis for more information
-VIDEO_PADDING_DURATION=1
-VIDEO_FRAGMENT_DURATION=15
-# Bucket name where the recordings will be saved
-S3_BUCKET_NAME=
-```
-
 #### For retrying the participant creation
 
 These properties allow retry the participant creation when it fails
@@ -264,9 +311,9 @@ RETRY_MODE=false
 RETRY_TIMES=5
 ```
 
-#### For selecting the video to use (only used in browserMode REAL)
-These properties allow you to select the video to use when the browsers used are real browsers.
-There are 3 default options and you can also use a custom video, check the description of the [browser-emulator Initialize instance API](https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#initialize-instance) for more information about these options:
+#### For selecting the video to use
+These properties allow you to select the video to use.
+There are 3 default options, and you can also use a custom video, check the description of the [browser-emulator Initialize instance API](https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#initialize-instance) for more information about these options:
 ```properties
 # Video type options: BUNNY, INTERVIEW, GAME, CUSTOM
 VIDEO_TYPE=BUNNY
@@ -277,22 +324,6 @@ VIDEO_FPS=30
 VIDEO_URL=
 AUDIO_URL=
 ```
-
-#### Monitoring parameters
-
->WARNING: **The experiments we made have been tested with Elasticsearch 7.8.0 version. A deployment with a different version could cause errors**.
-
-```properties
-# Monitoring Parameters (Optional)
-ELASTICSEARCH_USERNAME=elasticusername
-ELASTICSEARCH_PASSWORD=password
-KIBANA_HOST=https://kibanahost
-```
-
-| Make sure your OpenVidu Configuration has the following properties for a good monitoring:
-
-- `OPENVIDU_PRO_STATS_MONITORING_INTERVAL=1`
-- `OPENVIDU_PRO_STATS_WEBRTC_INTERVAL=1`
 
 ### Miscellaneous configuration
 Recommended to leave default values unless you know what you are doing.
