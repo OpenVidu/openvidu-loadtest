@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Shell setup, assumes running on AWS EC2 Ubuntu 22.04
+# Shell setup, assumes running on AWS EC2 Ubuntu 20.04 able to build and install v4l2loopback module
 # ====================================================
 
 # Bash options for strict error checking.
