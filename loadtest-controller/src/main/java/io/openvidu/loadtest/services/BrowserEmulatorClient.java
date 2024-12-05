@@ -68,6 +68,8 @@ public class BrowserEmulatorClient {
 
 	private AtomicBoolean endOfTest = new AtomicBoolean(false);
 
+	private AtomicBoolean isClean = new AtomicBoolean(false);
+
 	public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils, Sleeper sleeper) {
 		this.loadTestConfig = loadTestConfig;
 		this.httpClient = httpClient;
@@ -76,6 +78,7 @@ public class BrowserEmulatorClient {
 	}
 
 	public void clean() {
+		this.isClean.set(true);
 		this.clientFailures.clear();
 		this.clientRoles.clear();
 		this.participantTestCases.clear();
@@ -136,6 +139,10 @@ public class BrowserEmulatorClient {
 	}
 
 	public void addClientFailure(String workerUrl, String participant, String session, boolean waitForConnection, boolean reconnect) {
+		if (this.isClean.get()) {
+			// Test finished
+			return;
+		}
 		log.debug("Adding client failure for participant {} in session {}", participant, session);
 		log.debug("Wait for connection: {}", waitForConnection);
 		while (waitForConnection && this.participantConnecting.get(participant + "-" + session).get()) {
@@ -376,6 +383,10 @@ public class BrowserEmulatorClient {
 					"https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
 					getHeaders());
 			log.debug("Response received: {}", response.body());
+			if (isClean.get()) {
+				// The test has finished
+				return cpr.setResponseOk(false);
+			}
 			if (response.statusCode() != HTTP_STATUS_OK) {
 				log.warn("Error: " + response.body());
 
