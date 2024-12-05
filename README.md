@@ -9,9 +9,6 @@ Take into account that you must to deploy OpenVidu platform before using this to
 # **Table of Contents**
 1. [Project Architecture](#project-architecture)
 2. [Usage instructions](#usage-instructions)
-3. [Sample test execution](#sample-test-execution)
-4. [Analyze test results](#analyze-test-results)
-5. [Browser Emulator documentation](#browser-emulator-documentation)
 
 <hr>
 
@@ -45,61 +42,7 @@ Then follow these steps:
 git clone https://github.com/OpenVidu/openvidu-loadtest.git
 cd openvidu-loadtest/browser-emulator
 ```
-
-Now you can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator. Ensure you have Vagrant and VirtualBox installed on your system.
-
-You can either choose an already made box or make a personalized one yourself.
-
-- **Already made box**
-
-You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters.
-
-- **Customizable Parameters in Vagrantfile**
-
-    - **BOX**: Box to use as base. You can choose one of our already made boxes or choose the path to a box made by youself. Defaults to a box with the latest OpenVidu 2 CE and Firefox installed.
-	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
-	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
-	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
-	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
-
-- **Available boxes**
-
-Here are our already made boxes that you can use:
-
-	- ivchicano/browseremulator-ov-ff: Default box. Comes ready to use against OpenVidu 2, using Firefox as the browser.
-	- ivchicano/browseremulator-lk-ff: Comes ready to use against LiveKit, using Firefox as the browser.
-	- ivchicano/browseremulator-ov-ff-dev: Comes with the latest OpenVidu 2 CE and Firefox installed. Starts an OpenVidu 2 CE server in the same machine.
-	- ivchicano/browseremulator-lk-ff-dev: Comes with the latest LiveKit and Firefox installed. Starts a LiveKit server in the same machine.
-
-- **Start vagrant**
-
-To customize these parameters, you can set environment variables before running `vagrant up`. For example:
-
-```bash
-export BOX=ivchicano/browseremulator-lk-ff
-vagrant up
-```
-
-- **Personalized box**
-
-You can also construct your personalized box with the parameters you choose. You can start it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then use this box as is or package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
-
-- **Customizable Parameters in Vagrantfile**
-
-	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 8192. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
-	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
-	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
-	- **FIREFOX**: Set to 'true' to use Firefox instead of Chrome for testing. Default is 'false'.
-	- **START_MEDIASERVER**: Set to 'true' to start the media server (either the latest Openvidu 2 CE or LiveKit) during provisioning. Default is 'true'.
-	OpenVidu note: with this deployment, the OpenVidu URL is ^*https://localhost* and the OpenVidu secret is *vagrant*.
-	LiveKit note: (Experimental) with this deployment, LiveKit is deployed in dev mode, so the API Key is *devkey* and the API Secret is *secret*.
-	- **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'false'.
-	- **LIVEKIT**: (Experimental) Set to 'true' to use LiveKit instead of OpenVidu. Default: 'false'.
-	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
-
-- **(Not recommended) Install and run without Vagrant**
-
-You can also install and run browser-emulator without using Vagrant.
+- **Install and run**
 
 You will need to choose if you want the worker to launch Chrome or Firefox browsers, as well as if you want to run QoE analysis on the worker's recorded videos.
 
@@ -121,13 +64,6 @@ These are all the options available:
 | Firefox            | YES                    | ./prepare_scripts/openvidu/prepare_firefox.sh        | npm run start:prod-none-firefox  |
 | Firefox            | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe_firefox.sh | npm run start:prod-none-firefox  |
 <!-- **3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**. -->
-
-##### Running options
-By default, this worker is listening on port `5000` that you have to specify later in the controller configuration. If you want to run it on another port just add `SERVER_PORT=port_number` before `npm run start:` command:
-
-```bash
-SERVER_PORT=6000 npm run start:prod-none-firefox
-```
 
 <!-- Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS WebRTC:
 
@@ -193,7 +129,7 @@ The *loadtest-controller* will use the BrowserEmulator AMI (previously created) 
 
 ### 2. Execute controller
 
-In the machine you want to execute the controller you need to have **Java 11** platform installed.
+In the machine you want to execute the controller you need to have at least **Java 11** platform installed.
 
 Then follow these steps:
 
@@ -205,7 +141,7 @@ git clone https://github.com/OpenVidu/openvidu-loadtest.git
 
 #### 2. Configure Loadtest Controller
 
-Running the following command **under project root directory** you will be able to edit the [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties) which contains a list of configuration parameters that you will can customize.
+Running the following command **under project root directory** you will be able to edit the [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties) which contains a list of configuration parameters that you can customize.
 
 ```bash
 nano loadtest-controller/src/main/resources/application.properties
@@ -220,7 +156,7 @@ In this file you will see:
 OPENVIDU_URL=https://openvidu_pro_url
 OPENVIDU_SECRET=openvidu_pro_secret
 SESSION_NAME_PREFIX=LoadTestSession
-USER_NAME_PREFIX =User
+USER_NAME_PREFIX=User
 SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS=1
 SECONDS_TO_WAIT_BETWEEN_SESSIONS=2
 SECONDS_TO_WAIT_BEFORE_TEST_FINISHED=10
@@ -229,8 +165,8 @@ SECONDS_TO_WAIT_BETWEEN_TEST_CASES=10
 #### Development mode parameters (only for testing locally)
 
 ```properties
-# For testing locally, fill it with the worker ip address: 195.166.0.0
-WORKER_URL_LIST=
+# For testing locally use, fill it with the workers ip addresses: WORKER_URL_LIST=195.166.0.1, 195.166.0.2
+WORKER_URL_LIST=127.0.0.1
 ```
 
 #### AWS parameters (only for testing on AWS)
@@ -243,6 +179,7 @@ General AWS parameters
 # For launching EC2 instances and allowing to workers upload recordings to S3 bucket
 AWS_ACCESS_KEY=your-aws-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
+# Browser Emulator AMI which will be used for deploying worker instances
 WORKER_AMI_ID=ami-xxxxxxxxxxx
 # We recommend c5 type. https://aws.amazon.com/ec2/instance-types/
 WORKER_INSTANCE_TYPE=c5.xlarge
@@ -251,18 +188,21 @@ WORKER_INSTANCE_TYPE=c5.xlarge
 # 5001 (WebSocket)
 # The SG will need these ports opened.
 WORKER_SECURITY_GROUP_ID=sg-xxxxxxxxx
-WORKER_INSTANCE_REGION=
+WORKER_INSTANCE_REGION=us-east-1
+WORKER_AVAILABILITY_ZONE=us-east-1f
 # Numbers of workers to launch before the test starts
-WORKERS_NUMBER_AT_THE_BEGINNING=1
+WORKERS_NUMBER_AT_THE_BEGINNING=10
+# Number of new workers incrementation, if 0 it won't launch a any workers
+WORKERS_RAMP_UP=10
 ```
 
 
-##### For the AUTO distribution of participants to workers
+##### For the AUTOMATIC distribution of participants to workers
 ```properties
-# Overcoming this CPU percentage threshold a new worker will be launched
-WORKER_MAX_LOAD=80
-# Number of new workers incrementation
-WORKERS_RAMP_UP=1
+# Percentage worker limit (based on streams created)
+# Reacher this limit, the controller will use a new worker
+# An estimation will be done before starting the test
+WORKER_MAX_LOAD=70
 ```
 
 ##### For the MANUAL distribution of participants to workers
@@ -291,29 +231,29 @@ MINIO_BUCKET=
 ```
 
 ##### For video quality control
-These properties allow record a participant (launching an external chrome browser) for check the received video quality.
+These properties allow record a participant (launching an external browser) for check the received video quality.
 
-When test finishes, it will saved in the S3 Bucket.
-
+When test finishes, it will saved in the S3 Bucket if MinIO isn't configured.
 
 ```properties
-# For video quality control (enabled for AWS testing only) 
 # It'll start a new ec2 instance where a new participant will be connected using a real Chrome Browser
 # it will start to record the session when media node has archieved this value
 # Needs an ElasticSearch instance to work
 MEDIANODE_LOAD_FOR_START_RECORDING=0
+# Number of new recording workers incrementation, if 0 it won't launch a any workers
+RECORDING_WORKERS_AT_THE_BEGINNING=0
 # it will start to record the sessions gruped by the specifyed value.
 # 0: Recording disabled, 1 recording starts each session, 2 recording starts each two session ...
 RECORDING_SESSION_GRUPED_BY=0
-# Bucket name where the recordings will be saved
 # Record each MediaStream in each worker for Quality of Experience analysis
-QOE_ANALYSIS_RECORDINGS=true
+QOE_ANALYSIS_RECORDINGS=false
 # Perform qoe analysis in the same worker as they were recorded in, if false the recordings will only be uploaded to S3
 QOE_ANALYSIS_IN_SITU=false
 # Video information needed for in situ QoE analysis, read https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#running-qoe-analysis for more information
 VIDEO_PADDING_DURATION=1
-VIDEO_FRAGMENT_DURATION=5
-S3_BUCKET_NAME=openvidu-loadtest-capacity
+VIDEO_FRAGMENT_DURATION=15
+# Bucket name where the recordings will be saved
+S3_BUCKET_NAME=
 ```
 
 #### For retrying the participant creation
@@ -354,7 +294,7 @@ KIBANA_HOST=https://kibanahost
 - `OPENVIDU_PRO_STATS_MONITORING_INTERVAL=1`
 - `OPENVIDU_PRO_STATS_WEBRTC_INTERVAL=1`
 
-### Miscelaneous configuration
+### Miscellaneous configuration
 Recommended to leave default values unless you know what you are doing.
 
 ```properties
@@ -364,7 +304,7 @@ BATCHES=true
 BATCHES_MAX_REQUESTS=10
 # Wait after user or batch insertion
 WAIT_COMPLETE=true
-# Install VNC server on workers for debug purposes
+# Install VNC server on workers for debug purposes. Usually not needed
 DEBUG_VNC=false
 ```
 
@@ -379,16 +319,6 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 ```json
 {
 	"testcases": [
-		{
-			"typology": "N:N",
-			"participants": ["2", "3", "5"],
-			"sessions": "20",
-			"browserMode": "EMULATE",
-			"frameRate": "30",
-			"resolution": "640x480",
-			"openviduRecordingMode": "",
-			"desciption": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
-		},
 		{
 			"typology": "N:M",
 			"participants": ["1:10", "1:100", "2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
@@ -416,7 +346,7 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 |  **typology** * |  `N:N`, `N:M`, `TEACHING` or `TERMINATE`| **N:N**: All users will be PUBLISHERS and SUBSCRIBERS <br> **N:M**: **_N_** number will be PUBLISHERS and **_M_** number will be SUBSCRIBERS <br> **TEACHING**:  It will emulate a teaching videoconference. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio <br> **TERMINATE**: It will terminate all EC2 instances launched for loadtest purposes  |
 |  **participants** *  |  String [] | Number of participants in each session. It will run the same test case as many time as the positions in the array. <br> For example: <br>For **_N:N_** typology: `["2","5"]` where all of them will be _publishers_ and test case will be run twice (sessions with 2 and 5 participants)  <br>For **_N:M_** typology: `["2:30"]` where 2 will be _publishers_ and 30 will be _subscribers_ <br>For **_TEACHING_** typology: `["2:30"]` where 2 will be teachers and 30 will be students   |
 |  **sessions** *  |  `infinite` or Number | **infinite**: It will create infinite sessions until the limit is reached. <br> **Number value**: It will create only (**_number value_**) sessions  |
-|  **browserMode** * | `EMULATE` or `REAL`  | **EMULATE**: the service will emulate a browser. <br> **REAL**: the service will launch a Chrome browser docker container. <br> Choosing `EMULATE`, **you must ensure that OpenVidu aren't forcing H264 coded**  |
+|  **startingParticipants** |  Number | Create this number of participants at the beginning of the test in a batch. Useful for loading the media server up to a certain point before adding users in a more controlled manner. Defaults to 0 |
 |**resolution**| String | Desired resolution of the video. <br> `640x480` or `1280x720` <br> Default `640x480`|
 |**frameRate**| Number (0-30)  | Desired framerate of the video in frames per second. Default `30`|
 |  **openviduRecordingMode** | String   | `COMPOSED` or `INDIVIDUAL` <br> See [OpenVidu recording](https://docs.openvidu.io/en/stable/advanced-features/recording/).|
@@ -431,9 +361,9 @@ When you execute the load test the controller will create sessions and will conn
 
 The load test has **several stop conditions**. It will stop when any of the following conditions occur:
 
-* When loadtest-controller receives an **exception error** from any of the workers.
+* When loadtest-controller receives an **exception error** from any of the workers (or the number of exceptions in RETRY_TIMES when RETRY_MODE is true).
 
-* When any of workers **can't create a new participant** because of lack of resources or a long time trying creating it.
+* When any of workers **can't create a new participant** because of lack of resources or a long time trying creating it (will retry if RETRY_MODE is true).
 
 Take into account that errors can be produced by OpenVidu errors or if the worker itself is overloaded. Please control CPU usage in workers.
 
@@ -446,88 +376,58 @@ cd loadtest-controller
 mvn spring-boot:run
 ```
 
-#### Extra features
+# Browser Emulator development
 
-* For terminate AWS EC2 instances:
+Now you can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator. Ensure you have Vagrant and VirtualBox installed on your system.
+
+You can either choose an already made box or make a personalized one yourself.
+
+- **Already made box**
+
+You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters.
+
+- **Customizable Parameters in Vagrantfile**
+
+    - **BOX**: Box to use as base. You can choose one of our already made boxes or choose the path to a box made by youself. Defaults to a box with the latest OpenVidu 2 CE and Firefox installed.
+	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
+	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
+	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
+	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
+
+- **Available boxes**
+
+Here are our already made boxes that you can use:
+
+	- ivchicano/browseremulator-ov-ff: Default box. Comes ready to use against OpenVidu 2, using Firefox as the browser.
+	- ivchicano/browseremulator-lk-ff: Comes ready to use against LiveKit, using Firefox as the browser.
+	- ivchicano/browseremulator-ov-ff-dev: Comes with the latest OpenVidu 2 CE and Firefox installed. Starts an OpenVidu 2 CE server in the same machine.
+	- ivchicano/browseremulator-lk-ff-dev: Comes with the latest LiveKit and Firefox installed. Starts a LiveKit server in the same machine.
+
+- **Start vagrant**
+
+To customize these parameters, you can set environment variables before running `vagrant up`. For example:
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.jvmArguments="-DTERMINATE_WORKERS=true"
+export BOX=ivchicano/browseremulator-lk-ff
+vagrant up
 ```
 
-## **Sample test execution**
+- **Personalized box**
 
-For illustration proporses here is an example composed by 2 workers and the load test app all of them running locally.
+You can also construct your personalized box with the parameters you choose. You can start it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then use this box as is or package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
 
-As you can see in the load test and workers logs, the load test app will create sessions and will add participants into them following a [**round-robin scheduling**](https://en.wikipedia.org/wiki/Round-robin_scheduling).
+- **Customizable Parameters in Vagrantfile**
 
-**Load test logs**
-![Load Test Controller Logs](resources/load-test.png)
-
-Which it means that, for this sample with sessions of 2 participans, each participant will be create by one different worker. The `User0` will be create by the worker 1 and the `User1` will be created by the worker2.
-
-Thus achieving more capacity in the load test and less resource consumption.
-
-**Worker 1 logs**
-
-![Worker 1 Logs](resources/worker1.png)
-
-**Worker 2 logs**
-
-![Worker 2 Logs](resources/worker2.png)
-
-## **Test results**
-
-The loadtest-controller will create a report result on the root directory `/openvidu-loadtest/loadtest-controller` with the name **result.txt**. This file will contains the following information:
-
-```
- ----- Test Case Report Fri Apr 30 12:39:46 CEST 2021 -----
-Browser approach:
-Browser with recording:
-Session typology:
-Participants per session:
-Number of sessions created:
-Number of sessions completed:
-Number of participants created:
-Number of workers used:
-Stop reason:
-Test duration:
-Kibana url:
-```
-
-If you're testing **OpenVidu PRO**, the loadtest-controller **will import a Kibana Dashboard automatically** at the beginning of the test. This dashboard will include Kibana Visualizations with all metrics retrieved from OpenVidu.
-
-![Load Test Dashboard](resources/kibana.png)
-
-To allow that the Load Test App import it, **you must fill** the [monitoring parameters](#Monitoring-parameters).
-
-**What happen if the dashboard have not been imported automatically?**
-
-An alternative if the dashboard is not imported automatically is **import it manually**. You just to follow these steps:
-
-1. Go to your Kibana Home
-2. Open the toggle menu and go to `Management > Stack Management`.
-3. Once inside of Stack Management, you must click on `Saved Objects` option, under Kibana section.
-4. Here, you can find an import button. You have to clik on it and import the [loadtest.ndjson](load-test/src/main/resources/loadtest.ndjson) file.
-
-
-Besides, if you have deployed OpenVidu PRO you can [create your own visualizations in Kibana](https://docs.openvidu.io/en/2.16.0/openvidu-pro/monitoring-elastic-stack/#creating-your-own-visualizations-and-dashboards) or you can export the raw data and use another tool. Remember that ELK stack has monitoring information about the platform (CPU, memory usage, bandwidth, etc) and also high level information (sessions, participants, etc.)
-
-## **Browser Emulator documentation**
-
-This service provides a simple **REST API** that will be used by **Load Test application** and it allows:
-* **Ping to instance**. Do ping to check if instance is ready.
-* **Initialize instance**. Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container. This request also set the AWS public and secret keys for uploading the **video recordings files to S3** (just in case the test case includes recording).
-
-* **Create a participant** (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
-
-* **Delete a specific participant** by its connectionId
-* **Delete all participant with a specific role** (`PUBLISHER` or `SUBSCRIBER`).
-* **Delete all participant**
-
-
-This services also is listening for a **WebSocket communication** on `ws:browser-emulator-addres:5001/events`. It will send information from openvidu-browser to the loadtest-controller.
-
-See [browser-emulator docummentation](browser-emulator/README.md) for more info.
+	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 8192. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
+	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
+	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
+	- **FIREFOX**: Set to 'true' to use Firefox instead of Chrome for testing. Default is 'false'.
+	- **START_MEDIASERVER**: Set to 'true' to start the media server (either the latest Openvidu 2 CE or LiveKit) during provisioning. Default is 'true'.
+	OpenVidu note: with this deployment, the OpenVidu URL is ^*https://localhost* and the OpenVidu secret is *vagrant*.
+	LiveKit note: (Experimental) with this deployment, LiveKit is deployed in dev mode, so the API Key is *devkey* and the API Secret is *secret*.
+	- **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'false'.
+	- **LIVEKIT**: (Experimental) Set to 'true' to use LiveKit instead of OpenVidu. Default: 'false'.
+	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
 
 # Acknowledgments
 
