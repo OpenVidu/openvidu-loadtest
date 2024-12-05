@@ -646,9 +646,10 @@ public class LoadTestController {
 				});
 			}
 			futureList.add(future);
+			boolean waitWithoutBatches = !batches && waitCompletion;
 			boolean batchMaxCount = tasksInProgress >= batchMax;
 			boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
-			boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+			boolean waitForResponses = waitWithoutBatches || isLastStartingParticipant || waitForBatch;
 			if (waitForResponses) {
 				lastResponse.set(getLastResponse(futureList));
 				CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -731,9 +732,10 @@ public class LoadTestController {
 				});
 			}
 			futureList.add(future);
+			boolean waitWithoutBatches = !batches && waitCompletion;
 			boolean batchMaxCount = tasksInProgress >= batchMax;
 			boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
-			boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+			boolean waitForResponses = waitWithoutBatches || isLastStartingParticipant || waitForBatch;
 			if (waitForResponses) {
 				lastResponse.set(getLastResponse(futureList));
 				CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -792,9 +794,10 @@ public class LoadTestController {
 					}
 				});
 			}
+			boolean waitWithoutBatches = !batches && waitCompletion;
 			boolean batchMaxCount = tasksInProgress >= batchMax;
 			boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
-			boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+			boolean waitForResponses = waitWithoutBatches || isLastStartingParticipant || waitForBatch;
 			if (waitForResponses) {
 				lastResponse.set(getLastResponse(futureList));
 				CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -891,9 +894,10 @@ public class LoadTestController {
 				futureList.add(future);
 				boolean isLastParticipant = i == participantsBySession - 1;
 				if (!(isLastParticipant && isLastSession)) {
+					boolean waitWithoutBatches = !batches && waitCompletion;
 					boolean batchMaxCount = tasksInProgress >= batchMax;
 					boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
-					boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+					boolean waitForResponses = waitWithoutBatches || isLastStartingParticipant || waitForBatch;
 					if (waitForResponses) {
 						lastResponse.set(getLastResponse(futureList));
 						CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -1013,9 +1017,10 @@ public class LoadTestController {
 					});
 				}
 				futureList.add(future);
+				boolean waitWithoutBatches = !batches && waitCompletion;
 				boolean batchMaxCount = tasksInProgress >= batchMax;
 				boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
-				boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+				boolean waitForResponses = waitWithoutBatches || isLastStartingParticipant || waitForBatch;
 				if (waitForResponses) {
 					lastResponse.set(getLastResponse(futureList));
 					CreateParticipantResponse lastResponseValue = lastResponse.get();
@@ -1079,9 +1084,10 @@ public class LoadTestController {
 				}
 				boolean isLastParticipant = i == subscribers - 1;
 				if (!(isLastParticipant && isLastSession)) {
+					boolean waitWithoutBatches = !batches && waitCompletion;
 					boolean batchMaxCount = tasksInProgress >= batchMax;
 					boolean waitForBatch = !isStartingParticipant && waitCompletion && batchMaxCount;
-					boolean waitForResponses = isLastStartingParticipant || waitForBatch;
+					boolean waitForResponses = waitWithoutBatches || isLastStartingParticipant || waitForBatch;
 					if (waitForResponses) {
 						lastResponse.set(getLastResponse(futureList));
 						CreateParticipantResponse lastResponseValue = lastResponse.get();
