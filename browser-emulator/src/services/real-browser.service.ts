@@ -52,11 +52,13 @@ export class RealBrowserService {
 		} else {
 			this.chromeCapabilities.setLoggingPrefs(prefs);
 			this.chromeCapabilities.setAcceptInsecureCerts(true);
+            // Unlike firefox, chrome is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
 			this.chromeOptions.addArguments(
 				'--disable-dev-shm-usage',
 				'--use-fake-ui-for-media-stream',
 				"--no-sandbox",
-				"--disable-gpu"
+				"--disable-gpu",
+                "--start-maximized"
 			);
 		}
 		if (process.env.IS_DOCKER_CONTAINER === 'true') {
@@ -237,8 +239,11 @@ export class RealBrowserService {
 							storageValueObj
 						);
 					}
-					
-					await driver.manage().window().maximize();
+
+                    // Unlike chrome, firefox is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
+                    if (process.env.REAL_DRIVER === "firefox") {
+					    await driver.manage().window().maximize();
+					}
 
 					const isRecording = !!properties.recording && !properties.headless;
 					if (isRecording && !this.recordingScript) {
