@@ -107,4 +107,4 @@ QOE=true CPUS=$CPUS vagrant up
 vagrant package --output $box_path
 vagrant destroy -f
 
-upload_box $box_path $box_name
+upload_box $box_path $BOX_FILE
