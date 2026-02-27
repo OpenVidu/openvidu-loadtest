@@ -17,7 +17,7 @@ export const app = express.Router({
 app.post('/qoeRecordings', upload.single("file"), (req: Request, res: Response) => {
     const buffer = req.file.buffer;
 
-    fs.appendFile(`${RECORDINGS_PATH}/${req.file.originalname}`, buffer, (err) => {
+    fs.appendFile(`${RECORDINGS_PATH}/${req.file.originalname}`, new Uint8Array(buffer), (err) => {
         if (err) {
             res.status(500).send(err.message);
         } else {

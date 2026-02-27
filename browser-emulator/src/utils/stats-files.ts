@@ -76,19 +76,21 @@ async function saveStatsToFileAux(filePath: string, data: any) {
     let newData = JSON.stringify(data) + ']'; // Append the closing bracket
 
     if (size > 2) { // Check if the file is longer than `[]`
-      const lastByteBuffer = Buffer.alloc(1);
-      const { buffer } = await fd.read(lastByteBuffer, 0, 1, size - 1);
+      const lastByteBuffer = new Uint8Array(1);
+      await fd.read(lastByteBuffer, 0, 1, size - 1);
 
-      if (buffer[0] === 93) {
+      if (lastByteBuffer[0] === 93) {
         // Append comma if the file ends with ']'
         newData = ',' + newData;
         const buffer = Buffer.from(newData);
-        await fd.write(buffer, 0, buffer.byteLength, size - 1);
+        const writeBuffer = new Uint8Array(buffer);
+        await fd.write(writeBuffer, 0, writeBuffer.byteLength, size - 1);
       }
     } else {
       // If the file is just `[]`, we replace it with `[newData]`
       newData = '[' + newData;
-      await fd.write(Buffer.from(newData), 0);
+      const writeBuffer = new Uint8Array(Buffer.from(newData));
+      await fd.write(writeBuffer, 0);
     }
   } catch (error) {
     console.error("Error saving stats to file: " + error.message);

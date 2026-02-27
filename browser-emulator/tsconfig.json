@@ -22,6 +22,10 @@
     // Generate sourcemap files (*.js.map), for debugging.
     "sourceMap": true,
 
+    // Isolated Modules (https://www.typescriptlang.org/tsconfig#isolatedModules)
+    // Required for ts-jest when using hybrid module kind (Node16/18/Next)
+    "isolatedModules": true,
+
     // DEBUG - Uncomment when needed.
     // "explainFiles": true,
 
