@@ -22,7 +22,6 @@ done
 echo \"X is available\"
 
 x11vnc -display :10 -forever -shared -bg -nopw
-sleep 10
 DISPLAY=:10 fvwm &" > /opt/openvidu-loadtest/browser-emulator/x11vnc_script.sh
 chmod +x /opt/openvidu-loadtest/browser-emulator/x11vnc_script.sh
 (crontab -u vagrant -l ; echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./x11vnc_script.sh > /var/log/x11vnc.log 2>&1') | crontab -u vagrant -
