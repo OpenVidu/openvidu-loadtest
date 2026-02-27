@@ -4,8 +4,12 @@ Description: Browser Emulator
 Parameters:
   ImageId:
     Type: AWS::EC2::Image::Id
-    Description: An Amazon EC2 image ID, such as ami-09d56f8956ab235b3.
-    Default: ami-0778521d914d23bc1
+    Description: A base Amazon EC2 image ID.
+    Default: ami-09e67e426f25ce0d7
+  GitRef:
+    Type: String
+    Description: Git tag or branch to checkout (e.g., 'v3.0.0', 'main', 'develop')
+    Default: "v3.0.0"
 
 Resources:
   BrowserInstance:
@@ -16,7 +20,7 @@ Resources:
         Count: 1
     Properties:
       ImageId: !Ref ImageId
-      InstanceType: "t3.small"
+      InstanceType: "t3.xlarge"
       Tags:
       - Key: Name
         Value: !Ref AWS::StackName
@@ -31,13 +35,15 @@ Resources:
         "Fn::Base64":
           !Sub |
           #!/bin/bash
-          apt update
-          apt install -y linux-aws-edge 
           git clone https://github.com/OpenVidu/openvidu-loadtest.git /opt/openvidu-loadtest
-
+          cd /opt/openvidu-loadtest
+          git checkout ${GitRef}
+          cd browser-emulator
           echo 'AWS_STACK=${AWS::StackId}' | sudo tee -a /etc/environment
           echo 'AWS_REGION=${AWS::Region}' | sudo tee -a /etc/environment
-          chmod +x /opt/openvidu-loadtest/browser-emulator/prepare_scripts/openvidu/prepare.sh
-          chmod +x /opt/openvidu-loadtest/browser-emulator/notify-aws.sh
-          echo '@reboot cd /opt/openvidu-loadtest/browser-emulator && ./prepare_scripts/openvidu/prepare.sh > /var/log/prepare.log 2> /var/log/prepare_error.log 2>&1 && ./notify-aws.sh > /var/log/prepare_aws.log 2> /var/log/prepare_error_aws.log 2>&1' | crontab
-          reboot now
+          chmod +x ./prepare_scripts/*.sh
+          chmod +x ./*.sh
+          ./prepare_scripts/install_base.sh > /var/log/install.log 2>&1
+          echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && pnpm run build > /var/log/build.log 2>&1 && pnpm run start:prod > /var/log/crontab.log 2>&1" 2>&1 | crontab -u ubuntu -
+          apt-get install -y linux-aws-edge
+          ./notify-aws.sh > /var/log/notify_aws.log 2>&1

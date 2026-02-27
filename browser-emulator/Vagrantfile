@@ -1,6 +1,10 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
-box = ENV['BOX'] || 'ivchicano/browseremulator-ov-ff'
+box = ENV['BOX'] || 'ivchicano/browseremulator'
+firefox = ENV['FIREFOX'] || 'false'
+livekit = ENV['LIVEKIT'] || 'false'
+start_server = ENV['START_SERVER'] || 'true'
+start_platform = ENV['START_PLATFORM'] || 'true'
 memory = ENV['MEMORY'] || 4092
 cpus = ENV['CPUS'] || 4
 provider = ENV['VAGRANT_PROVIDER'] || 'virtualbox'
@@ -47,4 +51,5 @@ Vagrant.configure("2") do |config|
     end
   end
 
+  config.vm.provision "shell", :path => "vagrant_setup_start.sh", :args => [firefox, livekit, start_server, start_platform]
 end

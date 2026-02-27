@@ -2,3 +2,4 @@
 stats/*
 !stats/locks/*
 outputs/fixed/*
+.env

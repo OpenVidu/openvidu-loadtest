@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+
+# Shell setup of needed software for QoE analysis, assumes running on Ubuntu 20.04
+# Should have run install_base.sh before this to set up the base installation
+# ====================================================
+
+# Bash options for strict error checking.
+set -o errexit -o errtrace -o pipefail -o nounset
+shopt -s inherit_errexit 2>/dev/null || true
+
+# Trace all commands.
+set -o xtrace
+
+DEBIAN_FRONTEND=noninteractive
+if [ -f "/etc/needrestart/needrestart.conf" ]; then
+    sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
+else
+    echo "No needrestart, continuing"
+fi
+
+SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)" # Absolute canonical path
+
+## Install necessary packages
+curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor >bazel.gpg
+mv bazel.gpg /etc/apt/trusted.gpg.d/
+echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
+apt-get update
+apt-get install -yq --no-install-recommends build-essential bc make cmake libopencv-dev python3-opencv bazel libnetpbm10-dev xxd \
+    libjpeg-turbo-progs imagemagick-6.q16 jq automake g++ libtool libleptonica-dev pkg-config nasm ninja-build \
+    meson doxygen libx264-dev libx265-dev libnuma-dev
+pkg-config --cflags --libs opencv4
+# Needed for VISQOL, put here so it doesn't conflict with other python installation parallel to it
+pip3 install numpy
+
+install_vmaf() {
+    ## Install VMAF
+    if [[ ! -f "/usr/local/bin/vmaf" ]]; then
+        curl --output "/tmp/vmaf.tar.gz" \
+            --continue-at - \
+            --location "https://github.com/Netflix/vmaf/archive/refs/tags/v2.3.0.tar.gz"
+    fi
+    cd /tmp
+    tar -xvf vmaf.tar.gz
+    cd vmaf-2.3.0/libvmaf/
+    meson build --buildtype release
+    ninja -vC build
+    ninja -vC build install
+    cp /usr/local/lib/x86_64-linux-gnu/libvmaf.* /usr/local/lib/
+    cd ..
+    mkdir -p /usr/local/share/vmaf/models/
+    cp -r model/* /usr/local/share/vmaf/models/
+    cd ..
+    rm -rf vmaf-2.3.0
+    rm vmaf.tar.gz
+    export VMAF_PATH=/usr/local/bin
+    echo export VMAF_PATH=/usr/local/bin | tee -a /etc/profile
+}
+
+install_vqmt() {
+    ## Install VQMT
+    git clone https://github.com/Rolinh/VQMT
+    cd VQMT
+    make
+    mv ./build/bin/Release/vqmt /usr/local/bin/vqmt
+    cd ..
+    rm -rf VQMT
+    export VQMT_PATH=/usr/local/bin
+    echo export VQMT_PATH=/usr/local/bin | tee -a /etc/profile
+    cd $SELF_PATH
+}
+
+install_pesq() {
+    ## Install PESQ
+    git clone https://github.com/dennisguse/ITU-T_pesq
+    cd ITU-T_pesq
+    make
+    mv ./bin/itu-t-pesq2005 /usr/local/bin/pesq
+    cd ..
+    rm -rf ITU-T_pesq
+    export PESQ_PATH=/usr/local/bin
+    echo export PESQ_PATH=/usr/local/bin | tee -a /etc/profile
+}
+
+install_visqol() {
+    ## Install VISQOL
+    curl --output "/tmp/visqol.tar.gz" \
+        --continue-at - \
+        --location "https://github.com/google/visqol/archive/refs/tags/v3.3.3.tar.gz"
+    cd /tmp
+    tar -xvf visqol.tar.gz
+    rm visqol.tar.gz
+    cd visqol-3.3.3
+    bazel build :visqol -c opt
+    cd ..
+    mv visqol-3.3.3 /usr/local/visqol
+    export VISQOL_PATH=/usr/local/visqol
+    echo export VISQOL_PATH=/usr/local/visqol | tee -a /etc/profile
+    rm -rf visqol-3.3.3
+    cd $SELF_PATH
+}
+
+install_tesseract() {
+    ## Install tesseract
+    ## Building tesseract ST for better performance, check https://tesseract-ocr.github.io/tessdoc/Compiling-%E2%80%93-GitInstallation.html#release-builds-for-mass-production
+    curl --output "/tmp/tesseract.tar.gz" \
+        --continue-at - \
+        --location "https://github.com/tesseract-ocr/tesseract/archive/refs/tags/4.1.3.tar.gz"
+    cd /tmp
+    tar -xvf tesseract.tar.gz
+    rm tesseract.tar.gz
+    cd tesseract-4.1.3
+    ./autogen.sh
+    mkdir -p bin/release
+    cd bin/release
+    ../../configure --disable-openmp --disable-shared 'CXXFLAGS=-g -O2 -fno-math-errno -Wall -Wextra -Wpedantic'
+    make
+    make install
+    cd ../../..
+    rm -rf tesseract-4.1.3
+    cd $SELF_PATH
+    curl --output "/usr/local/share/tessdata/eng.traineddata" \
+        --continue-at - \
+        --location "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
+}
+
+install_python_dependencies() {
+    ## Install python dependencies
+    pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
+}
+
+install_vqmt &
+install_pesq &
+install_visqol &
+install_vmaf &
+install_tesseract &
+install_python_dependencies &
+wait
