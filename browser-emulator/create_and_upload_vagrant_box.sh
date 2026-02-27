@@ -78,13 +78,15 @@ upload_box() {
     fi
     checksum=$(sha256sum $box_file | cut -d ' ' -f 1)
     # create box architecture if it doesn't exist
+    architecture_exists=false
     response=$(curl --header "Authorization: Bearer $HCP_TOKEN" \
                     --header "Content-Type: application/json" \
                     --request POST \
                     --data "{\"architecture_type\":\"$BOX_ARCHITECTURE\",\"default\":true,\"box_data\":{\"checksum_type\":\"SHA256\",\"checksum\":\"$checksum\"}}" \
                     "https://api.cloud.hashicorp.com/vagrant/2022-09-30/registry/$REGISTRY_NAME/box/$box_name/version/$BOX_VERSION/provider/$BOX_PROVIDER/architectures")
     if echo "$response" | jq -e '.message | contains("already exists")' > /dev/null; then
-        echo "Box architecture already exists, continuing..."
+        echo "Box architecture already exists, will update checksum after upload..."
+        architecture_exists=true
     else
         echo "$response"
     fi
@@ -98,6 +100,18 @@ upload_box() {
           --request PUT \
           --upload-file $box_file \
           $upload_url
+    
+    # update checksum if architecture already existed
+    if [ "$architecture_exists" = true ]; then
+        echo "Updating architecture checksum to match new upload..."
+        response=$(curl --header "Authorization: Bearer $HCP_TOKEN" \
+                        --header "Content-Type: application/json" \
+                        --request PUT \
+                        --data "{\"box_data\":{\"checksum_type\":\"SHA256\",\"checksum\":\"$checksum\"}}" \
+                        "https://api.cloud.hashicorp.com/vagrant/2022-09-30/registry/$REGISTRY_NAME/box/$box_name/version/$BOX_VERSION/provider/$BOX_PROVIDER/architecture/$BOX_ARCHITECTURE")
+        echo "$response"
+    fi
+
     # delete box file
     rm $box_file
 }
