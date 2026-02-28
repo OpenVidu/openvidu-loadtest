@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.amazonaws.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.controller.LoadTestController;
@@ -95,14 +95,16 @@ public class LoadTestControllerTests {
     }
 
     private Instance generateRandomInstance() {
-        Instance instance = new Instance();
-
         Random random = new Random();
-        instance.setInstanceId("i-" + RandomStringUtils.random(17, true, true).toLowerCase());
-        instance.setPublicDnsName("ec2-" + random.nextInt(255) + "-"
+        String instanceId = "i-" + RandomStringUtils.random(17, true, true).toLowerCase();
+        String publicDnsName = "ec2-" + random.nextInt(255) + "-"
             + random.nextInt(255) + "-" + random.nextInt(255) + "-" + random.nextInt(255) + 
-            ".compute-1.amazonaws.com");
-        return instance;
+            ".compute-1.amazonaws.com";
+        
+        return Instance.builder()
+            .instanceId(instanceId)
+            .publicDnsName(publicDnsName)
+            .build();
     }
 
     @Test
@@ -135,7 +137,7 @@ public class LoadTestControllerTests {
 
         Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             webSocketMocks.put(instanceUrl, mockWebSocket(instanceUrl));
         }
 
@@ -149,7 +151,7 @@ public class LoadTestControllerTests {
         int userCounter = 1;
         int sessionCounter = 1;
         for (Instance instance : instances.subList(0, 39)) {
-            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, sessionCounter, 8, -1);
+            createSuccessfulResponsesMock(instance.publicDnsName(), testCase, 1, userCounter, sessionCounter, 8, -1);
             if (userCounter < 8) {
                 userCounter++;
             } else {
@@ -159,27 +161,27 @@ public class LoadTestControllerTests {
         }
         // Failure when adding participant
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3", -1, -1, "", "", 0);
-        when(this.browserEmulatorClient.createPublisher(instances.get(39).getPublicDnsName(), 8, 5, testCase)).thenReturn(
+        when(this.browserEmulatorClient.createPublisher(instances.get(39).publicDnsName(), 8, 5, testCase)).thenReturn(
             failureResponse
         );
 
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = instances.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
             verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
-            verify(webSocketMocks.get(instance.getPublicDnsName()), times(1)).close();
+            verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
         userCounter = 1;
         sessionCounter = 1;
         // Check all minimum used instances
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             // Last one may be called may not be called depending on number of cores
             verify(this.browserEmulatorClient, times(1)).createPublisher(instanceUrl, userCounter, sessionCounter, testCase);
             if (userCounter < 8) {
@@ -228,7 +230,7 @@ public class LoadTestControllerTests {
 
         Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             webSocketMocks.put(instanceUrl, mockWebSocket(instanceUrl));
         }
 
@@ -242,7 +244,7 @@ public class LoadTestControllerTests {
         int userCounter = 1;
         int sessionCounter = 1;
         for (Instance instance : instances.subList(0, 39)) {
-            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, sessionCounter, 13, 3);
+            createSuccessfulResponsesMock(instance.publicDnsName(), testCase, 1, userCounter, sessionCounter, 13, 3);
             if (userCounter < 13) {
                 userCounter++;
             } else {
@@ -252,27 +254,27 @@ public class LoadTestControllerTests {
         }
         // Failure when adding participant
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3", -1, -1, "", "", 0);
-        when(this.browserEmulatorClient.createPublisher(instances.get(39).getPublicDnsName(), 1, 4, testCase)).thenReturn(
+        when(this.browserEmulatorClient.createPublisher(instances.get(39).publicDnsName(), 1, 4, testCase)).thenReturn(
             failureResponse
         );
 
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = instances.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
             verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
-            verify(webSocketMocks.get(instance.getPublicDnsName()), times(1)).close();
+            verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
         userCounter = 1;
         sessionCounter = 1;
         // Check all minimum used instances
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             // Last one may be called may not be called depending on number of cores
             if (userCounter <= 3) {
                 verify(this.browserEmulatorClient, times(1)).createPublisher(instanceUrl, userCounter, sessionCounter, testCase);
@@ -313,7 +315,7 @@ public class LoadTestControllerTests {
         // Create list of instances for ec2 client mock
         Instance instance1 = generateRandomInstance();
         Instance instance2 = generateRandomInstance();
-        String instance1Url = instance1.getPublicDnsName();
+        String instance1Url = instance1.publicDnsName();
         List<Instance> instances = List.of(instance1, instance2);
 
         List<Instance> rampUpInstances = new ArrayList<>();
@@ -330,7 +332,7 @@ public class LoadTestControllerTests {
 
         Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
         for (Instance instance : allInstances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             webSocketMocks.put(instanceUrl, mockWebSocket(instanceUrl));
         }
 
@@ -353,7 +355,7 @@ public class LoadTestControllerTests {
         for (Instance instance : allInstances) {
             for (int i = 0; i < 4; i++) {
                 if (!((userCounter == 7) && (sessionCounter == 2))) {
-                    createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 4, userCounter, sessionCounter, 8, -1);
+                    createSuccessfulResponsesMock(instance.publicDnsName(), testCase, 4, userCounter, sessionCounter, 8, -1);
                 }
                 if (userCounter < 8) {
                     userCounter++;
@@ -364,27 +366,27 @@ public class LoadTestControllerTests {
             }
         }
         // Failure when adding participant
-        when(this.browserEmulatorClient.createPublisher(rampUpInstances.get(1).getPublicDnsName(), 7, 2, testCase)).thenReturn(
+        when(this.browserEmulatorClient.createPublisher(rampUpInstances.get(1).publicDnsName(), 7, 2, testCase)).thenReturn(
             failureResponse
         );
 
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = allInstances.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = allInstances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : allInstances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
             verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
-            verify(webSocketMocks.get(instance.getPublicDnsName()), times(1)).close();
+            verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
         userCounter = 1;
         sessionCounter = 1;
         // Check all minimum used instances
         for (Instance instance : allInstances.subList(0, 3)) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             for (int i = 0; i < 4; i++) {
                 // Last one may be called may not be called depending on number of cores
                 if (!((userCounter == 8) && (sessionCounter == 2))) {
@@ -436,7 +438,7 @@ public class LoadTestControllerTests {
 
         Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             webSocketMocks.put(instanceUrl, mockWebSocket(instanceUrl));
         }
 
@@ -449,31 +451,31 @@ public class LoadTestControllerTests {
 
         int userCounter = 1;
         for (Instance instance : instances.subList(0, 39)) {
-            createSuccessfulResponsesMock(instance.getPublicDnsName(), testCase, 1, userCounter, 1, -1, 1);
+            createSuccessfulResponsesMock(instance.publicDnsName(), testCase, 1, userCounter, 1, -1, 1);
             userCounter++;
         }
         // Failure when adding participant
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3", -1, -1, "", "", 0);
-        when(this.browserEmulatorClient.createSubscriber(instances.get(39).getPublicDnsName(), workersAtStart, 1, testCase)).thenReturn(
+        when(this.browserEmulatorClient.createSubscriber(instances.get(39).publicDnsName(), workersAtStart, 1, testCase)).thenReturn(
             failureResponse
         );
 
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = instances.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
             verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
-            verify(webSocketMocks.get(instance.getPublicDnsName()), times(1)).close();
+            verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
         userCounter = 1;
         // Check all minimum used instances
         for (Instance instance : instances) {
-            String instanceUrl = instance.getPublicDnsName();
+            String instanceUrl = instance.publicDnsName();
             // Last one may be called may not be called depending on number of cores
             if (userCounter <= 1) {
                 verify(this.browserEmulatorClient, times(1)).createPublisher(instanceUrl, userCounter, 1, testCase);
@@ -535,7 +537,7 @@ public class LoadTestControllerTests {
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         // Create list of instances for ec2 client mock
         Instance instance1 = generateRandomInstance();
-        String instance1Url = instance1.getPublicDnsName();
+        String instance1Url = instance1.publicDnsName();
         List<Instance> instances = new ArrayList<>(workersAtStart);
         instances.add(instance1);
         for (int i = 0; i < workersAtStart - 1; i++) {

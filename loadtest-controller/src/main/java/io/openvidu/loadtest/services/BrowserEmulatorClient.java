@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.amazonaws.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.Instance;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
@@ -522,7 +522,7 @@ public class BrowserEmulatorClient {
 
 	public void calculateQoe(List<Instance> workersList) {
 		ExecutorService executorService = Executors.newFixedThreadPool(workersList.size());
-		List<String> workerUrlsList = workersList.stream().map(Instance::getPublicDnsName).collect(Collectors.toList());
+		List<String> workerUrlsList = workersList.stream().map(Instance::publicDnsName).collect(Collectors.toList());
 		List<Callable<String>> callableTasks = new ArrayList<>();
 		try {
 			for (String workerUrl : workerUrlsList) {

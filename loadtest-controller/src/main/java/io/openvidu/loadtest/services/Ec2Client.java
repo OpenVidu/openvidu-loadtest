@@ -5,7 +5,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import jakarta.annotation.PostConstruct;
 
@@ -14,30 +16,28 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.EbsBlockDevice;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceState;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.Placement;
-import com.amazonaws.services.ec2.model.RebootInstancesRequest;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.ResourceType;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.RunInstancesResult;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.StopInstancesRequest;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TagSpecification;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-import com.amazonaws.util.Base64;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
+import software.amazon.awssdk.services.ec2.model.Filter;
+import software.amazon.awssdk.services.ec2.model.InstanceStateName;
+import software.amazon.awssdk.services.ec2.model.Placement;
+import software.amazon.awssdk.services.ec2.model.RebootInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.Reservation;
+import software.amazon.awssdk.services.ec2.model.ResourceType;
+import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.StartInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.StopInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.Tag;
+import software.amazon.awssdk.services.ec2.model.TagSpecification;
+import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceState;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.WorkerType;
@@ -45,8 +45,6 @@ import io.openvidu.loadtest.models.testcase.WorkerType;
 @Service
 public class Ec2Client {
 	
-	// TODO: Migrate to AWS SDK v2 in future iteration (extensive v1 usage detected: 20+ model classes, complex instance lifecycle orchestration)
-
 	private static final Logger log = LoggerFactory.getLogger(Ec2Client.class);
 
 	private static String AMI_ID = "";
@@ -59,14 +57,14 @@ public class Ec2Client {
 
 	private static Path USER_DATA_VNC = Path.of("debug_vnc.sh");
 
-	private static final Tag NAME_TAG = new Tag().withKey("Name").withValue("Worker");
-	private static final Tag RECORDING_NAME_TAG = new Tag().withKey("Name").withValue("Recording Worker");
-	private static final Tag LOADTEST_WORKER_TAG = new Tag().withKey("Type").withValue("OpenViduLoadTest");
-	private static final Tag RECORDING_TAG = new Tag().withKey("Type").withValue("RecordingLoadTest");
+	private static final Tag NAME_TAG = Tag.builder().key("Name").value("Worker").build();
+	private static final Tag RECORDING_NAME_TAG = Tag.builder().key("Name").value("Recording Worker").build();
+	private static final Tag LOADTEST_WORKER_TAG = Tag.builder().key("Type").value("OpenViduLoadTest").build();
+	private static final Tag RECORDING_TAG = Tag.builder().key("Type").value("RecordingLoadTest").build();
 
 	private static final int WAIT_RUNNING_STATE_S = 5;
 
-	private static AmazonEC2 ec2;
+	private static software.amazon.awssdk.services.ec2.Ec2Client awsEc2Client;
 
 	@Autowired
 	private LoadTestConfig loadTestConfig;
@@ -85,8 +83,14 @@ public class Ec2Client {
 		WORKERS_RAMP_UP = this.loadTestConfig.getWorkersRumpUp();
 
 		if(!this.loadTestConfig.getAwsAccessKey().isBlank() && !this.loadTestConfig.getAwsSecretAccessKey().isBlank()) {
-			BasicAWSCredentials awsCreds = new BasicAWSCredentials(this.loadTestConfig.getAwsAccessKey(), this.loadTestConfig.getAwsSecretAccessKey());
-			ec2 = AmazonEC2ClientBuilder.standard().withRegion(INSTANCE_REGION).withCredentials(new AWSStaticCredentialsProvider(awsCreds)).build();
+			AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
+				this.loadTestConfig.getAwsAccessKey(), 
+				this.loadTestConfig.getAwsSecretAccessKey()
+			);
+			awsEc2Client = software.amazon.awssdk.services.ec2.Ec2Client.builder()
+				.region(Region.of(INSTANCE_REGION))
+				.credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+				.build();
 		} else {
 			log.error("AWS credentials are empty in application.properties");
 			if(this.loadTestConfig.getWorkerUrlList().isEmpty()) {
@@ -98,8 +102,8 @@ public class Ec2Client {
 	private List<Instance> launchAndCleanAux(WorkerType workerType, Filter tagFilter, int numberAtBeginning) {
 
 		List<Instance> resultList = new ArrayList<Instance>();
-		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
-		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
+		Filter runningFilter = getInstanceStateFilter(InstanceStateName.RUNNING);
+		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.STOPPED);
 		List<Instance> runningInstances = getInstanceWithFilters(tagFilter, runningFilter);
 		List<Instance> stoppedInstances = getInstanceWithFilters(tagFilter, stoppedFilter);
 
@@ -118,7 +122,7 @@ public class Ec2Client {
 			}
 			startInstances(getInstanceIds(subList));
 			for(int i = 0; i < subList.size(); i++)  {
-				resultList.add(waitUntilInstanceState(subList.get(i).getInstanceId(), InstanceStateName.Running));
+				resultList.add(waitUntilInstanceState(subList.get(i).instanceId(), InstanceStateName.RUNNING));
 			}
 		}
 
@@ -129,7 +133,7 @@ public class Ec2Client {
 			// Clean launched instances
 			rebootInstance(instanceIds);
 			for (String id : instanceIds) {
-				waitUntilInstanceState(id, InstanceStateName.Running);
+				waitUntilInstanceState(id, InstanceStateName.RUNNING);
 			}
 		}
 
@@ -161,12 +165,12 @@ public class Ec2Client {
 		} else {
 			workerTagFilter = getTagWorkerFilter();
 		}
-		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
+		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.STOPPED);
 		List<Instance> stoppedInstances = getInstanceWithFilters(workerTagFilter, stoppedFilter);
 		
 		if(stoppedInstances.size() == number) {
 			startInstances(getInstanceIds(stoppedInstances));
-			return Arrays.asList(waitUntilInstanceState(stoppedInstances.get(0).getInstanceId(), InstanceStateName.Running));
+			return Arrays.asList(waitUntilInstanceState(stoppedInstances.get(0).instanceId(), InstanceStateName.RUNNING));
 
 		} else if(stoppedInstances.size() > number) {
 			List<Instance> subList = new ArrayList<Instance>();
@@ -176,7 +180,7 @@ public class Ec2Client {
 			}
 			startInstances(getInstanceIds(subList));
 			for(Instance instance : subList) {
-				result.add(waitUntilInstanceState(instance.getInstanceId(), InstanceStateName.Running));
+				result.add(waitUntilInstanceState(instance.instanceId(), InstanceStateName.RUNNING));
 			}
 			return result;
 			
@@ -202,8 +206,8 @@ public class Ec2Client {
 	public List<Instance> launchRecordingInstance(int number){
 
 		Filter recordingFilter = getTagRecordingFilter();
-//		Filter runningFilter = getInstanceStateFilter(InstanceStateName.Running);
-		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.Stopped);
+//		Filter runningFilter = getInstanceStateFilter(InstanceStateName.RUNNING);
+		Filter stoppedFilter = getInstanceStateFilter(InstanceStateName.STOPPED);
 		
 //		List<Instance> runningInstance = getInstanceWithFilters(recordingFilter, runningFilter);
 		List<Instance> stoppedInstance = getInstanceWithFilters(recordingFilter, stoppedFilter);
@@ -215,8 +219,8 @@ public class Ec2Client {
 //		} 
 		
 		if(stoppedInstance.size() > 0) {
-			startInstances(Arrays.asList(stoppedInstance.get(0).getInstanceId()));
-			Instance instanceReady = waitUntilInstanceState(stoppedInstance.get(0).getInstanceId(), InstanceStateName.Running);
+			startInstances(Arrays.asList(stoppedInstance.get(0).instanceId()));
+			Instance instanceReady = waitUntilInstanceState(stoppedInstance.get(0).instanceId(), InstanceStateName.RUNNING);
 			return Arrays.asList(instanceReady);
 		}
 		
@@ -229,24 +233,40 @@ public class Ec2Client {
 	
 	private List<Instance> launchInstance(int number, List<Tag> tags){
 		
-		TagSpecification tagSpecification = new TagSpecification().withResourceType(ResourceType.Instance)
-				.withTags(tags);
+		TagSpecification tagSpecification = TagSpecification.builder()
+			.resourceType(ResourceType.INSTANCE)
+			.tags(tags)
+			.build();
 
-		RunInstancesRequest ec2request = new RunInstancesRequest().withImageId(AMI_ID).withInstanceType(INSTANCE_TYPE)
-				.withTagSpecifications(tagSpecification).withMaxCount(number).withMinCount(1).withBlockDeviceMappings(
-						new BlockDeviceMapping().withDeviceName("/dev/sda1").withEbs(new EbsBlockDevice().withVolumeSize(50).withDeleteOnTermination(true)));
+		RunInstancesRequest.Builder requestBuilder = RunInstancesRequest.builder()
+			.imageId(AMI_ID)
+			.instanceType(INSTANCE_TYPE)
+			.tagSpecifications(tagSpecification)
+			.maxCount(number)
+			.minCount(1)
+			.blockDeviceMappings(
+				BlockDeviceMapping.builder()
+					.deviceName("/dev/sda1")
+					.ebs(EbsBlockDevice.builder()
+						.volumeSize(50)
+						.deleteOnTermination(true)
+						.build())
+					.build()
+			);
 		
 		if (!this.loadTestConfig.getWorkerAvailabilityZone().equals("")) {
-			ec2request.withPlacement(
-				new Placement()
-					.withAvailabilityZone(this.loadTestConfig.getWorkerAvailabilityZone())
+			requestBuilder.placement(
+				Placement.builder()
+					.availabilityZone(this.loadTestConfig.getWorkerAvailabilityZone())
+					.build()
 			);
 		}
 
 		if (this.loadTestConfig.isDebugVnc()) {
 			try {
-				ec2request.withUserData(
-					Base64.encodeAsString(Files.readAllBytes(USER_DATA_VNC)));
+				byte[] userDataBytes = Files.readAllBytes(USER_DATA_VNC);
+				String encodedUserData = Base64.getEncoder().encodeToString(userDataBytes);
+				requestBuilder.userData(encodedUserData);
 			} catch (IOException e) {
 				log.error("Error reading user data file", e);
 				System.exit(1);
@@ -254,20 +274,20 @@ public class Ec2Client {
 		}
 
 		if(!this.loadTestConfig.getWorkerInstanceKeyPair().isBlank()) {
-			ec2request.withKeyName(this.loadTestConfig.getWorkerInstanceKeyPair());
+			requestBuilder.keyName(this.loadTestConfig.getWorkerInstanceKeyPair());
 		}
 
 		if (!SECURITY_GROUP_ID.isEmpty()) {
-			ec2request.withSecurityGroupIds(SECURITY_GROUP_ID);
+			requestBuilder.securityGroupIds(SECURITY_GROUP_ID);
 		}
 
-		RunInstancesResult ec2response = ec2.runInstances(ec2request);
+		RunInstancesResponse ec2response = awsEc2Client.runInstances(requestBuilder.build());
 
 		List<Instance> ec2InstanceList = new ArrayList<Instance>();
 
-		for (Instance instance : ec2response.getReservation().getInstances()) {
+		for (Instance instance : ec2response.instances()) {
 			// Need to get the instance periodically to obtain all properties updated
-			ec2InstanceList.add(waitUntilInstanceState(instance.getInstanceId(), InstanceStateName.Running));
+			ec2InstanceList.add(waitUntilInstanceState(instance.instanceId(), InstanceStateName.RUNNING));
 			log.info("Successfully started EC2 instance");
 		}
 
@@ -288,22 +308,26 @@ public class Ec2Client {
 		
 		if(instances.size() > 0) {
 			List<String> instanceIds = getInstanceIds(instances);
-			StopInstancesRequest request = new StopInstancesRequest().withInstanceIds(instanceIds);
+			StopInstancesRequest request = StopInstancesRequest.builder()
+				.instanceIds(instanceIds)
+				.build();
 
-			ec2.stopInstances(request);
+			awsEc2Client.stopInstances(request);
 			log.info("Instance {} is being stopped", instanceIds);
 
 			for (String id : instanceIds) {
-				waitUntilInstanceState(id, InstanceStateName.Stopped);
+				waitUntilInstanceState(id, InstanceStateName.STOPPED);
 			}
 		}
 	}
 
 	public void rebootInstance(List<String> instanceIds) {
 
-		RebootInstancesRequest request = new RebootInstancesRequest().withInstanceIds(instanceIds);
+		RebootInstancesRequest request = RebootInstancesRequest.builder()
+			.instanceIds(instanceIds)
+			.build();
 		
-		ec2.rebootInstances(request);
+		awsEc2Client.rebootInstances(request);
 		log.info("Instance {} is being rebooted", instanceIds);
 		// Avoided start test before reboot instances
 		sleeper.sleep(WAIT_RUNNING_STATE_S, "Waiting for instances to be ready");
@@ -311,8 +335,10 @@ public class Ec2Client {
 	
 	public void startInstances(List<String> instanceIds) {
 		if(instanceIds.size() > 0) {
-			StartInstancesRequest request = new StartInstancesRequest().withInstanceIds(instanceIds);
-			ec2.startInstances(request);
+			StartInstancesRequest request = StartInstancesRequest.builder()
+				.instanceIds(instanceIds)
+				.build();
+			awsEc2Client.startInstances(request);
 			log.info("Instance {} is being starting", instanceIds);
 			// Avoided start test before start instances
 			sleeper.sleep(WAIT_RUNNING_STATE_S, "Waiting for instances to be ready");
@@ -328,29 +354,30 @@ public class Ec2Client {
 
 	public void terminateInstance(List<String> instanceIds) {
 
-		TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest()
-				.withInstanceIds(instanceIds);
-		ec2.terminateInstances(terminateInstancesRequest);
+		TerminateInstancesRequest terminateInstancesRequest = TerminateInstancesRequest.builder()
+				.instanceIds(instanceIds)
+				.build();
+		awsEc2Client.terminateInstances(terminateInstancesRequest);
 		log.info("Instance {} is terminating", instanceIds);
 
 //		for (String id : instanceIds) {
-//			waitUntilInstanceState(id, InstanceStateName.Terminated);
+//			waitUntilInstanceState(id, InstanceStateName.TERMINATED);
 //		}
 	}
 
 	private List<String> getInstanceIds(List<Instance> instances) {
-		List<String> instanceIds = new ArrayList<String>();
-		for (Instance i : instances) {
-			instanceIds.add(i.getInstanceId());
-		}
-		return instanceIds;
+		return instances.stream()
+			.map(Instance::instanceId)
+			.collect(Collectors.toList());
 	}
 
 	private Instance getInstanceFromId(String instanceId) {
-		DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
+		DescribeInstancesRequest request = DescribeInstancesRequest.builder()
+			.instanceIds(instanceId)
+			.build();
 		try {
-			DescribeInstancesResult result = ec2.describeInstances(request);
-			return result.getReservations().get(0).getInstances().get(0);
+			DescribeInstancesResponse result = awsEc2Client.describeInstances(request);
+			return result.reservations().get(0).instances().get(0);
 
 		} catch (Exception e) {
 			return getInstanceFromId(instanceId);
@@ -362,11 +389,13 @@ public class Ec2Client {
 
 		List<Instance> resultList = new ArrayList<Instance>();
 
-		DescribeInstancesRequest request = new DescribeInstancesRequest().withFilters(filters);
-		DescribeInstancesResult result = ec2.describeInstances(request);
+		DescribeInstancesRequest request = DescribeInstancesRequest.builder()
+			.filters(Arrays.asList(filters))
+			.build();
+		DescribeInstancesResponse result = awsEc2Client.describeInstances(request);
 
-		for (Reservation r : result.getReservations()) {
-			resultList.addAll(r.getInstances());
+		for (Reservation r : result.reservations()) {
+			resultList.addAll(r.instances());
 		}
 
 		return resultList;
@@ -375,32 +404,41 @@ public class Ec2Client {
 	private Instance waitUntilInstanceState(String instanceId, InstanceStateName finalState) {
 
 		Instance instance = getInstanceFromId(instanceId);
-		InstanceState instanceState = instance.getState();
+		InstanceState instanceState = instance.state();
 		boolean needsWait = true;
 
-		if (instanceState.getName().equals(finalState.toString())) {
-			needsWait = finalState.equals(InstanceStateName.Running) && instance.getPublicDnsName().isBlank();
+		if (instanceState.name().equals(finalState)) {
+			needsWait = finalState.equals(InstanceStateName.RUNNING) && instance.publicDnsName().isBlank();
 		}
 
 		if (needsWait) {
-			log.info("{} ... Waiting until instance will be {} ... ", instanceState.getName(), finalState);
+			log.info("{} ... Waiting until instance will be {} ... ", instanceState.name(), finalState);
 			sleeper.sleep(WAIT_RUNNING_STATE_S, "Waiting for instance to be ready");
 			return waitUntilInstanceState(instanceId, finalState);
 		} 
 		
-		log.info("Instance {} is {}", instance.getPublicDnsName(), finalState);
+		log.info("Instance {} is {}", instance.publicDnsName(), finalState);
 		return instance;
 	}
 
 	private Filter getTagWorkerFilter() {
-		return new Filter().withName("tag:" + LOADTEST_WORKER_TAG.getKey()).withValues(LOADTEST_WORKER_TAG.getValue());
+		return Filter.builder()
+			.name("tag:" + LOADTEST_WORKER_TAG.key())
+			.values(LOADTEST_WORKER_TAG.value())
+			.build();
 	}
 	
 	private Filter getTagRecordingFilter() {
-		return new Filter().withName("tag:" + RECORDING_TAG.getKey()).withValues(RECORDING_TAG.getValue());
+		return Filter.builder()
+			.name("tag:" + RECORDING_TAG.key())
+			.values(RECORDING_TAG.value())
+			.build();
 	}
 
 	private Filter getInstanceStateFilter(InstanceStateName state) {
-		return new Filter().withName("instance-state-name").withValues(state.toString());
+		return Filter.builder()
+			.name("instance-state-name")
+			.values(state.toString())
+			.build();
 	}
 }

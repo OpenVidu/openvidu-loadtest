@@ -25,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 
-import com.amazonaws.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
@@ -138,7 +138,7 @@ public class LoadTestController {
 				actualWorkerStartTimes = workerStartTimes;
 			}
 			if (actualCurrentWorkerUrl.isBlank()) {
-				newWorkerUrl = actualWorkerList.get(0).getPublicDnsName();
+				newWorkerUrl = actualWorkerList.get(0).publicDnsName();
 				log.info("Getting new {} already launched: {}", workerTypeValue, newWorkerUrl);
 			} else {
 				int index = 0;
@@ -146,7 +146,7 @@ public class LoadTestController {
 
 				// Search last used instance
 				for (int i = 0; i < actualWorkerList.size(); i++) {
-					if (actualCurrentWorkerUrl.equals(actualWorkerList.get(i).getPublicDnsName())) {
+					if (actualCurrentWorkerUrl.equals(actualWorkerList.get(i).publicDnsName())) {
 						index = i;
 						break;
 					}
@@ -168,14 +168,14 @@ public class LoadTestController {
 						futures.add(executorService.submit(new Runnable() {
 							@Override
 							public void run() {
-								initializeInstance(instance.getPublicDnsName());
+								initializeInstance(instance.publicDnsName());
 							}
 						}));
 					});
 					actualWorkerList.addAll(nextInstanceList);
 					actualWorkerStartTimes
 							.addAll(nextInstanceList.stream().map(i -> new Date()).collect(Collectors.toList()));
-					newWorkerUrl = nextInstanceList.get(0).getPublicDnsName();
+					newWorkerUrl = nextInstanceList.get(0).publicDnsName();
 					futures.forEach(future -> {
 						try {
 							future.get();
@@ -186,7 +186,7 @@ public class LoadTestController {
 					log.info("New {} has been launched: {}", workerTypeValue, newWorkerUrl);
 
 				} else {
-					newWorkerUrl = nextInstance.getPublicDnsName();
+					newWorkerUrl = nextInstance.publicDnsName();
 					log.info("Getting new {} already launched: {}", workerTypeValue, newWorkerUrl);
 				}
 			}
@@ -328,7 +328,7 @@ public class LoadTestController {
 					futures.add(executorService.submit(new Runnable() {
 						@Override
 						public void run() {
-							initializeInstance(instance.getPublicDnsName());
+							initializeInstance(instance.publicDnsName());
 						}
 					}));
 				});
@@ -336,7 +336,7 @@ public class LoadTestController {
 					futures.add(executorService.submit(new Runnable() {
 						@Override
 						public void run() {
-							initializeInstance(instance.getPublicDnsName());
+							initializeInstance(instance.publicDnsName());
 						}
 					}));
 				});
@@ -421,7 +421,7 @@ public class LoadTestController {
 						browserEstimation = loadTestConfig.getUsersPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
-								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+								PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
 								testCase, participantsBySession, 0);
 					}
 					if (noEstimateError) {
@@ -465,7 +465,7 @@ public class LoadTestController {
 						browserEstimation = loadTestConfig.getUsersPerWorker();
 					} else {
 						noEstimateError = estimate(instancesInitialized,
-								PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+								PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
 								testCase, publishers, subscribers);
 					}
 					if (noEstimateError) {
@@ -510,7 +510,7 @@ public class LoadTestController {
 							browserEstimation = loadTestConfig.getUsersPerWorker();
 						} else {
 							noEstimateError = estimate(instancesInitialized,
-									PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+									PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
 									testCase, publishers, Integer.MAX_VALUE);
 						}
 						if (noEstimateError) {
@@ -547,7 +547,7 @@ public class LoadTestController {
 							browserEstimation = loadTestConfig.getUsersPerWorker();
 						} else {
 							noEstimateError = estimate(instancesInitialized,
-									PROD_MODE ? awsWorkersList.get(0).getPublicDnsName() : devWorkersList.get(0),
+									PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
 									testCase, Integer.MAX_VALUE, 0);
 						}
 						if (noEstimateError) {
@@ -1210,10 +1210,10 @@ public class LoadTestController {
 		if (PROD_MODE) {
 			// Add all ec2 instances
 			for (Instance ec2 : awsWorkersList) {
-				workersUrl.add(ec2.getPublicDnsName());
+				workersUrl.add(ec2.publicDnsName());
 			}
 			for (Instance recordingEc2 : recordingWorkersList) {
-				workersUrl.add(recordingEc2.getPublicDnsName());
+				workersUrl.add(recordingEc2.publicDnsName());
 			}
 			browserEmulatorClient.disconnectAll(workersUrl);
 
