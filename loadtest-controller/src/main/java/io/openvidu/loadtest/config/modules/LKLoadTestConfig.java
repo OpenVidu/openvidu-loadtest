@@ -2,7 +2,7 @@ package io.openvidu.loadtest.config.modules;
 
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 import org.springframework.core.env.Environment;
 

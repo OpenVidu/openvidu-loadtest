@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +44,8 @@ import io.openvidu.loadtest.models.testcase.WorkerType;
 
 @Service
 public class Ec2Client {
+	
+	// TODO: Migrate to AWS SDK v2 in future iteration (extensive v1 usage detected: 20+ model classes, complex instance lifecycle orchestration)
 
 	private static final Logger log = LoggerFactory.getLogger(Ec2Client.class);
 

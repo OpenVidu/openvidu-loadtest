@@ -5,34 +5,31 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DecimalFormat;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.RequestOptions;
+
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.ElasticsearchTransport;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.ExistsQueryBuilder;
-import org.elasticsearch.index.query.MatchQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.sort.SortOrder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
-import io.openvidu.loadtest.utils.JsonUtils;
 
 @Service
 public class ElasticSearchClient {
@@ -42,10 +39,8 @@ public class ElasticSearchClient {
 	@Autowired
 	private LoadTestConfig loadTestConfig;
 
-	@Autowired
-	private JsonUtils jsonUtils;
-
-	private RestHighLevelClient client;
+	private ElasticsearchClient client;
+	private ElasticsearchTransport transport;
 
 	private static DecimalFormat df2 = new DecimalFormat("#.###");
 
@@ -65,7 +60,7 @@ public class ElasticSearchClient {
 			boolean isELKSecured = loadTestConfig.isElasticSearchSecured();
 
 			if (isELKSecured) {
-				CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+				BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
 				String esUserName = loadTestConfig.getElasticsearchUserName();
 				String esPassword = loadTestConfig.getElasticsearchPassword();
 				credentialsProvider.setCredentials(AuthScope.ANY,
@@ -74,7 +69,9 @@ public class ElasticSearchClient {
 						httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
 
 			}
-			this.client = new RestHighLevelClient(restClientBuilder);
+			RestClient restClient = restClientBuilder.build();
+			this.transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+			this.client = new ElasticsearchClient(transport);
 
 			if (doPing()) {
 				this.initialized = true;
@@ -103,7 +100,7 @@ public class ElasticSearchClient {
 	private boolean doPing() {
 		boolean pingSuccess = false;
 		try {
-			pingSuccess = this.client.ping(RequestOptions.DEFAULT);
+			pingSuccess = this.client.ping().value();
 		} catch (IOException e) {
 			log.error("Connection to Elasticsearch failed at {} ({})", loadTestConfig.getElasticsearchHost(),
 					e.getMessage());
@@ -142,34 +139,43 @@ public class ElasticSearchClient {
 	}
 
 	public double getMediaNodeCpu() {
-
-		SearchRequest searchRequest = new SearchRequest("metricbeat*");
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-
-		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
-
-		MatchQueryBuilder medianodeMatcher = QueryBuilders.matchQuery("fields.node_role", "medianode");
-		ExistsQueryBuilder cpuMatcher = QueryBuilders.existsQuery("system.cpu");
-
-		queryBuilder.must(medianodeMatcher);
-		queryBuilder.must(cpuMatcher);
-
-		searchSourceBuilder.query(queryBuilder);
-		searchSourceBuilder.sort("@timestamp", SortOrder.DESC).size(1);
-		searchRequest.source(searchSourceBuilder);
-
-		SearchResponse searchResponse;
 		try {
-			searchResponse = this.client.search(searchRequest, RequestOptions.DEFAULT);
-			JsonObject json = jsonUtils.getJson(searchResponse.getHits().getHits()[0].getSourceAsString());
+			SearchResponse<JsonNode> searchResponse = this.client.search(s -> s
+					.index("metricbeat*")
+					.query(q -> q
+							.bool(b -> b
+									.must(m -> m.match(ma -> ma.field("fields.node_role").query("medianode")))
+									.must(m -> m.exists(e -> e.field("system.cpu")))
+							)
+					)
+					.sort(so -> so.field(f -> f.field("@timestamp").order(SortOrder.Desc)))
+					.size(1),
+					JsonNode.class);
 
-			double cpu = json.get("system").getAsJsonObject().get("cpu").getAsJsonObject().get("total")
-					.getAsJsonObject().get("norm").getAsJsonObject().get("pct").getAsDouble();
+			if (searchResponse.hits().hits().isEmpty()) {
+				log.warn("No media node CPU data found");
+				return 0.0;
+			}
+
+			Hit<JsonNode> hit = searchResponse.hits().hits().get(0);
+			JsonNode source = hit.source();
+			
+			if (source == null) {
+				log.warn("Empty source in search result");
+				return 0.0;
+			}
+
+			double cpu = source.get("system").get("cpu").get("total")
+					.get("norm").get("pct").asDouble();
 			log.info("Media node CPU is {}", cpu * 100);
 			return Double.parseDouble(df2.format(cpu * 100));
 
 		} catch (IOException e) {
 			log.error(e.getMessage());
+			e.printStackTrace();
+			return 0.0;
+		} catch (Exception e) {
+			log.error("Error getting media node CPU: {}", e.getMessage());
 			e.printStackTrace();
 			return 0.0;
 		}
