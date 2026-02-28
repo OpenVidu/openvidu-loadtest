@@ -38,7 +38,7 @@ export class WsService {
 				this.ws.send(message);
 				console.log('Message was sent: ', message);
 			}
-		} catch (error) {
+		} catch {
 			console.log('Error sending WS message');
 		}
 	}

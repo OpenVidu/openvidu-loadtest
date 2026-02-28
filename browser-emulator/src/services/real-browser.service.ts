@@ -1,10 +1,9 @@
 import fs from 'fs';
-import { By, Capabilities, until, WebDriver, logging, WebElement } from 'selenium-webdriver';
+import { By, Capabilities, until, WebDriver, logging } from 'selenium-webdriver';
 import chrome from "selenium-webdriver/chrome.js";
 import firefox from "selenium-webdriver/firefox.js";
 import type { LoadTestPostRequest, TestProperties } from '../types/api-rest.type.js';
 import { OpenViduRole } from '../types/openvidu.type.js';
-import { ErrorGenerator } from '../utils/error-generator.js';
 import type { Storage } from './local-storage.service.js';
 import type { StorageNameObject, StorageValueObject } from '../types/storage-config.type.js';
 import { APPLICATION_MODE, DOCKER_NAME } from '../config.js';
@@ -32,7 +31,6 @@ export class RealBrowserService {
 	private recordingScript: ChildProcess | undefined;
 	private seleniumLogger: logging.Logger;
 	private muteButtonMutex = new Mutex();
-    private errorGenerator = new ErrorGenerator();
 
 	constructor() {
 		const prefs = new logging.Preferences();
@@ -293,7 +291,7 @@ export class RealBrowserService {
 						if (driver) {
 							await this.printBrowserLogs(driverId);
 							await this.deleteStreamManagerWithConnectionId(driverId);
-							reject(this.errorGenerator.generateError(error));
+							reject(error);
 						} else {
 							console.log("Driver already quit.");
 						}
@@ -339,7 +337,7 @@ export class RealBrowserService {
 
 	getStreamsCreated(): number {
 		let result = 0;
-		this.connections.forEach((value: { publishers: string[]; subscribers: string[] }, key: string) => {
+		this.connections.forEach((value: { publishers: string[]; subscribers: string[] }, _: string) => {
 			let streamsSent = value.publishers.length;
 			let streamsReceived = 0;
 			const publishersInWorker = value.publishers.length;
@@ -404,7 +402,7 @@ export class RealBrowserService {
 		const audioFile = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 		try {
 			return fs.existsSync(videoFile) && fs.existsSync(audioFile);
-		} catch (error) {
+		} catch {
 			return false;
 		}
 	}

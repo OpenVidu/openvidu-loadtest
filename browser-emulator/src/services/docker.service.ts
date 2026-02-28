@@ -24,8 +24,10 @@ export class DockerService {
         try {
             await container.stop();
             console.log('Container ' + container.id + ' stopped');
-        } catch (error) {
-            console.error('Container has already stopped. Skipping');
+        
+        } catch (error: any) {
+            
+            console.warn('Container has already stopped. Skipping (' + (error as any)?.message + ')');
         }
 	}
 
@@ -35,7 +37,7 @@ export class DockerService {
 			try {
 				await container.remove({ force: true });
 				console.log('Container ' + containerNameOrId + ' removed');
-			} catch (error) {
+			} catch {
 				console.error('Container ' + containerNameOrId + ' does not exist');
 			}
 		}
@@ -52,8 +54,15 @@ export class DockerService {
 	async pullImage(image: string): Promise<void> {
 		return new Promise(async (resolve, reject) => {
 			console.log('Pulling image ' + image);
-			this.docker.pull(image, (err: any, stream: NodeJS.ReadableStream) => {
-				function onFinished(err: any) {
+			this.docker.pull(image, (
+				
+				err: any,
+				stream: NodeJS.ReadableStream
+			) => {
+				function onFinished(
+				
+				err: any
+			) {
 					if (!!err) {
 						reject(err);
 					} else {
@@ -61,7 +70,10 @@ export class DockerService {
 						resolve();
 					}
 				}
-				function onProgress(event: any) {
+				function onProgress(
+				
+				event: any
+			) {
 					if (event.status === 'Downloading') {
 						console.log('    Downloading layer ' + event.id + ': ' + event.progress);
 					} else if (event.status === 'Download complete') {

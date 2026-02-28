@@ -10,7 +10,7 @@ abstract class BaseComModule {
         return this.instance;
     }
 
-    abstract processNewUserRequest(request: LoadTestPostRequest): Promise<any>;
+    abstract processNewUserRequest(request: LoadTestPostRequest): Promise<void>;
 
     abstract areParametersCorrect(request: LoadTestPostRequest): boolean;
 

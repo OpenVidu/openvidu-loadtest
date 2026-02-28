@@ -17,7 +17,6 @@ import { BrowserManagerService } from './services/browser-manager.service.js';
 import { killAllDetached } from './utils/run-script.js';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices.js';
 import { FilesService } from './services/files/files.service.js';
-import BaseComModule from './com-modules/base.js';
 
 async function cleanup() {
     const browserManager = BrowserManagerService.getInstance();
@@ -34,22 +33,21 @@ export async function createServer() {
     const app = express();
 
     let publicDir: string;
-    let comModuleInstance: BaseComModule;
     if (!!COM_MODULE) {
         let moduleName = COM_MODULE.trim();
         const ComModule = await import(`./com-modules/${moduleName}.js`);
-        comModuleInstance = ComModule.default.getInstance();
+        ComModule.default.getInstance();
         publicDir = ComModule.PUBLIC_DIR;
     } else {
         console.warn('COM_MODULE environment variable is not set. Using default com-module (OpenVidu 2)');
         const OpenviduComModule = await import('./com-modules/openvidu.js');
-        comModuleInstance = OpenviduComModule.default.getInstance();
+        OpenviduComModule.default.getInstance();
         publicDir = OpenviduComModule.PUBLIC_DIR;
     }
 
     app.use(express.static(publicDir));
 
-    app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    app.use((_: express.Request, res: express.Response, next: express.NextFunction) => {
         res.header('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
         next();

@@ -1,7 +1,6 @@
 import { AccessToken } from 'livekit-server-sdk';
 import type { LKLoadTestPostRequest } from '../types/com-modules/livekit.js';
 import type { TestProperties } from "../types/api-rest.type.js";
-import type { Request } from "express";
 import BaseComModule from './base.js';
 
 export const PUBLIC_DIR = "public-lk";
@@ -14,7 +13,7 @@ class LiveKitComModule extends BaseComModule {
         return BaseComModule.instance;
     }
 
-    async processNewUserRequest(request: LKLoadTestPostRequest): Promise<LKLoadTestPostRequest> {
+    async processNewUserRequest(request: LKLoadTestPostRequest): Promise<void> {
         // Generate LiveKit Token
         const roomName = request.properties.sessionName;
         const participantName = request.properties.userId;
@@ -33,8 +32,6 @@ class LiveKitComModule extends BaseComModule {
         request.token = token;
 
         console.log(token);
-
-        return Promise.resolve(request);
     }
 
     areParametersCorrect(request: LKLoadTestPostRequest): boolean {

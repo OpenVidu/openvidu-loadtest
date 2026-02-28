@@ -7,7 +7,7 @@ export async function runScript(script: string, options?: {
     detached?: boolean,
     ignoreLogs?: boolean,
     redirectStdoutToFile?: string,
-    stdoutCallback?: ((chunk: any) => void)
+    stdoutCallback?: ((chunk: string) => void)
 }): Promise<ChildProcess> {
     console.log(script);
     return new Promise((resolve, reject) => {
@@ -87,7 +87,7 @@ export function killAllDetached() {
 export async function isRunning(query: string) {
     let cmd = `ps -Awwf`;
     return new Promise((resolve, reject) => 
-        exec(cmd, (err, stdout, stderr) => {
+        exec(cmd, (err, stdout, _) => {
             if (err) reject(err);
             const condition = stdout.toLowerCase().indexOf(query.toLowerCase()) > -1;
             resolve(condition);

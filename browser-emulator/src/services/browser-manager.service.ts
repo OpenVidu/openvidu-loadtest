@@ -2,7 +2,6 @@ import type { JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from 
 import { InstanceService } from './instance.service.js';
 import { RealBrowserService } from './real-browser.service.js';
 import { ElasticSearchService } from './elasticsearch.service.js';
-import { LocalStorageService } from './local-storage.service.js';
 import { ErrorLogService, OpenViduEventsService, QoERecordingsService, WebrtcStatsService } from './config-storage.service.js';
 import { OpenViduRole } from '../types/openvidu.type.js';
 import { APPLICATION_MODE } from '../config.js';

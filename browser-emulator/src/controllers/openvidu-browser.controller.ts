@@ -36,7 +36,10 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			console.log('Problem with some body parameter' + JSON.stringify(request));
 			return res.status(400).send('Problem with some body parameter');
 		}
-	} catch (error: any) {
+	} catch (
+		
+		error: any
+	) {
 		console.log('ERROR ', error);
 		res.status(error?.status || 500).send({ message: error?.statusText, error: error });
 	}
@@ -91,6 +94,7 @@ app.delete('/streamManager/session/:sessionId/user/:userId', async (req: Request
 
 app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	try {
+		
 		let role: any = req.params.role;
 		if (!role) {
 			return res.status(400).send('Problem with ROLE parameter. IT DOES NOT EXIST');

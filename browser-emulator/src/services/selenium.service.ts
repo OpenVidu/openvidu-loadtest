@@ -4,13 +4,6 @@ import chrome from "selenium-webdriver/chrome.js";
 import firefox from "selenium-webdriver/firefox.js";
 import { startFakeMediaDevices } from "../utils/fake-media-devices.js";
 
-let driver: typeof chrome | typeof firefox;
-if (process.env.REAL_DRIVER === "firefox") {
-    driver = firefox;
-} else {
-    driver = chrome;
-}
-
 export class SeleniumService {
     
     private static instance: SeleniumService;

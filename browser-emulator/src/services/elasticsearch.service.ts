@@ -71,11 +71,15 @@ export class ElasticSearchService {
 
 	async sendJson(json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo) {
 		if (this.isElasticSearchRunning() && (APPLICATION_MODE === ApplicationMode.PROD)) {
+			
 			let indexData: Index<Record<string, any>> = {
 				index: this.indexName,
 				body: {},
 			};
-			const jsonRecord = json as Record<string, any>;
+			const jsonRecord = (
+				
+				json as Record<string, any>
+			);
 			Object.keys(jsonRecord).forEach((key) => {
 				indexData.body[key] = jsonRecord[key];
 			});
@@ -143,7 +147,10 @@ export class ElasticSearchService {
 					size: 10000
 				}
 			})
-			return result.body.hits.hits.map((hit: any) => {
+			return result.body.hits.hits.map((
+				
+				hit: any
+			) => {
 				const json: JSONStreamsInfo = {
 					"@timestamp": hit._source["@timestamp"],
 					new_participant_id: hit._source["new_participant_id"],

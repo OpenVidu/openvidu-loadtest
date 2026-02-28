@@ -1,14 +1,13 @@
 import fs from 'fs';
 import * as express from 'express';
 import type { Request, Response } from 'express';
-import type { BrowserVideoRequest, CustomBrowserVideoRequest, InitializePostRequest } from '../types/api-rest.type.js';
+import type { BrowserVideoRequest, InitializePostRequest } from '../types/api-rest.type.js';
 import { InstanceService } from '../services/instance.service.js';
 import { ElasticSearchService } from '../services/elasticsearch.service.js';
 import { APPLICATION_MODE } from '../config.js';
 import { ApplicationMode } from '../types/config.type.js';
 import { ContainerName } from '../types/container-info.type.js';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
-import { FilesService } from '../services/files/files.service.js';
 import { S3FilesService } from '../services/files/impl/s3.service.js';
 import { downloadFile } from '../utils/download-files.js';
 import { SeleniumService } from '../services/selenium.service.js';
@@ -41,7 +40,6 @@ app.post('/initialize', async (req: Request, res: Response) => {
 	try {
 		const request: InitializePostRequest = req.body;
 		const isProdMode: boolean = APPLICATION_MODE === ApplicationMode.PROD;
-		let filesService: FilesService;
 		const elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance();
 
 		createRecordingsDirectory();
@@ -58,7 +56,8 @@ app.post('/initialize', async (req: Request, res: Response) => {
 			}
 
 		}
-		const fileServicePromise = new Promise((resolve, reject) => {
+        // Set up file service now for speed gains when uploading files later
+		const fileServicePromise = new Promise((resolve, _) => {
             let accessKey: string | undefined;
             let secretAccessKey: string | undefined;
             let bucketName: string | undefined;
@@ -78,9 +77,9 @@ app.post('/initialize', async (req: Request, res: Response) => {
             }
             if (!!bucketName && !!accessKey && !!secretAccessKey) {
                 if (!!host) {
-			        filesService = S3FilesService.getInstance(accessKey, secretAccessKey, bucketName, host);
+			        S3FilesService.getInstance(accessKey, secretAccessKey, bucketName, host);
                 } else {
-                    filesService = S3FilesService.getInstance(accessKey, secretAccessKey, bucketName);
+                    S3FilesService.getInstance(accessKey, secretAccessKey, bucketName);
                 }
             }
 			resolve('');
@@ -113,7 +112,7 @@ async function launchMetricBeat(elasticsearchHost: string, elasticsearchUsername
 	const instanceService = InstanceService.getInstance();
 	try {
 		await instanceService.launchMetricBeat(elasticsearchHost, elasticsearchUsername, elasticsearchPassword);
-	} catch (error: any) {
+		} catch (error: any) {
 		console.log('Error starting metricbeat', error);
 		if (error.statusCode === 409 && error.message.includes('Conflict')) {
 			console.log('Retrying ...');

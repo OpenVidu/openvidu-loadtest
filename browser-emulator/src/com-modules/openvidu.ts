@@ -1,5 +1,4 @@
 import type { LoadTestPostRequest, TestProperties } from "../types/api-rest.type.js";
-import type { Request } from "express";
 import BaseComModule from "./base.js";
 
 export const PUBLIC_DIR = "public";
@@ -12,9 +11,8 @@ class OpenviduComModule extends BaseComModule {
         return BaseComModule.instance;
     }
 
-    processNewUserRequest(req: LoadTestPostRequest): Promise<any> {
+    async processNewUserRequest(_req: LoadTestPostRequest): Promise<void> {
         // do nothing, openvidu 2 does not need any backend processing
-        return Promise.resolve([]);
     }
 
     areParametersCorrect(request: LoadTestPostRequest): boolean {

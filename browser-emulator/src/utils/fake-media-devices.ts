@@ -10,14 +10,14 @@ export async function startFakeMediaDevices(videoPath: string, audioPath: string
         let loadedModules = "";
         try {
             await runScript("pactl list modules short", {
-                stdoutCallback(chunk) {
+                stdoutCallback(chunk: string) {
                     loadedModules += chunk;
                 },
             })
             if (!(loadedModules.includes("module-pipe-source") && loadedModules.includes("source_name=virtmic"))) {
                 await runScript(`${process.cwd()}/recording_scripts/create-fake-microphone.sh`);
             }
-        } catch (err) {
+        } catch {
             await runScript(`${process.cwd()}/recording_scripts/create-fake-microphone.sh`);
         }
         // Wait for V4L2 device to be ready
@@ -27,7 +27,7 @@ export async function startFakeMediaDevices(videoPath: string, audioPath: string
             try {
                 await fsPromises.access("/dev/video0");
                 v4l2DeviceReady = true;
-            } catch (err) {
+            } catch {
                 if (attempts > 5) {
                     console.error("Can't start V4L2 device");
                     process.exit();
