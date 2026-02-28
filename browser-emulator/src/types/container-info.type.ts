@@ -1,11 +1,10 @@
 import { OpenViduRole } from './openvidu.type.js';
 
-
 export const ContainerName = {
 	METRICBEAT: 'metricbeat',
 } as const;
 
-export type ContainerName = typeof ContainerName[keyof typeof ContainerName];
+export type ContainerName = (typeof ContainerName)[keyof typeof ContainerName];
 
 export type BrowserCContainerInfo = {
 	containerName: string;
@@ -13,4 +12,4 @@ export type BrowserCContainerInfo = {
 	connectionRole: OpenViduRole;
 	isRecording: boolean;
 	sessionName: string;
-}
+};

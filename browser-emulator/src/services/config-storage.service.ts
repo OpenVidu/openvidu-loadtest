@@ -1,5 +1,10 @@
 import BaseComModule from '../com-modules/base.js';
-import type { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type.js';
+import type {
+	EventErrorConfig,
+	OpenViduEventsConfig,
+	QoeRecordingsConfig,
+	WebrtcStatsConfig,
+} from '../types/storage-config.type.js';
 
 export class WebrtcStatsService {
 	private readonly ITEM_NAME: string = 'webrtc-stats-info';

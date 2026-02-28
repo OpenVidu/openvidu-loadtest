@@ -9,7 +9,8 @@ export class InstanceService {
 	private static instance: InstanceService;
 	private isinstanceInitialized: boolean = false;
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
-	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
+	private readonly METRICBEAT_IMAGE =
+		'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
@@ -43,13 +44,17 @@ export class InstanceService {
 
 	async getCpuUsage(): Promise<number> {
 		const usage = await this.osutils.cpu.usage();
-        if (usage.success) {
-            return usage.data;
-        }
-        return 0;
+		if (usage.success) {
+			return usage.data;
+		}
+		return 0;
 	}
 
-	async launchMetricBeat(elasticsearchHost: string, elasticsearchUsername?: string, elasticsearchPassword?: string) {
+	async launchMetricBeat(
+		elasticsearchHost: string,
+		elasticsearchUsername?: string,
+		elasticsearchPassword?: string,
+	) {
 		const options: ContainerCreateOptions = {
 			Image: this.METRICBEAT_IMAGE,
 			name: ContainerName.METRICBEAT,
@@ -61,7 +66,11 @@ export class InstanceService {
 				`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
 				`WORKER_UUID=${this.WORKER_UUID}`,
 			],
-			Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
+			Cmd: [
+				'/bin/bash',
+				'-c',
+				'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs',
+			],
 			HostConfig: {
 				Binds: [
 					`/var/run/docker.sock:/var/run/docker.sock`,
@@ -82,13 +91,15 @@ export class InstanceService {
 
 	async pullImagesNeeded(): Promise<void> {
 		try {
-			if (!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))) {
+			if (
+				!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))
+			) {
 				await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
 			}
 		} catch (err) {
-			console.error("Error pulling images: ");
+			console.error('Error pulling images: ');
 			console.error(err);
-			console.log("Retrying...");
+			console.log('Retrying...');
 			// retry 5 times
 			if (this.pullImagesRetries < 5) {
 				this.pullImagesRetries++;
@@ -99,5 +110,4 @@ export class InstanceService {
 			}
 		}
 	}
-
 }

@@ -3,7 +3,12 @@ import type { Request, Response } from 'express';
 import { ElasticSearchService } from '../services/elasticsearch.service.js';
 import { WsService } from '../services/ws.service.js';
 import type { JSONStatsResponse } from '../types/api-rest.type.js';
-import { ERRORS_FILE, EVENTS_FILE, STATS_FILE, saveStatsToFile } from '../utils/stats-files.js';
+import {
+	ERRORS_FILE,
+	EVENTS_FILE,
+	STATS_FILE,
+	saveStatsToFile,
+} from '../utils/stats-files.js';
 
 // DEBUG: Print full objects (only uncomment for debug sessions during development)
 // require("util").inspect.defaultOptions.depth = null;
@@ -12,14 +17,22 @@ export const app = express.Router({
 	strict: true,
 });
 
-const elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance();
+const elasticSearchService: ElasticSearchService =
+	ElasticSearchService.getInstance();
 
 app.post('/webrtcStats', async (req: Request, res: Response) => {
 	try {
 		const statsResponse: JSONStatsResponse = req.body;
 		const promises = [];
 		// Save the stats to file
-		promises.push(saveStatsToFile(statsResponse.user, statsResponse.session, STATS_FILE, statsResponse));
+		promises.push(
+			saveStatsToFile(
+				statsResponse.user,
+				statsResponse.session,
+				STATS_FILE,
+				statsResponse,
+			),
+		);
 		// Send the stats to ElasticSearch
 		if (elasticSearchService.isElasticSearchRunning()) {
 			promises.push(elasticSearchService.sendJson(statsResponse));
@@ -37,7 +50,12 @@ app.post('/events', async (req: Request, res: Response) => {
 		const message: string = JSON.stringify(req.body);
 		WsService.getInstance().send(message);
 
-		await saveStatsToFile(req.body.participant, req.body.session, EVENTS_FILE, req.body);
+		await saveStatsToFile(
+			req.body.participant,
+			req.body.session,
+			EVENTS_FILE,
+			req.body,
+		);
 
 		return res.status(200).send();
 	} catch (error) {
@@ -50,10 +68,15 @@ app.post('/events/errors', async (req: Request, res: Response) => {
 	try {
 		const message: string = JSON.stringify(req.body);
 
-		console.error("Error received from browser: ");
+		console.error('Error received from browser: ');
 		console.error(message);
 
-		await saveStatsToFile(req.body.participant, req.body.session, ERRORS_FILE, req.body);
+		await saveStatsToFile(
+			req.body.participant,
+			req.body.session,
+			ERRORS_FILE,
+			req.body,
+		);
 
 		return res.status(200).send();
 	} catch (error) {

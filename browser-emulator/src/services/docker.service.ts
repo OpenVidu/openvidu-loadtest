@@ -7,9 +7,12 @@ export class DockerService {
 		this.docker = new Docker();
 	}
 
-	async startContainer(options: Docker.ContainerCreateOptions): Promise<string> {
+	async startContainer(
+		options: Docker.ContainerCreateOptions,
+	): Promise<string> {
 		console.log(`Starting ${options.Image}`);
-		const container: Docker.Container = await this.docker.createContainer(options);
+		const container: Docker.Container =
+			await this.docker.createContainer(options);
 		await container.start();
 		console.log(`${options.Image} started: ${container.id}`);
 		return container.id;
@@ -17,18 +20,22 @@ export class DockerService {
 
 	public async stopContainer(nameOrId: string): Promise<void> {
 		const container = await this.getContainerByIdOrName(nameOrId);
-        if (!container) {
-            console.error('Container ' + nameOrId + ' does not exist, skipping');
-            return;
-        }
-        try {
-            await container.stop();
-            console.log('Container ' + container.id + ' stopped');
-        
-        } catch (error: any) {
-            
-            console.warn('Container has already stopped. Skipping (' + (error as any)?.message + ')');
-        }
+		if (!container) {
+			console.error(
+				'Container ' + nameOrId + ' does not exist, skipping',
+			);
+			return;
+		}
+		try {
+			await container.stop();
+			console.log('Container ' + container.id + ' stopped');
+		} catch (error: any) {
+			console.warn(
+				'Container has already stopped. Skipping (' +
+					(error as any)?.message +
+					')',
+			);
+		}
 	}
 
 	public async removeContainer(containerNameOrId: string) {
@@ -38,7 +45,9 @@ export class DockerService {
 				await container.remove({ force: true });
 				console.log('Container ' + containerNameOrId + ' removed');
 			} catch {
-				console.error('Container ' + containerNameOrId + ' does not exist');
+				console.error(
+					'Container ' + containerNameOrId + ' does not exist',
+				);
 			}
 		}
 	}
@@ -54,48 +63,57 @@ export class DockerService {
 	async pullImage(image: string): Promise<void> {
 		return new Promise(async (resolve, reject) => {
 			console.log('Pulling image ' + image);
-			this.docker.pull(image, (
-				
-				err: any,
-				stream: NodeJS.ReadableStream
-			) => {
-				function onFinished(
-				
-				err: any
-			) {
-					if (!!err) {
-						reject(err);
-					} else {
-						console.log('Image ' + image + ' successfully pulled');
-						resolve();
+			this.docker.pull(
+				image,
+				(err: any, stream: NodeJS.ReadableStream) => {
+					function onFinished(err: any) {
+						if (!!err) {
+							reject(err);
+						} else {
+							console.log(
+								'Image ' + image + ' successfully pulled',
+							);
+							resolve();
+						}
 					}
-				}
-				function onProgress(
-				
-				event: any
-			) {
-					if (event.status === 'Downloading') {
-						console.log('    Downloading layer ' + event.id + ': ' + event.progress);
-					} else if (event.status === 'Download complete') {
-						console.log('    Layer ' + event.id + ' downloaded!');
+					function onProgress(event: any) {
+						if (event.status === 'Downloading') {
+							console.log(
+								'    Downloading layer ' +
+									event.id +
+									': ' +
+									event.progress,
+							);
+						} else if (event.status === 'Download complete') {
+							console.log(
+								'    Layer ' + event.id + ' downloaded!',
+							);
+						}
 					}
-				}
-				try {
-					if (!!err) {
-						reject(err);
+					try {
+						if (!!err) {
+							reject(err);
+						}
+						if (stream === null) {
+							reject('No stream');
+						}
+						this.docker.modem.followProgress(
+							stream,
+							onFinished,
+							onProgress,
+						);
+					} catch (error) {
+						reject(error);
 					}
-					if (stream === null) {
-						reject('No stream');
-					}
-					this.docker.modem.followProgress(stream, onFinished, onProgress);
-				} catch (error) {
-					reject(error);
-				}
-			});
+				},
+			);
 		});
 	}
 
-	async runCommandInContainer(containerId: string, command: string): Promise<void> {
+	async runCommandInContainer(
+		containerId: string,
+		command: string,
+	): Promise<void> {
 		const container = this.docker.getContainer(containerId);
 		if (!!container) {
 			try {
@@ -106,7 +124,12 @@ export class DockerService {
 					Privileged: true,
 				});
 				await exec.start({});
-				console.log('Container ' + containerId + ' successfully executed command ' + command);
+				console.log(
+					'Container ' +
+						containerId +
+						' successfully executed command ' +
+						command,
+				);
 			} catch (error) {
 				console.error(error);
 			}
@@ -115,11 +138,19 @@ export class DockerService {
 		}
 	}
 
-	async getContainerByIdOrName(nameOrId: string): Promise<Docker.Container | undefined> {
-		const containers: Docker.ContainerInfo[] = await this.docker.listContainers({ all: true });
-		const containerInfo = containers.find((containerInfo: Docker.ContainerInfo) => {
-			return containerInfo.Names.indexOf('/' + nameOrId) >= 0 || containerInfo.Id === nameOrId;
-		});
+	async getContainerByIdOrName(
+		nameOrId: string,
+	): Promise<Docker.Container | undefined> {
+		const containers: Docker.ContainerInfo[] =
+			await this.docker.listContainers({ all: true });
+		const containerInfo = containers.find(
+			(containerInfo: Docker.ContainerInfo) => {
+				return (
+					containerInfo.Names.indexOf('/' + nameOrId) >= 0 ||
+					containerInfo.Id === nameOrId
+				);
+			},
+		);
 
 		if (!!containerInfo && containerInfo?.Id) {
 			return this.docker.getContainer(containerInfo.Id);

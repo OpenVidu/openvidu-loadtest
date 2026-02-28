@@ -10,27 +10,36 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 export const app = express.Router({
-    strict: true,
+	strict: true,
 });
 
 // Used by browser to upload recordings to browseremulator's file system
-app.post('/qoeRecordings', upload.single("file"), (req: Request, res: Response) => {
-    if (!req.file) {
-        return res.status(400).send('No file uploaded');
-    }
-    const buffer = req.file.buffer;
+app.post(
+	'/qoeRecordings',
+	upload.single('file'),
+	(req: Request, res: Response) => {
+		if (!req.file) {
+			return res.status(400).send('No file uploaded');
+		}
+		const buffer = req.file.buffer;
 
-    fs.appendFile(`${RECORDINGS_PATH}/${req.file.originalname}`, new Uint8Array(buffer), (err) => {
-        if (err) {
-            res.status(500).send(err.message);
-        } else {
-            res.status(200).send();
-        }
-    });
-});
+		fs.appendFile(
+			`${RECORDINGS_PATH}/${req.file.originalname}`,
+			new Uint8Array(buffer),
+			err => {
+				if (err) {
+					res.status(500).send(err.message);
+				} else {
+					res.status(200).send();
+				}
+			},
+		);
+	},
+);
 
 app.post('/analysis', async (req: Request, res: Response) => {
-    const qoeAnalyzerService: QoeAnalyzerService = QoeAnalyzerService.getInstance();
-    const status = await qoeAnalyzerService.runQoEAnalysis();
-    res.status(200).send(status);
+	const qoeAnalyzerService: QoeAnalyzerService =
+		QoeAnalyzerService.getInstance();
+	const status = await qoeAnalyzerService.runQoEAnalysis();
+	res.status(200).send(status);
 });

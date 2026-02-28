@@ -15,18 +15,21 @@ export class WsService {
 		return WsService.instance;
 	}
 
-    async initializeServer(): Promise<void> {
-        return new Promise((resolve) => {
-            console.log('Starting WebSocket server...');
-            const server = new WebSocketServer({ port: WEBSOCKET_PORT, path: '/events' });
-            server.on('connection', (ws: WebSocket) => {
-                ws.on('message', this.handleMessage);
-                this.ws = ws;
-                console.log('WebSocket server created, connection established');
-                resolve();
-            });
-        });
-    }
+	async initializeServer(): Promise<void> {
+		return new Promise(resolve => {
+			console.log('Starting WebSocket server...');
+			const server = new WebSocketServer({
+				port: WEBSOCKET_PORT,
+				path: '/events',
+			});
+			server.on('connection', (ws: WebSocket) => {
+				ws.on('message', this.handleMessage);
+				this.ws = ws;
+				console.log('WebSocket server created, connection established');
+				resolve();
+			});
+		});
+	}
 
 	private handleMessage(message: string) {
 		console.log('Received message: ' + message);

@@ -1,27 +1,27 @@
 export type WebrtcStatsConfig = {
-    interval: number,
-    sendInterval: number,
-    httpEndpoint: string
-}
+	interval: number;
+	sendInterval: number;
+	httpEndpoint: string;
+};
 
 export type OpenViduEventsConfig = {
-    httpEndpoint: string
-}
+	httpEndpoint: string;
+};
 
 export type StorageNameObject = {
-    webrtcStorageName: string,
-    ovEventStorageName: string
-}
+	webrtcStorageName: string;
+	ovEventStorageName: string;
+};
 
 export type StorageValueObject = {
-    webrtcStorageValue: string,
-    ovEventStorageValue: string
-}
+	webrtcStorageValue: string;
+	ovEventStorageValue: string;
+};
 
 export type QoeRecordingsConfig = {
-    httpEndpoint: string
-}
+	httpEndpoint: string;
+};
 
 export type EventErrorConfig = {
-    httpEndpoint: string
-}
+	httpEndpoint: string;
+};

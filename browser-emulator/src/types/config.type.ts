@@ -1,6 +1,7 @@
 export const ApplicationMode = {
 	PROD: 'PRODUCTION',
-	DEV: 'DEVELOPMENT'
+	DEV: 'DEVELOPMENT',
 } as const;
 
-export type ApplicationMode = typeof ApplicationMode[keyof typeof ApplicationMode];
+export type ApplicationMode =
+	(typeof ApplicationMode)[keyof typeof ApplicationMode];

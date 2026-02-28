@@ -1,6 +1,6 @@
-import type { LoadTestPostRequest } from "../api-rest.type.js";
+import type { LoadTestPostRequest } from '../api-rest.type.js';
 
 export type LKLoadTestPostRequest = LoadTestPostRequest & {
-    livekitApiKey?: string,
-    livekitApiSecret?: string,
-}
+	livekitApiKey?: string;
+	livekitApiSecret?: string;
+};

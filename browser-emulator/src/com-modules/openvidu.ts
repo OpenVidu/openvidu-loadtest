@@ -1,41 +1,48 @@
-import type { LoadTestPostRequest, TestProperties } from "../types/api-rest.type.js";
-import BaseComModule from "./base.js";
+import type {
+	LoadTestPostRequest,
+	TestProperties,
+} from '../types/api-rest.type.js';
+import BaseComModule from './base.js';
 
-export const PUBLIC_DIR = "public";
+export const PUBLIC_DIR = 'public';
 class OpenviduComModule extends BaseComModule {
+	static getInstance(): BaseComModule {
+		if (!BaseComModule.instance) {
+			BaseComModule.instance = new OpenviduComModule();
+		}
+		return BaseComModule.instance;
+	}
 
-    static getInstance(): BaseComModule {
-        if (!BaseComModule.instance) {
-            BaseComModule.instance = new OpenviduComModule();
-        }
-        return BaseComModule.instance;
-    }
+	async processNewUserRequest(_req: LoadTestPostRequest): Promise<void> {
+		// do nothing, openvidu 2 does not need any backend processing
+	}
 
-    async processNewUserRequest(_req: LoadTestPostRequest): Promise<void> {
-        // do nothing, openvidu 2 does not need any backend processing
-    }
+	areParametersCorrect(request: LoadTestPostRequest): boolean {
+		const openviduSecret: string | undefined = request.openviduSecret;
+		const openviduUrl: string = request.openviduUrl;
+		const token: string | undefined = request.token;
+		let properties: TestProperties = request.properties;
 
-    areParametersCorrect(request: LoadTestPostRequest): boolean {
-        const openviduSecret: string | undefined = request.openviduSecret;
-        const openviduUrl: string = request.openviduUrl;
-        const token: string | undefined = request.token;
-        let properties: TestProperties = request.properties;
+		const userConditions =
+			!!properties.userId && !!properties.sessionName && !!openviduUrl;
 
-        const userConditions = !!properties.userId && !!properties.sessionName && !!openviduUrl;
+		const tokenCanBeCreated = userConditions && !!openviduSecret;
+		const tokenHasBeenReceived = !!properties.userId && !!token;
+		const openviduConditions = tokenCanBeCreated || tokenHasBeenReceived;
 
-        const tokenCanBeCreated = userConditions && !!openviduSecret;
-        const tokenHasBeenReceived = !!properties.userId && !!token;
-        const openviduConditions = tokenCanBeCreated || tokenHasBeenReceived;
+		return openviduConditions;
+	}
 
-        return openviduConditions;
-    }
-
-    generateWebappUrl(request: LoadTestPostRequest): string {
-        const properties: TestProperties = request.properties;
-        const token: string | undefined = request.token;
-        const publicUrl = `publicurl=${request.openviduUrl}&`;
-		const secret = !!request.openviduSecret ? `secret=${request.openviduSecret}&` : '';
-		const recordingMode = !!properties.recordingOutputMode ? `recordingmode=${properties.recordingOutputMode}&` : '';
+	generateWebappUrl(request: LoadTestPostRequest): string {
+		const properties: TestProperties = request.properties;
+		const token: string | undefined = request.token;
+		const publicUrl = `publicurl=${request.openviduUrl}&`;
+		const secret = !!request.openviduSecret
+			? `secret=${request.openviduSecret}&`
+			: '';
+		const recordingMode = !!properties.recordingOutputMode
+			? `recordingmode=${properties.recordingOutputMode}&`
+			: '';
 		const tokenParam = !!token ? `token=${token}` : '';
 		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
@@ -54,7 +61,7 @@ class OpenviduComModule extends BaseComModule {
 			`frameRate=${properties.frameRate}&` +
 			`qoeAnalysis=${qoeAnalysis}`
 		);
-    }
+	}
 }
 
 export default OpenviduComModule;
