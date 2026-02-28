@@ -1,5 +1,5 @@
 import { OSUtils } from 'node-os-utils';
-import { ContainerCreateOptions } from 'dockerode';
+import type { ContainerCreateOptions } from 'dockerode';
 import { DockerService } from './docker.service.js';
 import { LocalStorageService } from './local-storage.service.js';
 import { WebrtcStatsService } from './config-storage.service.js';
@@ -15,9 +15,12 @@ export class InstanceService {
 	readonly WORKER_UUID: string = new Date().getTime().toString();
 	private pullImagesRetries: number = 0;
 
-    private osutils = new OSUtils();
+	private osutils = new OSUtils();
+	private dockerService: DockerService;
 
-	private constructor(private dockerService: DockerService = new DockerService()) {}
+	private constructor(dockerService: DockerService = new DockerService()) {
+		this.dockerService = dockerService;
+	}
 
 	static getInstance(): InstanceService {
 		if (!InstanceService.instance) {
@@ -46,17 +49,15 @@ export class InstanceService {
         return 0;
 	}
 
-	async launchMetricBeat() {
-		const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
-		const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
+	async launchMetricBeat(elasticsearchHost: string, elasticsearchUsername?: string, elasticsearchPassword?: string) {
 		const options: ContainerCreateOptions = {
 			Image: this.METRICBEAT_IMAGE,
 			name: ContainerName.METRICBEAT,
 			User: 'root',
 			Env: [
-				`ELASTICSEARCH_HOSTNAME=${process.env.ELASTICSEARCH_HOSTNAME}`,
-				`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
-				`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
+				`ELASTICSEARCH_HOSTNAME=${elasticsearchHost}`,
+				`ELASTICSEARCH_USERNAME=${elasticsearchUsername || 'empty'}`,
+				`ELASTICSEARCH_PASSWORD=${elasticsearchPassword || 'empty'}`,
 				`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
 				`WORKER_UUID=${this.WORKER_UUID}`,
 			],

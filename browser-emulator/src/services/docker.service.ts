@@ -17,14 +17,16 @@ export class DockerService {
 
 	public async stopContainer(nameOrId: string): Promise<void> {
 		const container = await this.getContainerByIdOrName(nameOrId);
-		if (!!container) {
-			try {
-				await container.stop();
-				console.log('Container ' + container.id + ' stopped');
-			} catch (error) {
-				console.error('Container has already stopped. Skipping');
-			}
-		}
+        if (!container) {
+            console.error('Container ' + nameOrId + ' does not exist, skipping');
+            return;
+        }
+        try {
+            await container.stop();
+            console.log('Container ' + container.id + ' stopped');
+        } catch (error) {
+            console.error('Container has already stopped. Skipping');
+        }
 	}
 
 	public async removeContainer(containerNameOrId: string) {
@@ -47,11 +49,11 @@ export class DockerService {
 		return images.length > 0;
 	}
 
-	pullImage(image: string): Promise<void> {
+	async pullImage(image: string): Promise<void> {
 		return new Promise(async (resolve, reject) => {
 			console.log('Pulling image ' + image);
-			this.docker.pull(image, (err, stream) => {
-				function onFinished(err) {
+			this.docker.pull(image, (err: any, stream: NodeJS.ReadableStream) => {
+				function onFinished(err: any) {
 					if (!!err) {
 						reject(err);
 					} else {
@@ -59,7 +61,7 @@ export class DockerService {
 						resolve();
 					}
 				}
-				function onProgress(event) {
+				function onProgress(event: any) {
 					if (event.status === 'Downloading') {
 						console.log('    Downloading layer ' + event.id + ': ' + event.progress);
 					} else if (event.status === 'Download complete') {
@@ -101,7 +103,7 @@ export class DockerService {
 		}
 	}
 
-	async getContainerByIdOrName(nameOrId: string): Promise<Docker.Container> {
+	async getContainerByIdOrName(nameOrId: string): Promise<Docker.Container | undefined> {
 		const containers: Docker.ContainerInfo[] = await this.docker.listContainers({ all: true });
 		const containerInfo = containers.find((containerInfo: Docker.ContainerInfo) => {
 			return containerInfo.Names.indexOf('/' + nameOrId) >= 0 || containerInfo.Id === nameOrId;

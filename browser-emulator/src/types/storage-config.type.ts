@@ -1,27 +1,27 @@
-export interface WebrtcStatsConfig {
+export type WebrtcStatsConfig = {
     interval: number,
     sendInterval: number,
     httpEndpoint: string
 }
 
-export interface OpenViduEventsConfig {
+export type OpenViduEventsConfig = {
     httpEndpoint: string
 }
 
-export interface StorageNameObject {
+export type StorageNameObject = {
     webrtcStorageName: string,
     ovEventStorageName: string
 }
 
-export interface StorageValueObject {
+export type StorageValueObject = {
     webrtcStorageValue: string,
     ovEventStorageValue: string
 }
 
-export interface QoeRecordingsConfig {
+export type QoeRecordingsConfig = {
     httpEndpoint: string
 }
 
-export interface EventErrorConfig {
+export type EventErrorConfig = {
     httpEndpoint: string
 }

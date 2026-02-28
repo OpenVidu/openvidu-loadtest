@@ -2,17 +2,18 @@ import fs from 'fs';
 import { By, Capabilities, until, WebDriver, logging, WebElement } from 'selenium-webdriver';
 import chrome from "selenium-webdriver/chrome.js";
 import firefox from "selenium-webdriver/firefox.js";
-import { LoadTestPostRequest, TestProperties } from '../types/api-rest.type.js';
+import type { LoadTestPostRequest, TestProperties } from '../types/api-rest.type.js';
 import { OpenViduRole } from '../types/openvidu.type.js';
 import { ErrorGenerator } from '../utils/error-generator.js';
-import { Storage } from './local-storage.service.js';
-import { StorageNameObject, StorageValueObject } from '../types/storage-config.type.js';
+import type { Storage } from './local-storage.service.js';
+import type { StorageNameObject, StorageValueObject } from '../types/storage-config.type.js';
 import { APPLICATION_MODE, DOCKER_NAME } from '../config.js';
 import { SeleniumService } from './selenium.service.js';
 import { runScript, stopDetached } from '../utils/run-script.js';
 import { ApplicationMode } from '../types/config.type.js';
 import BaseComModule from '../com-modules/base.js';
 import { Mutex } from 'async-mutex';
+import type { ChildProcess } from 'child_process';
 
 declare var localStorage: Storage;
 export class RealBrowserService {
@@ -28,12 +29,12 @@ export class RealBrowserService {
 	private readonly AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 	private keepAliveIntervals = new Map();
 	private totalPublishers: number = 0;
-	private seleniumService: SeleniumService;
-	private recordingScript: any;
+	private recordingScript: ChildProcess | undefined;
 	private seleniumLogger: logging.Logger;
 	private muteButtonMutex = new Mutex();
+    private errorGenerator = new ErrorGenerator();
 
-	constructor(private errorGenerator: ErrorGenerator = new ErrorGenerator()) {
+	constructor() {
 		const prefs = new logging.Preferences();
 		this.seleniumLogger = logging.getLogger('webdriver');
 		prefs.setLevel(logging.Type.BROWSER, logging.Level.INFO);
@@ -68,7 +69,7 @@ export class RealBrowserService {
 
 	public async startSelenium(properties: TestProperties): Promise<void> {
 		const videoPath = `${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`
-		this.seleniumService = await SeleniumService.getInstance(videoPath, this.AUDIO_FILE_LOCATION);
+		await SeleniumService.getInstance(videoPath, this.AUDIO_FILE_LOCATION);
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
@@ -79,10 +80,12 @@ export class RealBrowserService {
 			clearInterval(keepAliveInterval);
 			this.keepAliveIntervals.delete(driverId);
 		}
-		await this.saveQoERecordings(driverId);
-		await value.driver.quit();
-		this.driverMap.delete(driverId);
-		this.deleteConnection(value.sessionName, driverId, value.connectionRole);
+        if (!!value) {
+            await this.saveQoERecordings(driverId);
+            await value.driver.quit();
+            this.driverMap.delete(driverId);
+            this.deleteConnection(value.sessionName, driverId, value.connectionRole);
+        }
 	}
 
 
@@ -188,7 +191,7 @@ export class RealBrowserService {
 	stopRecording() {
 		if (!!this.recordingScript) {
 			console.log("Stopping general recording")
-			stopDetached(this.recordingScript.pid);
+			stopDetached(this.recordingScript);
 		}
 	}
 
@@ -204,22 +207,24 @@ export class RealBrowserService {
 				message: 'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
 			});
 		}
+        // TODO: This assumes that SeleniumService has already been initialized, we should make sure of that in the code structure instead of just assuming it here
+        const seleniumService = await SeleniumService.getInstance();
 		if (!!properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 			this.firefoxOptions.addArguments('--headless');
 		}
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
-				let driverId: string;
+				let driverId: string | undefined;
 				try {
 					const comModuleInstance = BaseComModule.getInstance();
 					const webappUrl = comModuleInstance.generateWebappUrl(request);
 					console.log(webappUrl);
 					let driver: WebDriver; 
 					if (process.env.REAL_DRIVER === "firefox") {
-						driver = await this.seleniumService.getFirefoxDriver(this.firefoxCapabilities, this.firefoxOptions);
+						driver = await seleniumService.getFirefoxDriver(this.firefoxCapabilities, this.firefoxOptions);
 					} else {
-						driver = await this.seleniumService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
+						driver = await seleniumService.getChromeDriver(this.chromeCapabilities, this.chromeOptions);
 					}
 					driverId = (await driver.getSession()).getId();
 					this.driverMap.set(driverId, {driver, sessionName: properties.sessionName, userName: properties.userId,connectionRole: properties.role});
@@ -357,11 +362,12 @@ export class RealBrowserService {
 	}
 
 	storeConnection(connectionId: string, properties: TestProperties) {
-		if (this.connections.has(properties.sessionName)) {
+        const conn = this.connections.get(properties.sessionName);
+		if (!!conn) {
 			if (properties.role === OpenViduRole.PUBLISHER) {
-				this.connections.get(properties.sessionName).publishers.push(connectionId);
+				conn.publishers.push(connectionId);
 			} else {
-				this.connections.get(properties.sessionName).subscribers.push(connectionId);
+				conn.subscribers.push(connectionId);
 			}
 		} else {
 			const subscribers = [];
@@ -406,59 +412,65 @@ export class RealBrowserService {
 	private async saveQoERecordings(driverId: string) {
 		if (!!process.env.QOE_ANALYSIS && !!driverId) {
 			console.log("Saving QoE Recordings for driver " + driverId);
-			const driver = this.driverMap.get(driverId).driver;
-			if (!!driver) {
-				console.log("Executing getRecordings for driver " + driverId);
-				try {
-					await driver.executeAsyncScript(`
-						const callback = arguments[arguments.length - 1];
-						try {
-							recordingManager.getRecordings()
-							.catch(error => {
-								console.error(error)
-							}).finally(() => {
-								try {
-									leaveSession();
-								} catch (error) {
-									console.error("Can't disconnect from session")
-									console.error(error)
-								}
-								callback()
-							});
-						} catch (error) {
-							console.error(error)
-							callback()
-						}
-					`);
-					console.log("QoE Recordings saved for driver " + driverId);
-					await this.printBrowserLogs(driverId);
-				} catch (error) {
-					console.log("Error saving QoE Recordings for driver " + driverId);
-					console.log(error);
-					await this.printBrowserLogs(driverId);
-				}
-				this.driverMap.delete(driverId);
-			}
-		}
+            const driverInfo = this.driverMap.get(driverId);
+            if (!!driverInfo) {
+                const webDriver = driverInfo.driver;
+                if (!!webDriver) {
+                    console.log("Executing getRecordings for driver " + driverId);
+                    try {
+                        await webDriver.executeAsyncScript(`
+                            const callback = arguments[arguments.length - 1];
+                            try {
+                                recordingManager.getRecordings()
+                                .catch(error => {
+                                    console.error(error)
+                                }).finally(() => {
+                                    try {
+                                        leaveSession();
+                                    } catch (error) {
+                                        console.error("Can't disconnect from session")
+                                        console.error(error)
+                                    }
+                                    callback()
+                                });
+                            } catch (error) {
+                                console.error(error)
+                                callback()
+                            }
+                        `);
+                        console.log("QoE Recordings saved for driver " + driverId);
+                        await this.printBrowserLogs(driverId);
+                    } catch (error) {
+                        console.log("Error saving QoE Recordings for driver " + driverId);
+                        console.log(error);
+                        await this.printBrowserLogs(driverId);
+                    }
+                    this.driverMap.delete(driverId);
+                }
+            }
+        }
 	}
 
 	private async printBrowserLogs(driverId: string) {
 		if (process.env.REAL_DRIVER !== "firefox") {
-			const entries = await this.driverMap.get(driverId).driver.manage().logs().get(logging.Type.BROWSER)
-			if (!!entries) {
-				function formatTime(s: number): string {
-					const dtFormat = new Intl.DateTimeFormat('en-GB', {
-						timeStyle: 'medium',
-						timeZone: 'UTC'
-					});
+            const driverInfo = this.driverMap.get(driverId);
+            if (!!driverInfo) {
+                const entries = await driverInfo.driver.manage().logs().get(logging.Type.BROWSER)
+                if (!!entries) {
+                    function formatTime(s: number): string {
+                        const dtFormat = new Intl.DateTimeFormat('en-GB', {
+                            timeStyle: 'medium',
+                            timeZone: 'UTC'
+                        });
 
-					return dtFormat.format(new Date(s * 1e3));
-				}
+                        return dtFormat.format(new Date(s * 1e3));
+                    }
 
-				entries.forEach(function (entry) {
-					console.log('%s - [%s] %s', formatTime(entry.timestamp), entry.level.name, entry.message);
-				});
-			}
-		}
+                    entries.forEach(function (entry) {
+                        console.log('%s - [%s] %s', formatTime(entry.timestamp), entry.level.name, entry.message);
+                    });
+                }
+            }
+        }
 	}
 }

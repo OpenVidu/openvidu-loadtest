@@ -1,7 +1,7 @@
 {
   // TSConfig Base (https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#tsconfig-bases)
   // Use recommended base settings for the Node.js runtime.
-  "extends": "@tsconfig/node24/tsconfig.json",
+  "extends": ["@tsconfig/node24/tsconfig.json", "@tsconfig/node-ts/tsconfig.json"],
 
   // Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
   "compilerOptions": {
@@ -22,25 +22,9 @@
     // Generate sourcemap files (*.js.map), for debugging.
     "sourceMap": true,
 
-    // Isolated Modules (https://www.typescriptlang.org/tsconfig#isolatedModules)
-    // Required for ts-jest when using hybrid module kind (Node16/18/Next)
-    "isolatedModules": true,
-
     // DEBUG - Uncomment when needed.
     // "explainFiles": true,
 
-    "strict": false,
-    "esModuleInterop": true,
-    "noImplicitAny": false,
-
-    // Module System (https://www.typescriptlang.org/tsconfig#module)
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "allowSyntheticDefaultImports": true,
-
-    // Target and Library (https://www.typescriptlang.org/tsconfig#target)
-    "target": "ES2024",
-    "lib": ["ES2024"],
   },
 
   // Included Files (https://www.typescriptlang.org/tsconfig#include)
@@ -49,5 +33,5 @@
   // Excluded Files (https://www.typescriptlang.org/tsconfig#exclude)
   // Filters out stuff that has been previously included in "include".
   // Note the default value already has the most typical exclusions.
-  //"exclude": ["..."],
+  "exclude": ["node_modules", "dist", "tests"],
 }

@@ -1,12 +1,12 @@
-import { LoadTestPostRequest } from "../types/api-rest.type.js";
-import { SERVER_PORT} from '../config.js';
-import { Request } from "express";
+import type { LoadTestPostRequest } from "../types/api-rest.type.js";
+import { SERVER_PORT } from '../config.js';
 
 abstract class BaseComModule {
 
-    protected static instance: BaseComModule | undefined;
+    protected static instance: BaseComModule;
+    protected static _locationHostname = `localhost:${SERVER_PORT}`;
 
-    static getInstance(): BaseComModule | undefined {
+    static getInstance(): BaseComModule {
         return this.instance;
     }
 
@@ -14,11 +14,11 @@ abstract class BaseComModule {
 
     abstract areParametersCorrect(request: LoadTestPostRequest): boolean;
 
-    setEnvironmentParams(req: Request): void {
-        process.env.LOCATION_HOSTNAME = `localhost:${SERVER_PORT}`;
-    };
-
     abstract generateWebappUrl(request: LoadTestPostRequest): string;
+
+    public static get locationHostname(): string {
+        return BaseComModule._locationHostname;
+    }
 }
 
 export default BaseComModule;

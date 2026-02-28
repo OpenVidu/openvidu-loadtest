@@ -1,11 +1,13 @@
 import { OpenViduRole } from './openvidu.type.js';
 
 
-export enum ContainerName {
-	METRICBEAT = 'metricbeat',
-}
+export const ContainerName = {
+	METRICBEAT: 'metricbeat',
+} as const;
 
-export interface BrowserContainerInfo {
+export type ContainerName = typeof ContainerName[keyof typeof ContainerName];
+
+export type BrowserCContainerInfo = {
 	containerName: string;
 	bindedPort: number;
 	connectionRole: OpenViduRole;

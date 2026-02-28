@@ -1,7 +1,7 @@
 import { FilesService } from "../files.service.js";
 import fs from 'fs';
 import fsPromises from 'fs/promises';
-import { S3Client, S3ClientConfig, ListBucketsCommand, CreateBucketCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, type S3ClientConfig, ListBucketsCommand, CreateBucketCommand, PutObjectCommand, type CreateBucketCommandOutput } from '@aws-sdk/client-s3';
 
 export class S3FilesService extends FilesService {
     private bucket: string;
@@ -50,7 +50,7 @@ export class S3FilesService extends FilesService {
             if (!(await this.isBucketCreated(this.bucket))) {
                 try {
                     await this.createBucket(this.bucket);
-                } catch (error) {
+                } catch (error: any) {
                     if (error && error.code === 'BucketAlreadyOwnedByYou') {
                         console.log("Bucket already exists");
                     } else {
@@ -71,7 +71,7 @@ export class S3FilesService extends FilesService {
                     }
                     await s3.send(new PutObjectCommand(params));
                     console.log(`Successfully uploaded data to ${this.bucket} / ${fileName}`);
-                } catch (err) {
+                } catch (err: any) {
                     if (err.name === 'SlowDown') {
                         let retryDelay = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000; // Random delay between 5 and 10 seconds
                         console.warn(`Received SlowDown error. Retrying upload file ${fileName} to S3 bucket ${this.bucket} after delay ${retryDelay} ms`);
@@ -92,7 +92,7 @@ export class S3FilesService extends FilesService {
             const uploadVideo = async (dir: string, file: string): Promise<void> => {
                 const filePath = `${dir}/${file}`;
                 let fileName = file.split('/').pop();
-                return uploadFile(fileName, filePath);
+                return uploadFile(fileName!, filePath);
             };
 
             const uploadStat = async (dir: string, s3Dir: string, file: string): Promise<void> => {
@@ -101,13 +101,13 @@ export class S3FilesService extends FilesService {
                 return uploadFile(s3Dir + fileName, filePath);
             };
 
-            const promises = [];
+            const promises: Promise<void[]>[] = [];
             FilesService.fileDirs.forEach((dir) => {
                 promises.push(
                     fsPromises.access(dir, fs.constants.R_OK | fs.constants.W_OK)
                         .then(() => fsPromises.readdir(dir))
                         .then(async (files) => {
-                            let uploadPromises = [];
+                            let uploadPromises: Promise<void>[] = [];
                             if (dir.includes('stats')) {
                                 const sessions = await fsPromises.readdir(dir);
                                 for (let session of sessions) {
@@ -146,7 +146,7 @@ export class S3FilesService extends FilesService {
             throw err;
         }
     }
-    async createBucket(bucketName: string): Promise<any> {
+    async createBucket(bucketName: string): Promise<CreateBucketCommandOutput> {
         try {
             const s3 = this.getS3Client();
             const bucketParams = {

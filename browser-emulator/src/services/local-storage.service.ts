@@ -25,7 +25,7 @@ export class LocalStorageService {
 		return !!this.getItem(name);
 	}
 
-	getItem(name: string): string {
+	getItem(name: string): string | null {
 		return this.storage.getItem(name);
 	}
 

@@ -1,14 +1,14 @@
-import { Client, ClientOptions } from '@elastic/elasticsearch';
+import { Client, type ClientOptions } from '@elastic/elasticsearch';
 import { APPLICATION_MODE } from '../config.js';
-import { JSONQoEInfo, JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type.js';
+import type { JSONQoEInfo, JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type.js';
 import { ApplicationMode } from '../types/config.type.js';
 import fs from 'fs';
-import { Index } from '@elastic/elasticsearch/api/requestParams.js';
+import type { Index } from '@elastic/elasticsearch/api/requestParams.js';
 
 export class ElasticSearchService {
 	indexName: string = '';
 
-	private client: Client;
+	private client: Client | undefined;
 	private pingSuccess: boolean = false;
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
 	private mappings = JSON.parse(fs.readFileSync(`${process.cwd()}/src/services/index-mappings.json`, 'utf8'));
@@ -23,12 +23,12 @@ export class ElasticSearchService {
 		return ElasticSearchService.instance;
 	}
 
-	async initialize(indexName: string = '') {
-		if (this.needToBeConfigured()) {
+	async initialize(hostname: string, username?: string, password?: string, indexName: string = '') {
+		if (this.needsToBeConfigured()) {
 			console.log('Initializing ElasticSearch');
 			this.indexName = indexName;
 			const clientOptions: ClientOptions = {
-				node: process.env.ELASTICSEARCH_HOSTNAME,
+				node: hostname,
 				maxRetries: 5,
 				requestTimeout: 10000,
 				ssl: {
@@ -36,10 +36,10 @@ export class ElasticSearchService {
 				},
 			};
 
-			if (this.isSecured()) {
+			if (username && password) {
 				clientOptions.auth = {
-					username: process.env.ELASTICSEARCH_USERNAME,
-					password: process.env.ELASTICSEARCH_PASSWORD,
+					username: username,
+					password: password,
 				};
 			}
 			try {
@@ -75,12 +75,13 @@ export class ElasticSearchService {
 				index: this.indexName,
 				body: {},
 			};
-			Object.keys(json).forEach((key) => {
-				indexData.body[key] = json[key];
+			const jsonRecord = json as Record<string, any>;
+			Object.keys(jsonRecord).forEach((key) => {
+				indexData.body[key] = jsonRecord[key];
 			});
 			if (!!Object.keys(indexData.body).length) {
 				try {
-					await this.client.index(indexData);
+					await this.client!.index(indexData);
 				} catch (error) {
 					console.error(error);
 				}
@@ -92,7 +93,7 @@ export class ElasticSearchService {
 		if (this.isElasticSearchRunning() && (APPLICATION_MODE === ApplicationMode.PROD)) {
 			try {
 				const operations = jsons.flatMap((json) => [{ index: { _index: this.indexName } }, json])
-				const bulkResponse = await this.client.bulk({ refresh: "true", body: operations });
+				const bulkResponse = await this.client!.bulk({ refresh: "true", body: operations });
 				if (bulkResponse.body.errors) {
 					throw new Error(bulkResponse.body.items[0].index.error.reason);
 				}
@@ -103,49 +104,23 @@ export class ElasticSearchService {
 	}
 
 	isElasticSearchRunning(): boolean {
-		return this.pingSuccess;
+		return !!this.client && this.pingSuccess;
 	}
 
-	needToBeConfigured(): boolean {
-		return this.isHostnameAvailable() && !this.client;
+	needsToBeConfigured(): boolean {
+		return !this.client;
 	}
 
-	async clean() {
-		// await this.createElasticSearchIndex();
-	}
-
-	private isHostnameAvailable(): boolean {
-		return !!process.env.ELASTICSEARCH_HOSTNAME && process.env.ELASTICSEARCH_HOSTNAME !== 'undefined';
-	}
-
-	private isSecured(): boolean {
-		return (
-			!!process.env.ELASTICSEARCH_USERNAME &&
-			process.env.ELASTICSEARCH_USERNAM !== 'undefined' &&
-			!!process.env.ELASTICSEARCH_PASSWORD &&
-			process.env.ELASTICSEARCH_PASSWORD !== 'undefined'
-		);
-	}
 
 	private async createElasticSearchIndex(): Promise<void> {
-		// await this.deleteIndexIfExist(index);
-		const index = this.generateNewIndexName();
-		await this.client.indices.create({ index,
-			body: {
-				mappings: this.mappings
-			} });
+        if (this.isElasticSearchRunning()) {
+            const index = this.generateNewIndexName();
+            await this.client!.indices.create({ index,
+                body: {
+                    mappings: this.mappings
+                } });
+        }
 	}
-
-	// private async deleteIndexIfExist(index: string): Promise<void> {
-	// 	const exist = await this.indexExists(index);
-	// 	if(exist.body){
-	// 		await this.client.indices.delete({index});
-	// 	}
-	// }
-
-	// private async indexExists(index: string): Promise<ApiResponse<boolean, Record<string, unknown>>> {
-	// 	return await this.client.indices.exists({index});
-	// }
 
 	private generateNewIndexName(): string {
 		const date = new Date();
@@ -157,7 +132,7 @@ export class ElasticSearchService {
 
 	async getStartTimes(): Promise<JSONStreamsInfo[]> {
 		if (this.isElasticSearchRunning() && (APPLICATION_MODE === ApplicationMode.PROD)) {
-			const result = await this.client.search({
+			const result = await this.client!.search({
 				index: this.indexName,
 				body: {
 					query: {
@@ -168,7 +143,7 @@ export class ElasticSearchService {
 					size: 10000
 				}
 			})
-			return result.body.hits.hits.map(hit => {
+			return result.body.hits.hits.map((hit: any) => {
 				const json: JSONStreamsInfo = {
 					"@timestamp": hit._source["@timestamp"],
 					new_participant_id: hit._source["new_participant_id"],

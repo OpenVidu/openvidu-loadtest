@@ -20,8 +20,8 @@ async function download(fileUrl: string, filePath: string, file: fs.WriteStream)
 	const protocol = new URL(fileUrl).protocol.slice(0, -1);
 	const httpModule = protocol === 'https' ? https : http;
 	const promise: Promise<string> = new Promise(async (resolve, reject) => {
-		httpModule.get(fileUrl,function (response) {
-			if (response.statusCode >= 200 && response.statusCode < 300) {
+		httpModule.get(fileUrl,function (response: http.IncomingMessage) {
+			if (!!response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
 				response.pipe(file);
 				file.on("finish", () => {
 					file.close();

@@ -1,4 +1,5 @@
-import { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type.js';
+import BaseComModule from '../com-modules/base.js';
+import type { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type.js';
 
 export class WebrtcStatsService {
 	private readonly ITEM_NAME: string = 'webrtc-stats-info';
@@ -9,7 +10,7 @@ export class WebrtcStatsService {
 		const statsConfig: WebrtcStatsConfig = {
 			interval: this.WEBRTC_INTERVAL,
 			sendInterval: this.SEND_INTERVAL,
-			httpEndpoint: `https://${process.env.LOCATION_HOSTNAME}/webrtcStats`,
+			httpEndpoint: `https://${BaseComModule.locationHostname}/webrtcStats`,
 		};
 		return JSON.stringify(statsConfig);
 	}
@@ -24,7 +25,7 @@ export class OpenViduEventsService {
 
 	public getConfig(): string {
 		const statsConfig: OpenViduEventsConfig = {
-			httpEndpoint: `https://${process.env.LOCATION_HOSTNAME}/events`,
+			httpEndpoint: `https://${BaseComModule.locationHostname}/events`,
 		};
 		return JSON.stringify(statsConfig);
 	}
@@ -39,7 +40,7 @@ export class QoERecordingsService {
 
 	public getConfig(): string {
 		const statsConfig: QoeRecordingsConfig = {
-			httpEndpoint: `https://${process.env.LOCATION_HOSTNAME}/qoe/qoeRecordings`,
+			httpEndpoint: `https://${BaseComModule.locationHostname}/qoe/qoeRecordings`,
 		};
 		return JSON.stringify(statsConfig);
 	}
@@ -54,7 +55,7 @@ export class ErrorLogService {
 
 	public getConfig(): string {
 		const statsConfig: EventErrorConfig = {
-			httpEndpoint: `https://${process.env.LOCATION_HOSTNAME}/events/errors`,
+			httpEndpoint: `https://${BaseComModule.locationHostname}/events/errors`,
 		};
 		return JSON.stringify(statsConfig);
 	}

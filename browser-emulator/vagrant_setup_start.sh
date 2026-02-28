@@ -14,8 +14,6 @@ usermod -aG video vagrant
 chown -R vagrant:vagrant /opt/openvidu-loadtest/
 
 cd /opt/openvidu-loadtest/browser-emulator
-pnpm install
-pnpm run build
 
 if [ "$START_PLATFORM" = "true" ]; then
     if [ "$LIVEKIT" = "true" ]; then
@@ -44,7 +42,9 @@ if [ "$START_SERVER" = "true" ]; then
         NPM_COMMAND="${NPM_COMMAND}-firefox"
     fi
 
-    echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install > /var/log/pnpm_install.log 2>&1 && pnpm run build > /var/log/build.log 2>&1 && $NPM_COMMAND > /var/log/crontab.log 2>&1" | crontab -u vagrant -
+    FULL_COMMAND="cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install > /var/log/pnpm_install.log 2>&1 && pnpm run build > /var/log/build.log 2>&1 && $NPM_COMMAND > /var/log/server.log 2>&1"
 
-    sudo -u vagrant bash -lc "cd /opt/openvidu-loadtest/browser-emulator && $NPM_COMMAND > /var/log/crontab.log 2>&1" &
+    echo "@reboot $FULL_COMMAND" | crontab -u vagrant -
+
+    sudo -u vagrant bash -lc "$FULL_COMMAND" &
 fi

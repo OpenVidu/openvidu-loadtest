@@ -1,6 +1,6 @@
 import * as express from 'express';
 import multer from 'multer';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
 import fs from 'fs';
 
@@ -15,6 +15,9 @@ export const app = express.Router({
 
 // Used by browser to upload recordings to browseremulator's file system
 app.post('/qoeRecordings', upload.single("file"), (req: Request, res: Response) => {
+    if (!req.file) {
+        return res.status(400).send('No file uploaded');
+    }
     const buffer = req.file.buffer;
 
     fs.appendFile(`${RECORDINGS_PATH}/${req.file.originalname}`, new Uint8Array(buffer), (err) => {

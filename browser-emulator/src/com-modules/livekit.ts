@@ -1,7 +1,7 @@
 import { AccessToken } from 'livekit-server-sdk';
-import { LKLoadTestPostRequest } from '../types/com-modules/livekit.js';
-import { TestProperties } from "../types/api-rest.type.js";
-import { Request } from "express";
+import type { LKLoadTestPostRequest } from '../types/com-modules/livekit.js';
+import type { TestProperties } from "../types/api-rest.type.js";
+import type { Request } from "express";
 import BaseComModule from './base.js';
 
 export const PUBLIC_DIR = "public-lk";
@@ -25,7 +25,7 @@ class LiveKitComModule extends BaseComModule {
         const at = new AccessToken(apiKey, apiSecret, {
             identity: participantName,
             // add metadata to the token, which will be available in the participant's metadata
-            metadata: JSON.stringify({ livekitUrl: process.env.LIVEKIT_URL }),
+            metadata: JSON.stringify({ livekitUrl: request.openviduUrl }),
         });
         at.addGrant({ roomJoin: true, room: roomName });
         const token = await at.toJwt();
@@ -47,23 +47,14 @@ class LiveKitComModule extends BaseComModule {
         return livekitConditions;
     }
 
-
-    setEnvironmentParams(req: Request): void {
-        super.setEnvironmentParams(req);
-        const request: LKLoadTestPostRequest = req.body;
-        process.env.OPENVIDU_URL = request.openviduUrl;
-        process.env.LIVEKIT_API_KEY = request.livekitApiKey;
-        process.env.LIVEKIT_API_SECRET = request.livekitApiSecret;
-    }
-
     generateWebappUrl(request: LKLoadTestPostRequest): string {
         const properties: TestProperties = request.properties;
-        const token: string = request.token;
-        const publicUrl = !!process.env.OPENVIDU_URL ? `publicurl=${process.env.OPENVIDU_URL}&` : '';
+        const token: string | undefined = request.token;
+        const publicUrl = `publicurl=${request.openviduUrl}&`;
 		const tokenParam = !!token ? `token=${token}&` : '';
 		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
-			`https://${process.env.LOCATION_HOSTNAME}/?` +
+			`https://${LiveKitComModule.locationHostname}/?` +
 			publicUrl +
 			tokenParam +
 			`role=${properties.role}&` +

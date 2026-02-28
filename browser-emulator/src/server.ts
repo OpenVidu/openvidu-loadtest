@@ -11,7 +11,6 @@ import { app as qoeController } from './controllers/qoe.controller.js';
 import { InstanceService } from './services/instance.service.js';
 import { ApplicationMode } from './types/config.type.js';
 import { WsService } from './services/ws.service.js';
-import { WebSocketServer, WebSocket } from 'ws';
 import nodeCleanup from 'node-cleanup';
 
 import { BrowserManagerService } from './services/browser-manager.service.js';
@@ -42,7 +41,7 @@ export async function createServer() {
         comModuleInstance = ComModule.default.getInstance();
         publicDir = ComModule.PUBLIC_DIR;
     } else {
-        console.log('COM_MODULE environment variable is not set. Using default com-module (OpenVidu 2)');
+        console.warn('COM_MODULE environment variable is not set. Using default com-module (OpenVidu 2)');
         const OpenviduComModule = await import('./com-modules/openvidu.js');
         comModuleInstance = OpenviduComModule.default.getInstance();
         publicDir = OpenviduComModule.PUBLIC_DIR;
@@ -68,11 +67,11 @@ export async function createServer() {
         key: fs.readFileSync(publicDir + '/key.pem', 'utf8'),
         cert: fs.readFileSync(publicDir + '/cert.pem', 'utf8'),
     };
-    return { app, server: https.createServer(options, app) };
+    const server = https.createServer(options, app);
+    return { app, server };
 }
 
 export async function startServer() {
-    const ws = new WebSocketServer({ port: WEBSOCKET_PORT, path: '/events' });
     const { app, server } = await createServer();
 
     server.listen(SERVER_PORT, async () => {
@@ -118,11 +117,8 @@ export async function startServer() {
         }
     });
 
-    ws.on('connection', (ws: WebSocket) => {
-        WsService.getInstance().setWebsocket(ws);
-    });
-
-    return { app, server, ws };
+    await WsService.getInstance().initializeServer();
+    return { app, server };
 }
 
 // In ES modules, check if this file is the entry point

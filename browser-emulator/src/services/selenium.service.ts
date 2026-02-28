@@ -28,7 +28,7 @@ export class SeleniumService {
             // Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
             // TODO: choose display number in config
             process.env.DISPLAY=":10"
-            if (!await isRunning("Xvfb :10")) {
+            if (!await isRunning(`Xvfb ${process.env.DISPLAY}`)) {
                 await runScript(`Xvfb ${process.env.DISPLAY} -screen 0 1920x1080x24 -ac`, {
                     detached: true,
                     ignoreLogs: true

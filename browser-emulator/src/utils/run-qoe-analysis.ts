@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs';
-import { JSONQoeProcessingELK } from '../types/api-rest.type.js';
+import type { JSONQoeProcessing } from '../types/api-rest.type.js';
 import { runQoEAnalysisBlocking, processFilesAndUploadResults } from '../utils/qoe-analysis-utils.js'
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -23,11 +23,7 @@ if (!pythonpath) {
     process.env['PYTHONPATH'] = process.env['PWD'];
 }
 const jsonText: string = readFileSync(`${process.cwd()}/qoe-results-processing-config.json`, 'utf-8');
-const info: JSONQoeProcessingELK = JSON.parse(jsonText);
-process.env.ELASTICSEARCH_HOSTNAME = info.elasticsearch_hostname;
-process.env.ELASTICSEARCH_USERNAME = info.elasticsearch_username;
-process.env.ELASTICSEARCH_PASSWORD = info.elasticsearch_password;
-process.env.ELASTICSEARCH_INDEX = info.index;
+const info: JSONQoeProcessing = JSON.parse(jsonText);
 if (argv.process) {
     processFilesAndUploadResults(info, argv.processPath);
 } else {

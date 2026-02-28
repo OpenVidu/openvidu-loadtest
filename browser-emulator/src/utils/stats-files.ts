@@ -20,7 +20,7 @@ export async function createFile(userId: string, sessionId: string, fileName: st
   console.log("Created dir for file: " + filePath);
   try {
     await fsp.writeFile(filePath, "[]", { flag: "wx" });
-  } catch (error) {
+  } catch (error: any) {
     if (error.code === 'EEXIST') {
       console.log("File already exists: " + filePath);
     } else {
@@ -42,7 +42,7 @@ async function processQueue(filePath: string) {
     if (task) {
       try {
         await task();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error processing task for file ' + filePath + ': ' + error.message);
       }
     }
@@ -92,7 +92,7 @@ async function saveStatsToFileAux(filePath: string, data: any) {
       const writeBuffer = new Uint8Array(Buffer.from(newData));
       await fd.write(writeBuffer, 0);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error saving stats to file: " + error.message);
     throw error;
   } finally {

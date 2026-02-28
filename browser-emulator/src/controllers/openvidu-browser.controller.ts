@@ -1,8 +1,8 @@
 import * as express from 'express';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service.js';
 import { OpenViduRole, Resolution } from '../types/openvidu.type.js';
-import { LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type.js';
+import type { LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type.js';
 import BaseComModule from '../com-modules/base.js';
 
 export const app = express.Router({
@@ -15,7 +15,6 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 		const request: LoadTestPostRequest = req.body;
 
 		if (comModuleInstance.areParametersCorrect(request)) {
-			comModuleInstance.setEnvironmentParams(req);
 			comModuleInstance.processNewUserRequest(request);
 			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 
@@ -37,7 +36,7 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 			console.log('Problem with some body parameter' + JSON.stringify(request));
 			return res.status(400).send('Problem with some body parameter');
 		}
-	} catch (error) {
+	} catch (error: any) {
 		console.log('ERROR ', error);
 		res.status(error?.status || 500).send({ message: error?.statusText, error: error });
 	}

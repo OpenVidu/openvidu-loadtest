@@ -1,4 +1,4 @@
-import { JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type.js';
+import type { JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type.js';
 import { InstanceService } from './instance.service.js';
 import { RealBrowserService } from './real-browser.service.js';
 import { ElasticSearchService } from './elasticsearch.service.js';
@@ -12,16 +12,14 @@ import { CON_FILE, ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFile, saveStatsTo
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
-	private _lastRequestInfo: LoadTestPostRequest;
+	private _lastRequestInfo: LoadTestPostRequest | undefined;
+	private realBrowserService: RealBrowserService = new RealBrowserService();
+	private instanceService: InstanceService = InstanceService.getInstance();
+	private filesService: FilesService | undefined = FilesService.getInstance();
+	private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance();
+	private webrtcStorageService = new WebrtcStatsService();
 
-	private constructor(
-		private realBrowserService: RealBrowserService = new RealBrowserService(),
-		private instanceService: InstanceService = InstanceService.getInstance(),
-		private filesService: FilesService | undefined = FilesService.getInstance(),
-		private elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
-		private localStorage: LocalStorageService = new LocalStorageService(),
-		private webrtcStorageService = new WebrtcStatsService()
-	) {}
+	private constructor() {}
 
 	static getInstance() {
 		if (!BrowserManagerService.instance) {
@@ -86,9 +84,6 @@ export class BrowserManagerService {
 	async clean(): Promise<void> {
 		await this.realBrowserService.clean();
 		console.log("Browsers cleaned");
-		if (this.elasticSearchService.isElasticSearchRunning()) {
-			await this.elasticSearchService.clean();
-		}
 		if ((APPLICATION_MODE === ApplicationMode.PROD)) {
 			if (!!this.filesService) {
 				await this.filesService.uploadFiles();
@@ -141,7 +136,7 @@ export class BrowserManagerService {
 		console.log(info);
 	}
 
-	public get lastRequestInfo(): LoadTestPostRequest {
+	public get lastRequestInfo(): LoadTestPostRequest | undefined {
 		return this._lastRequestInfo;
 	}
 }

@@ -8,19 +8,20 @@ export async function runScript(script: string, options?: {
     ignoreLogs?: boolean,
     redirectStdoutToFile?: string,
     stdoutCallback?: ((chunk: any) => void)
-}): Promise<string | ChildProcess> {
+}): Promise<ChildProcess> {
     console.log(script);
-    const promise: Promise<string | ChildProcess> = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         const execProcess = spawn(script, [], {
             cwd: `${process.cwd()}`,
             shell: "/bin/bash",
             detached: !!options ? !!options.detached ? options.detached : false : false,
             stdio: !!options ? !!options.ignoreLogs ? 'ignore' : 'pipe' : 'pipe'
         });
-        if (!!options && !!options.detached && options.detached) {
+        if (!!options && !!options.detached && options.detached && !!execProcess.pid) {
             detachedPids.push(execProcess.pid);
             resolve(execProcess);
         } else {
+            if (!!execProcess.stdout) {
                 if (!!options && !!options.redirectStdoutToFile) {
                     execProcess.stdout.pipe(fs.createWriteStream(options.redirectStdoutToFile));
                 } else if (!!options && !!options.stdoutCallback) {
@@ -30,9 +31,12 @@ export async function runScript(script: string, options?: {
                         console.log(data.toString());
                     });
                 }
-            execProcess.stderr.on('data', (data) => {
-                console.log(data.toString());
-            });
+            }
+            if (!!execProcess.stderr) {
+                execProcess.stderr.on('data', (data) => {
+                    console.error(data.toString());
+                });
+            }
             execProcess.on('exit', (code) => {
                 if (code !== 0) {
                     console.error(`exit code ${code}`);
@@ -40,22 +44,21 @@ export async function runScript(script: string, options?: {
                         error: code
                     });
                 } else {
-                    return resolve("");
+                    return resolve(execProcess);
                 }
             });
         }
-    })
-    return promise;
+    });
 }
 
-export function stopDetached(pid: number) {
+export function stopDetached(process: ChildProcess) {
     try {
-        console.log("Stopping " + pid);
-        process.kill(-pid, "SIGINT");
+        console.log("Stopping " + process.pid);
+        process.kill("SIGINT");
     } catch (err) {
         try {
-            console.log("Retrying stopping " + pid);
-            process.kill(pid, "SIGINT");
+            console.log("Retrying stopping " + process.pid);
+            process.kill("SIGINT");
         } catch (err2) {
             console.error(err);
             console.error(err2);

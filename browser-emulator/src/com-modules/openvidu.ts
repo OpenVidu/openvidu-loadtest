@@ -1,5 +1,5 @@
-import { LoadTestPostRequest, TestProperties } from "../types/api-rest.type.js";
-import { Request } from "express";
+import type { LoadTestPostRequest, TestProperties } from "../types/api-rest.type.js";
+import type { Request } from "express";
 import BaseComModule from "./base.js";
 
 export const PUBLIC_DIR = "public";
@@ -18,9 +18,9 @@ class OpenviduComModule extends BaseComModule {
     }
 
     areParametersCorrect(request: LoadTestPostRequest): boolean {
-        const openviduSecret: string = request.openviduSecret;
+        const openviduSecret: string | undefined = request.openviduSecret;
         const openviduUrl: string = request.openviduUrl;
-        const token: string = request.token;
+        const token: string | undefined = request.token;
         let properties: TestProperties = request.properties;
 
         const userConditions = !!properties.userId && !!properties.sessionName && !!openviduUrl;
@@ -32,22 +32,16 @@ class OpenviduComModule extends BaseComModule {
         return openviduConditions;
     }
 
-    setEnvironmentParams(req: Request): void {
-        super.setEnvironmentParams(req);
-        const request: LoadTestPostRequest = req.body;
-	    process.env.OPENVIDU_SECRET = request.openviduSecret;
-    }
-
     generateWebappUrl(request: LoadTestPostRequest): string {
         const properties: TestProperties = request.properties;
-        const token: string = request.token;
+        const token: string | undefined = request.token;
         const publicUrl = `publicurl=${request.openviduUrl}&`;
 		const secret = !!request.openviduSecret ? `secret=${request.openviduSecret}&` : '';
 		const recordingMode = !!properties.recordingOutputMode ? `recordingmode=${properties.recordingOutputMode}&` : '';
 		const tokenParam = !!token ? `token=${token}` : '';
 		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
-			`https://${process.env.LOCATION_HOSTNAME}/?` +
+			`https://${OpenviduComModule.locationHostname}/?` +
 			publicUrl +
 			secret +
 			recordingMode +

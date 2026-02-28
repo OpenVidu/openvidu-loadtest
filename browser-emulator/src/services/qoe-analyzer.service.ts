@@ -1,17 +1,12 @@
 import { BrowserManagerService } from './browser-manager.service.js';
-import { ElasticSearchService } from './elasticsearch.service.js';
-import { JSONQoeProcessing } from '../types/api-rest.type.js';
+import type { JSONQoeProcessing } from '../types/api-rest.type.js';
 import { runQoEAnalysisNonBlocking } from '../utils/qoe-analysis-utils.js'
 
 export class QoeAnalyzerService {
 
     private static instance: QoeAnalyzerService;
-
-    constructor(
-        private readonly elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance(),
-        private FRAGMENT_DURATION: number = 5,
-        private PADDING_DURATION: number = 1,
-    ) { }
+    private FRAGMENT_DURATION = 5;
+    private PADDING_DURATION = 1
 
     static getInstance() {
         if (!QoeAnalyzerService.instance) {
@@ -38,7 +33,6 @@ export class QoeAnalyzerService {
                     `${process.cwd()}/src/assets/mediafiles/fakevideo_${framerate}fps_${properties.resolution}.y4m`
                 const PRESENTER_AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`
                 const processingInfo: JSONQoeProcessing = {
-                    index: this.elasticSearchService.indexName,
                     fragment_duration: this.FRAGMENT_DURATION,
                     padding_duration: this.PADDING_DURATION,
                     framerate,

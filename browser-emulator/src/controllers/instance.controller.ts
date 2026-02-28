@@ -1,7 +1,7 @@
 import fs from 'fs';
 import * as express from 'express';
-import { Request, Response } from 'express';
-import { BrowserVideoRequest, CustomBrowserVideoRequest, InitializePostRequest } from '../types/api-rest.type.js';
+import type { Request, Response } from 'express';
+import type { BrowserVideoRequest, CustomBrowserVideoRequest, InitializePostRequest } from '../types/api-rest.type.js';
 import { InstanceService } from '../services/instance.service.js';
 import { ElasticSearchService } from '../services/elasticsearch.service.js';
 import { APPLICATION_MODE } from '../config.js';
@@ -50,26 +50,18 @@ app.post('/initialize', async (req: Request, res: Response) => {
 
 		const promises = []
 		if (isProdMode) {
-			if (!!request.browserVideo) {
-				promises.push(downloadMediaFilesAndStartSeleniumService(request.browserVideo));
-			}
+            promises.push(downloadMediaFilesAndStartSeleniumService(request.browserVideo));
 			
-			if (!elasticSearchService.isElasticSearchRunning()) {
-				process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
-				process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
-				process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
-				if (!!request.elasticSearchIndex) {
-					process.env.ELASTICSEARCH_INDEX = request.elasticSearchIndex;
-				}
-				promises.push(elasticSearchService.initialize(process.env.ELASTICSEARCH_INDEX));
-				promises.push(launchMetricBeat());
+			if (!!request.elasticSearchHost && !elasticSearchService.isElasticSearchRunning()) {
+				promises.push(elasticSearchService.initialize(request.elasticSearchHost, request.elasticSearchUserName, request.elasticSearchPassword, request.elasticSearchIndex));
+				promises.push(launchMetricBeat(request.elasticSearchHost, request.elasticSearchUserName, request.elasticSearchPassword));
 			}
 
 		}
 		const fileServicePromise = new Promise((resolve, reject) => {
-            let accessKey: string;
-            let secretAccessKey: string;
-            let bucketName: string;
+            let accessKey: string | undefined;
+            let secretAccessKey: string | undefined;
+            let bucketName: string | undefined;
             let host: string | undefined;
 			if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
                 host = `${request.minioHost}:${!!request.minioPort ? request.minioPort.toString() : '443'}`;
@@ -85,10 +77,15 @@ app.post('/initialize', async (req: Request, res: Response) => {
                 host = request.s3Host;
             }
             if (!!bucketName && !!accessKey && !!secretAccessKey) {
-			    filesService = S3FilesService.getInstance(accessKey, secretAccessKey, bucketName, host);
+                if (!!host) {
+			        filesService = S3FilesService.getInstance(accessKey, secretAccessKey, bucketName, host);
+                } else {
+                    filesService = S3FilesService.getInstance(accessKey, secretAccessKey, bucketName);
+                }
             }
 			resolve('');
 		}).then(() => {
+            // TODO: this QOE_ANALYSIS should not be an env variable, there should be two separate properties: one to enable MediaRecorders in browser creation request and another one to actually do the QoE Analysis in situ
 			if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {
 				process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
 				QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
@@ -112,48 +109,34 @@ function createRecordingsDirectory() {
 	}
 }
 
-async function launchMetricBeat() {
+async function launchMetricBeat(elasticsearchHost: string, elasticsearchUsername?: string, elasticsearchPassword?: string) {
 	const instanceService = InstanceService.getInstance();
 	try {
-		await instanceService.launchMetricBeat();
-	} catch (error) {
+		await instanceService.launchMetricBeat(elasticsearchHost, elasticsearchUsername, elasticsearchPassword);
+	} catch (error: any) {
 		console.log('Error starting metricbeat', error);
 		if (error.statusCode === 409 && error.message.includes('Conflict')) {
 			console.log('Retrying ...');
 			await instanceService.removeContainer(ContainerName.METRICBEAT);
-			await instanceService.launchMetricBeat();
+			await instanceService.launchMetricBeat(elasticsearchHost, elasticsearchUsername, elasticsearchPassword);
 		}
 	}
 }
 
 async function downloadMediaFilesAndStartSeleniumService(videoType: BrowserVideoRequest): Promise<SeleniumService> {
-	const fileNames = await Promise.all([
-		downloadBrowserMediaFiles(videoType),
-		downloadEmulatedFiles()
-	])
-	return SeleniumService.getInstance(fileNames[0][0], fileNames[0][1]);
+	const fileNames = await downloadBrowserMediaFiles(videoType);
+	return SeleniumService.getInstance(fileNames[0], fileNames[1]);
 }
 
 async function downloadBrowserMediaFiles(videoType: BrowserVideoRequest): Promise<string[]> {
-	if (videoType.videoInfo === undefined) {
-		throw new Error('Missing video info in video request');
-	}
-	const videoInfo = videoType.videoInfo
-	const videoFile = `fakevideo_${videoInfo.fps}fps_${videoInfo.width}x${videoInfo.height}.y4m`
-	const videoUrl = videoType.videoType === "custom" ? videoType.customVideo.video.url : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${videoInfo.height}p_${videoInfo.fps}fps.y4m`
-	const audioFile = `fakeaudio.wav`
-	const audioUrl = videoType.videoType === "custom" ? videoType.customVideo.audioUrl : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`
-	const promises = [
-			downloadFile(videoFile, videoUrl, MEDIAFILES_DIR),
-			downloadFile(audioFile, audioUrl, MEDIAFILES_DIR)
-		]
-	return Promise.all(promises)
+	const videoInfo = videoType.videoType !== "custom" ? videoType.videoInfo : videoType.customVideo.video;
+    const videoFile = `fakevideo_${videoInfo.fps}fps_${videoInfo.width}x${videoInfo.height}.y4m`
+    const videoUrl = videoType.videoType === "custom" ? videoType.customVideo.video.url : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${videoInfo.height}p_${videoInfo.fps}fps.y4m`
+    const audioFile = `fakeaudio.wav`
+    const audioUrl = videoType.videoType === "custom" ? videoType.customVideo.audioUrl : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`
+    const promises = [
+            downloadFile(videoFile, videoUrl, MEDIAFILES_DIR),
+            downloadFile(audioFile, audioUrl, MEDIAFILES_DIR)
+        ]
+    return Promise.all(promises)
 }
-
-async function downloadEmulatedFiles(): Promise<string[]> {
-	return Promise.all([
-		downloadFile("video_640x480.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv", MEDIAFILES_DIR).then(() => "video_640x480.mkv"),
-		downloadFile("video_1280x720.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_1280x720.mkv", MEDIAFILES_DIR).then(() => "video_1280x720.mkv")
-	]);
-}
-

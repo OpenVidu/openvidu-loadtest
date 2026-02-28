@@ -1,21 +1,23 @@
 import { OpenViduRole, Resolution } from './openvidu.type.js';
 
-export interface LoadTestPostRequest {
-
+export type LoadTestPostRequest = {
 	openviduUrl: string,
 	openviduSecret?: string,
 	token?: string,
     properties: TestProperties
 }
 
-export interface InitializePostRequest {
-	qoeAnalysis?: QoeAnalysisRequest;
-    // Only needed with browser type REAL
-    browserVideo?: BrowserVideoRequest;
+type ElasticsearchCredentials = {
     elasticSearchPassword: string;
 	elasticSearchUserName: string;
 	elasticSearchHost: string;
-    elasticSearchIndex?: string;
+    elasticSearchIndex: string;
+}
+
+// TODO: remove minio properties and rename aws properties to be more generic, as they can be used for any S3 compatible service, not only AWS S3
+export type InitializePostRequest = {
+	qoeAnalysis?: QoeAnalysisRequest;
+    browserVideo: BrowserVideoRequest;
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;
 	s3BucketName?: string;
@@ -25,52 +27,66 @@ export interface InitializePostRequest {
     minioSecretKey?: string;
     minioPort?: number;
     minioBucket?: string;
+} & (
+    | ElasticsearchCredentials
+    | Partial<Record<keyof ElasticsearchCredentials, never>>
+);
+
+export type BrowserVideoRequestCustom = {
+    videoType: "custom";
+    customVideo: CustomBrowserVideoRequest;
 }
 
-export interface BrowserVideoRequest {
-    videoType: "bunny" | "interview" | "game" | "custom";
-    // needed if not using custom video
-    videoInfo?: BrowserVideoInfo;
-    customVideo? : CustomBrowserVideoRequest;
+export type BrowserVideoRequestPreset = {
+    videoType: "bunny" | "interview" | "game";
+    videoInfo: BrowserVideoInfo;
 }
 
-export interface BrowserVideoInfo {
+export type BrowserVideoRequest = BrowserVideoRequestCustom | BrowserVideoRequestPreset;
+
+export type BrowserVideoInfo = {
     width: number;
     height: number;
     fps: number;
 }
 
-export interface CustomBrowserVideoRequest {
+export type CustomBrowserVideoRequest = {
     video: CustomBrowserVideo;
     audioUrl: string;
 }
 
-export interface CustomBrowserVideo extends BrowserVideoInfo {
+export type CustomBrowserVideo = BrowserVideoInfo & {
     url: string;
 }
 
-export interface QoeAnalysisRequest {
+export type QoeAnalysisRequest = {
     enabled: boolean;
     fragment_duration: number;
     padding_duration: number;
 }
 
-export enum RecordingMode {
-	ALWAYS = 'ALWAYS',
-	// MANUAL = 'MANUAL'
-}
+export const RecordingMode = {
+    ALWAYS: 'ALWAYS',
+    // MANUAL: 'MANUAL'
+} as const;
 
-export enum RecordingOutputMode {
-	COMPOSED = 'COMPOSED',
-	INDIVIDUAL = 'INDIVIDUAL'
-}
+export type RecordingMode = typeof RecordingMode[keyof typeof RecordingMode];
 
-export enum RecordingLayoutMode {
-	BEST_FIT = 'BEST_FIT'
-}
+export const RecordingOutputMode = {
+    COMPOSED: 'COMPOSED',
+    INDIVIDUAL: 'INDIVIDUAL'
+} as const;
+
+export type RecordingOutputMode = typeof RecordingOutputMode[keyof typeof RecordingOutputMode];
+
+export const RecordingLayoutMode = {
+    BEST_FIT: 'BEST_FIT'
+} as const;
+
+export type RecordingLayoutMode = typeof RecordingLayoutMode[keyof typeof RecordingLayoutMode];
 
 
-export interface TestProperties {
+export type TestProperties = {
 	userId: string;
 	sessionName: string;
 	role: OpenViduRole;
@@ -85,7 +101,7 @@ export interface TestProperties {
 	recordingMetadata?: string;
 }
 
-export interface LoadTestPostResponse {
+export type LoadTestPostResponse = {
 	connectionId: string,
 	streams: number,
 	participants: number,
@@ -94,44 +110,47 @@ export interface LoadTestPostResponse {
     userId: string
 }
 
-export interface JSONStatsResponse {
+export type JSONStatsResponse = {
     timestamp: string,
     user: string,
     session: string,
     webrtcStats: any
 }
 
-export interface JSONStreamsInfo extends JSONUserInfo {
+export type JSONStreamsInfo = JSONUserInfo & {
 	streams: number,
 	worker_name: string
     node_role: string,
 }
 
-export interface JSONUserInfo {
+export type JSONUserInfo = {
     '@timestamp': string,
     new_participant_id: string,
     new_participant_session: string
 }
 
-export interface JSONQoeProcessing {
-    index: string,
-    padding_duration: number,
-    fragment_duration: number,
-    presenter_video_file_location: string,
-    presenter_audio_file_location: string,
-    width: number | string,
-    height: number | string,
-    framerate: number,
-    timestamps?: JSONUserInfo[]
-}
+type ElasticsearchConfig = {
+    elasticsearch_hostname: string;
+    elasticsearch_username: string;
+    elasticsearch_password: string;
+    index: string;
+};
 
-export interface JSONQoeProcessingELK extends JSONQoeProcessing {
-    elasticsearch_hostname: string,
-    elasticsearch_username: string,
-    elasticsearch_password: string,
-}
+export type JSONQoeProcessing = {
+    padding_duration: number;
+    fragment_duration: number;
+    presenter_video_file_location: string;
+    presenter_audio_file_location: string;
+    width: number | string;
+    height: number | string;
+    framerate: number;
+    timestamps?: JSONUserInfo[];
+} & (
+    | ElasticsearchConfig
+    | Partial<Record<keyof ElasticsearchConfig, never>>
+);
 
-export interface JSONQoEInfo {
+export type JSONQoEInfo = {
     '@timestamp': string,
     session: string,
     userFrom: string,

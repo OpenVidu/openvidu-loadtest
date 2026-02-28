@@ -1,13 +1,10 @@
-import WebSocket from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
+import { WEBSOCKET_PORT } from '../config.js';
 
 export class WsService {
 	protected static instance: WsService;
-	private readonly CONNECTING = 0;
 	private readonly OPEN = 1;
-	private readonly CLOSING = 2;
-	private readonly CLOSED = 3;
-	private interval: NodeJS.Timeout;
-	private ws: WebSocket;
+	private ws: WebSocket | undefined;
 
 	private constructor() {}
 
@@ -18,10 +15,18 @@ export class WsService {
 		return WsService.instance;
 	}
 
-	setWebsocket(ws: WebSocket) {
-		this.ws = ws;
-		this.ws.on('message', this.handleMessage);
-	}
+    async initializeServer(): Promise<void> {
+        return new Promise((resolve) => {
+            console.log('Starting WebSocket server...');
+            const server = new WebSocketServer({ port: WEBSOCKET_PORT, path: '/events' });
+            server.on('connection', (ws: WebSocket) => {
+                ws.on('message', this.handleMessage);
+                this.ws = ws;
+                console.log('WebSocket server created, connection established');
+                resolve();
+            });
+        });
+    }
 
 	private handleMessage(message: string) {
 		console.log('Received message: ' + message);
@@ -29,7 +34,7 @@ export class WsService {
 
 	send(message: string) {
 		try {
-			if (this.ws?.readyState === this.OPEN) {
+			if (!!this.ws && this.ws.readyState === this.OPEN) {
 				this.ws.send(message);
 				console.log('Message was sent: ', message);
 			}
