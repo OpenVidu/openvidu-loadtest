@@ -30,3 +30,5 @@ build/
 !**/src/test/**/build/
 
 .m2/
+logs/
+old-resources/
