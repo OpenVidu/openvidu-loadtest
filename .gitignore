@@ -30,7 +30,6 @@ hs_err_pid*
 */.settings
 .classpath
 .project
-*/.vscode
 */.sts4-cache
 
 */target/*
