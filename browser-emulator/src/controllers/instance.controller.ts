@@ -21,23 +21,13 @@ export const app = express.Router({
 
 const MEDIAFILES_DIR = `${process.cwd()}/src/assets/mediafiles`;
 
-app.get('/ping', (req: Request, res: Response) => {
+app.get('/ping', (_: Request, res: Response) => {
 	if (InstanceService.getInstance().isInstanceInitialized()) {
 		res.status(200).send('Pong');
 	} else {
 		res.status(500).send();
 	}
 });
-
-// app.post('/restart', async (req: Request, res: Response) => {
-// 	try {
-// 		console.log('Restarting browser-emulator');
-// 		res.status(200).send();
-// 		exec('forever restartall');
-// 	} catch (error) {
-// 		res.status(500).send(error);
-// 	}
-// });
 
 app.post('/initialize', async (req: Request, res: Response) => {
 	try {
@@ -120,7 +110,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		}).then(() => {
 			// TODO: this QOE_ANALYSIS should not be an env variable, there should be two separate properties: one to enable MediaRecorders in browser creation request and another one to actually do the QoE Analysis in situ
 			if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {
-				process.env.QOE_ANALYSIS =
+				process.env['QOE_ANALYSIS'] =
 					request.qoeAnalysis.enabled.toString();
 				QoeAnalyzerService.getInstance().setDurations(
 					request.qoeAnalysis.fragment_duration,

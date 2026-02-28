@@ -52,19 +52,18 @@ export class RealBrowserService {
 	private keepAliveIntervals = new Map();
 	private totalPublishers: number = 0;
 	private recordingScript: ChildProcess | undefined;
-	private seleniumLogger: logging.Logger;
 	private muteButtonMutex = new Mutex();
 
 	constructor() {
 		const prefs = new logging.Preferences();
-		this.seleniumLogger = logging.getLogger('webdriver');
+		logging.getLogger('webdriver');
 		prefs.setLevel(logging.Type.BROWSER, logging.Level.INFO);
 		prefs.setLevel(logging.Type.DRIVER, logging.Level.INFO);
 		prefs.setLevel(logging.Type.CLIENT, logging.Level.INFO);
 		prefs.setLevel(logging.Type.PERFORMANCE, logging.Level.INFO);
 		prefs.setLevel(logging.Type.SERVER, logging.Level.INFO);
 		logging.installConsoleHandler();
-		if (process.env.REAL_DRIVER === 'firefox') {
+		if (process.env['REAL_DRIVER'] === 'firefox') {
 			this.firefoxCapabilities.setLoggingPrefs(prefs);
 			this.firefoxCapabilities.setAcceptInsecureCerts(true);
 			this.firefoxOptions
@@ -83,7 +82,7 @@ export class RealBrowserService {
 				'--start-maximized',
 			);
 		}
-		if (process.env.IS_DOCKER_CONTAINER === 'true') {
+		if (process.env['IS_DOCKER_CONTAINER'] === 'true') {
 			this.chromeOptions.addArguments(
 				`--unsafely-treat-insecure-origin-as-secure=http://${DOCKER_NAME}`,
 			);
@@ -275,7 +274,7 @@ export class RealBrowserService {
 				properties.resolution,
 				properties.frameRate,
 			) &&
-			!process.env.IS_DOCKER_CONTAINER &&
+			!process.env['IS_DOCKER_CONTAINER'] &&
 			APPLICATION_MODE === ApplicationMode.PROD
 		) {
 			return Promise.reject({
@@ -298,7 +297,7 @@ export class RealBrowserService {
 						comModuleInstance.generateWebappUrl(request);
 					console.log(webappUrl);
 					let driver: WebDriver;
-					if (process.env.REAL_DRIVER === 'firefox') {
+					if (process.env['REAL_DRIVER'] === 'firefox') {
 						driver = await seleniumService.getFirefoxDriver(
 							this.firefoxCapabilities,
 							this.firefoxOptions,
@@ -346,7 +345,7 @@ export class RealBrowserService {
 					}
 
 					// Unlike chrome, firefox is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
-					if (process.env.REAL_DRIVER === 'firefox') {
+					if (process.env['REAL_DRIVER'] === 'firefox') {
 						await driver.manage().window().maximize();
 					}
 
@@ -544,7 +543,7 @@ export class RealBrowserService {
 	}
 
 	private async saveQoERecordings(driverId: string) {
-		if (!!process.env.QOE_ANALYSIS && !!driverId) {
+		if (!!process.env['QOE_ANALYSIS'] && !!driverId) {
 			console.log('Saving QoE Recordings for driver ' + driverId);
 			const driverInfo = this.driverMap.get(driverId);
 			if (!!driverInfo) {
@@ -593,7 +592,7 @@ export class RealBrowserService {
 	}
 
 	private async printBrowserLogs(driverId: string) {
-		if (process.env.REAL_DRIVER !== 'firefox') {
+		if (process.env['REAL_DRIVER'] !== 'firefox') {
 			const driverInfo = this.driverMap.get(driverId);
 			if (!!driverInfo) {
 				const entries = await driverInfo.driver

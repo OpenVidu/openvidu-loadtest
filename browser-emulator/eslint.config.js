@@ -55,9 +55,11 @@ export default [
 			],
 			'import/no-unresolved': 'error',
 
-			// Helpful TypeScript rules
+			// TypeScript strict rules
+			'no-fallthrough': 'error',
+			'@typescript-eslint/explicit-function-return-types': 'error',
 			'@typescript-eslint/no-unused-vars': [
-				'warn',
+				'error',
 				{
 					argsIgnorePattern: '^_',
 					varsIgnorePattern: '^_',
@@ -113,7 +115,17 @@ export default [
 				},
 			],
 			'import/no-unresolved': 'error',
+			'no-fallthrough': 'error',
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{
+					argsIgnorePattern: '^_',
+					varsIgnorePattern: '^_',
+				},
+			],
 			'@typescript-eslint/no-explicit-any': 'warn',
+			'@typescript-eslint/no-unsafe-member-access': 'error',
+			'@typescript-eslint/no-unsafe-assignment': 'error',
 
 			// Prettier integration
 			'prettier/prettier': 'warn',

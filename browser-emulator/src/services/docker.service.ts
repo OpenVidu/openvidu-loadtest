@@ -38,7 +38,7 @@ export class DockerService {
 		}
 	}
 
-	public async removeContainer(containerNameOrId: string) {
+	public async removeContainer(containerNameOrId: string): Promise<void> {
 		const container = await this.getContainerByIdOrName(containerNameOrId);
 		if (!!container) {
 			try {

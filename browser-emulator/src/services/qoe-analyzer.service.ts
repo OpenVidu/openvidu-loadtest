@@ -26,8 +26,8 @@ export class QoeAnalyzerService {
 			if (properties) {
 				const framerate: number = properties.frameRate;
 				const dim: string[] = properties.resolution.split('x');
-				const width: string = dim[0];
-				const height: string = dim[1];
+				const width: string = dim[0]!;
+				const height: string = dim[1]!;
 				const PRESENTER_VIDEO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakevideo_${framerate}fps_${properties.resolution}.y4m`;
 				const PRESENTER_AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 				const processingInfo: JSONQoeProcessing = {

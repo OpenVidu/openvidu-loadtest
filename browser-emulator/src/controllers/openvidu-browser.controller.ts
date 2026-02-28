@@ -76,7 +76,7 @@ app.delete(
 	'/streamManager/connection/:connectionId',
 	async (req: Request, res: Response) => {
 		try {
-			const connectionId: string | string[] = req.params.connectionId;
+			const connectionId = req.params['connectionId'];
 
 			if (!connectionId || Array.isArray(connectionId)) {
 				return res
@@ -103,8 +103,8 @@ app.delete(
 	'/streamManager/session/:sessionId/user/:userId',
 	async (req: Request, res: Response) => {
 		try {
-			const sessionId: string | string[] = req.params.sessionId;
-			const userId: string | string[] = req.params.userId;
+			const sessionId = req.params['sessionId'];
+			const userId = req.params['userId'];
 
 			if (
 				!sessionId ||
@@ -138,7 +138,7 @@ app.delete(
 
 app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
 	try {
-		let role: any = req.params.role;
+		let role: any = req.params['role'];
 		if (!role) {
 			return res
 				.status(400)

@@ -37,7 +37,7 @@ app.post(
 	},
 );
 
-app.post('/analysis', async (req: Request, res: Response) => {
+app.post('/analysis', async (_: Request, res: Response) => {
 	const qoeAnalyzerService: QoeAnalyzerService =
 		QoeAnalyzerService.getInstance();
 	const status = await qoeAnalyzerService.runQoEAnalysis();

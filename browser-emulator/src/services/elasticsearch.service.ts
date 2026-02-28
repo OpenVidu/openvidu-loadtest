@@ -125,9 +125,9 @@ export class ElasticSearchService {
 					refresh: 'true',
 					body: operations,
 				});
-				if (bulkResponse.body.errors) {
+				if (bulkResponse.body['errors']) {
 					throw new Error(
-						bulkResponse.body.items[0].index.error.reason,
+						bulkResponse.body['items'][0].index.error.reason,
 					);
 				}
 			} catch (error) {
@@ -182,7 +182,7 @@ export class ElasticSearchService {
 					size: 10000,
 				},
 			});
-			return result.body.hits.hits.map((hit: any) => {
+			return result.body['hits'].hits.map((hit: any) => {
 				const json: JSONStreamsInfo = {
 					'@timestamp': hit._source['@timestamp'],
 					new_participant_id: hit._source['new_participant_id'],

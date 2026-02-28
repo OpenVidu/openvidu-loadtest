@@ -44,7 +44,7 @@ class OpenviduComModule extends BaseComModule {
 			? `recordingmode=${properties.recordingOutputMode}&`
 			: '';
 		const tokenParam = !!token ? `token=${token}` : '';
-		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
+		const qoeAnalysis = !!process.env['QOE_ANALYSIS'];
 		return (
 			`https://${OpenviduComModule.locationHostname}/?` +
 			publicUrl +

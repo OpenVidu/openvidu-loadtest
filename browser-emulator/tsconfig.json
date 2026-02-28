@@ -1,37 +1,38 @@
 {
-  // TSConfig Base (https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#tsconfig-bases)
-  // Use recommended base settings for the Node.js runtime.
-  "extends": ["@tsconfig/node24/tsconfig.json", "@tsconfig/node-ts/tsconfig.json"],
+	// TSConfig Base (https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#tsconfig-bases)
+	// Use recommended base settings for the Node.js runtime.
+	"extends": [
+		"@tsconfig/node24/tsconfig.json",
+		"@tsconfig/node-ts/tsconfig.json"
+	],
 
-  // Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
-  "compilerOptions": {
-    // Linter Checks (https://www.typescriptlang.org/tsconfig#Additional_Checks_6176)
-    // These help with writing better code. Enable as many as possible.
-    //"noFallthroughCasesInSwitch": true,
-    //"noImplicitReturns": true,
-    //"noPropertyAccessFromIndexSignature": true,
-    //"noUncheckedIndexedAccess": true,
-    //"noUnusedLocals": true,
-    //"noUnusedParameters": true,
+	// Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
+	"compilerOptions": {
+		// Linter Checks (https://www.typescriptlang.org/tsconfig#Additional_Checks_6176)
+		// These help with writing better code. Enable as many as possible.
+		"noFallthroughCasesInSwitch": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noUncheckedIndexedAccess": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
 
-    // Output Dir (https://www.typescriptlang.org/tsconfig#outDir)
-    // Put all compilation artifacts into a separate directory.
-    "outDir": "./dist",
+		// Output Dir (https://www.typescriptlang.org/tsconfig#outDir)
+		// Put all compilation artifacts into a separate directory.
+		"outDir": "./dist",
 
-    // Source Map (https://www.typescriptlang.org/tsconfig#sourceMap)
-    // Generate sourcemap files (*.js.map), for debugging.
-    "sourceMap": true,
+		// Source Map (https://www.typescriptlang.org/tsconfig#sourceMap)
+		// Generate sourcemap files (*.js.map), for debugging.
+		"sourceMap": true
 
-    // DEBUG - Uncomment when needed.
-    // "explainFiles": true,
+		// DEBUG - Uncomment when needed.
+		// "explainFiles": true,
+	},
 
-  },
+	// Included Files (https://www.typescriptlang.org/tsconfig#include)
+	"include": ["./src/**/*.ts"],
 
-  // Included Files (https://www.typescriptlang.org/tsconfig#include)
-  "include": ["./src/**/*.ts"],
-
-  // Excluded Files (https://www.typescriptlang.org/tsconfig#exclude)
-  // Filters out stuff that has been previously included in "include".
-  // Note the default value already has the most typical exclusions.
-  "exclude": ["node_modules", "dist", "tests"],
+	// Excluded Files (https://www.typescriptlang.org/tsconfig#exclude)
+	// Filters out stuff that has been previously included in "include".
+	// Note the default value already has the most typical exclusions.
+	"exclude": ["node_modules", "dist", "tests"]
 }

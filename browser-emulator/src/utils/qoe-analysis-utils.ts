@@ -80,7 +80,7 @@ async function runQoEAnalysis(
 	files.forEach(file => {
 		const filePath = `${dir}/${file}`;
 		const fileName = file.split('/').pop();
-		const prefix = fileName!.split('.')[0];
+		const prefix = fileName!.split('.')[0]!;
 		promises.push(
 			limit(() =>
 				runSingleAnalysis(
@@ -125,7 +125,7 @@ async function runSingleAnalysis(
 	allAnalysis = false,
 	debug = false,
 ): Promise<ChildProcess> {
-	const qoeInfo = fileName.split('.')[0].split('_');
+	const qoeInfo = fileName.split('.')[0]!.split('_');
 	const session = qoeInfo[1];
 	const userFrom = qoeInfo[2];
 	const userTo = qoeInfo[3];
@@ -150,12 +150,12 @@ async function runSingleAnalysis(
 	);
 }
 
-async function readJSONFile(prefix: string) {
+async function readJSONFile(prefix: string): Promise<string[]> {
 	console.log('Finished running script, reading JSON file...');
 	const qoeInfo = prefix.split('_');
-	const session = qoeInfo[1];
-	const userFrom = qoeInfo[2];
-	const userTo = qoeInfo[3];
+	const session = qoeInfo[1]!;
+	const userFrom = qoeInfo[2]!;
+	const userTo = qoeInfo[3]!;
 	const filePrefix = `v-${session}-${userFrom}-${userTo}`;
 	const jsonText = await fsPromises.readFile(
 		filePrefix + '_cuts.json',
@@ -192,38 +192,47 @@ async function processAndUploadResults(
 		userStartMap[timestampSession][timestampUserFrom] = timestampDate;
 	}
 	let jsonsELK: JSONQoEInfo[] = info.flatMap(infoArray => {
-		const session = infoArray[0];
-		const userFrom = infoArray[1];
-		const userTo = infoArray[2];
-		const jsonText = infoArray[3];
+		const session = infoArray[0]!;
+		const userFrom = infoArray[1]!;
+		const userTo = infoArray[2]!;
+		const jsonText = infoArray[3]!;
 		const json = JSON.parse(jsonText);
 		// Video starts when the latest of the 2 users enters the session
-		if (
-			!(session in userStartMap) ||
-			!(userFrom in userStartMap[session]) ||
-			!(userTo in userStartMap[session])
-		) {
+		const sessionInMap = session in userStartMap;
+		const noUserFromInMap =
+			!!userStartMap[session] && !(userFrom in userStartMap[session]);
+		const noUserToInMap =
+			!!userStartMap[session] && !(userTo in userStartMap[session]);
+		if (!sessionInMap || noUserFromInMap || noUserToInMap) {
 			console.error(
 				`Could not find start time for session ${session} user ${userFrom} and user ${userTo}`,
 			);
 			return undefined;
 		}
-		const userFromDate = userStartMap[session][userFrom].getTime();
-		const userToDate = userStartMap[session][userTo].getTime();
-		const videoStart = Math.max(userFromDate, userToDate);
-		for (const cut of json) {
-			cut['session'] = session;
-			cut['userFrom'] = userFrom;
-			cut['userTo'] = userTo;
-			const timestampDate = new Date(videoStart);
-			timestampDate.setSeconds(
-				timestampDate.getSeconds() +
-					2 * processingInfo.padding_duration * (cut.cut_index + 1) +
-					processingInfo.fragment_duration * (cut.cut_index + 1),
-			);
-			cut['@timestamp'] = timestampDate.toISOString();
+		if (
+			!!userStartMap[session] &&
+			!!userStartMap[session][userFrom] &&
+			!!userStartMap[session][userTo]
+		) {
+			const userFromDate = userStartMap[session][userFrom].getTime();
+			const userToDate = userStartMap[session][userTo].getTime();
+			const videoStart = Math.max(userFromDate, userToDate);
+			for (const cut of json) {
+				cut['session'] = session;
+				cut['userFrom'] = userFrom;
+				cut['userTo'] = userTo;
+				const timestampDate = new Date(videoStart);
+				timestampDate.setSeconds(
+					timestampDate.getSeconds() +
+						2 *
+							processingInfo.padding_duration *
+							(cut.cut_index + 1) +
+						processingInfo.fragment_duration * (cut.cut_index + 1),
+				);
+				cut['@timestamp'] = timestampDate.toISOString();
+			}
+			return json;
 		}
-		return json;
 	});
 	jsonsELK = jsonsELK.filter(json => json !== undefined);
 	console.log(
@@ -251,19 +260,19 @@ export async function processFilesAndUploadResults(
 	const timestamps = await getTimestamps(processingInfo);
 	let files = !!processPath
 		? await fsPromises.readdir(processPath)
-		: await fsPromises.readdir(process.env.PWD || process.cwd());
+		: await fsPromises.readdir(process.env['PWD'] || process.cwd());
 	files = files.filter(
 		f =>
 			path.extname(f).toLowerCase() === '.json' &&
 			f.includes('_cuts.json'),
 	);
-	const filesInfo = [];
+	const filesInfo: string[][] = [];
 	for (const file of files) {
-		let prefix = file.split('_cuts')[0];
+		let prefix = file.split('_cuts')[0]!;
 		const qoeInfo = prefix.split('-');
-		const session = qoeInfo[1];
-		const userFrom = qoeInfo[2];
-		const userTo = qoeInfo[3];
+		const session = qoeInfo[1]!;
+		const userFrom = qoeInfo[2]!;
+		const userTo = qoeInfo[3]!;
 		if (!!processPath) {
 			prefix = processPath + prefix;
 		}

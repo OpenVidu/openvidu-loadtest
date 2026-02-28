@@ -34,9 +34,9 @@ export class S3FilesService extends FilesService {
 	static getInstance(...args: string[]): FilesService {
 		if (!FilesService.instance) {
 			FilesService.instance = new S3FilesService(
-				args[0],
-				args[1],
-				args[2],
+				args[0]!,
+				args[1]!,
+				args[2]!,
 				args[3],
 			);
 		}
