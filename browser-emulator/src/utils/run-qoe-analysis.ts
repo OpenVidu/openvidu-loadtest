@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
-import { JSONQoeProcessingELK } from '../types/api-rest.type';
-import { runQoEAnalysisBlocking, processFilesAndUploadResults } from '../utils/qoe-analysis-utils'
-import yargs = require('yargs/yargs');
+import { JSONQoeProcessingELK } from '../types/api-rest.type.js';
+import { runQoEAnalysisBlocking, processFilesAndUploadResults } from '../utils/qoe-analysis-utils.js'
+import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 const argv = yargs(hideBin(process.argv)).options({
     cpus: { type: 'number', default: undefined },

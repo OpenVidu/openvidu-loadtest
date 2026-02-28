@@ -18,7 +18,7 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 * [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It reads the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
 
-* [**Browser-emulator**](#browser-emulator): Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library. It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
+* [**Browser-emulator**](#browser-emulator): Worker service capable of connecting to an OpenVidu room and sending and receiving WebRTC media. It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
 
 ## **Usage Instructions**
 
@@ -36,34 +36,24 @@ Take into account that you must to deploy OpenVidu platform before using this to
 **Requirements**
 * **Create browser-emulator AMI**:
 
-	Before run the create an AMI, ensure that your AWS credentials are properly configured. You can check it running `aws configure`.
+	Before trying to create an AMI, ensure that your AWS credentials are properly configured. You can check it running `aws configure`.
 
-	**Once aws credentials have been configured in your pc**, it's time to create the browser-emulator AMI. For creating it, you only have to run the `createAMI.sh` script.
+	**Once aws credentials have been configured in your PC**, it's time to create the browser-emulator AMI. For creating it, you only have to run the `createAMI.sh` script.
 
 	```bash
 	cd ./browser-emulator/aws/
 	./createAMI.sh
 	```
 
-	Defaults to creating the AMI:
-	- In the us-east-1 AWS region.
-	- Using Chrome as the browser for tests.
-	- Not installing QoE analysis software required if doing QoE analysis in situ (generally not necessary).
-
-	After AMI was created, you must set the  **AMI ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_AMI_ID` property.
-
-	You can change the default values of the script in the [`createAMI.sh`](browser-emulator/aws/createAMI.sh) script like this:
+	You can change the default values of the [`createAMI.sh`](browser-emulator/aws/createAMI.sh) script for customizing the AMI. You can get detailed help about the parameters running `./createAMI.sh --help`:
 
 	```bash
 	cd ./browser-emulator/aws/
-	./createAMI.sh --region eu-west-1 --version ./EC2-browser-emulator-firefox.yml
+	./createAMI.sh --help
 	```
 
-	The following versions are available:
-	- Chrome with no qoe analysis software preinstalled (default): `./EC2-browser-emulator-no-qoe.yml`
-	- Chrome with qoe analysis software preinstalled: `./EC2-browser-emulator.yml`
-	- Firefox with no qoe analysis software preinstalled: `./EC2-browser-emulator-firefox-no-qoe.yml`
-	- Firefox with qoe analysis software preinstalled: `./EC2-browser-emulator-firefox.yml`
+
+	After AMI was created, you must set the **AMI ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_AMI_ID` property.
 
 * **Create a security group**:
 
@@ -95,44 +85,24 @@ CONFIG_VIDEO_V4L2=m
 It means your system is compatible. If there is no output, your system is not compatible with v4l2loopback (this is common when using virtualized kernel releases such as kvm or wsl2).
 
 <br>
-To start with the load test you will have to start a worker first and the execute the controller.
+We recommend using a clean Ubuntu 24.04 installation for the workers (for example, running a virtual machine), as the install script(s) will install all necessary dependencies for the browser-emulator to work, including the browsers, and the installation might conflict with already existing software in the machine.
 
-Then follow these steps:
-
-- **Clone this repository**
+To install browser-emulator, run these commands:
 
 ```bash
 git clone https://github.com/OpenVidu/openvidu-loadtest.git
+git checkout v4.0.0 # Latest release, you can also use the tag or branch you want
 cd openvidu-loadtest/browser-emulator
-```
-- **Install and run**
-
-You will need to choose if you want the worker to launch Chrome or Firefox browsers, as well as if you want to run QoE analysis on the worker's recorded videos.
-
-If you are unsure, choose the **prepare_scripts/openvidu/prepare.sh** script to perform the installation (installs the browser-emulator with Chrome), as follows:
-
-```bash
-cd openvidu-loadtest/browser-emulator/
-sudo su
-./prepare_scripts/openvidu/prepare.sh # Install script, use the one you want
-npm run start:prod-none # Start script, use the one you want depending on your installation
+./prepare_scripts/install_base.sh
 ```
 
-These are all the options available:
-
-| **Browser to use** | **QoE Analysis Ready** | **Install Script to run**                            | **npm run start command to run** |
-|--------------------|------------------------|------------------------------------------------------|----------------------------------|
-| Chrome             | YES                    | ./prepare_scripts/openvidu/prepare.sh                | npm run start:prod-none          |
-| Chrome             | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe.sh         | npm run start:prod-none          |
-| Firefox            | YES                    | ./prepare_scripts/openvidu/prepare_firefox.sh        | npm run start:prod-none-firefox  |
-| Firefox            | NO                     | ./prepare_scripts/openvidu/prepare_no_qoe_firefox.sh | npm run start:prod-none-firefox  |
-<!-- **3. Configure the [required loadtest-controller parameters](#Required-parameters) and the [worker ip address](#Development-mode-parameters-for-testing-locally)**. -->
-
-<!-- Moreover, the last run command will assign `NODE_WEBRTC` for [emulated user types](browser-emulator/src/types/config.type.ts). You can run the following command for use KMS WebRTC:
+(Optional) If you want to use the QoE analysis features, run the following command for installing the necessary dependencies:
 
 ```bash
-npm run start:dev-kms
-``` -->
+./prepare_scripts/install_qoe.sh
+```
+
+Note: We recommend running QoE analysis in a different machine that the ones running workers, as the analysis can be long-running and resource consuming. To set up the machine for running QoE analysis, you can follow the same steps as for setting up a worker, running both `install_base.sh` and `install_qoe.sh` scripts.
 
 </details>
 
@@ -146,6 +116,7 @@ Then follow these steps:
 
 ```bash
 git clone https://github.com/OpenVidu/openvidu-loadtest.git
+git checkout v4.0.0 # Latest release, you can also use the tag or branch you want
 ```
 
 #### 2. Configure Loadtest Controller
@@ -350,9 +321,9 @@ WAIT_COMPLETE=true
 DEBUG_VNC=false
 ```
 
-#### 3. Configure session typology
+#### 3. Configure session topology
 
-Controller is being developed to allow the configuration of the load test cases: number of participants, typology, number of sessions, etc.
+Controller is being developed to allow the configuration of the load test cases: number of participants, topology, number of sessions, etc.
 
 Currently, the only available option is the change of the number of participants of the session.
 
@@ -362,19 +333,19 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 {
 	"testcases": [
 		{
-			"typology": "N:M",
+			"topology": "N:M",
 			"participants": ["1:10", "1:100", "2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
 			"sessions": "infinite",
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS and SUBSCRIBERS as the participants array indicates."
 		},
 		{
-			"typology": "TEACHING",
+			"topology": "TEACHING",
 			"participants": ["2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
 			"sessions": "infinite",
 			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers:students) as the participants array indicates. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio"
 		},
 		{
-			"typology": "TERMINATE",
+			"topology": "TERMINATE",
 			"desciption": "This terminate all EC2 instances launched for loadtest purposes"
 		}
 	]
@@ -385,8 +356,8 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 
 |Properties|Type|Description|
 |---|---|---|
-|  **typology** * |  `N:N`, `N:M`, `TEACHING` or `TERMINATE`| **N:N**: All users will be PUBLISHERS and SUBSCRIBERS <br> **N:M**: **_N_** number will be PUBLISHERS and **_M_** number will be SUBSCRIBERS <br> **TEACHING**:  It will emulate a teaching videoconference. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio <br> **TERMINATE**: It will terminate all EC2 instances launched for loadtest purposes  |
-|  **participants** *  |  String [] | Number of participants in each session. It will run the same test case as many time as the positions in the array. <br> For example: <br>For **_N:N_** typology: `["2","5"]` where all of them will be _publishers_ and test case will be run twice (sessions with 2 and 5 participants)  <br>For **_N:M_** typology: `["2:30"]` where 2 will be _publishers_ and 30 will be _subscribers_ <br>For **_TEACHING_** typology: `["2:30"]` where 2 will be teachers and 30 will be students   |
+|  **topology** * |  `N:N`, `N:M`, `TEACHING` or `TERMINATE`| **N:N**: All users will be PUBLISHERS and SUBSCRIBERS <br> **N:M**: **_N_** number will be PUBLISHERS and **_M_** number will be SUBSCRIBERS <br> **TEACHING**:  It will emulate a teaching videoconference. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio <br> **TERMINATE**: It will terminate all EC2 instances launched for loadtest purposes  |
+|  **participants** *  |  String [] | Number of participants in each session. It will run the same test case as many time as the positions in the array. <br> For example: <br>For **_N:N_** topology: `["2","5"]` where all of them will be _publishers_ and test case will be run twice (sessions with 2 and 5 participants)  <br>For **_N:M_** topology: `["2:30"]` where 2 will be _publishers_ and 30 will be _subscribers_ <br>For **_TEACHING_** topology: `["2:30"]` where 2 will be teachers and 30 will be students   |
 |  **sessions** *  |  `infinite` or Number | **infinite**: It will create infinite sessions until the limit is reached. <br> **Number value**: It will create only (**_number value_**) sessions  |
 |  **startingParticipants** |  Number | Create this number of participants at the beginning of the test in a batch. Useful for loading the media server up to a certain point before adding users in a more controlled manner. Defaults to 0 |
 |**resolution**| String | Desired resolution of the video. <br> `640x480` or `1280x720` <br> Default `640x480`|
@@ -417,59 +388,6 @@ For start with it, run the following command:
 cd loadtest-controller
 mvn spring-boot:run
 ```
-
-# Browser Emulator development
-
-Now you can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator. Ensure you have Vagrant and VirtualBox installed on your system.
-
-You can either choose an already made box or make a personalized one yourself.
-
-- **Already made box**
-
-You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters.
-
-- **Customizable Parameters in Vagrantfile**
-
-    - **BOX**: Box to use as base. You can choose one of our already made boxes or choose the path to a box made by youself. Defaults to a box with the latest OpenVidu 2 CE and Firefox installed.
-	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
-	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
-	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
-	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
-
-- **Available boxes**
-
-Here are our already made boxes that you can use:
-
-	- ivchicano/browseremulator-ov-ff: Default box. Comes ready to use against OpenVidu 2, using Firefox as the browser.
-	- ivchicano/browseremulator-lk-ff: Comes ready to use against LiveKit, using Firefox as the browser.
-	- ivchicano/browseremulator-ov-ff-dev: Comes with the latest OpenVidu 2 CE and Firefox installed. Starts an OpenVidu 2 CE server in the same machine.
-	- ivchicano/browseremulator-lk-ff-dev: Comes with the latest LiveKit and Firefox installed. Starts a LiveKit server in the same machine.
-
-- **Start vagrant**
-
-To customize these parameters, you can set environment variables before running `vagrant up`. For example:
-
-```bash
-export BOX=ivchicano/browseremulator-lk-ff
-vagrant up
-```
-
-- **Personalized box**
-
-You can also construct your personalized box with the parameters you choose. You can start it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then use this box as is or package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
-
-- **Customizable Parameters in Vagrantfile**
-
-	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 8192. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
-	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
-	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
-	- **FIREFOX**: Set to 'true' to use Firefox instead of Chrome for testing. Default is 'false'.
-	- **START_MEDIASERVER**: Set to 'true' to start the media server (either the latest Openvidu 2 CE or LiveKit) during provisioning. Default is 'true'.
-	OpenVidu note: with this deployment, the OpenVidu URL is ^*https://localhost* and the OpenVidu secret is *vagrant*.
-	LiveKit note: (Experimental) with this deployment, LiveKit is deployed in dev mode, so the API Key is *devkey* and the API Secret is *secret*.
-	- **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'false'.
-	- **LIVEKIT**: (Experimental) Set to 'true' to use LiveKit instead of OpenVidu. Default: 'false'.
-	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
 
 # Acknowledgments
 

@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as fsp from 'fs/promises';
+import fs from 'fs';
+import fsp from 'fs/promises';
 import { dirname } from 'path';
 
 export const STATS_DIR = `${process.cwd()}/stats/`;

@@ -81,7 +81,7 @@ chmod +x ./*.sh
 PREPARE_SCRIPT_PATH=/opt/openvidu-loadtest/browser-emulator/prepare_scripts/
 chmod +x $PREPARE_SCRIPT_PATH/*.sh
 
-${PREPARE_SCRIPT_PATH}/install_base.sh
+${PREPARE_SCRIPT_PATH}/install_base.sh > /var/log/install.log 2>&1
 
 start_bg "install_qoe" run_install_qoe
 start_bg "install_livekit" bash -c "curl -sSL https://get.livekit.io | bash"
@@ -119,13 +119,13 @@ done
 
 kill "$JOB_MONITOR_PID" 2>/dev/null || true
 
+cd /opt/openvidu-loadtest/browser-emulator
+./debug_vnc.sh
+
 usermod -aG docker vagrant
 usermod -aG syslog vagrant
 usermod -aG video vagrant
-chown -R vagrant:vagrant /opt/openvidu-loadtest
-
-cd /opt/openvidu-loadtest/browser-emulator
-./debug_vnc.sh
+chown -R vagrant:vagrant /opt/openvidu-loadtest/
 
 umount /vagrant
 
@@ -161,5 +161,3 @@ echo "============================================" | tee -a $MEMORY_LOG
 echo "" | tee -a $MEMORY_LOG
 echo "Full memory log saved to: $MEMORY_LOG"
 echo "Peak memory data saved to: $MEMORY_PEAK_LOG"
-
-reboot now

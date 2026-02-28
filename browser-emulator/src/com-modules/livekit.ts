@@ -1,8 +1,8 @@
 import { AccessToken } from 'livekit-server-sdk';
-import { LKLoadTestPostRequest } from '../types/com-modules/livekit';
-import { TestProperties } from "../types/api-rest.type";
+import { LKLoadTestPostRequest } from '../types/com-modules/livekit.js';
+import { TestProperties } from "../types/api-rest.type.js";
 import { Request } from "express";
-import BaseComModule from './base';
+import BaseComModule from './base.js';
 
 export const PUBLIC_DIR = "public-lk";
 class LiveKitComModule extends BaseComModule {
@@ -14,7 +14,7 @@ class LiveKitComModule extends BaseComModule {
         return BaseComModule.instance;
     }
 
-    processNewUserRequest(request: LKLoadTestPostRequest): Promise<any> {
+    async processNewUserRequest(request: LKLoadTestPostRequest): Promise<LKLoadTestPostRequest> {
         // Generate LiveKit Token
         const roomName = request.properties.sessionName;
         const participantName = request.properties.userId;
@@ -28,12 +28,12 @@ class LiveKitComModule extends BaseComModule {
             metadata: JSON.stringify({ livekitUrl: process.env.LIVEKIT_URL }),
         });
         at.addGrant({ roomJoin: true, room: roomName });
-        const token = at.toJwt();
+        const token = await at.toJwt();
 
         request.token = token;
 
         console.log(token);
-        
+
         return Promise.resolve(request);
     }
 

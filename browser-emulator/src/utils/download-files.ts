@@ -1,6 +1,8 @@
-import fs = require('fs');
+import fs from 'fs';
 import { URL } from 'url';
-const fsPromises = fs.promises;
+import fsPromises from 'fs/promises';
+import http from 'http';
+import https from 'https';
 
 export async function downloadFile(name: string, fileUrl: string, fileDir: string): Promise<string> {
 	const filePath = fileDir + "/" + name;
@@ -16,8 +18,9 @@ export async function downloadFile(name: string, fileUrl: string, fileDir: strin
 
 async function download(fileUrl: string, filePath: string, file: fs.WriteStream): Promise<string> {
 	const protocol = new URL(fileUrl).protocol.slice(0, -1);
+	const httpModule = protocol === 'https' ? https : http;
 	const promise: Promise<string> = new Promise(async (resolve, reject) => {
-		require(protocol).get(fileUrl,function (response) {
+		httpModule.get(fileUrl,function (response) {
 			if (response.statusCode >= 200 && response.statusCode < 300) {
 				response.pipe(file);
 				file.on("finish", () => {

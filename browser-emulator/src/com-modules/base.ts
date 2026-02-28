@@ -1,5 +1,5 @@
-import { LoadTestPostRequest } from "../types/api-rest.type";
-import { SERVER_PORT} from '../config';
+import { LoadTestPostRequest } from "../types/api-rest.type.js";
+import { SERVER_PORT} from '../config.js';
 import { Request } from "express";
 
 abstract class BaseComModule {

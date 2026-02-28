@@ -1,9 +1,9 @@
 import * as express from 'express';
 import { Request, Response } from 'express';
-import { BrowserManagerService } from '../services/browser-manager.service';
-import { OpenViduRole, Resolution } from '../types/openvidu.type';
-import { LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
-import BaseComModule from '../com-modules/base';
+import { BrowserManagerService } from '../services/browser-manager.service.js';
+import { OpenViduRole, Resolution } from '../types/openvidu.type.js';
+import { LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type.js';
+import BaseComModule from '../com-modules/base.js';
 
 export const app = express.Router({
 	strict: true,
@@ -57,9 +57,9 @@ app.delete('/streamManager', async (req: Request, res: Response) => {
 
 app.delete('/streamManager/connection/:connectionId', async (req: Request, res: Response) => {
 	try {
-		const connectionId: string = req.params.connectionId;
+		const connectionId: string | string[] = req.params.connectionId;
 
-		if (!connectionId) {
+		if (!connectionId || Array.isArray(connectionId)) {
 			return res.status(400).send('Problem with connectionId parameter. IT DOES NOT EXIST');
 		}
 		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
@@ -74,11 +74,11 @@ app.delete('/streamManager/connection/:connectionId', async (req: Request, res: 
 
 app.delete('/streamManager/session/:sessionId/user/:userId', async (req: Request, res: Response) => {
 	try {
-		const sessionId: string = req.params.sessionId;
-		const userId: string = req.params.userId;
+		const sessionId: string | string[] = req.params.sessionId;
+		const userId: string | string[] = req.params.userId;
 
-		if (!sessionId || !userId) {
-			return res.status(400).send('Problem with userId or sessionId parameter. IT DOES NOT EXIST');
+		if (!sessionId || !userId || Array.isArray(sessionId) || Array.isArray(userId)) {
+			return res.status(400).send('Problem with userId or sessionId parameter ().');
 		}
 		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
 		console.log('Deleting streams with sessionId: ' + sessionId + ' and userId: ' + userId);

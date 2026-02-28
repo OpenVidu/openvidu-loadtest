@@ -121,4 +121,5 @@ QOE=true CPUS=$CPUS vagrant up
 vagrant package --output $box_path
 vagrant destroy -f
 
+# Upload to HashiCorp Cloud Platform
 upload_box $box_path $BOX_FILE

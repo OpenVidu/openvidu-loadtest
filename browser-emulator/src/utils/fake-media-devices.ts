@@ -1,6 +1,5 @@
-import { runScript } from "./run-script";
-import fs = require('fs');
-const fsPromises = fs.promises;
+import { runScript } from "./run-script.js";
+import fsPromises from 'fs/promises';
 
 let started = false;
 

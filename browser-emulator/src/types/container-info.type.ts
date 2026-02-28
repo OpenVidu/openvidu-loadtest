@@ -1,4 +1,4 @@
-import { OpenViduRole } from './openvidu.type';
+import { OpenViduRole } from './openvidu.type.js';
 
 
 export enum ContainerName {

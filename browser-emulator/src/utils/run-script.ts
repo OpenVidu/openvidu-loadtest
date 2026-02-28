@@ -1,5 +1,5 @@
 import { ChildProcess, spawn, exec } from 'child_process';
-import fs = require('fs');
+import fs from 'fs';
 
 const detachedPids: number[] = [];
 

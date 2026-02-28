@@ -1,10 +1,10 @@
-import { JSONQoEInfo, JSONQoeProcessing, JSONUserInfo } from "../types/api-rest.type";
-import fs = require('fs');
-import fsPromises = fs.promises;
-const pLimit = require('p-limit');
-import path = require('path');
-import { ElasticSearchService } from "../services/elasticsearch.service";
-import { runScript } from "./run-script";
+import { JSONQoEInfo, JSONQoeProcessing, JSONUserInfo } from "../types/api-rest.type.js";
+import fs from 'fs';
+import fsPromises from 'fs/promises';
+import pLimit from 'p-limit';
+import * as path from 'path';
+import { ElasticSearchService } from "../services/elasticsearch.service.js";
+import { runScript } from "./run-script.js";
 
 const limit = pLimit(1) // Scripts are already multithreaded
 const elasticSearchService = ElasticSearchService.getInstance();

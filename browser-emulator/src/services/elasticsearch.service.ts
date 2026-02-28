@@ -1,9 +1,9 @@
 import { Client, ClientOptions } from '@elastic/elasticsearch';
-import { Index } from '@elastic/elasticsearch/api/requestParams';
-import { APPLICATION_MODE } from '../config';
-import { JSONQoEInfo, JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type';
-import { ApplicationMode } from '../types/config.type';
-import fs = require('fs');
+import { APPLICATION_MODE } from '../config.js';
+import { JSONQoEInfo, JSONStatsResponse, JSONStreamsInfo } from '../types/api-rest.type.js';
+import { ApplicationMode } from '../types/config.type.js';
+import fs from 'fs';
+import { Index } from '@elastic/elasticsearch/api/requestParams.js';
 
 export class ElasticSearchService {
 	indexName: string = '';

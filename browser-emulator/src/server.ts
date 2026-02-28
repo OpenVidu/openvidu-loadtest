@@ -1,24 +1,24 @@
-import fs = require('fs');
-import https = require('https');
-import * as express from 'express';
-import { APPLICATION_MODE, COM_MODULE, SERVER_PORT, WEBSOCKET_PORT } from './config';
+import fs from 'fs';
+import https from 'https';
+import express from 'express';
+import { APPLICATION_MODE, COM_MODULE, SERVER_PORT, WEBSOCKET_PORT } from './config.js';
 
-import { app as ovBrowserController } from './controllers/openvidu-browser.controller';
-import { app as eventsController } from './controllers/events.controller';
-import { app as instanceController } from './controllers/instance.controller';
-import { app as qoeController } from './controllers/qoe.controller';
+import { app as ovBrowserController } from './controllers/openvidu-browser.controller.js';
+import { app as eventsController } from './controllers/events.controller.js';
+import { app as instanceController } from './controllers/instance.controller.js';
+import { app as qoeController } from './controllers/qoe.controller.js';
 
-import { InstanceService } from './services/instance.service';
-import { ApplicationMode } from './types/config.type';
-import { WsService } from './services/ws.service';
-import WebSocket = require('ws');
-import nodeCleanup = require('node-cleanup');
+import { InstanceService } from './services/instance.service.js';
+import { ApplicationMode } from './types/config.type.js';
+import { WsService } from './services/ws.service.js';
+import { WebSocketServer, WebSocket } from 'ws';
+import nodeCleanup from 'node-cleanup';
 
-import { BrowserManagerService } from './services/browser-manager.service';
-import { killAllDetached } from './utils/run-script';
-import { cleanupFakeMediaDevices } from './utils/fake-media-devices';
-import { FilesService } from './services/files/files.service';
-import BaseComModule from './com-modules/base';
+import { BrowserManagerService } from './services/browser-manager.service.js';
+import { killAllDetached } from './utils/run-script.js';
+import { cleanupFakeMediaDevices } from './utils/fake-media-devices.js';
+import { FilesService } from './services/files/files.service.js';
+import BaseComModule from './com-modules/base.js';
 
 async function cleanup() {
     const browserManager = BrowserManagerService.getInstance();
@@ -31,19 +31,19 @@ async function cleanup() {
     await cleanupFakeMediaDevices();
 }
 
-export function createServer() {
+export async function createServer() {
     const app = express();
 
     let publicDir: string;
     let comModuleInstance: BaseComModule;
     if (!!COM_MODULE) {
         let moduleName = COM_MODULE.trim();
-        const ComModule = require(`./com-modules/${moduleName}`);
+        const ComModule = await import(`./com-modules/${moduleName}.js`);
         comModuleInstance = ComModule.default.getInstance();
         publicDir = ComModule.PUBLIC_DIR;
     } else {
         console.log('COM_MODULE environment variable is not set. Using default com-module (OpenVidu 2)');
-        const OpenviduComModule = require('./com-modules/openvidu');
+        const OpenviduComModule = await import('./com-modules/openvidu.js');
         comModuleInstance = OpenviduComModule.default.getInstance();
         publicDir = OpenviduComModule.PUBLIC_DIR;
     }
@@ -72,8 +72,8 @@ export function createServer() {
 }
 
 export async function startServer() {
-    const ws = new WebSocket.Server({ port: WEBSOCKET_PORT, path: '/events' });
-    const { app, server } = createServer();
+    const ws = new WebSocketServer({ port: WEBSOCKET_PORT, path: '/events' });
+    const { app, server } = await createServer();
 
     server.listen(SERVER_PORT, async () => {
         const instanceService = InstanceService.getInstance();
@@ -93,7 +93,7 @@ export async function startServer() {
             }
 
             const pythonpath = process.env['PYTHONPATH']
-            if (!pythonpath) {
+            if (pythonpath) {
                 process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD']
             } else {
                 process.env['PYTHONPATH'] = process.env['PWD']
@@ -125,6 +125,7 @@ export async function startServer() {
     return { app, server, ws };
 }
 
-if (require.main === module) {
+// In ES modules, check if this file is the entry point
+if (import.meta.url === `file://${process.argv[1]}`) {
     startServer();
 }

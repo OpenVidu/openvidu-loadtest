@@ -1,4 +1,4 @@
-import { LoadTestPostRequest } from "../api-rest.type";
+import { LoadTestPostRequest } from "../api-rest.type.js";
 
 export interface LKLoadTestPostRequest extends LoadTestPostRequest {
     livekitApiKey?: string,

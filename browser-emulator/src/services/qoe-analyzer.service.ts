@@ -1,7 +1,7 @@
-import { BrowserManagerService } from './browser-manager.service';
-import { ElasticSearchService } from './elasticsearch.service';
-import { JSONQoeProcessing } from '../types/api-rest.type';
-import { runQoEAnalysisNonBlocking } from '../utils/qoe-analysis-utils'
+import { BrowserManagerService } from './browser-manager.service.js';
+import { ElasticSearchService } from './elasticsearch.service.js';
+import { JSONQoeProcessing } from '../types/api-rest.type.js';
+import { runQoEAnalysisNonBlocking } from '../utils/qoe-analysis-utils.js'
 
 export class QoeAnalyzerService {
 

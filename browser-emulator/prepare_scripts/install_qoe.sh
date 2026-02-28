@@ -30,7 +30,7 @@ apt-get install -yq --no-install-recommends build-essential bc make cmake libope
     meson doxygen libx264-dev libx265-dev libnuma-dev
 pkg-config --cflags --libs opencv4
 # Needed for VISQOL, put here so it doesn't conflict with other python installation parallel to it
-pip3 install numpy
+pip3 install --break-system-packages numpy
 
 install_vmaf() {
     ## Install VMAF
@@ -125,7 +125,7 @@ install_tesseract() {
 
 install_python_dependencies() {
     ## Install python dependencies
-    pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
+    pip3 install --break-system-packages -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
 }
 
 install_vqmt &
@@ -135,3 +135,18 @@ install_vmaf &
 install_tesseract &
 install_python_dependencies &
 wait
+
+# Add user ubuntu to docker, video and syslog groups
+if id "ubuntu" &>/dev/null; then
+    usermod -aG docker ubuntu
+    usermod -aG syslog ubuntu
+    usermod -aG video ubuntu
+    chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
+elif id "vagrant" &>/dev/null; then
+    usermod -aG docker vagrant
+    usermod -aG syslog vagrant
+    usermod -aG video vagrant
+    chown -R vagrant:vagrant /opt/openvidu-loadtest/
+else
+    echo "No ubuntu or vagrant user found, skipping usermod"
+fi

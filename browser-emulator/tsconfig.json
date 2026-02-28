@@ -1,7 +1,7 @@
 {
   // TSConfig Base (https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#tsconfig-bases)
   // Use recommended base settings for the Node.js runtime.
-  "extends": "@tsconfig/node18/tsconfig.json",
+  "extends": "@tsconfig/node24/tsconfig.json",
 
   // Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
   "compilerOptions": {
@@ -29,9 +29,18 @@
     // DEBUG - Uncomment when needed.
     // "explainFiles": true,
 
-    // FIXME - Code needs to be fixed, then these should be removed.
     "strict": false,
-    "esModuleInterop": false,
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+
+    // Module System (https://www.typescriptlang.org/tsconfig#module)
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowSyntheticDefaultImports": true,
+
+    // Target and Library (https://www.typescriptlang.org/tsconfig#target)
+    "target": "ES2024",
+    "lib": ["ES2024"],
   },
 
   // Included Files (https://www.typescriptlang.org/tsconfig#include)

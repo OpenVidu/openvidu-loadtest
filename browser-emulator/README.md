@@ -1,14 +1,9 @@
 ## **Browser Emulator documentation**
 
- Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media using openvidu-browser library.
-The browser-emulator service provides several connection modes:
+Worker service implemented in NodeJS and controlled with a REST protocol that capable of connecting to an OpenVidu session and sending and receiving WebRTC media.
 
-+ **Traditional mode**: It is able to start and launch **containerized Chrome browsers** using Docker and Selenium emulating a fully real user.
-+ **Emulated mode**: It is capable to emulate a user connection without use a browser:
+It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
 
-  + Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a canvas publishing a moving image.
-  + ~~Overriding a WebRTC API using [node-webrtc library](https://github.com/node-webrtc/node-webrtc) and getting the media from a **video file** using ffmpeg.~~
-  + Overriding the peerConnection objects using [Kurento](https://www.kurento.org/) and getting the media from a video file.
 
 This app provides a simple **REST API** that will be used by **Load Test application** and it allows:
 
@@ -19,7 +14,60 @@ This app provides a simple **REST API** that will be used by **Load Test applica
 * [Delete all participant](#delete-participants-by-role-publisher-or-subscriber) with a specific role (`PUBLISHER` or `SUBSCRIBER`).
 * [Delete all participant](#delete-participants).
 
-This services also is listening for a **WebSocket communication** on `ws:browser-emulator-addres:5001/events`. It will send information from openvidu-browser to the loadtest-controller.
+This services also is listening for a **WebSocket communication** on `ws:browser-emulator-addres:5001/events`. It will send information from the clients to the loadtest-controller.
+
+# Browser Emulator development
+
+Now you can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator. Ensure you have Vagrant and VirtualBox installed on your system.
+
+You can either choose an already made box or make a personalized one yourself.
+
+- **Already made box**
+
+You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters.
+
+- **Customizable Parameters in Vagrantfile**
+
+    - **BOX**: Box to use as base. You can choose one of our already made boxes or choose the path to a box made by youself. Defaults to a box with the latest OpenVidu 2 CE and Firefox installed.
+	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
+	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
+	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
+	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
+
+- **Available boxes**
+
+Here are our already made boxes that you can use:
+
+	- ivchicano/browseremulator-ov-ff: Default box. Comes ready to use against OpenVidu 2, using Firefox as the browser.
+	- ivchicano/browseremulator-lk-ff: Comes ready to use against LiveKit, using Firefox as the browser.
+	- ivchicano/browseremulator-ov-ff-dev: Comes with the latest OpenVidu 2 CE and Firefox installed. Starts an OpenVidu 2 CE server in the same machine.
+	- ivchicano/browseremulator-lk-ff-dev: Comes with the latest LiveKit and Firefox installed. Starts a LiveKit server in the same machine.
+
+- **Start vagrant**
+
+To customize these parameters, you can set environment variables before running `vagrant up`. For example:
+
+```bash
+export BOX=ivchicano/browseremulator-lk-ff
+vagrant up
+```
+
+- **Personalized box**
+
+You can also construct your personalized box with the parameters you choose. You can start it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then use this box as is or package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
+
+- **Customizable Parameters in Vagrantfile**
+
+	- **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 8192. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
+	- **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
+	- **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
+	- **FIREFOX**: Set to 'true' to use Firefox instead of Chrome for testing. Default is 'false'.
+	- **START_MEDIASERVER**: Set to 'true' to start the media server (either the latest Openvidu 2 CE or LiveKit) during provisioning. Default is 'true'.
+	OpenVidu note: with this deployment, the OpenVidu URL is ^*https://localhost* and the OpenVidu secret is *vagrant*.
+	LiveKit note: (Experimental) with this deployment, LiveKit is deployed in dev mode, so the API Key is *devkey* and the API Secret is *secret*.
+	- **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'false'.
+	- **LIVEKIT**: (Experimental) Set to 'true' to use LiveKit instead of OpenVidu. Default: 'false'.
+	- **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i * 10) for the BrowserEmulator server, 5001 + (i * 10) for the WebSocket connection and 5900 + (i * 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
 
 ## Running QoE Analysis
 

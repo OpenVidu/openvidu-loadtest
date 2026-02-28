@@ -3,14 +3,10 @@
 # Shell setup, assumes running on Ubuntu 20.04 able to build and install v4l2loopback module
 # ====================================================
 
-# Bash options for strict error checking.
-set -o errexit -o errtrace -o pipefail -o nounset
-shopt -s inherit_errexit 2>/dev/null || true
-
 # Trace all commands.
 set -o xtrace
 
-DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND=noninteractive
 if [ -f "/etc/needrestart/needrestart.conf" ]; then
     sed -i "/#\$nrconf{restart} = 'i';/s/.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
 else
@@ -23,14 +19,21 @@ SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)" # Ab
 apt-get update
 apt-get upgrade -yq
 apt-get install -yq --no-install-recommends \
-    curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip build-essential
-mkdir -p /etc/apt/keyrings
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-NODE_MAJOR=18
-echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-source /etc/lsb-release # Get Ubuntu version definitions (DISTRIB_CODENAME).
-add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $DISTRIB_CODENAME stable"
+    curl git apt-transport-https ca-certificates software-properties-common gnupg python3-pip build-essential libgtk-3-0 libdbus-glib-1-2 xorg libnm0
+# Add Docker's official GPG key:
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+# Add the repository to Apt sources:
+tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+NODE_MAJOR=24
+curl -fsSL https://deb.nodesource.com/setup_$NODE_MAJOR.x | sudo -E bash -
 apt-get update
 apt-get install -yq --no-install-recommends \
     ffmpeg docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin xvfb linux-generic linux-modules-extra-$(uname -r) pulseaudio nodejs dkms
@@ -38,13 +41,33 @@ apt-get install -yq --no-install-recommends \
 export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 echo export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} | tee -a /etc/profile
 
-# Add user ubuntu to docker and syslog groups
-sudo usermod -a -G docker ubuntu
-sudo usermod -a -G syslog ubuntu
+snap remove firefox
+
+# Create recording directories
+mkdir -p ./recordings/chrome
+mkdir -p ./recordings/qoe
+
+# Add user ubuntu to docker, video and syslog groups
+if id "ubuntu" &>/dev/null; then
+    usermod -aG docker ubuntu
+    usermod -aG syslog ubuntu
+    usermod -aG video ubuntu
+    chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
+elif id "vagrant" &>/dev/null; then
+    usermod -aG docker vagrant
+    usermod -aG syslog vagrant
+    usermod -aG video vagrant
+    chown -R vagrant:vagrant /opt/openvidu-loadtest/
+else
+    echo "No ubuntu or vagrant user found, skipping usermod"
+fi
 
 install_v4l2loopback() {
     # Enable fake webcam for real browsers
     # Needs sudo so it works in crontab
+    # Don't update the version! only this version works for using the same video source for multiple sources, which is needed for
+    # having multiple browsers in one machine. Newer versions have "fixed this bug", now working the same as any OS, limiting to
+    # one browser using the webcam at the same time, which is not good for our use case.
     v4l2_version=0.12.7
     mkdir -p /usr/src
     curl -L https://github.com/umlaeute/v4l2loopback/archive/v${v4l2_version}.tar.gz | tar xvz -C /usr/src
@@ -62,14 +85,12 @@ install_v4l2loopback() {
     sudo modprobe v4l2loopback devices=1 exclusive_caps=1
     echo "v4l2loopback" | tee /etc/modules-load.d/v4l2loopback.conf
     echo "options v4l2loopback devices=1 exclusive_caps=1" | tee /etc/modprobe.d/v4l2loopback.conf
-    sudo update-initramfs -c -k $(uname -r)
-    apt-get install -yq --no-install-recommends v4l2loopback-utils
 }
 
 install_node_dependencies_and_build() {
     ## Install node dependencies
     corepack enable pnpm
-    corepack use pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4
+    corepack use pnpm@10
     pnpm install
     pnpm run build
     echo "node build completed"
@@ -83,9 +104,6 @@ pull_images() {
 }
 
 install_firefox() {
-    snap remove firefox
-    apt-get install -yq --no-install-recommends libgtk-3-0 libdbus-glib-1-2 xorg libnm0
-
     # Get the latest Firefox release version
     FFCHANNEL="latest"
     ARCH=$(uname -m)
@@ -108,12 +126,8 @@ install_firefox() {
     echo "firefox installed"
 }
 
-install_chrome() {
+download_chrome() {
     wget -c https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    apt-get install -f -yq ./google-chrome-stable_current_amd64.deb
-    apt-get install -f -yq
-    rm -f google-chrome-stable_current_amd64.deb
-    echo "chrome installed"
 }
 
 install_v4l2loopback &
@@ -123,8 +137,10 @@ install_firefox &
 install_chrome &
 wait
 
-# Create recording directories
-mkdir -p ./recordings/chrome
-mkdir -p ./recordings/qoe
 
-chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
+apt-get install -f -yq ./google-chrome-stable_current_amd64.deb
+apt-get install -f -yq
+apt-get install -yq --no-install-recommends v4l2loopback-utils
+rm -f google-chrome-stable_current_amd64.deb
+echo "chrome installed"
+

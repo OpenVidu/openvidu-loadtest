@@ -1,4 +1,4 @@
-import { ApplicationMode } from './types/config.type';
+import { ApplicationMode } from './types/config.type.js';
 
 export const SERVER_PORT = Number(process.env.SERVER_PORT) || 5000;
 export const WEBSOCKET_PORT = Number(process.env.WEBSOCKET_PORT) || 5001;

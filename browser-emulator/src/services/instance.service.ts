@@ -1,9 +1,9 @@
-import * as os from 'node-os-utils';
+import { OSUtils } from 'node-os-utils';
 import { ContainerCreateOptions } from 'dockerode';
-import { DockerService } from './docker.service';
-import { LocalStorageService } from './local-storage.service';
-import { WebrtcStatsService } from './config-storage.service';
-import { ContainerName } from '../types/container-info.type';
+import { DockerService } from './docker.service.js';
+import { LocalStorageService } from './local-storage.service.js';
+import { WebrtcStatsService } from './config-storage.service.js';
+import { ContainerName } from '../types/container-info.type.js';
 
 export class InstanceService {
 	private static instance: InstanceService;
@@ -14,6 +14,8 @@ export class InstanceService {
 
 	readonly WORKER_UUID: string = new Date().getTime().toString();
 	private pullImagesRetries: number = 0;
+
+    private osutils = new OSUtils();
 
 	private constructor(private dockerService: DockerService = new DockerService()) {}
 
@@ -37,7 +39,11 @@ export class InstanceService {
 	}
 
 	async getCpuUsage(): Promise<number> {
-		return await os.cpu.usage();
+		const usage = await this.osutils.cpu.usage();
+        if (usage.success) {
+            return usage.data;
+        }
+        return 0;
 	}
 
 	async launchMetricBeat() {

@@ -1,4 +1,4 @@
-import WebSocket = require('ws');
+import WebSocket from 'ws';
 
 export class WsService {
 	protected static instance: WsService;

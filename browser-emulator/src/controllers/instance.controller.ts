@@ -1,18 +1,17 @@
-import fs = require('fs');
+import fs from 'fs';
 import * as express from 'express';
 import { Request, Response } from 'express';
-import { BrowserVideoRequest, CustomBrowserVideoRequest, InitializePostRequest } from '../types/api-rest.type';
-import { InstanceService } from '../services/instance.service';
-import { ElasticSearchService } from '../services/elasticsearch.service';
-import { APPLICATION_MODE } from '../config';
-import { ApplicationMode } from '../types/config.type';
-import { ContainerName } from '../types/container-info.type';
-import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
-import { FilesService } from '../services/files/files.service';
-import { S3FilesService } from '../services/files/impl/s3.service';
-import { MinioFilesService } from '../services/files/impl/minio.service';
-import { downloadFile } from '../utils/download-files';
-import { SeleniumService } from '../services/selenium.service';
+import { BrowserVideoRequest, CustomBrowserVideoRequest, InitializePostRequest } from '../types/api-rest.type.js';
+import { InstanceService } from '../services/instance.service.js';
+import { ElasticSearchService } from '../services/elasticsearch.service.js';
+import { APPLICATION_MODE } from '../config.js';
+import { ApplicationMode } from '../types/config.type.js';
+import { ContainerName } from '../types/container-info.type.js';
+import { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
+import { FilesService } from '../services/files/files.service.js';
+import { S3FilesService } from '../services/files/impl/s3.service.js';
+import { downloadFile } from '../utils/download-files.js';
+import { SeleniumService } from '../services/selenium.service.js';
 
 export const app = express.Router({
 	strict: true,
@@ -68,15 +67,26 @@ app.post('/initialize', async (req: Request, res: Response) => {
 
 		}
 		const fileServicePromise = new Promise((resolve, reject) => {
+            let accessKey: string;
+            let secretAccessKey: string;
+            let bucketName: string;
+            let host: string | undefined;
 			if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
-				process.env.MINIO_HOST = request.minioHost;
-				process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
-				process.env.MINIO_BUCKET = request.minioBucket;
-				filesService = MinioFilesService.getInstance(request.minioAccessKey, request.minioSecretKey);
+                host = `${request.minioHost}:${!!request.minioPort ? request.minioPort.toString() : '443'}`;
+				bucketName = request.minioBucket;
+                accessKey = request.minioAccessKey;
+                secretAccessKey = request.minioSecretKey;
 			} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
-				process.env.S3_BUCKET = request.s3BucketName;
-				filesService = S3FilesService.getInstance(request.awsAccessKey, request.awsSecretAccessKey);
+                accessKey = request.awsAccessKey;
+                secretAccessKey = request.awsSecretAccessKey;
+				bucketName = request.s3BucketName;
 			}
+            if (!!request.s3Host) {
+                host = request.s3Host;
+            }
+            if (!!bucketName && !!accessKey && !!secretAccessKey) {
+			    filesService = S3FilesService.getInstance(accessKey, secretAccessKey, bucketName, host);
+            }
 			resolve('');
 		}).then(() => {
 			if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {

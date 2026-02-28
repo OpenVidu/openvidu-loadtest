@@ -1,14 +1,14 @@
-import { JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
-import { InstanceService } from './instance.service';
-import { RealBrowserService } from './real-browser.service';
-import { ElasticSearchService } from './elasticsearch.service';
-import { LocalStorageService } from './local-storage.service';
-import { ErrorLogService, OpenViduEventsService, QoERecordingsService, WebrtcStatsService } from './config-storage.service';
-import { OpenViduRole } from '../types/openvidu.type';
-import { APPLICATION_MODE } from '../config';
-import { ApplicationMode } from '../types/config.type';
-import { FilesService } from './files/files.service';
-import { CON_FILE, ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFile, saveStatsToFile } from '../utils/stats-files';
+import { JSONStreamsInfo, LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type.js';
+import { InstanceService } from './instance.service.js';
+import { RealBrowserService } from './real-browser.service.js';
+import { ElasticSearchService } from './elasticsearch.service.js';
+import { LocalStorageService } from './local-storage.service.js';
+import { ErrorLogService, OpenViduEventsService, QoERecordingsService, WebrtcStatsService } from './config-storage.service.js';
+import { OpenViduRole } from '../types/openvidu.type.js';
+import { APPLICATION_MODE } from '../config.js';
+import { ApplicationMode } from '../types/config.type.js';
+import { FilesService } from './files/files.service.js';
+import { CON_FILE, ERRORS_FILE, EVENTS_FILE, STATS_FILE, createFile, saveStatsToFile } from '../utils/stats-files.js';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
@@ -93,7 +93,7 @@ export class BrowserManagerService {
 			if (!!this.filesService) {
 				await this.filesService.uploadFiles();
 			} else {
-				console.warn("FilesService is not defined (There is no S3 or Minio bucket specified). Can't upload recordings");
+				console.warn("FilesService is not defined (There is no S3 bucket specified). Can't upload recordings");
 			}
 		}
 	}

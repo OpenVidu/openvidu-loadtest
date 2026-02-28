@@ -1,4 +1,4 @@
-import { OpenViduRole, Resolution } from './openvidu.type';
+import { OpenViduRole, Resolution } from './openvidu.type.js';
 
 export interface LoadTestPostRequest {
 
@@ -19,6 +19,7 @@ export interface InitializePostRequest {
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;
 	s3BucketName?: string;
+    s3Host?: string;
     minioHost?: string;
     minioAccessKey?: string;
     minioSecretKey?: string;

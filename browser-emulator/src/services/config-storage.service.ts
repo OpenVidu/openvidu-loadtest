@@ -1,4 +1,4 @@
-import { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type';
+import { EventErrorConfig, OpenViduEventsConfig, QoeRecordingsConfig, WebrtcStatsConfig } from '../types/storage-config.type.js';
 
 export class WebrtcStatsService {
 	private readonly ITEM_NAME: string = 'webrtc-stats-info';

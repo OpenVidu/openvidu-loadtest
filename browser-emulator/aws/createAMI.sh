@@ -101,7 +101,7 @@ echo "version set to $CF_URL"
 
 # Please, refer to https://cloud-images.ubuntu.com/locator/ec2/
 # to find a valid EC2 AMI
-IMAGE_ID=ami-09e67e426f25ce0d7
+IMAGE_ID=ami-0b6c6ebed2801a5cb
 
 DATESTAMP=$(date +%s)
 TEMPJSON=$(mktemp -t cloudformation-XXX --suffix .json)

@@ -1,11 +1,10 @@
-import { isRunning, runScript } from "../utils/run-script";
+import { isRunning, runScript } from "../utils/run-script.js";
 import { Browser, Builder, Capabilities, WebDriver } from "selenium-webdriver";
-import { startFakeMediaDevices } from "../utils/fake-media-devices";
-import chrome = require('selenium-webdriver/chrome');
-import firefox = require('selenium-webdriver/firefox');
-import fs = require('fs');
+import chrome from "selenium-webdriver/chrome.js";
+import firefox from "selenium-webdriver/firefox.js";
+import { startFakeMediaDevices } from "../utils/fake-media-devices.js";
 
-let driver;
+let driver: typeof chrome | typeof firefox;
 if (process.env.REAL_DRIVER === "firefox") {
     driver = firefox;
 } else {

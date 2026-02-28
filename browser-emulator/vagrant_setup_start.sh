@@ -8,6 +8,13 @@ LIVEKIT=$2
 START_SERVER=$3
 START_PLATFORM=$4
 
+usermod -aG docker vagrant
+usermod -aG syslog vagrant
+usermod -aG video vagrant
+chown -R vagrant:vagrant /opt/openvidu-loadtest/
+
+cd /opt/openvidu-loadtest/browser-emulator
+pnpm install
 pnpm run build
 
 if [ "$START_PLATFORM" = "true" ]; then
@@ -16,26 +23,28 @@ if [ "$START_PLATFORM" = "true" ]; then
             crontab -u vagrant -l
             echo '@reboot livekit-server --dev > /var/log/livekit.log 2>&1'
         ) | crontab -u vagrant -
+        livekit-server --dev >/var/log/livekit.log 2>&1 &
+    else
+        (
+            crontab -u vagrant -l
+            echo '@reboot cd /opt/openvidu && ./openvidu start > /var/log/openvidu.log 2>&1'
+        ) | crontab -u vagrant -
+        cd /opt/openvidu
+        ./openvidu start >/var/log/openvidu.log 2>&1 &
+        cd /opt/openvidu-loadtest/browser-emulator
     fi
-    livekit-server --dev >/var/log/livekit.log 2>&1 &
-else
-    (
-        crontab -u vagrant -l
-        echo '@reboot cd /opt/openvidu && ./openvidu start > /var/log/openvidu.log 2>&1'
-    ) | crontab -u vagrant -
-    cd /opt/openvidu
-    ./openvidu start >/var/log/openvidu.log 2>&1 &
-    cd /opt/openvidu-loadtest/browser-emulator
 fi
 
 if [ "$START_SERVER" = "true" ]; then
     NPM_COMMAND="npm run start:prod"
     if [ "$LIVEKIT" = "true" ]; then
-        NPM_COMMAND=${NPM_COMMAND}-livekit
+        NPM_COMMAND="${NPM_COMMAND}-livekit"
     fi
     if [ "$FIREFOX" = "true" ]; then
-        NPM_COMMAND=${NPM_COMMAND}-firefox
+        NPM_COMMAND="${NPM_COMMAND}-firefox"
     fi
-    echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && pnpm run build > /var/log/build.log 2>&1 && $NPM_COMMAND > /var/log/crontab.log 2>&1" 2>&1 | crontab -u vagrant -
-    $NPM_COMMAND >/var/log/crontab.log 2>&1 &
+
+    echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install > /var/log/pnpm_install.log 2>&1 && pnpm run build > /var/log/build.log 2>&1 && $NPM_COMMAND > /var/log/crontab.log 2>&1" | crontab -u vagrant -
+
+    sudo -u vagrant bash -lc "cd /opt/openvidu-loadtest/browser-emulator && $NPM_COMMAND > /var/log/crontab.log 2>&1" &
 fi

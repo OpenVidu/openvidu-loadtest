@@ -1,6 +1,6 @@
-import { LoadTestPostRequest, TestProperties } from "../types/api-rest.type";
+import { LoadTestPostRequest, TestProperties } from "../types/api-rest.type.js";
 import { Request } from "express";
-import BaseComModule from "./base";
+import BaseComModule from "./base.js";
 
 export const PUBLIC_DIR = "public";
 class OpenviduComModule extends BaseComModule {
