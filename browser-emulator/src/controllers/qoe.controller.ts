@@ -2,7 +2,7 @@ import * as express from 'express';
 import multer from 'multer';
 import type { Request, Response } from 'express';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
-import fs from 'fs';
+import fs from 'node:fs';
 
 const RECORDINGS_PATH = `${process.cwd()}/recordings/qoe`;
 const storage = multer.memoryStorage();

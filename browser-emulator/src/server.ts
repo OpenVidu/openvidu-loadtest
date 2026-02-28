@@ -1,5 +1,5 @@
-import fs from 'fs';
-import https from 'https';
+import fs from 'node:fs';
+import https from 'node:https';
 import express from 'express';
 import {
 	APPLICATION_MODE,
@@ -38,7 +38,7 @@ export async function createServer() {
 	const app = express();
 
 	let publicDir: string;
-	if (!!COM_MODULE) {
+	if (COM_MODULE) {
 		let moduleName = COM_MODULE.trim();
 		const ComModule = await import(`./com-modules/${moduleName}.js`);
 		ComModule.default.getInstance();
@@ -144,5 +144,5 @@ export async function startServer() {
 
 // In ES modules, check if this file is the entry point
 if (import.meta.url === `file://${process.argv[1]}`) {
-	startServer();
+	await startServer();
 }

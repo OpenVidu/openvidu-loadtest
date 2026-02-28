@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import * as express from 'express';
 import type { Request, Response } from 'express';
 import type {
@@ -57,8 +57,6 @@ app.post('/initialize', async (req: Request, res: Response) => {
 						request.elasticSearchPassword,
 						request.elasticSearchIndex,
 					),
-				);
-				promises.push(
 					launchMetricBeat(
 						request.elasticSearchHost,
 						request.elasticSearchUserName,
@@ -78,7 +76,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				!!request.minioAccessKey &&
 				!!request.minioSecretKey
 			) {
-				host = `${request.minioHost}:${!!request.minioPort ? request.minioPort.toString() : '443'}`;
+				host = `${request.minioHost}:${request.minioPort ? request.minioPort.toString() : '443'}`;
 				bucketName = request.minioBucket;
 				accessKey = request.minioAccessKey;
 				secretAccessKey = request.minioSecretKey;
@@ -87,11 +85,11 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				secretAccessKey = request.awsSecretAccessKey;
 				bucketName = request.s3BucketName;
 			}
-			if (!!request.s3Host) {
+			if (request.s3Host) {
 				host = request.s3Host;
 			}
 			if (!!bucketName && !!accessKey && !!secretAccessKey) {
-				if (!!host) {
+				if (host) {
 					S3FilesService.getInstance(
 						accessKey,
 						secretAccessKey,
@@ -175,9 +173,9 @@ async function downloadBrowserMediaFiles(
 	videoType: BrowserVideoRequest,
 ): Promise<string[]> {
 	const videoInfo =
-		videoType.videoType !== 'custom'
-			? videoType.videoInfo
-			: videoType.customVideo.video;
+		videoType.videoType === 'custom'
+			? videoType.customVideo.video
+			: videoType.videoInfo;
 	const videoFile = `fakevideo_${videoInfo.fps}fps_${videoInfo.width}x${videoInfo.height}.y4m`;
 	const videoUrl =
 		videoType.videoType === 'custom'

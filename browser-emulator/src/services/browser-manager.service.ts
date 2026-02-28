@@ -28,12 +28,15 @@ import {
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
 	private _lastRequestInfo: LoadTestPostRequest | undefined;
-	private realBrowserService: RealBrowserService = new RealBrowserService();
-	private instanceService: InstanceService = InstanceService.getInstance();
-	private filesService: FilesService | undefined = FilesService.getInstance();
-	private elasticSearchService: ElasticSearchService =
+	private readonly realBrowserService: RealBrowserService =
+		new RealBrowserService();
+	private readonly instanceService: InstanceService =
+		InstanceService.getInstance();
+	private readonly filesService: FilesService | undefined =
+		FilesService.getInstance();
+	private readonly elasticSearchService: ElasticSearchService =
 		ElasticSearchService.getInstance();
-	private webrtcStorageService = new WebrtcStatsService();
+	private readonly webrtcStorageService = new WebrtcStatsService();
 
 	private constructor() {}
 
@@ -93,6 +96,7 @@ export class BrowserManagerService {
 				request.properties,
 			);
 		} catch (error) {
+			console.error('Error launching browser', error);
 			throw error;
 		}
 
@@ -138,7 +142,7 @@ export class BrowserManagerService {
 		await this.realBrowserService.clean();
 		console.log('Browsers cleaned');
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
-			if (!!this.filesService) {
+			if (this.filesService) {
 				await this.filesService.uploadFiles();
 			} else {
 				console.warn(

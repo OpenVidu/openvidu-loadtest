@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import {
 	By,
 	Capabilities,
@@ -24,21 +24,21 @@ import { runScript, stopDetached } from '../utils/run-script.js';
 import { ApplicationMode } from '../types/config.type.js';
 import BaseComModule from '../com-modules/base.js';
 import { Mutex } from 'async-mutex';
-import type { ChildProcess } from 'child_process';
+import type { ChildProcess } from 'node:child_process';
 
 declare var localStorage: Storage;
 export class RealBrowserService {
-	private connections: Map<
+	private readonly connections: Map<
 		string,
 		{ publishers: string[]; subscribers: string[] }
 	> = new Map();
 
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
-	private chromeOptions = new chrome.Options();
-	private chromeCapabilities = Capabilities.chrome();
-	private firefoxOptions = new firefox.Options();
-	private firefoxCapabilities = Capabilities.firefox();
-	private driverMap: Map<
+	private readonly chromeOptions = new chrome.Options();
+	private readonly chromeCapabilities = Capabilities.chrome();
+	private readonly firefoxOptions = new firefox.Options();
+	private readonly firefoxCapabilities = Capabilities.firefox();
+	private readonly driverMap: Map<
 		string,
 		{
 			driver: WebDriver;
@@ -49,10 +49,10 @@ export class RealBrowserService {
 	> = new Map();
 	private readonly VIDEO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakevideo`;
 	private readonly AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
-	private keepAliveIntervals = new Map();
+	private readonly keepAliveIntervals = new Map();
 	private totalPublishers: number = 0;
 	private recordingScript: ChildProcess | undefined;
-	private muteButtonMutex = new Mutex();
+	private readonly muteButtonMutex = new Mutex();
 
 	constructor() {
 		const prefs = new logging.Preferences();
@@ -98,11 +98,11 @@ export class RealBrowserService {
 		console.log('Removing and stopping driver ', driverId);
 		const value = this.driverMap.get(driverId);
 		const keepAliveInterval = this.keepAliveIntervals.get(driverId);
-		if (!!keepAliveInterval) {
+		if (keepAliveInterval) {
 			clearInterval(keepAliveInterval);
 			this.keepAliveIntervals.delete(driverId);
 		}
-		if (!!value) {
+		if (value) {
 			await this.saveQoERecordings(driverId);
 			await value.driver.quit();
 			this.driverMap.delete(driverId);
@@ -142,7 +142,7 @@ export class RealBrowserService {
 		}
 		driversToDelete.forEach(item => {
 			const keepAliveInterval = this.keepAliveIntervals.get(item.key);
-			if (!!keepAliveInterval) {
+			if (keepAliveInterval) {
 				clearInterval(keepAliveInterval);
 				this.keepAliveIntervals.delete(item.key);
 			}
@@ -200,7 +200,7 @@ export class RealBrowserService {
 		console.log('Clearing keep alive intervals');
 		driversToDelete.forEach(item => {
 			const keepAliveInterval = this.keepAliveIntervals.get(item.key);
-			if (!!keepAliveInterval) {
+			if (keepAliveInterval) {
 				clearInterval(keepAliveInterval);
 				this.keepAliveIntervals.delete(item.key);
 			}
@@ -256,7 +256,7 @@ export class RealBrowserService {
 	}
 
 	stopRecording() {
-		if (!!this.recordingScript) {
+		if (this.recordingScript) {
 			console.log('Stopping general recording');
 			stopDetached(this.recordingScript);
 		}
@@ -277,145 +277,191 @@ export class RealBrowserService {
 			!process.env['IS_DOCKER_CONTAINER'] &&
 			APPLICATION_MODE === ApplicationMode.PROD
 		) {
-			return Promise.reject({
-				message:
-					'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
-			});
+			throw new Error(
+				'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
+			);
 		}
 		// TODO: This assumes that SeleniumService has already been initialized, we should make sure of that in the code structure instead of just assuming it here
 		const seleniumService = await SeleniumService.getInstance();
-		if (!!properties.headless) {
+		if (properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 			this.firefoxOptions.addArguments('--headless');
 		}
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
-				let driverId: string | undefined;
 				try {
-					const comModuleInstance = BaseComModule.getInstance();
-					const webappUrl =
-						comModuleInstance.generateWebappUrl(request);
-					console.log(webappUrl);
-					let driver: WebDriver;
-					if (process.env['REAL_DRIVER'] === 'firefox') {
-						driver = await seleniumService.getFirefoxDriver(
-							this.firefoxCapabilities,
-							this.firefoxOptions,
-						);
-					} else {
-						driver = await seleniumService.getChromeDriver(
-							this.chromeCapabilities,
-							this.chromeOptions,
-						);
-					}
-					driverId = (await driver.getSession()).getId();
-					this.driverMap.set(driverId, {
-						driver,
-						sessionName: properties.sessionName,
-						userName: properties.userId,
-						connectionRole: properties.role,
-					});
-					await driver.manage().setTimeouts({ script: 1800000 });
-					await driver.get(webappUrl);
-
-					if (!!storageNameObj && !!storageValueObj) {
-						// Add webrtc stats config to LocalStorage
-						await driver.executeScript(
-							() => {
-								localStorage.setItem(
-									arguments[0].webrtcStorageName,
-									arguments[1].webrtcStorageValue,
-								);
-								localStorage.setItem(
-									arguments[0].ovEventStorageName,
-									arguments[1].ovEventStorageValue,
-								);
-								localStorage.setItem(
-									arguments[0].qoeStorageName,
-									arguments[1].qoeStorageValue,
-								);
-								localStorage.setItem(
-									arguments[0].errorStorageName,
-									arguments[1].errorStorageValue,
-								);
-							},
-							storageNameObj,
-							storageValueObj,
-						);
-					}
-
-					// Unlike chrome, firefox is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
-					if (process.env['REAL_DRIVER'] === 'firefox') {
-						await driver.manage().window().maximize();
-					}
-
-					const isRecording =
-						!!properties.recording && !properties.headless;
-					if (isRecording && !this.recordingScript) {
-						const ffmpegCommand = [
-							'ffmpeg -hide_banner -loglevel warning -nostdin -y',
-							` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
-							` -f pulse -i 0 `,
-							`${process.cwd()}/recordings/chrome/session_${Date.now()}.mp4`,
-						].join('');
-						this.recordingScript = await runScript(ffmpegCommand, {
-							detached: true,
-						});
-					}
-					// Wait until connection has been created
-					await driver.wait(
-						until.elementsLocated(
-							By.id('local-connection-created'),
-						),
-						this.BROWSER_WAIT_TIMEOUT_MS,
+					const driverId = await this.initializeBrowser(
+						request,
+						seleniumService,
+						storageNameObj,
+						storageValueObj,
 					);
-					let currentPublishers = 0;
-					if (request.properties.role === OpenViduRole.PUBLISHER) {
-						// Wait until publisher has been published regardless of whether the videos are shown or not
-						await driver.wait(
-							until.elementsLocated(
-								By.id('local-stream-created'),
-							),
-							this.BROWSER_WAIT_TIMEOUT_MS,
-						);
-						currentPublishers++;
-					}
-					// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
-					// await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
-					await driver.sleep(1000);
-					await this.clickUnmuteButtons();
-					console.log('Browser works as expected');
-					const publisherVideos = await driver.findElements(
-						By.css('[id^="remote-video-str"]'),
-					);
-					this.totalPublishers =
-						currentPublishers + publisherVideos.length;
-					// Workaround, currently browsers timeout after 1h unless we send an HTTP request to Selenium
-					// set interval each minute to send a request to Selenium
-					const keepAliveInterval = setInterval(() => {
-						driver.executeScript(() => {
-							return true;
-						});
-					}, 60000);
-					this.keepAliveIntervals.set(driverId, keepAliveInterval);
 					resolve(driverId);
 				} catch (error) {
-					console.log(error);
-					if (!!driverId) {
-						const driver = this.driverMap.get(driverId);
-						if (driver) {
-							await this.printBrowserLogs(driverId);
-							await this.deleteStreamManagerWithConnectionId(
-								driverId,
-							);
-							reject(error);
-						} else {
-							console.log('Driver already quit.');
-						}
-					}
+					reject(error);
 				}
 			}, timeout);
 		});
+	}
+
+	private async initializeBrowser(
+		request: LoadTestPostRequest,
+		seleniumService: SeleniumService,
+		storageNameObj?: StorageNameObject,
+		storageValueObj?: StorageValueObject,
+	): Promise<string> {
+		let driverId: string | undefined;
+		try {
+			const comModuleInstance = BaseComModule.getInstance();
+			const webappUrl = comModuleInstance.generateWebappUrl(request);
+			console.log(webappUrl);
+			let driver: WebDriver;
+			if (process.env['REAL_DRIVER'] === 'firefox') {
+				driver = await seleniumService.getFirefoxDriver(
+					this.firefoxCapabilities,
+					this.firefoxOptions,
+				);
+			} else {
+				driver = await seleniumService.getChromeDriver(
+					this.chromeCapabilities,
+					this.chromeOptions,
+				);
+			}
+			driverId = (await driver.getSession()).getId();
+			this.driverMap.set(driverId, {
+				driver,
+				sessionName: request.properties.sessionName,
+				userName: request.properties.userId,
+				connectionRole: request.properties.role,
+			});
+			await driver.manage().setTimeouts({ script: 1800000 });
+			await driver.get(webappUrl);
+
+			if (!!storageNameObj && !!storageValueObj) {
+				await this.setLocalStorageConfig(
+					driver,
+					storageNameObj,
+					storageValueObj,
+				);
+			}
+
+			await this.setupBrowserWindow(driver, request.properties);
+			await this.waitForConnection(driver, request);
+			await this.setupKeepAlive(driver, driverId);
+			return driverId;
+		} catch (error) {
+			console.log(error);
+			if (driverId) {
+				await this.handleBrowserError(driverId);
+			}
+			throw error;
+		}
+	}
+
+	private async setLocalStorageConfig(
+		driver: WebDriver,
+		storageNameObj: StorageNameObject,
+		storageValueObj: StorageValueObject,
+	): Promise<void> {
+		// Add webrtc stats config to LocalStorage
+		await driver.executeScript(
+			() => {
+				localStorage.setItem(
+					arguments[0].webrtcStorageName,
+					arguments[1].webrtcStorageValue,
+				);
+				localStorage.setItem(
+					arguments[0].ovEventStorageName,
+					arguments[1].ovEventStorageValue,
+				);
+				localStorage.setItem(
+					arguments[0].qoeStorageName,
+					arguments[1].qoeStorageValue,
+				);
+				localStorage.setItem(
+					arguments[0].errorStorageName,
+					arguments[1].errorStorageValue,
+				);
+			},
+			storageNameObj,
+			storageValueObj,
+		);
+	}
+
+	private async setupBrowserWindow(
+		driver: WebDriver,
+		properties: TestProperties,
+	): Promise<void> {
+		// Unlike chrome, firefox is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
+		if (process.env['REAL_DRIVER'] === 'firefox') {
+			await driver.manage().window().maximize();
+		}
+
+		const isRecording = !!properties.recording && !properties.headless;
+		if (isRecording && !this.recordingScript) {
+			const ffmpegCommand = [
+				'ffmpeg -hide_banner -loglevel warning -nostdin -y',
+				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
+				` -f pulse -i 0 `,
+				`${process.cwd()}/recordings/chrome/session_${Date.now()}.mp4`,
+			].join('');
+			this.recordingScript = await runScript(ffmpegCommand, {
+				detached: true,
+			});
+		}
+	}
+
+	private async waitForConnection(
+		driver: WebDriver,
+		request: LoadTestPostRequest,
+	): Promise<void> {
+		// Wait until connection has been created
+		await driver.wait(
+			until.elementsLocated(By.id('local-connection-created')),
+			this.BROWSER_WAIT_TIMEOUT_MS,
+		);
+		let currentPublishers = 0;
+		if (request.properties.role === OpenViduRole.PUBLISHER) {
+			// Wait until publisher has been published regardless of whether the videos are shown or not
+			await driver.wait(
+				until.elementsLocated(By.id('local-stream-created')),
+				this.BROWSER_WAIT_TIMEOUT_MS,
+			);
+			currentPublishers++;
+		}
+		// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
+		// await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
+		await driver.sleep(1000);
+		await this.clickUnmuteButtons();
+		console.log('Browser works as expected');
+		const publisherVideos = await driver.findElements(
+			By.css('[id^="remote-video-str"]'),
+		);
+		this.totalPublishers = currentPublishers + publisherVideos.length;
+	}
+
+	private async setupKeepAlive(
+		driver: WebDriver,
+		driverId: string,
+	): Promise<void> {
+		// Workaround, currently browsers timeout after 1h unless we send an HTTP request to Selenium
+		// set interval each minute to send a request to Selenium
+		const keepAliveInterval = setInterval(() => {
+			driver.executeScript(() => {
+				return true;
+			});
+		}, 60000);
+		this.keepAliveIntervals.set(driverId, keepAliveInterval);
+	}
+
+	private async handleBrowserError(driverId: string): Promise<void> {
+		const driver = this.driverMap.get(driverId);
+		if (driver) {
+			await this.printBrowserLogs(driverId);
+			await this.deleteStreamManagerWithConnectionId(driverId);
+		} else {
+			console.log('Driver already quit.');
+		}
 	}
 
 	async clickUnmuteButtons() {
@@ -489,7 +535,7 @@ export class RealBrowserService {
 
 	storeConnection(connectionId: string, properties: TestProperties) {
 		const conn = this.connections.get(properties.sessionName);
-		if (!!conn) {
+		if (conn) {
 			if (properties.role === OpenViduRole.PUBLISHER) {
 				conn.publishers.push(connectionId);
 			} else {
@@ -516,7 +562,7 @@ export class RealBrowserService {
 		role: OpenViduRole,
 	) {
 		const value = this.connections.get(sessionName);
-		if (!!value) {
+		if (value) {
 			let index = -1;
 			if (role === OpenViduRole.PUBLISHER) {
 				index = value.publishers.indexOf(connectionId, 0);
@@ -546,9 +592,9 @@ export class RealBrowserService {
 		if (!!process.env['QOE_ANALYSIS'] && !!driverId) {
 			console.log('Saving QoE Recordings for driver ' + driverId);
 			const driverInfo = this.driverMap.get(driverId);
-			if (!!driverInfo) {
+			if (driverInfo) {
 				const webDriver = driverInfo.driver;
-				if (!!webDriver) {
+				if (webDriver) {
 					console.log(
 						'Executing getRecordings for driver ' + driverId,
 					);
@@ -594,12 +640,12 @@ export class RealBrowserService {
 	private async printBrowserLogs(driverId: string) {
 		if (process.env['REAL_DRIVER'] !== 'firefox') {
 			const driverInfo = this.driverMap.get(driverId);
-			if (!!driverInfo) {
+			if (driverInfo) {
 				const entries = await driverInfo.driver
 					.manage()
 					.logs()
 					.get(logging.Type.BROWSER);
-				if (!!entries) {
+				if (entries) {
 					function formatTime(s: number): string {
 						const dtFormat = new Intl.DateTimeFormat('en-GB', {
 							timeStyle: 'medium',

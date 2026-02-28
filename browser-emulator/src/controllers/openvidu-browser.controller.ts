@@ -28,13 +28,13 @@ app.post('/streamManager', async (req: Request, res: Response) => {
 				request.properties.role || OpenViduRole.PUBLISHER;
 
 			if (
-				request.properties.resolution &&
-				Object.values(Resolution).includes(
-					request.properties.resolution,
+				!(
+					request.properties.resolution &&
+					Object.values(Resolution).includes(
+						request.properties.resolution,
+					)
 				)
 			) {
-				request.properties.resolution = request.properties.resolution;
-			} else {
 				request.properties.resolution = Resolution.DEFAULT;
 			}
 

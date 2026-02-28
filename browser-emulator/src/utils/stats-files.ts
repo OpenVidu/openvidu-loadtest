@@ -1,6 +1,6 @@
-import fs from 'fs';
-import fsp from 'fs/promises';
-import { dirname } from 'path';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 export const STATS_DIR = `${process.cwd()}/stats/`;
 export const LOCKS_DIR = `${STATS_DIR}locks/`;

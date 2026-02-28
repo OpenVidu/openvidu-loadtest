@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import type { JSONQoeProcessing } from '../types/api-rest.type.js';
 import {
 	runQoEAnalysisBlocking,
@@ -22,10 +22,10 @@ const onlyFiles = argv.onlyfiles;
 const debug = argv.debug;
 const allAnalysis = argv['all-analysis'];
 const pythonpath = process.env['PYTHONPATH'];
-if (!pythonpath) {
-	process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD'];
-} else {
+if (pythonpath) {
 	process.env['PYTHONPATH'] = process.env['PWD'];
+} else {
+	process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD'];
 }
 const jsonText: string = readFileSync(
 	`${process.cwd()}/qoe-results-processing-config.json`,

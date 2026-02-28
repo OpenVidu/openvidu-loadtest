@@ -37,13 +37,13 @@ class OpenviduComModule extends BaseComModule {
 		const properties: TestProperties = request.properties;
 		const token: string | undefined = request.token;
 		const publicUrl = `publicurl=${request.openviduUrl}&`;
-		const secret = !!request.openviduSecret
+		const secret = request.openviduSecret
 			? `secret=${request.openviduSecret}&`
 			: '';
-		const recordingMode = !!properties.recordingOutputMode
+		const recordingMode = properties.recordingOutputMode
 			? `recordingmode=${properties.recordingOutputMode}&`
 			: '';
-		const tokenParam = !!token ? `token=${token}` : '';
+		const tokenParam = token ? `token=${token}` : '';
 		const qoeAnalysis = !!process.env['QOE_ANALYSIS'];
 		return (
 			`https://${OpenviduComModule.locationHostname}/?` +

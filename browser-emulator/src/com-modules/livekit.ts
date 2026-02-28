@@ -51,7 +51,7 @@ class LiveKitComModule extends BaseComModule {
 		const properties: TestProperties = request.properties;
 		const token: string | undefined = request.token;
 		const publicUrl = `publicurl=${request.openviduUrl}&`;
-		const tokenParam = !!token ? `token=${token}&` : '';
+		const tokenParam = token ? `token=${token}&` : '';
 		const qoeAnalysis = !!process.env['QOE_ANALYSIS'];
 		return (
 			`https://${LiveKitComModule.locationHostname}/?` +

@@ -3,13 +3,13 @@ import type {
 	JSONQoeProcessing,
 	JSONUserInfo,
 } from '../types/api-rest.type.js';
-import fs from 'fs';
-import fsPromises from 'fs/promises';
+import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import pLimit from 'p-limit';
-import * as path from 'path';
+import * as path from 'node:path';
 import { ElasticSearchService } from '../services/elasticsearch.service.js';
 import { runScript } from './run-script.js';
-import type { ChildProcess } from 'child_process';
+import type { ChildProcess } from 'node:child_process';
 
 const limit = pLimit(1); // Scripts are already multithreaded
 const elasticSearchService = ElasticSearchService.getInstance();
@@ -186,9 +186,7 @@ async function processAndUploadResults(
 		const timestampSession = timestamp.new_participant_session;
 		const timestampUserFrom = timestamp.new_participant_id;
 		const timestampDate = new Date(timestamp['@timestamp']);
-		if (!userStartMap[timestampSession]) {
-			userStartMap[timestampSession] = {};
-		}
+		userStartMap[timestampSession] ??= {};
 		userStartMap[timestampSession][timestampUserFrom] = timestampDate;
 	}
 	let jsonsELK: JSONQoEInfo[] = info.flatMap(infoArray => {
@@ -258,7 +256,7 @@ export async function processFilesAndUploadResults(
 		processingInfo.index,
 	);
 	const timestamps = await getTimestamps(processingInfo);
-	let files = !!processPath
+	let files = processPath
 		? await fsPromises.readdir(processPath)
 		: await fsPromises.readdir(process.env['PWD'] || process.cwd());
 	files = files.filter(
@@ -273,7 +271,7 @@ export async function processFilesAndUploadResults(
 		const session = qoeInfo[1]!;
 		const userFrom = qoeInfo[2]!;
 		const userTo = qoeInfo[3]!;
-		if (!!processPath) {
+		if (processPath) {
 			prefix = processPath + prefix;
 		}
 		const jsonText = await fsPromises.readFile(

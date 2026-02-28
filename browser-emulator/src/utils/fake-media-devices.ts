@@ -1,5 +1,5 @@
 import { runScript } from './run-script.js';
-import fsPromises from 'fs/promises';
+import fsPromises from 'node:fs/promises';
 
 let started = false;
 

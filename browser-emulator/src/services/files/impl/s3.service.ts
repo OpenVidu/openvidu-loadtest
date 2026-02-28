@@ -1,6 +1,6 @@
 import { FilesService } from '../files.service.js';
-import fs from 'fs';
-import fsPromises from 'fs/promises';
+import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import {
 	S3Client,
 	type S3ClientConfig,
@@ -11,11 +11,11 @@ import {
 } from '@aws-sdk/client-s3';
 
 export class S3FilesService extends FilesService {
-	private bucket: string;
-	private host: string | undefined;
-	private accessKey: string;
-	private secretAccessKey: string;
-	private region: string = 'us-east-1';
+	private readonly bucket: string;
+	private readonly host: string | undefined;
+	private readonly accessKey: string;
+	private readonly secretAccessKey: string;
+	private readonly region: string = 'us-east-1';
 
 	private constructor(
 		accessKey: string,
@@ -32,14 +32,12 @@ export class S3FilesService extends FilesService {
 	}
 
 	static getInstance(...args: string[]): FilesService {
-		if (!FilesService.instance) {
-			FilesService.instance = new S3FilesService(
-				args[0]!,
-				args[1]!,
-				args[2]!,
-				args[3],
-			);
-		}
+		FilesService.instance ??= new S3FilesService(
+			args[0]!,
+			args[1]!,
+			args[2]!,
+			args[3],
+		);
 		return FilesService.instance;
 	}
 
@@ -68,7 +66,7 @@ export class S3FilesService extends FilesService {
 				try {
 					await this.createBucket(this.bucket);
 				} catch (error: any) {
-					if (error && error.code === 'BucketAlreadyOwnedByYou') {
+					if (error?.code === 'BucketAlreadyOwnedByYou') {
 						console.log('Bucket already exists');
 					} else {
 						console.error('Error creating bucket', error);
@@ -109,9 +107,9 @@ export class S3FilesService extends FilesService {
 						);
 						try {
 							await uploadFile(fileName, filePath);
-						} catch (retryErr) {
-							console.error(retryErr);
-							throw retryErr;
+						} catch (retryError) {
+							console.error(retryError);
+							throw retryError;
 						}
 					} else {
 						console.error(err);

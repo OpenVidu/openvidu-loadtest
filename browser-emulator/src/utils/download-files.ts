@@ -1,8 +1,8 @@
-import fs from 'fs';
-import { URL } from 'url';
-import fsPromises from 'fs/promises';
-import http from 'http';
-import https from 'https';
+import fs from 'node:fs';
+import { URL } from 'node:url';
+import fsPromises from 'node:fs/promises';
+import http from 'node:http';
+import https from 'node:https';
 
 export async function downloadFile(
 	name: string,
@@ -27,7 +27,7 @@ async function download(
 ): Promise<string> {
 	const protocol = new URL(fileUrl).protocol.slice(0, -1);
 	const httpModule = protocol === 'https' ? https : http;
-	const promise: Promise<string> = new Promise(async (resolve, reject) => {
+	const promise: Promise<string> = new Promise((resolve, reject) => {
 		httpModule
 			.get(fileUrl, function (response: http.IncomingMessage) {
 				if (

@@ -13,11 +13,11 @@ export class InstanceService {
 		'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
 
-	readonly WORKER_UUID: string = new Date().getTime().toString();
+	readonly WORKER_UUID: string = Date.now().toString();
 	private pullImagesRetries: number = 0;
 
-	private osutils = new OSUtils();
-	private dockerService: DockerService;
+	private readonly osutils = new OSUtils();
+	private readonly dockerService: DockerService;
 
 	private constructor(dockerService: DockerService = new DockerService()) {
 		this.dockerService = dockerService;

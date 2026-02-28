@@ -1,7 +1,7 @@
 import Docker from 'dockerode';
 
 export class DockerService {
-	private docker: Docker;
+	private readonly docker: Docker;
 
 	constructor() {
 		this.docker = new Docker();
@@ -32,7 +32,7 @@ export class DockerService {
 		} catch (error: any) {
 			console.warn(
 				'Container has already stopped. Skipping (' +
-					(error as any)?.message +
+					error?.message +
 					')',
 			);
 		}
@@ -40,7 +40,7 @@ export class DockerService {
 
 	public async removeContainer(containerNameOrId: string): Promise<void> {
 		const container = await this.getContainerByIdOrName(containerNameOrId);
-		if (!!container) {
+		if (container) {
 			try {
 				await container.remove({ force: true });
 				console.log('Container ' + containerNameOrId + ' removed');
@@ -61,41 +61,37 @@ export class DockerService {
 	}
 
 	async pullImage(image: string): Promise<void> {
-		return new Promise(async (resolve, reject) => {
+		return new Promise((resolve, reject) => {
+			function onFinished(err: any) {
+				if (err) {
+					reject(err);
+				} else {
+					console.log('Image ' + image + ' successfully pulled');
+					resolve();
+				}
+			}
+			function onProgress(event: any) {
+				if (event.status === 'Downloading') {
+					console.log(
+						'    Downloading layer ' +
+							event.id +
+							': ' +
+							event.progress,
+					);
+				} else if (event.status === 'Download complete') {
+					console.log('    Layer ' + event.id + ' downloaded!');
+				}
+			}
 			console.log('Pulling image ' + image);
 			this.docker.pull(
 				image,
 				(err: any, stream: NodeJS.ReadableStream) => {
-					function onFinished(err: any) {
-						if (!!err) {
-							reject(err);
-						} else {
-							console.log(
-								'Image ' + image + ' successfully pulled',
-							);
-							resolve();
-						}
-					}
-					function onProgress(event: any) {
-						if (event.status === 'Downloading') {
-							console.log(
-								'    Downloading layer ' +
-									event.id +
-									': ' +
-									event.progress,
-							);
-						} else if (event.status === 'Download complete') {
-							console.log(
-								'    Layer ' + event.id + ' downloaded!',
-							);
-						}
-					}
 					try {
-						if (!!err) {
+						if (err) {
 							reject(err);
 						}
 						if (stream === null) {
-							reject('No stream');
+							reject(new Error('No stream'));
 						}
 						this.docker.modem.followProgress(
 							stream,
@@ -115,7 +111,7 @@ export class DockerService {
 		command: string,
 	): Promise<void> {
 		const container = this.docker.getContainer(containerId);
-		if (!!container) {
+		if (container) {
 			try {
 				const exec = await container.exec({
 					AttachStdout: true,
@@ -146,7 +142,7 @@ export class DockerService {
 		const containerInfo = containers.find(
 			(containerInfo: Docker.ContainerInfo) => {
 				return (
-					containerInfo.Names.indexOf('/' + nameOrId) >= 0 ||
+					containerInfo.Names.includes('/' + nameOrId) ||
 					containerInfo.Id === nameOrId
 				);
 			},

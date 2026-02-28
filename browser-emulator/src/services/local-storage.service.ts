@@ -11,7 +11,7 @@ export interface Storage {
 }
 
 export class LocalStorageService {
-	private storage: Storage;
+	private readonly storage: Storage;
 
 	constructor() {
 		this.storage = globalThis.localStorage;
