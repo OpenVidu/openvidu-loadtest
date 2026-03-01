@@ -22,7 +22,7 @@ import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.Typology;
+import io.openvidu.loadtest.models.testcase.Topology;
 
 @Service
 public class DataIO {
@@ -86,9 +86,10 @@ public class DataIO {
 			List<String> participants = new ArrayList<String>();
 			int sessions = 0;
 			OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
-			String typology = element.get("typology").getAsString();
+            // DEPRECATED: Typology was a typo in the initial versions of the code, so we need to check both "topology" and "typology" to avoid breaking existing test cases files.
+            String topology = element.has("topology") ? element.get("topology").getAsString() : element.get("typology").getAsString();
 			int startingParticipants = 0;
-			if (!typology.equalsIgnoreCase(Typology.TERMINATE.getValue())) {
+			if (!topology.equalsIgnoreCase(Topology.TERMINATE.getValue())) {
 				String sessionsStr = element.get("sessions").getAsString();
 				JsonArray participantsArray = (JsonArray) element.get("participants");
 				participants = jsonUtils.getStringList(participantsArray);
@@ -128,7 +129,7 @@ public class DataIO {
 
 			}
 
-			TestCase testCase = new TestCase(typology, participants, sessions, frameRate, resolution, openviduRecordingMode,
+			TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution, openviduRecordingMode,
 				headlessBrowser, browserRecording, showBrowserVideoElements);
 			testCase.setStartingParticipants(startingParticipants);
 			testCaseList.add(testCase);

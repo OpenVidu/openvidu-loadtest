@@ -1,7 +1,7 @@
 {
 	"testcases": [
 		{
-			"typology": "N:N",
+			"topology": "N:N",
 			"participants": ["2"],
 			"sessions": "1",
 			"startingParticipants": 0,

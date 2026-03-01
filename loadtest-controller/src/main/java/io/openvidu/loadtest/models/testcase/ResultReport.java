@@ -16,7 +16,7 @@ public class ResultReport {
 	private List<Integer> streamsPerWorker = new ArrayList<>();
 	private List<Long> timePerWorker = new ArrayList<>();
 	private List<Long> timePerRecordingWorker = new ArrayList<>();
-	private String sessionTypology;
+	private String sessionTopology;
 	private boolean browserRecording;
 	private String openviduRecording = "";
 	private String participantsPerSession = "";
@@ -34,7 +34,7 @@ public class ResultReport {
 
 	public ResultReport build() {
 		return new ResultReport(this.totalParticipants, this.numSessionsCompleted, this.numSessionsCreated,
-				this.workersUsed, this.streamsPerWorker, this.sessionTypology,
+				this.workersUsed, this.streamsPerWorker, this.sessionTopology,
 				this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
 				this.usersPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
 				this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
@@ -81,8 +81,8 @@ public class ResultReport {
 		return this;
 	}
 
-	public ResultReport setSessionTypology(String sessionTypology) {
-		this.sessionTypology = sessionTypology;
+	public ResultReport setSessionTopology(String sessionTopology) {
+		this.sessionTopology = sessionTopology;
 		return this;
 	}
 
@@ -137,7 +137,7 @@ public class ResultReport {
 	}
 
 	private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
-			List<Integer> streamsPerWorker, String sessionTypology,
+			List<Integer> streamsPerWorker, String sessionTopology,
 			String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
 			int usersPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
 			Calendar endTime, String kibanaUrl, String s3BucketName, List<Long> timePerWorker,
@@ -147,7 +147,7 @@ public class ResultReport {
 		this.numSessionsCreated = numSessionsCreated;
 		this.workersUsed = workersUsed;
 		this.streamsPerWorker = streamsPerWorker;
-		this.sessionTypology = sessionTypology;
+		this.sessionTopology = sessionTopology;
 		this.openviduRecording = openviduRecording;
 		this.browserRecording = browserRecording;
 		this.isManualParticipantAllocation = manualParticipantsAllocation;
@@ -207,7 +207,7 @@ public class ResultReport {
 		return " ----- Test Case Report " + startTime.getTime() + " ----- " + System.getProperty("line.separator")
 				+ "Browser with recording:	" + browserRecording + System.getProperty("line.separator")
 				+ "OpenVidu recording:	" + openviduRecording + System.getProperty("line.separator")
-				+ "Session typology:	" + sessionTypology + System.getProperty("line.separator")
+				+ "Session topology:	" + sessionTopology + System.getProperty("line.separator")
 				+ "Participants per session:	" + participantsPerSession + System.getProperty("line.separator")
 				+ "Number of sessions created:	" + numSessionsCreated + System.getProperty("line.separator")
 				+ "Number of sessions completed:	" + numSessionsCompleted + System.getProperty("line.separator")

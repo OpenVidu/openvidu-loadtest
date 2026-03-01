@@ -430,7 +430,7 @@ public class LoadTestController {
 							log.warn("Test case skipped.");
 							continue;
 						}
-						log.info("Starting test with N:N session typology");
+						log.info("Starting test with N:N session topology");
 						log.info("The number of session that will be created are {}",
 								testCase.getSessions() < 0 ? "infinite" : testCase.getSessions());
 						log.info("Each session will be composed by {} USERS. All of them will be PUBLISHERS",
@@ -474,7 +474,7 @@ public class LoadTestController {
 							log.warn("Test case skipped.");
 							continue;
 						}
-						log.info("Starting test with N:M session typology");
+						log.info("Starting test with N:M session topology");
 						log.info("The number of session that will be created are {}", testCase.getSessions());
 						log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",
 								publishers + subscribers, publishers, subscribers);
@@ -519,7 +519,7 @@ public class LoadTestController {
 								log.warn("Test case skipped.");
 								continue;
 							}
-							log.info("Starting test with one session {}:N typology", publishers);
+							log.info("Starting test with one session {}:N topology", publishers);
 							log.info("{} Publisher will be added to one session, and then it will be filled with Subscribers",
 									publishers);
 
@@ -551,7 +551,7 @@ public class LoadTestController {
 									testCase, Integer.MAX_VALUE, 0);
 						}
 						if (noEstimateError) {
-							log.info("Starting test with one session N:N typology");
+							log.info("Starting test with one session N:N topology");
 							log.info("One session will be filled with Pubscribers");
 
 							this.startTime = Calendar.getInstance();
@@ -573,10 +573,10 @@ public class LoadTestController {
 					this.cleanEnvironment();
 				}
 			} else if (testCase.is_TERMINATE() && PROD_MODE) {
-				log.info("TERMINATE typology. Terminate all EC2 instances");
+				log.info("TERMINATE topology. Terminate all EC2 instances");
 				ec2Client.terminateAllInstances();
 			} else {
-				log.error("Test case has wrong typology, SKIPPED.");
+				log.error("Test case has wrong topology, SKIPPED.");
 			}
 		});
 	}
@@ -1274,7 +1274,7 @@ public class LoadTestController {
 				.setNumSessionsCompleted(sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())
 				.setWorkersUsed(workersUsed)
 				//.setStreamsPerWorker(streamsPerWorker)
-				.setSessionTypology(testCase.getTypology().toString())
+				.setSessionTopology(testCase.getTopology().toString())
 				.setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
 				.setBrowserRecording(testCase.isBrowserRecording()).setParticipantsPerSession(participantsBySession)
 				.setStopReason(stopReason).setStartTime(this.startTime)

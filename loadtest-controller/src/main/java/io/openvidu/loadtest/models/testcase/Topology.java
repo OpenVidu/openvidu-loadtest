@@ -1,6 +1,6 @@
 package io.openvidu.loadtest.models.testcase;
 
-public enum Typology {
+public enum Topology {
 	
 	NxN("N:N", "All participants will be PUBLISHER"),
 
@@ -16,7 +16,7 @@ public enum Typology {
 	private String description;
 
 
-	Typology(String value, String description) {
+	Topology(String value, String description) {
 		this.value = value;
 		this.description = description;
 

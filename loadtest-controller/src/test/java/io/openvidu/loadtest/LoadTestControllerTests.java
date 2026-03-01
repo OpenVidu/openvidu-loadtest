@@ -34,7 +34,7 @@ import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.Typology;
+import io.openvidu.loadtest.models.testcase.Topology;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
@@ -756,7 +756,7 @@ public class LoadTestControllerTests {
                 "LoadTestSession" + currentSession, 0
             );
             //log.info(instanceUrl + ": " + response.toString());
-            if (testCase.getTypology().equals(Typology.NxN)) {
+            if (testCase.getTopology().equals(Topology.NxN)) {
                 when(this.browserEmulatorClient.createPublisher(instanceUrl, user, currentSession, testCase)).thenReturn(
                     response
                 );
