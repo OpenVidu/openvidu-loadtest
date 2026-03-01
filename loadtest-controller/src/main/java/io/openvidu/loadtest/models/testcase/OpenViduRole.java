@@ -22,6 +22,7 @@ public enum OpenViduRole {
         return this.label;
     }
 
+    @Override
     public String toString() {
         return this.getLabel();
     }

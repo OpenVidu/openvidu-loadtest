@@ -202,37 +202,34 @@ public class ResultReport {
 
     @Override
     public String toString() {
-
-        return " ----- Test Case Report " + startTime.getTime() + " ----- " + System.getProperty("line.separator")
-                + "Browser with recording:	" + browserRecording + System.getProperty("line.separator")
-                + "OpenVidu recording:	" + openviduRecording + System.getProperty("line.separator")
-                + "Session topology:	" + sessionTopology + System.getProperty("line.separator")
-                + "Participants per session:	" + participantsPerSession + System.getProperty("line.separator")
-                + "Number of sessions created:	" + numSessionsCreated + System.getProperty("line.separator")
-                + "Number of sessions completed:	" + numSessionsCompleted + System.getProperty("line.separator")
-                + "Number of participants created:	" + totalParticipants + System.getProperty("line.separator")
-                + "Number of workers used:	" + workersUsed + System.getProperty("line.separator")
-                + "Is manual participants allocation:	" + isManualParticipantAllocation
-                + System.getProperty("line.separator")
+        String lineSeparator = System.getProperty("line.separator");
+        return " ----- Test Case Report " + startTime.getTime() + " ----- " + lineSeparator
+                + "Browser with recording: " + browserRecording + lineSeparator
+                + "OpenVidu recording: " + openviduRecording + lineSeparator
+                + "Session topology: " + sessionTopology + lineSeparator
+                + "Participants per session: " + participantsPerSession + lineSeparator
+                + "Number of sessions created: " + numSessionsCreated + lineSeparator
+                + "Number of sessions completed: " + numSessionsCompleted + lineSeparator
+                + "Number of participants created: " + totalParticipants + lineSeparator
+                + "Number of workers used: " + workersUsed + lineSeparator
+                + "Is manual participants allocation: " + isManualParticipantAllocation
+                + lineSeparator
                 + (isManualParticipantAllocation
-                        ? "Number of users per worker:	" + usersPerWorker + System.getProperty("line.separator")
+                        ? "Number of users per worker: " + usersPerWorker + lineSeparator
                         : "")
                 + (isManualParticipantAllocation ? ""
-                        : "Number of streams per worker:	" + streamsPerWorker + System.getProperty("line.separator"))
-                + "Stop reason:	" + stopReason + System.getProperty("line.separator")
-                + (timePerWorker.size() == 0 ? ""
-                        : "Time each worker has been alive (minutes):	" + timePerWorker
-                                + System.getProperty("line.separator"))
-                + (timePerRecordingWorker.size() == 0 ? ""
-                        : "Time each worker has been alive (minutes, recording workers):	" + timePerRecordingWorker
-                                + System.getProperty("line.separator"))
-                + "Test duration:	" + getDuration() + System.getProperty("line.separator") + "Kibana url:	"
-                + kibanaUrl
-                + System.getProperty("line.separator") + "Video quality control and stats:	" + s3BucketName
-                + System.getProperty("line.separator")
-                + (userStartTimes.size() == 0 ? ""
-                        : "User start times:	" + getUserStartTime() + System.getProperty("line.separator"))
-                + System.getProperty("line.separator")
+                        : "Number of streams per worker: " + streamsPerWorker + lineSeparator)
+                + "Stop reason: " + stopReason + lineSeparator
+                + (timePerWorker.isEmpty() ? ""
+                        : "Time each worker has been alive (minutes): " + timePerWorker + lineSeparator)
+                + (timePerRecordingWorker.isEmpty() ? ""
+                        : "Time each worker has been alive (minutes, recording workers): " + timePerRecordingWorker
+                                + lineSeparator)
+                + "Test duration: " + getDuration() + lineSeparator + "Kibana url: " + kibanaUrl
+                + lineSeparator + "Video quality control and stats: " + s3BucketName
+                + lineSeparator
+                + (userStartTimes.isEmpty() ? "" : "User start times: " + getUserStartTime() + lineSeparator)
+                + lineSeparator
                 + "   ---------------------   ";
     }
 

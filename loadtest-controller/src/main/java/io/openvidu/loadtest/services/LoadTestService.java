@@ -1,4 +1,4 @@
-package io.openvidu.loadtest.controller;
+package io.openvidu.loadtest.services;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Service;
 
 import software.amazon.awssdk.services.ec2.model.Instance;
 
@@ -36,98 +36,89 @@ import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
-import io.openvidu.loadtest.services.BrowserEmulatorClient;
-import io.openvidu.loadtest.services.Ec2Client;
-import io.openvidu.loadtest.services.Sleeper;
-import io.openvidu.loadtest.services.WebSocketClient;
-import io.openvidu.loadtest.services.WebSocketConnectionFactory;
 import io.openvidu.loadtest.utils.DataIO;
 
 /**
- * @author Carlos Santos
+ * @author Carlos Santos & Iván Chicano
  *
  */
 
-@Controller
-public class LoadTestController {
+@Service
+public class LoadTestService {
 
-    private static final Logger log = LoggerFactory.getLogger(LoadTestController.class);
+    private static final Logger log = LoggerFactory.getLogger(LoadTestService.class);
 
-    private static BrowserEmulatorClient browserEmulatorClient;
-    private static LoadTestConfig loadTestConfig;
-    private static KibanaClient kibanaClient;
-    private static ElasticSearchClient esClient;
-    private static Ec2Client ec2Client;
-    private static Sleeper sleeper;
+    private BrowserEmulatorClient browserEmulatorClient;
+    private LoadTestConfig loadTestConfig;
+    private KibanaClient kibanaClient;
+    private ElasticSearchClient esClient;
+    private Ec2Client ec2Client;
+    private Sleeper sleeper;
+    private WebSocketConnectionFactory webSocketConnectionFactory;
 
-    private static DataIO io;
+    private DataIO io;
 
-    private static List<Instance> awsWorkersList = new ArrayList<Instance>();
-    private static List<String> devWorkersList = new ArrayList<String>();
-    private static List<Instance> recordingWorkersList = new ArrayList<Instance>();
-    private static Queue<WebSocketClient> wsSessions = new ConcurrentLinkedQueue<WebSocketClient>();
+    private List<Instance> awsWorkersList = new ArrayList<>();
+    private List<String> devWorkersList = new ArrayList<>();
+    private List<Instance> recordingWorkersList = new ArrayList<>();
+    private Queue<WebSocketClient> wsSessions = new ConcurrentLinkedQueue<>();
 
-    private static List<Date> workerStartTimes = new ArrayList<>();
-    private static List<Date> recordingWorkerStartTimes = new ArrayList<>();
-    private static List<Long> workerTimes = new ArrayList<>();
-    private static List<Long> recordingWorkerTimes = new ArrayList<>();
+    private List<Date> workerStartTimes = new ArrayList<>();
+    private List<Date> recordingWorkerStartTimes = new ArrayList<>();
+    private List<Long> workerTimes = new ArrayList<>();
+    private List<Long> recordingWorkerTimes = new ArrayList<>();
 
-    private static int workersUsed = 0;
+    private int workersUsed = 0;
 
     private Calendar startTime;
-    private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private static final int WEBSOCKET_PORT = 5001;
 
-    private static boolean PROD_MODE = false;
-    private static AtomicInteger sessionNumber = new AtomicInteger(0);
-    private static AtomicInteger userNumber = new AtomicInteger(1);
-    private static AtomicInteger sessionsCompleted = new AtomicInteger(0);
-    private static AtomicInteger totalParticipants = new AtomicInteger(0);
+    private boolean prodMode = false;
+    private AtomicInteger sessionNumber = new AtomicInteger(0);
+    private AtomicInteger userNumber = new AtomicInteger(1);
+    private AtomicInteger sessionsCompleted = new AtomicInteger(0);
+    private AtomicInteger totalParticipants = new AtomicInteger(0);
 
-    private static int browserEstimation = -1;
+    private int browserEstimation = -1;
 
-    // TODO: Reimplement streams per worker, commented out for now as it is not
-    // needed for now and hard to calculate in async mode
-    // private static List<Integer> streamsPerWorker = new ArrayList<>();
-    private static Map<Calendar, List<String>> userStartTimes = new ConcurrentHashMap<>();
+    // TODO: Reimplement calculation of streams per worker
+    private Map<Calendar, List<String>> userStartTimes = new ConcurrentHashMap<>();
 
-    private static WebSocketConnectionFactory webSocketConnectionFactory;
-
-    public LoadTestController(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
+    public LoadTestService(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
             KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client,
             WebSocketConnectionFactory webSocketConnectionFactory,
             DataIO dataIO, Sleeper sleeper) {
-        LoadTestController.browserEmulatorClient = browserEmulatorClient;
-        LoadTestController.loadTestConfig = loadTestConfig;
-        LoadTestController.kibanaClient = kibanaClient;
-        LoadTestController.esClient = esClient;
-        LoadTestController.ec2Client = ec2Client;
-        LoadTestController.webSocketConnectionFactory = webSocketConnectionFactory;
-        LoadTestController.io = dataIO;
-        LoadTestController.sleeper = sleeper;
+        this.browserEmulatorClient = browserEmulatorClient;
+        this.loadTestConfig = loadTestConfig;
+        this.kibanaClient = kibanaClient;
+        this.esClient = esClient;
+        this.ec2Client = ec2Client;
+        this.webSocketConnectionFactory = webSocketConnectionFactory;
+        this.io = dataIO;
+        this.sleeper = sleeper;
 
-        PROD_MODE = loadTestConfig.getWorkerUrlList().isEmpty();
+        prodMode = loadTestConfig.getWorkerUrlList().isEmpty();
         devWorkersList = loadTestConfig.getWorkerUrlList();
     }
 
-    private static String setAndInitializeNextWorker(String currentWorker, WorkerType workerType)
+    private String setAndInitializeNextWorker(String currentWorker, WorkerType workerType)
             throws NoWorkersAvailableException {
-        String nextWorkerUrl = getNextWorker(currentWorker, workerType);
-        return nextWorkerUrl;
+        return getNextWorker(currentWorker, workerType);
     }
 
-    private static void initializeInstance(String url) {
+    private void initializeInstance(String url) {
         browserEmulatorClient.ping(url);
         WebSocketClient ws = webSocketConnectionFactory
-                .createConnection("ws://" + url + ":" + WEBSOCKET_PORT + "/events");
+                .createConnection("ws://" + url + ":" + LoadTestService.WEBSOCKET_PORT + "/events");
         wsSessions.add(ws);
         browserEmulatorClient.initializeInstance(url);
     }
 
-    private static String getNextWorker(String actualCurrentWorkerUrl, WorkerType workerType)
+    private String getNextWorker(String actualCurrentWorkerUrl, WorkerType workerType)
             throws NoWorkersAvailableException {
-        if (PROD_MODE) {
+        if (prodMode) {
             workersUsed++;
             String newWorkerUrl = "";
             List<Instance> actualWorkerList = null;
@@ -209,7 +200,7 @@ public class LoadTestController {
         }
     }
 
-    private static class ParticipantTask implements Supplier<CreateParticipantResponse> {
+    private class ParticipantTask implements Supplier<CreateParticipantResponse> {
         private String worker;
         private int user;
         private int session;
@@ -318,7 +309,7 @@ public class LoadTestController {
 
     private boolean launchInitialInstances() {
         boolean instancesInitialized = false;
-        if (PROD_MODE) {
+        if (prodMode) {
             // Launching EC2 Instances defined in WORKERS_NUMBER_AT_THE_BEGINNING
             awsWorkersList.addAll(ec2Client.launchAndCleanInitialInstances());
             recordingWorkersList.addAll(ec2Client.launchAndCleanInitialRecordingInstances());
@@ -377,8 +368,8 @@ public class LoadTestController {
     }
 
     private boolean checkEnoughWorkers(int sessions, int participants) {
-        int workersAvailable = PROD_MODE ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
-        int workersRumpUp = PROD_MODE ? loadTestConfig.getWorkersRumpUp() : 0;
+        int workersAvailable = prodMode ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+        int workersRumpUp = prodMode ? loadTestConfig.getWorkersRumpUp() : 0;
         int nParticipants = sessions * participants;
         int estimatedParticipants = browserEstimation * workersAvailable;
         if (workersRumpUp < 1 && (sessions == -1 || (nParticipants > estimatedParticipants))) {
@@ -401,22 +392,21 @@ public class LoadTestController {
             return;
         }
 
-        if (PROD_MODE) {
+        if (prodMode) {
             kibanaClient.importDashboards();
         }
 
-        int workersAvailable = PROD_MODE ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+        int workersAvailable = prodMode ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
         int workersRumpUp = loadTestConfig.getWorkersRumpUp();
 
-        if (workersAvailable == 0) {
-            if (!(PROD_MODE && workersRumpUp > 0)) {
-                log.error("No workers available. Exiting");
-                return;
-            }
+        if (workersAvailable == 0 && !(prodMode && workersRumpUp > 0)) {
+            log.error("No workers available. Exiting");
+            return;
         }
+
         testCasesList.forEach(testCase -> {
 
-            if (testCase.is_NxN()) {
+            if (testCase.isNxN()) {
                 for (int i = 0; i < testCase.getParticipants().size(); i++) {
                     int participantsBySession = Integer.parseInt(testCase.getParticipants().get(i));
                     boolean instancesInitialized = launchInitialInstances();
@@ -425,7 +415,7 @@ public class LoadTestController {
                         browserEstimation = loadTestConfig.getUsersPerWorker();
                     } else {
                         noEstimateError = estimate(instancesInitialized,
-                                PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
+                                prodMode ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
                                 testCase, participantsBySession, 0);
                     }
                     if (noEstimateError) {
@@ -459,7 +449,7 @@ public class LoadTestController {
                     this.disconnectAllSessions();
                     this.cleanEnvironment();
                 }
-            } else if (testCase.is_NxM() || testCase.is_TEACHING()) {
+            } else if (testCase.isNxM() || testCase.isTeaching()) {
                 for (int i = 0; i < testCase.getParticipants().size(); i++) {
                     String participants = testCase.getParticipants().get(i);
                     int publishers = Integer.parseInt(participants.split(":")[0]);
@@ -470,7 +460,7 @@ public class LoadTestController {
                         browserEstimation = loadTestConfig.getUsersPerWorker();
                     } else {
                         noEstimateError = estimate(instancesInitialized,
-                                PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
+                                prodMode ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
                                 testCase, publishers, subscribers);
                     }
                     if (noEstimateError) {
@@ -505,7 +495,7 @@ public class LoadTestController {
                     this.cleanEnvironment();
                 }
 
-            } else if (testCase.is_ONE_SESSION()) {
+            } else if (testCase.isOneSession()) {
                 for (int i = 0; i < testCase.getParticipants().size(); i++) {
                     boolean instancesInitialized = launchInitialInstances();
                     String participants = testCase.getParticipants().get(i);
@@ -516,7 +506,7 @@ public class LoadTestController {
                             browserEstimation = loadTestConfig.getUsersPerWorker();
                         } else {
                             noEstimateError = estimate(instancesInitialized,
-                                    PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
+                                    prodMode ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
                                     testCase, publishers, Integer.MAX_VALUE);
                         }
                         if (noEstimateError) {
@@ -550,13 +540,13 @@ public class LoadTestController {
                         }
                     } else {
                         boolean noEstimateError = true;
-                        if (!PROD_MODE) {
+                        if (!prodMode) {
                             browserEstimation = 1;
                         } else if (loadTestConfig.isManualParticipantsAllocation()) {
                             browserEstimation = loadTestConfig.getUsersPerWorker();
                         } else {
                             noEstimateError = estimate(instancesInitialized,
-                                    PROD_MODE ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
+                                    prodMode ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0),
                                     testCase, Integer.MAX_VALUE, 0);
                         }
                         if (noEstimateError) {
@@ -583,7 +573,7 @@ public class LoadTestController {
                     this.disconnectAllSessions();
                     this.cleanEnvironment();
                 }
-            } else if (testCase.is_TERMINATE() && PROD_MODE) {
+            } else if (testCase.isTerminate() && prodMode) {
                 log.info("TERMINATE topology. Terminate all EC2 instances");
                 ec2Client.terminateAllInstances();
             } else {
@@ -1230,7 +1220,7 @@ public class LoadTestController {
         }
         wsSessions.clear();
         List<String> workersUrl = devWorkersList;
-        if (PROD_MODE) {
+        if (prodMode) {
             // Add all ec2 instances
             for (Instance ec2 : awsWorkersList) {
                 workersUrl.add(ec2.publicDnsName());
@@ -1264,7 +1254,7 @@ public class LoadTestController {
         }
         Date stopDate = new Date();
         workerTimes = workerStartTimes.stream()
-                .map(startTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - startTime.getTime(),
+                .map(workerStartTime -> TimeUnit.MINUTES.convert(stopDate.getTime() - workerStartTime.getTime(),
                         TimeUnit.MILLISECONDS))
                 .collect(Collectors.toList());
         recordingWorkerTimes = recordingWorkerStartTimes.stream()

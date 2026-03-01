@@ -5,9 +5,13 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
 public class LoadTestConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(LoadTestConfig.class);
 
     private Environment env;
 
@@ -337,7 +341,6 @@ public class LoadTestConfig {
     }
 
     protected void checkConfigurationProperties() {
-
         try {
             openviduUrl = asString("OPENVIDU_URL");
             openviduUrl = openviduUrl.replaceAll("/$", "");
@@ -410,97 +413,96 @@ public class LoadTestConfig {
 
     }
 
-    protected void printInfo() {
-        String format = "%-25s%3s%n";
-        System.out.println("-------- Load Test Parameters --------");
-        System.out.printf(format, "OpenVidu URL:", openviduUrl);
-        System.out.printf(format, "OpenVidu SECRET:", openviduSecret);
-        System.out.printf(format, "Session Name Prefix:", sessionNamePrefix);
-        System.out.printf(format, "Username Prefix:", userNamePrefix);
-        System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);
-        System.out.printf(format, "Seconds between sessions:", secondsToWaitBetweenSession);
-        System.out.printf(format, "Is manual participant allocation:", manualParticipantsAllocation);
+    private void printInfo() {
+        log.info("-------- Load Test Parameters --------");
+        log.info("OpenVidu URL: {}", openviduUrl);
+        log.info("OpenVidu SECRET: {}", openviduSecret);
+        log.info("Session Name Prefix: {}", sessionNamePrefix);
+        log.info("Username Prefix: {}", userNamePrefix);
+        log.info("Seconds between users: {}", secondsToWaitBetweenParticipants);
+        log.info("Seconds between sessions: {}", secondsToWaitBetweenSession);
+        log.info("Is manual participant allocation: {}", manualParticipantsAllocation);
         if (manualParticipantsAllocation) {
             if (usersPerWorker > 0) {
-                System.out.printf(format, "Users per worker:", usersPerWorker);
+                log.info("Users per worker: {}", usersPerWorker);
             } else {
-                System.err.printf(format, "Users per worker is not defined");
+                log.error("Users per worker is not defined");
                 System.exit(1);
             }
         }
 
         if (retryMode) {
-            System.out.println("Controller started in RETRY MODE");
+            log.info("Controller started in RETRY MODE");
             if (retryTimes < 1) {
-                System.err.println("Retry times is undefined");
+                log.error("Retry times is undefined");
                 System.exit(1);
             }
         }
 
-        System.out.printf("\n");
-        System.out.printf("--- WORKER PARAMETERS ---");
-        System.out.printf("\n");
+        log.info("");
+        log.info("--- WORKER PARAMETERS ---");
+        log.info("");
 
-        if (workerUrlList.size() > 0) {
-            System.out.printf("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
-            System.out.printf("\n");
-            System.out.printf(format, "Worker List:", workerUrlList);
+        if (!workerUrlList.isEmpty()) {
+            log.info("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
+            log.info("");
+            log.info("Worker List: {}", workerUrlList);
         } else {
-            System.out.printf("RUNNING TESTS IN PRODUCTION (AWS)");
-            System.out.printf("\n");
+            log.info("RUNNING TESTS IN PRODUCTION (AWS)");
+            log.info("");
 
-            System.out.printf(format, "Worker Ami Id:", workerAmiId);
-            System.out.printf(format, "Worker instance type:", workerInstanceType);
-            System.out.printf(format, "Worker max load:", workerMaxLoad);
-            System.out.printf(format, "Workers at the beginning:", workersNumberAtTheBeginning);
-            System.out.printf(format, "Recording Workers at the beginning:", recordingWorkersNumberAtTheBeginning);
-            System.out.printf(format, "Worker ramp up:", workersRumpUp);
+            log.info("Worker Ami Id: {}", workerAmiId);
+            log.info("Worker instance type: {}", workerInstanceType);
+            log.info("Worker max load: {}", workerMaxLoad);
+            log.info("Workers at the beginning: {}", workersNumberAtTheBeginning);
+            log.info("Recording Workers at the beginning: {}", recordingWorkersNumberAtTheBeginning);
+            log.info("Worker ramp up: {}", workersRumpUp);
             if (workersRumpUp == 0) {
-                System.out.printf(format, "Continue test if there aren't enough workers", forceContinue);
+                log.info("Continue test if there aren't enough workers: {}", forceContinue);
             }
-            System.out.printf(format, "AWS instance region:", workerInstanceRegion);
-            System.out.printf(format, "AWS instance availability zone:", workerAvailabilityZone);
+            log.info("AWS instance region: {}", workerInstanceRegion);
+            log.info("AWS instance availability zone: {}", workerAvailabilityZone);
 
         }
 
         if (medianodeLoadForStartRecording > 0) {
-            System.out.printf(format, "Start recording when medianode CPU is over:", medianodeLoadForStartRecording);
+            log.info("Start recording when medianode CPU is over: {}", medianodeLoadForStartRecording);
         }
         if (recordingSessionGroup > 0) {
-            System.out.printf(format, "Recording starts each :", recordingSessionGroup + " session(s)");
+            log.info("Recording starts each : {} session(s)", recordingSessionGroup);
             if (s3bucketName.isBlank()) {
-                System.err.printf(format, "S3 Bucket Name is not defined");
+                log.error("S3 Bucket Name is not defined");
                 System.exit(1);
             }
         }
 
-        System.out.printf("\n");
-        System.out.printf("--- MONITORING PARAMETERS ---");
-        System.out.printf("\n");
+        log.info("");
+        log.info("--- MONITORING PARAMETERS ---");
+        log.info("");
 
-        System.out.printf(format, "Kibana Host:", kibanaHost);
-        System.out.printf(format, "ElasticSearch Host:", elasticsearchHost);
-        System.out.printf(format, "ElasticSearch Username:", elasticsearchUserName);
-        System.out.printf(format, "ElasticSearch Password:", elasticsearchPassword);
-        System.out.println("-------- -------------------- --------");
+        log.info("Kibana Host: {}", kibanaHost);
+        log.info("ElasticSearch Host: {}", elasticsearchHost);
+        log.info("ElasticSearch Username: {}", elasticsearchUserName);
+        log.info("ElasticSearch Password: {}", elasticsearchPassword);
+        log.info("-------- -------------------- --------");
 
-        System.out.printf("\n");
-        System.out.printf("--- QOE ANALYSIS PARAMETERS ---");
-        System.out.printf("\n");
+        log.info("");
+        log.info("--- QOE ANALYSIS PARAMETERS ---");
+        log.info("");
 
-        System.out.printf(format, "QoE recordings:", qoeAnalysisRecordings);
-        System.out.printf(format, "QoE analysis will be run in-situ:", qoeAnalysisInSitu);
-        System.out.printf(format, "Video padding duration:", paddingDuration);
-        System.out.printf(format, "Video fragment duration:", fragmentDuration);
-        System.out.println("-------- -------------------- --------");
-        System.out.printf("\n");
-        System.out.printf("--- MISCELANEOUS PARAMETERS ---");
-        System.out.printf("\n");
-        System.out.printf(format, "Use batches for inserting users: ", batches);
-        System.out.printf(format, "Maximum number of in flight requests (batch): ", batchMaxRequests);
-        System.out.printf(format, "Wait for user or batch insertion completion: ", waitCompletion);
+        log.info("QoE recordings: {}", qoeAnalysisRecordings);
+        log.info("QoE analysis will be run in-situ: {}", qoeAnalysisInSitu);
+        log.info("Video padding duration: {}", paddingDuration);
+        log.info("Video fragment duration: {}", fragmentDuration);
+        log.info("-------- -------------------- --------");
+        log.info("");
+        log.info("--- MISCELANEOUS PARAMETERS ---");
+        log.info("");
+        log.info("Use batches for inserting users: {}", batches);
+        log.info("Maximum number of in flight requests (batch): {}", batchMaxRequests);
+        log.info("Wait for user or batch insertion completion: {}", waitCompletion);
         if (isDebugVnc()) {
-            System.out.printf("Debug VNC Enabled\n");
+            log.info("Debug VNC Enabled");
         }
     }
 
@@ -543,7 +545,7 @@ public class LoadTestConfig {
         try {
             return this.asStringList(property);
         } catch (Exception e) {
-            return new ArrayList<String>();
+            return new ArrayList<>();
         }
     }
 

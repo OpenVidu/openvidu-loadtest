@@ -80,7 +80,7 @@ class BrowserEmulatorClientTests {
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Content-Type", "application/json");
 
-        HttpResponse<String> response = this.browserEmulatorClient.initializeInstance("localhost");
+        this.browserEmulatorClient.initializeInstance("localhost");
 
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("elasticSearchHost", "https://localhost:9200");
@@ -126,6 +126,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
         expectedBody.add("properties", properties);
+        @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(200);
         JsonObject responseBody = new JsonObject();
@@ -156,6 +157,7 @@ class BrowserEmulatorClientTests {
         int participantId = 2;
         String session = "LoadTestSession" + sessionId;
         String participant = "User" + participantId;
+        @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);
         when(response.body()).thenReturn("");
         when(response.statusCode()).thenReturn(200);
@@ -186,6 +188,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("headless", false);
         expectedBody.add("properties", properties);
 
+        @SuppressWarnings("unchecked")
         HttpResponse<String> publishResponse = mock(HttpResponse.class);
         JsonObject responseBody = new JsonObject();
         responseBody.addProperty("connectionId", "connectionId");
@@ -235,6 +238,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
         expectedBody.add("properties", properties);
+        @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(200);
         JsonObject responseBody = new JsonObject();
@@ -247,6 +251,7 @@ class BrowserEmulatorClientTests {
         String responseString = responseBody.toString();
         when(response.body()).thenReturn(responseString);
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+        @SuppressWarnings("unchecked")
         HttpResponse<String> errorResponse = mock(HttpResponse.class);
         when(errorResponse.statusCode()).thenReturn(500);
         when(errorResponse.body()).thenReturn("error");

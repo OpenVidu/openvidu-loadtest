@@ -44,23 +44,23 @@ public class TestCase {
         this.startingParticipants = testCase.startingParticipants;
     }
 
-    public boolean is_NxN() {
+    public boolean isNxN() {
         return this.topology.getValue().equals(Topology.NxN.getValue());
     }
 
-    public boolean is_NxM() {
+    public boolean isNxM() {
         return this.topology.getValue().equals(Topology.NxM.getValue());
     }
 
-    public boolean is_TEACHING() {
+    public boolean isTeaching() {
         return this.topology.getValue().equals(Topology.TEACHING.getValue());
     }
 
-    public boolean is_ONE_SESSION() {
+    public boolean isOneSession() {
         return this.topology.getValue().equals(Topology.ONE_SESSION.getValue());
     }
 
-    public boolean is_TERMINATE() {
+    public boolean isTerminate() {
         return this.topology.getValue().equals(Topology.TERMINATE.getValue());
     }
 

@@ -15,10 +15,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -27,7 +27,6 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
-import io.openvidu.loadtest.controller.LoadTestController;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
@@ -39,12 +38,13 @@ import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.LoadTestService;
 import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.services.WebSocketConnectionFactory;
 import io.openvidu.loadtest.utils.DataIO;
 
-public class LoadTestControllerTests {
+class LoadTestServiceTests {
 
     @Mock
     private BrowserEmulatorClient browserEmulatorClient;
@@ -70,12 +70,12 @@ public class LoadTestControllerTests {
     @Mock
     private Sleeper sleeper;
 
-    private LoadTestController loadTestController;
+    private LoadTestService loadTestController;
 
     private ResultReport capturedResultReport;
 
     @BeforeEach
-    public void init() {
+    void init() {
         MockitoAnnotations.openMocks(this);
         when(this.loadTestConfig.getOpenViduUrl()).thenReturn("https://url.com");
         when(this.loadTestConfig.getOpenViduSecret()).thenReturn("MY_SECRET");
@@ -95,7 +95,7 @@ public class LoadTestControllerTests {
 
     private Instance generateRandomInstance() {
         Random random = new Random();
-        String instanceId = "i-" + RandomStringUtils.random(17, true, true).toLowerCase();
+        String instanceId = "i-" + UUID.randomUUID().toString().replace("-", "").substring(0, 17).toLowerCase();
         String publicDnsName = "ec2-" + random.nextInt(255) + "-"
                 + random.nextInt(255) + "-" + random.nextInt(255) + "-" + random.nextInt(255) +
                 ".compute-1.amazonaws.com";
@@ -107,7 +107,7 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void NxNTest8ParticipantsStartingParticipantsThenBatches() {
+    void NxNTest8ParticipantsStartingParticipantsThenBatches() {
         when(this.loadTestConfig.getWorkerUrlList()).thenReturn(new ArrayList<>(1));
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
@@ -123,7 +123,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         // Create list of instances for ec2 client mock
         List<Instance> instances = new ArrayList<>(workersAtStart);
@@ -201,7 +201,7 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void NxMTest3Publishers10SubscribersStartingParticipantsThenBatches() {
+    void NxMTest3Publishers10SubscribersStartingParticipantsThenBatches() {
         when(this.loadTestConfig.getWorkerUrlList()).thenReturn(new ArrayList<>(1));
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
@@ -217,7 +217,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         // Create list of instances for ec2 client mock
         List<Instance> instances = new ArrayList<>(workersAtStart);
@@ -300,7 +300,7 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void NxNTest8ParticipantsWithEstimationWithRampUpNoQOENoRecording() {
+    void NxNTest8ParticipantsWithEstimationWithRampUpNoQOENoRecording() {
         when(this.loadTestConfig.getWorkerUrlList()).thenReturn(new ArrayList<>(1));
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
@@ -312,7 +312,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isWaitCompletion()).thenReturn(true);
         when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(17);
 
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         // Create list of instances for ec2 client mock
         Instance instance1 = generateRandomInstance();
@@ -414,7 +414,7 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void OneSession1xNTestStartingParticipantsThenBatches() {
+    void OneSession1xNTestStartingParticipantsThenBatches() {
         when(this.loadTestConfig.getWorkerUrlList()).thenReturn(new ArrayList<>(1));
         when(this.loadTestConfig.isQoeAnalysisInSitu()).thenReturn(false);
         when(this.loadTestConfig.isQoeAnalysisRecordings()).thenReturn(false);
@@ -430,7 +430,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         // Create list of instances for ec2 client mock
         List<Instance> instances = new ArrayList<>(workersAtStart);
@@ -500,7 +500,7 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void noWorkersAvailableProdManualTest() {
+    void noWorkersAvailableProdManualTest() {
         when(this.loadTestConfig.getWorkerUrlList()).thenReturn(new ArrayList<>(1));
         int workersAtStart = 5;
         when(this.loadTestConfig.getWorkersNumberAtTheBeginning()).thenReturn(workersAtStart);
@@ -509,11 +509,11 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
         when(this.loadTestConfig.getWorkerMaxLoad()).thenReturn(75);
 
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         // Create list of instances for ec2 client mock
 
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         List<Instance> instances = new ArrayList<>(workersAtStart);
         for (int i = 0; i < workersAtStart; i++) {
@@ -533,13 +533,13 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void noWorkersAvailableProdAutoTest() {
+    void noWorkersAvailableProdAutoTest() {
         when(this.loadTestConfig.getWorkerUrlList()).thenReturn(new ArrayList<>(1));
         int workersAtStart = 5;
         when(this.loadTestConfig.getWorkersNumberAtTheBeginning()).thenReturn(workersAtStart);
         when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(0);
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(false);
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         // Create list of instances for ec2 client mock
         Instance instance1 = generateRandomInstance();
@@ -563,7 +563,7 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void NxNTest8ParticipantsDev() {
+    void NxNTest8ParticipantsDev() {
         List<String> devWorkers = new ArrayList<>(3);
         devWorkers.add("127.0.0.1");
         devWorkers.add("192.168.0.2");
@@ -580,7 +580,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
         int usersPerWorker = 10;
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(usersPerWorker);
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         List<String> participants = List.of("8");
 
@@ -651,7 +651,7 @@ public class LoadTestControllerTests {
     }
 
     @Test
-    public void NxNTest8ParticipantsDevWithEstimation() {
+    void NxNTest8ParticipantsDevWithEstimation() {
         List<String> devWorkers = new ArrayList<>(3);
         devWorkers.add("127.0.0.1");
         devWorkers.add("192.168.0.2");
@@ -668,7 +668,7 @@ public class LoadTestControllerTests {
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(false);
         when(this.loadTestConfig.getWorkerMaxLoad()).thenReturn(75);
         String estimationWorker = devWorkers.get(0);
-        this.loadTestController = new LoadTestController(browserEmulatorClient, loadTestConfig, kibanaClient,
+        this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
                 elasticSearchClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper);
         List<String> participants = List.of("8");
 

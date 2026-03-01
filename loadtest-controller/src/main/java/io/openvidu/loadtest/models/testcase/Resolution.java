@@ -8,8 +8,6 @@ public enum Resolution {
 
     FULLHIGH("1920x1080", "1920x1080");
 
-    // LOW("320x240", "320x240");
-
     private String label;
     private String value;
 
@@ -26,6 +24,7 @@ public enum Resolution {
         return this.label;
     }
 
+    @Override
     public String toString() {
         return this.getLabel();
     }

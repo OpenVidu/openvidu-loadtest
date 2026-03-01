@@ -27,6 +27,7 @@ public class LKLoadTestConfig extends LoadTestConfig {
         return livekitApiSecret;
     }
 
+    @Override
     @PostConstruct
     protected void checkConfigurationProperties() {
         this.livekitApiKey = asOptionalString("LIVEKIT_API_KEY");

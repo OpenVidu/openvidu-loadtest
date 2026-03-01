@@ -24,6 +24,7 @@ public enum OpenViduRecordingMode {
         return this.description;
     }
 
+    @Override
     public String toString() {
         return this.getValue() + ": " + this.getDesription();
     }

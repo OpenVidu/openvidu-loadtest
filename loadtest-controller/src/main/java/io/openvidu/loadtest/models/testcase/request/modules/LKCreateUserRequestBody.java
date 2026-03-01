@@ -19,6 +19,7 @@ public class LKCreateUserRequestBody extends CreateUserRequestBody {
         this.livekitApiSecret = config.getLivekitApiSecret();
     }
 
+    @Override
     public JsonObject toJson() {
         JsonObject jsonBody = super.toJson();
         boolean nullKeys = (this.livekitApiKey == null) || (this.livekitApiSecret == null);

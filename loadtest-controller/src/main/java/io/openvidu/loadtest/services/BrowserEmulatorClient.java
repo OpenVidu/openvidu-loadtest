@@ -423,7 +423,7 @@ public class BrowserEmulatorClient {
                 return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
             } else {
                 this.participantConnecting.get(user).set(false);
-                this.saveParticipantData(workerUrl, testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role);
+                this.saveParticipantData(workerUrl, testCase.isTeaching() ? OpenViduRole.PUBLISHER : role);
             }
             return processResponse(response);
         } catch (Exception e) {
@@ -503,8 +503,8 @@ public class BrowserEmulatorClient {
 // @formatter:off
 	private LKCreateUserRequestBody generateRequestBody(int userNumber, String sessionNumber, OpenViduRole role, TestCase testCase) {
 		// TODO: make more generic
-		boolean video = (testCase.is_TEACHING() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.is_TEACHING();
-		OpenViduRole actualRole = testCase.is_TEACHING() ? OpenViduRole.PUBLISHER : role;
+		boolean video = (testCase.isTeaching() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.isTeaching();
+		OpenViduRole actualRole = testCase.isTeaching() ? OpenViduRole.PUBLISHER : role;
 		boolean audio = true;
 		String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
 		String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;

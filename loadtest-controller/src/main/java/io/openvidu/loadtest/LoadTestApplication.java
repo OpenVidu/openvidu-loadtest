@@ -10,8 +10,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
-import io.openvidu.loadtest.controller.LoadTestController;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.services.LoadTestService;
 import io.openvidu.loadtest.utils.DataIO;
 
 /**
@@ -24,22 +24,22 @@ public class LoadTestApplication {
 
     private static final Logger log = LoggerFactory.getLogger(LoadTestApplication.class);
 
-    @Autowired
-    private LoadTestController loadTestController;
-
-    @Autowired
+    private LoadTestService loadTestService;
     private DataIO io;
+
+    public LoadTestApplication(LoadTestService loadTestService, DataIO io) {
+        this.loadTestService = loadTestService;
+        this.io = io;
+    }
 
     public static void main(String[] args) {
         SpringApplication.run(LoadTestApplication.class, args);
     }
 
     public void start() throws Exception {
-
         List<TestCase> testCasesList = io.getTestCasesFromJSON();
-        if (testCasesList.size() > 0) {
-
-            loadTestController.startLoadTests(testCasesList);
+        if (!testCasesList.isEmpty()) {
+            loadTestService.startLoadTests(testCasesList);
             log.info("Finished");
         } else {
             log.error(
