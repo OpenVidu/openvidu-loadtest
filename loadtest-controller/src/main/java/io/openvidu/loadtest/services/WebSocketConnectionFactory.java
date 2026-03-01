@@ -17,56 +17,56 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class WebSocketConnectionFactory {
-	private static final Logger log = LoggerFactory.getLogger(WebSocketClient.class);
+    private static final Logger log = LoggerFactory.getLogger(WebSocketClient.class);
 
-	private WebSocketContainer wsClient = ContainerProvider.getWebSocketContainer();
-	private static final int RETRY_TIME_S = 4;
-	private static final int MAX_ATTEMPT = 5;
-	private AtomicInteger attempts = new AtomicInteger(1);
+    private WebSocketContainer wsClient = ContainerProvider.getWebSocketContainer();
+    private static final int RETRY_TIME_S = 4;
+    private static final int MAX_ATTEMPT = 5;
+    private AtomicInteger attempts = new AtomicInteger(1);
 
-	@Autowired
-	private Sleeper sleeper;
+    @Autowired
+    private Sleeper sleeper;
 
-	@Autowired
-	private BrowserEmulatorClient beInstance;
-	
-	public WebSocketClient createConnection(String endpointURI) {
+    @Autowired
+    private BrowserEmulatorClient beInstance;
+
+    public WebSocketClient createConnection(String endpointURI) {
         WebSocketClient wsc = new WebSocketClient(endpointURI, this, this.beInstance, this.sleeper);
-		try {
-			Session session = wsClient.connectToServer(wsc, new URI(endpointURI));
-			wsc.setSession(session);
-		} catch (DeploymentException | IOException e) {
-			return retryOnError(e, endpointURI);
-		} catch (URISyntaxException e1) {
-			e1.printStackTrace();
-			System.exit(1);
-		}
+        try {
+            Session session = wsClient.connectToServer(wsc, new URI(endpointURI));
+            wsc.setSession(session);
+        } catch (DeploymentException | IOException e) {
+            return retryOnError(e, endpointURI);
+        } catch (URISyntaxException e1) {
+            e1.printStackTrace();
+            System.exit(1);
+        }
         return wsc;
-	}
+    }
 
-	public WebSocketClient createConnection(String endpointURI, WebSocketClient wsc) {
-		try {
-			Session session = wsClient.connectToServer(wsc, new URI(endpointURI));
-			wsc.setSession(session);
-		} catch (DeploymentException | IOException e) {
-			return retryOnError(e, endpointURI);
-		} catch (URISyntaxException e1) {
-			e1.printStackTrace();
-			System.exit(1);
-		}
+    public WebSocketClient createConnection(String endpointURI, WebSocketClient wsc) {
+        try {
+            Session session = wsClient.connectToServer(wsc, new URI(endpointURI));
+            wsc.setSession(session);
+        } catch (DeploymentException | IOException e) {
+            return retryOnError(e, endpointURI);
+        } catch (URISyntaxException e1) {
+            e1.printStackTrace();
+            System.exit(1);
+        }
         return wsc;
-	}
+    }
 
-	private WebSocketClient retryOnError(Exception e, String endpointURI) {
-		log.error(e.getMessage());
-		log.info("Retrying ...");
-		sleeper.sleep(RETRY_TIME_S, "error con websocket connection, retrying");
-		if(attempts.getAndIncrement() < MAX_ATTEMPT) {
-			return createConnection(endpointURI);
-		} else {
-			attempts.set(1);
-			log.error("Could not (re)connect to {} endpoint", endpointURI);
-			return null;
-		}
-	}
+    private WebSocketClient retryOnError(Exception e, String endpointURI) {
+        log.error(e.getMessage());
+        log.info("Retrying ...");
+        sleeper.sleep(RETRY_TIME_S, "error con websocket connection, retrying");
+        if (attempts.getAndIncrement() < MAX_ATTEMPT) {
+            return createConnection(endpointURI);
+        } else {
+            attempts.set(1);
+            log.error("Could not (re)connect to {} endpoint", endpointURI);
+            return null;
+        }
+    }
 }

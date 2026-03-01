@@ -1,14 +1,16 @@
 {
-	"testcases": [
-		{
-			"topology": "N:N",
-			"participants": ["2"],
-			"sessions": "1",
-			"startingParticipants": 0,
-			"resolution": "640x480",
-			"recording": false,
-			"headless": false,
-			"description": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
-		}
-	]
+    "testcases": [
+        {
+            "topology": "N:N",
+            "participants": [
+                "2"
+            ],
+            "sessions": "1",
+            "startingParticipants": 0,
+            "resolution": "640x480",
+            "recording": false,
+            "headless": false,
+            "description": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
+        }
+    ]
 }

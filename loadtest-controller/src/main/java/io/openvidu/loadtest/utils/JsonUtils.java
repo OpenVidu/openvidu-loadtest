@@ -13,19 +13,19 @@ import com.google.gson.stream.JsonReader;
 
 @Service
 public class JsonUtils {
-	
-	public JsonObject getJson(String string){
-		return new Gson().fromJson(string, JsonObject.class);
-	}
-	
-	public JsonObject getJson(JsonReader reader){
-		return new Gson().fromJson(reader, JsonObject.class);
-	}
-	
-	public List<String> getStringList(JsonArray array){
-		Type listType = new TypeToken<List<String>>() {
-		}.getType();
-		return new Gson().fromJson(array, listType);
-	}
+
+    public JsonObject getJson(String string) {
+        return new Gson().fromJson(string, JsonObject.class);
+    }
+
+    public JsonObject getJson(JsonReader reader) {
+        return new Gson().fromJson(reader, JsonObject.class);
+    }
+
+    public List<String> getStringList(JsonArray array) {
+        Type listType = new TypeToken<List<String>>() {
+        }.getType();
+        return new Gson().fromJson(array, listType);
+    }
 
 }

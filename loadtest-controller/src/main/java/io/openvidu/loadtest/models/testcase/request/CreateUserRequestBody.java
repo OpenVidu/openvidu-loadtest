@@ -10,24 +10,24 @@ import io.openvidu.loadtest.models.testcase.TestCase;
 
 public class CreateUserRequestBody {
 
-	private String userId = "";
-	private String sessionName = "";
-	private String token = "";
-	private OpenViduRole role = OpenViduRole.PUBLISHER;
-	private boolean audio = true;
-	private boolean video = true;
-	private Resolution resolution = Resolution.MEDIUM;
-	private OpenViduRecordingMode openviduRecordingMode;
-	private int frameRate = 30;
-	private boolean browserRecording = false;
-	private boolean showVideoElements = true;
-	private boolean headlessBrowser = false;
-	private String recordingMetadata = "";
-	private String openviduUrl = "";
-	private String openviduSecret = "";
+    private String userId = "";
+    private String sessionName = "";
+    private String token = "";
+    private OpenViduRole role = OpenViduRole.PUBLISHER;
+    private boolean audio = true;
+    private boolean video = true;
+    private Resolution resolution = Resolution.MEDIUM;
+    private OpenViduRecordingMode openviduRecordingMode;
+    private int frameRate = 30;
+    private boolean browserRecording = false;
+    private boolean showVideoElements = true;
+    private boolean headlessBrowser = false;
+    private String recordingMetadata = "";
+    private String openviduUrl = "";
+    private String openviduSecret = "";
 
-
-    public CreateUserRequestBody(LoadTestConfig config, TestCase testCase, boolean video, boolean audio, OpenViduRole role, String userId, String sessionId) {
+    public CreateUserRequestBody(LoadTestConfig config, TestCase testCase, boolean video, boolean audio,
+            OpenViduRole role, String userId, String sessionId) {
 
         this.openviduUrl = config.getOpenViduUrl();
         this.openviduSecret = config.getOpenViduSecret();

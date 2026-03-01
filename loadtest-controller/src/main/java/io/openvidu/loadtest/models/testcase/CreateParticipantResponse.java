@@ -10,10 +10,11 @@ public class CreateParticipantResponse {
     private String userId;
     private String sessionId;
 
-    public CreateParticipantResponse() {}
+    public CreateParticipantResponse() {
+    }
 
     public CreateParticipantResponse(boolean responseOk, String stopReason, String connectionId,
-        int streamsInWorker, int participantsInWorker, String userId, String sessionId, double workerCpuPct) {
+            int streamsInWorker, int participantsInWorker, String userId, String sessionId, double workerCpuPct) {
         this.responseOk = responseOk;
         this.stopReason = stopReason;
         this.connectionId = connectionId;
@@ -103,6 +104,5 @@ public class CreateParticipantResponse {
                 + ", participantsInWorker=" + participantsInWorker + ", userId=" + userId + ", sessionId=" + sessionId
                 + "]";
     }
-    
-    
+
 }

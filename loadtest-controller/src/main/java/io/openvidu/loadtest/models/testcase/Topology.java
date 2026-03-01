@@ -1,36 +1,35 @@
 package io.openvidu.loadtest.models.testcase;
 
 public enum Topology {
-	
-	NxN("N:N", "All participants will be PUBLISHER"),
 
-	NxM("N:M", "N PUBLISHERS and M SUBSCRIBERS"),
+    NxN("N:N", "All participants will be PUBLISHER"),
 
-	TEACHING("TEACHING", "TEACHING"),
+    NxM("N:M", "N PUBLISHERS and M SUBSCRIBERS"),
 
-	ONE_SESSION("ONE_SESSION", "One session with N publishers or X:M subscribers"),
+    TEACHING("TEACHING", "TEACHING"),
 
-	TERMINATE("TERMINATE", "Terminate all Ec2 instances launched");
+    ONE_SESSION("ONE_SESSION", "One session with N publishers or X:M subscribers"),
 
-	private String value;
-	private String description;
+    TERMINATE("TERMINATE", "Terminate all Ec2 instances launched");
 
+    private String value;
+    private String description;
 
-	Topology(String value, String description) {
-		this.value = value;
-		this.description = description;
+    Topology(String value, String description) {
+        this.value = value;
+        this.description = description;
 
-	}
+    }
 
-	public String getValue() {
-		return this.value;
-	}
+    public String getValue() {
+        return this.value;
+    }
 
-	public String getDescription() {
-		return this.description;
-	}
+    public String getDescription() {
+        return this.description;
+    }
 
-	public String toString() {
-		return this.getValue() + ": " + this.description;
-	}
+    public String toString() {
+        return this.getValue() + ": " + this.description;
+    }
 }
