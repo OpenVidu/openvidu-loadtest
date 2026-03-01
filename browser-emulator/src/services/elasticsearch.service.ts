@@ -1,4 +1,4 @@
-import { Client, type ClientOptions } from '@elastic/elasticsearch';
+import { Client } from '@elastic/elasticsearch';
 import { APPLICATION_MODE } from '../config.js';
 import type {
 	JSONQoEInfo,
@@ -7,7 +7,6 @@ import type {
 } from '../types/api-rest.type.js';
 import { ApplicationMode } from '../types/config.type.js';
 import fs from 'node:fs';
-import type { Index } from '@elastic/elasticsearch/api/requestParams.js';
 
 export class ElasticSearchService {
 	indexName: string = '';
@@ -41,12 +40,16 @@ export class ElasticSearchService {
 		if (this.needsToBeConfigured()) {
 			console.log('Initializing ElasticSearch');
 			this.indexName = indexName;
-			const clientOptions = this.buildClientOptions(hostname, username, password);
+			const clientOptions = this.buildClientOptions(
+				hostname,
+				username,
+				password,
+			);
 			try {
 				console.log('Connecting with ElasticSearch ...');
 				this.client = new Client(clientOptions);
 				const pingSuccess = await this.client.ping();
-				this.pingSuccess = !!pingSuccess.body;
+				this.pingSuccess = !!pingSuccess;
 				if (this.pingSuccess) {
 					await this.ensureIndexExists();
 				}
@@ -57,8 +60,12 @@ export class ElasticSearchService {
 		}
 	}
 
-	private buildClientOptions(hostname: string, username?: string, password?: string): ClientOptions {
-		const clientOptions: ClientOptions = {
+	private buildClientOptions(
+		hostname: string,
+		username?: string,
+		password?: string,
+	) {
+		const clientOptions: Record<string, any> = {
 			node: hostname,
 			maxRetries: 5,
 			requestTimeout: 10000,
@@ -68,7 +75,7 @@ export class ElasticSearchService {
 		};
 
 		if (username && password) {
-			clientOptions.auth = {
+			clientOptions['auth'] = {
 				username: username,
 				password: password,
 			};
@@ -81,12 +88,10 @@ export class ElasticSearchService {
 			const exists = await this.client!.indices.exists({
 				index: this.indexName,
 			});
-			if (!exists.body) {
+			if (!exists) {
 				await this.client!.indices.create({
 					index: this.indexName,
-					body: {
-						mappings: this.mappings,
-					},
+					mappings: this.mappings,
 				});
 			}
 		} else {
@@ -99,17 +104,13 @@ export class ElasticSearchService {
 			this.isElasticSearchRunning() &&
 			APPLICATION_MODE === ApplicationMode.PROD
 		) {
-			let indexData: Index<Record<string, any>> = {
-				index: this.indexName,
-				body: {},
-			};
 			const jsonRecord = json as Record<string, any>;
-			Object.keys(jsonRecord).forEach(key => {
-				indexData.body[key] = jsonRecord[key];
-			});
-			if (Object.keys(indexData.body).length) {
+			if (Object.keys(jsonRecord).length) {
 				try {
-					await this.client!.index(indexData);
+					await this.client!.index({
+						index: this.indexName,
+						document: jsonRecord,
+					});
 				} catch (error) {
 					console.error(error);
 				}
@@ -130,12 +131,13 @@ export class ElasticSearchService {
 					json,
 				]);
 				const bulkResponse = await this.client!.bulk({
-					refresh: 'true',
-					body: operations,
+					refresh: true,
+					operations: operations,
 				});
-				if (bulkResponse.body['errors']) {
+				if (bulkResponse.errors) {
 					throw new Error(
-						bulkResponse.body['items'][0].index.error.reason,
+						(bulkResponse.items?.[0] as any)?.index?.error
+							?.reason || 'Bulk operation failed',
 					);
 				}
 			} catch (error) {
@@ -157,9 +159,7 @@ export class ElasticSearchService {
 			const index = this.generateNewIndexName();
 			await this.client!.indices.create({
 				index,
-				body: {
-					mappings: this.mappings,
-				},
+				mappings: this.mappings,
 			});
 		}
 	}
@@ -181,16 +181,14 @@ export class ElasticSearchService {
 		) {
 			const result = await this.client!.search({
 				index: this.indexName,
-				body: {
-					query: {
-						exists: {
-							field: 'new_participant_id',
-						},
+				query: {
+					exists: {
+						field: 'new_participant_id',
 					},
-					size: 10000,
 				},
+				size: 10000,
 			});
-			return result.body['hits'].hits.map((hit: any) => {
+			return (result.hits?.hits?.map((hit: any) => {
 				const json: JSONStreamsInfo = {
 					'@timestamp': hit._source['@timestamp'],
 					new_participant_id: hit._source['new_participant_id'],
@@ -201,7 +199,7 @@ export class ElasticSearchService {
 					worker_name: hit._source['worker_name'],
 				};
 				return json;
-			});
+			}) ?? []) as JSONStreamsInfo[];
 		} else {
 			return [];
 		}
