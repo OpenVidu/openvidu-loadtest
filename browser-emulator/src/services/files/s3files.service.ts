@@ -1,4 +1,3 @@
-import { FilesService } from '../files.service.js';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import {
@@ -10,7 +9,14 @@ import {
 	type CreateBucketCommandOutput,
 } from '@aws-sdk/client-s3';
 
-export class S3FilesService extends FilesService {
+export class S3FilesService {
+	private static instance: S3FilesService | undefined;
+	static readonly fileDirs = [
+		`${process.cwd()}/recordings/chrome`,
+		`${process.cwd()}/recordings/qoe`,
+		`${process.cwd()}/stats`,
+	];
+
 	private readonly bucket: string;
 	private readonly host: string | undefined;
 	private readonly accessKey: string;
@@ -21,24 +27,40 @@ export class S3FilesService extends FilesService {
 		accessKey: string,
 		secretAccessKey: string,
 		bucketName: string,
+		region?: string,
 		host?: string,
 	) {
-		super();
 		this.accessKey = accessKey;
 		this.secretAccessKey = secretAccessKey;
 		this.bucket = bucketName;
+		this.region = region || this.region;
 		this.host = host;
-		console.log('S3FilesService initialized with provided credentials');
+		console.log('FilesService initialized with provided credentials');
 	}
 
-	static getInstance(...args: string[]): FilesService {
-		FilesService.instance ??= new S3FilesService(
-			args[0]!,
-			args[1]!,
-			args[2]!,
-			args[3],
-		);
-		return FilesService.instance;
+	static getInstance(
+		accessKey?: string,
+		secretAccessKey?: string,
+		bucketName?: string,
+		region?: string,
+		host?: string,
+	): S3FilesService {
+		if (!S3FilesService.instance) {
+			if (!accessKey || !secretAccessKey || !bucketName) {
+				throw new Error(
+					'S3FilesService not initialized. Please provide accessKey, secretAccessKey and bucketName to initialize.',
+				);
+			} else {
+				S3FilesService.instance ??= new S3FilesService(
+					accessKey,
+					secretAccessKey,
+					bucketName,
+					region,
+					host,
+				);
+			}
+		}
+		return S3FilesService.instance;
 	}
 
 	private getS3Client(): S3Client {
@@ -138,7 +160,7 @@ export class S3FilesService extends FilesService {
 			};
 
 			const promises: Promise<void[]>[] = [];
-			FilesService.fileDirs.forEach(dir => {
+			S3FilesService.fileDirs.forEach(dir => {
 				promises.push(
 					fsPromises
 						.access(dir, fs.constants.R_OK | fs.constants.W_OK)
@@ -189,6 +211,7 @@ export class S3FilesService extends FilesService {
 			throw error;
 		}
 	}
+
 	async isBucketCreated(bucketName: string): Promise<boolean> {
 		try {
 			const s3 = this.getS3Client();
@@ -202,6 +225,7 @@ export class S3FilesService extends FilesService {
 			throw err;
 		}
 	}
+
 	async createBucket(bucketName: string): Promise<CreateBucketCommandOutput> {
 		try {
 			const s3 = this.getS3Client();

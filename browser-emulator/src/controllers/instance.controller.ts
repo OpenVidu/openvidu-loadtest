@@ -11,9 +11,9 @@ import { APPLICATION_MODE } from '../config.js';
 import { ApplicationMode } from '../types/config.type.js';
 import { ContainerName } from '../types/container-info.type.js';
 import { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
-import { S3FilesService } from '../services/files/impl/s3.service.js';
 import { downloadFile } from '../utils/download-files.js';
 import { SeleniumService } from '../services/selenium.service.js';
+import { S3FilesService } from '../services/files/s3files.service.ts';
 
 export const app = express.Router({
 	strict: true,
@@ -47,7 +47,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 			);
 
 			if (
-				!!request.elasticSearchHost &&
+				request.elasticSearchHost &&
 				!elasticSearchService.isElasticSearchRunning()
 			) {
 				promises.push(
@@ -65,49 +65,38 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				);
 			}
 		}
-		// Set up file service now for speed gains when uploading files later
+		// Set up file service now so that it doesn't have to be initialized later when needed
 		const fileServicePromise = new Promise((resolve, _) => {
 			let accessKey: string | undefined;
 			let secretAccessKey: string | undefined;
-			let bucketName: string | undefined;
+			let bucketName = request.s3BucketName;
 			let host: string | undefined;
-			if (
-				!!request.minioHost &&
-				!!request.minioAccessKey &&
-				!!request.minioSecretKey
-			) {
-				host = `${request.minioHost}:${request.minioPort ? request.minioPort.toString() : '443'}`;
-				bucketName = request.minioBucket;
-				accessKey = request.minioAccessKey;
-				secretAccessKey = request.minioSecretKey;
-			} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
+			if (request.awsAccessKey && request.awsSecretAccessKey) {
 				accessKey = request.awsAccessKey;
 				secretAccessKey = request.awsSecretAccessKey;
-				bucketName = request.s3BucketName;
 			}
 			if (request.s3Host) {
 				host = request.s3Host;
-			}
-			if (!!bucketName && !!accessKey && !!secretAccessKey) {
-				if (host) {
-					S3FilesService.getInstance(
-						accessKey,
-						secretAccessKey,
-						bucketName,
-						host,
-					);
-				} else {
-					S3FilesService.getInstance(
-						accessKey,
-						secretAccessKey,
-						bucketName,
-					);
+				if (request.s3HostAccessKey && request.s3HostSecretAccessKey) {
+					// Overwrite accessKey and secretAccessKey if s3Host is provided with its own credentials,
+					// as they should be used instead of AWS credentials to connect to the provided s3Host
+					accessKey = request.s3HostAccessKey;
+					secretAccessKey = request.s3HostSecretAccessKey;
 				}
+			}
+			if (bucketName && accessKey && secretAccessKey) {
+				S3FilesService.getInstance(
+					accessKey,
+					secretAccessKey,
+					bucketName,
+					request.s3Region,
+					host,
+				);
 			}
 			resolve('');
 		}).then(() => {
 			// TODO: this QOE_ANALYSIS should not be an env variable, there should be two separate properties: one to enable MediaRecorders in browser creation request and another one to actually do the QoE Analysis in situ
-			if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {
+			if (request.qoeAnalysis?.enabled) {
 				process.env['QOE_ANALYSIS'] =
 					request.qoeAnalysis.enabled.toString();
 				QoeAnalyzerService.getInstance().setDurations(

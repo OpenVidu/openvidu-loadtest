@@ -14,19 +14,16 @@ type ElasticsearchCredentials = {
 	elasticSearchIndex: string;
 };
 
-// TODO: remove minio properties and rename aws properties to be more generic, as they can be used for any S3 compatible service, not only AWS S3
 export type InitializePostRequest = {
-	qoeAnalysis?: QoeAnalysisRequest;
 	browserVideo: BrowserVideoRequest;
+	qoeAnalysis?: QoeAnalysisRequest;
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;
 	s3BucketName?: string;
+	s3Region?: string;
 	s3Host?: string;
-	minioHost?: string;
-	minioAccessKey?: string;
-	minioSecretKey?: string;
-	minioPort?: number;
-	minioBucket?: string;
+	s3HostAccessKey?: string;
+	s3HostSecretAccessKey?: string;
 } & (
 	| ElasticsearchCredentials
 	| Partial<Record<keyof ElasticsearchCredentials, never>>

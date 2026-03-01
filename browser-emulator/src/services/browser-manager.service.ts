@@ -15,7 +15,7 @@ import {
 import { OpenViduRole } from '../types/openvidu.type.js';
 import { APPLICATION_MODE } from '../config.js';
 import { ApplicationMode } from '../types/config.type.js';
-import { FilesService } from './files/files.service.js';
+import { S3FilesService } from './files/s3files.service.ts';
 import {
 	CON_FILE,
 	ERRORS_FILE,
@@ -32,8 +32,8 @@ export class BrowserManagerService {
 		new RealBrowserService();
 	private readonly instanceService: InstanceService =
 		InstanceService.getInstance();
-	private readonly filesService: FilesService | undefined =
-		FilesService.getInstance();
+	private readonly filesService: S3FilesService | undefined =
+		S3FilesService.getInstance();
 	private readonly elasticSearchService: ElasticSearchService =
 		ElasticSearchService.getInstance();
 	private readonly webrtcStorageService = new WebrtcStatsService();

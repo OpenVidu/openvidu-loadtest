@@ -13,11 +13,10 @@ public class InitializeRequestBody {
 	private String awsAccessKey = "";
 	private String awsSecretAccessKey = "";
 	private String s3BucketName = "";
-	private String minioAccessKey = "";
-	private String minioSecretKey = "";
-	private String minioBucket = "";
-	private int minioPort = 443;
-	private String minioHost = "";
+    private String s3Region = "";
+    private String s3Host = "";
+    private String s3HostAccessKey = "";
+    private String s3HostSecretKey = "";
 	private boolean qoeAnalysisEnabled = false;
 	private int paddingDuration = 1;
 	private int fragmentDuration = 5;
@@ -37,11 +36,9 @@ public class InitializeRequestBody {
 		this.awsAccessKey = config.getAwsAccessKey();
 		this.awsSecretAccessKey = config.getAwsSecretAccessKey();
 		this.s3BucketName = config.getS3BucketName();
-		this.minioAccessKey = config.getMinioAccessKey();
-		this.minioSecretKey = config.getMinioSecretKey();
-		this.minioBucket = config.getMinioBucket();
-		this.minioPort = config.getMinioPort();
-		this.minioHost = config.getMinioHost();
+        this.s3Region = config.getS3Region();
+        this.s3Host = config.getS3Host();
+        this.s3HostAccessKey = config.getS3HostAccessKey();
 		this.qoeAnalysisEnabled = config.isQoeAnalysisRecordings();
 		this.paddingDuration = config.getPaddingDuration();
 		this.fragmentDuration = config.getFragmentDuration();
@@ -63,13 +60,16 @@ public class InitializeRequestBody {
 		jsonBody.addProperty("awsSecretAccessKey", this.awsSecretAccessKey);
 		if ((this.s3BucketName != null) && !this.s3BucketName.isEmpty()) {
 			jsonBody.addProperty("s3BucketName", this.s3BucketName);
-		}
-		if ((this.minioAccessKey != null) && !this.minioAccessKey.isEmpty()) {
-			jsonBody.addProperty("minioAccessKey", this.minioAccessKey);
-			jsonBody.addProperty("minioSecretKey", this.minioSecretKey);
-			jsonBody.addProperty("minioHost", this.minioHost);
-			jsonBody.addProperty("minioPort", this.minioPort);
-			jsonBody.addProperty("minioBucket", this.minioBucket);
+            if ((this.s3Region != null) && !this.s3Region.isEmpty()) {
+                jsonBody.addProperty("s3Region", this.s3Region);
+            }
+            if ((this.s3Host != null) && !this.s3Host.isEmpty()) {
+                jsonBody.addProperty("s3Host", this.s3Host);
+            }
+            if ((this.s3HostAccessKey != null) && !this.s3HostAccessKey.isEmpty() && (this.s3HostSecretKey != null) && !this.s3HostSecretKey.isEmpty()) {
+                jsonBody.addProperty("s3HostAccessKey", this.s3HostAccessKey);
+                jsonBody.addProperty("s3HostSecretKey", this.s3HostSecretKey);
+            }
 		}
 
 		JsonObject browserVideo = new JsonObject();

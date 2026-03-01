@@ -21,7 +21,7 @@ import nodeCleanup from 'node-cleanup';
 import { BrowserManagerService } from './services/browser-manager.service.js';
 import { killAllDetached } from './utils/run-script.js';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices.js';
-import { FilesService } from './services/files/files.service.js';
+import { S3FilesService } from './services/files/s3files.service.ts';
 
 async function cleanup() {
 	const browserManager = BrowserManagerService.getInstance();
@@ -97,7 +97,7 @@ export async function startServer() {
 					recursive: true,
 				});
 			}
-			for (const directory of FilesService.fileDirs) {
+			for (const directory of S3FilesService.fileDirs) {
 				if (!fs.existsSync(directory)) {
 					fs.mkdirSync(directory, { recursive: true });
 				}

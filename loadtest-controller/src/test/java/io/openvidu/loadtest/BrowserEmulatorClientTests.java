@@ -57,11 +57,10 @@ class BrowserEmulatorClientTests {
         when(this.loadTestConfigMock.getAwsAccessKey()).thenReturn("abc123");
         when(this.loadTestConfigMock.getAwsSecretAccessKey()).thenReturn("def456");
         when(this.loadTestConfigMock.getS3BucketName()).thenReturn("bucketS3");
-        when(this.loadTestConfigMock.getMinioAccessKey()).thenReturn("");
-        when(this.loadTestConfigMock.getMinioSecretKey()).thenReturn("");
-        when(this.loadTestConfigMock.getMinioHost()).thenReturn("");
-        when(this.loadTestConfigMock.getMinioPort()).thenReturn(-1);
-        when(this.loadTestConfigMock.getMinioBucket()).thenReturn("");
+        when(this.loadTestConfigMock.getS3Host()).thenReturn("");
+        when(this.loadTestConfigMock.getS3HostAccessKey()).thenReturn("");
+        when(this.loadTestConfigMock.getS3HostSecretKey()).thenReturn("");
+        when(this.loadTestConfigMock.getS3Region()).thenReturn("us-east-1");
         when(this.loadTestConfigMock.getAwsAccessKey()).thenReturn("abc123");
         when(this.loadTestConfigMock.getAwsSecretAccessKey()).thenReturn("def456");
         when(this.loadTestConfigMock.getS3BucketName()).thenReturn("bucketS3");
@@ -91,6 +90,7 @@ class BrowserEmulatorClientTests {
         expectedBody.addProperty("awsAccessKey", "abc123");
         expectedBody.addProperty("awsSecretAccessKey", "def456");
         expectedBody.addProperty("s3BucketName", "bucketS3");
+        expectedBody.addProperty("s3Region", "us-east-1");
         JsonObject video = new JsonObject();
         video.addProperty("videoType", "bunny");
         JsonObject videoInfo = new JsonObject();

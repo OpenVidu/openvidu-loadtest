@@ -232,7 +232,7 @@ WORKER_MAX_LOAD=70
 ##### For video quality control
 These properties allow record a participant (launching an external browser) for check the received video quality. Another option is to record in-browser media streams, which can be used for QoE Analysis later.
 
-When test finishes, the recording(s) will be saved in the S3 Bucket if MinIO isn't configured.
+When test finishes, the recording(s) will be saved in the S3 Bucket configured.
 
 ```properties
 ################################################
@@ -256,7 +256,7 @@ RECORDING_WORKERS_AT_THE_BEGINNING=0
 
 # Record each MediaStream in each worker for Quality of Experience analysis
 QOE_ANALYSIS_RECORDINGS=false
-# Perform qoe analysis in the same worker as they were recorded in, if false the recordings will only be uploaded to S3 or MinIO
+# Perform qoe analysis in the same worker as they were recorded in, if false the recordings will only be uploaded to S3
 QOE_ANALYSIS_IN_SITU=false
 # Video information needed for in situ QoE analysis, read https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#running-qoe-analysis for more information
 VIDEO_PADDING_DURATION=1
@@ -267,23 +267,14 @@ VIDEO_FRAGMENT_DURATION=15
 ################################################
 # Bucket name where the recordings will be saved. Remember to set AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY
 S3_BUCKET_NAME=
-```
-
-##### If you want to save the recordings in MinIO
-```properties
-################################################
-#### MinIO credentials and information if using it to save recordings instead of S3
-################################################
-# MinIO Endpoint
-MINIO_HOST=
-# MinIO Port (default 443)
-MINIO_PORT=443
-# MinIO Access Key
-MINIO_ACCESS_KEY=
-# MinIO Secret Key
-MINIO_SECRET_KEY=
-# MinIO Bucket Name
-MINIO_BUCKET=
+# S3 region. Defaults to us-east-1 if not specified. Remember to set AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY
+S3_REGION=us-east-1
+# (Optional) S3 endpoint, needed if you are using a S3 compatible storage like MinIO
+S3_HOST=
+# (Optional) S3 endpoint's access key and secret key, needed if you are using a S3 compatible storage like MinIO.
+# If S3_HOST is specified but these keys are not, it will try to connect using the AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY keys if available.
+S3_HOST_ACCESS_KEY=
+S3_HOST_SECRET_KEY=
 ```
 #### For retrying the participant creation
 

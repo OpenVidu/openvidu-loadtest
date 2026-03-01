@@ -1265,10 +1265,11 @@ public class LoadTestController {
 		}
 		String videoControl = "None";
 		if ((loadTestConfig.getS3BucketName() != null) && !loadTestConfig.getS3BucketName().equals("")) {
-			videoControl = "https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName();
-		} else if ((loadTestConfig.getMinioBucket() != null) && !loadTestConfig.getMinioBucket().equals("")) {
-			videoControl = loadTestConfig.getMinioHost() + ":" + loadTestConfig.getMinioPort() + "/"
-					+ loadTestConfig.getMinioBucket();
+            if (loadTestConfig.getS3Host() != null && !loadTestConfig.getS3Host().isEmpty()) {
+                videoControl = loadTestConfig.getS3Host() + "/" + loadTestConfig.getS3BucketName();
+            } else {
+			    videoControl = "https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName();
+            }
 		}
 		ResultReport rr = new ResultReport().setTotalParticipants(totalParticipants.get())
 				.setNumSessionsCompleted(sessionsCompleted.get()).setNumSessionsCreated(sessionNumber.get())

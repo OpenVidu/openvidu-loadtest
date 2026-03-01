@@ -72,19 +72,17 @@ public class LoadTestConfig {
 	private String awsSecretAccessKey;
 	
 	private String awsAccessKey;
-	
+
 	private String s3bucketName;
 
-	private String minioAccessKey;
-	
-	private String minioSecretKey;
+    private String s3Region;
 
-	private String minioBucket;
-	
-	private int minioPort;
+    private String s3Host;
 
-	private String minioHost;
-	
+    private String s3HostAccessKey;
+
+    private String s3HostSecretKey;
+
 	private boolean retryMode;
 	
 	private int retryTimes;
@@ -306,27 +304,23 @@ public class LoadTestConfig {
 		return audioUrl;
 	}
 
-    public String getMinioAccessKey() {
-        return this.minioAccessKey;
+    public String getS3Region() {
+        return s3Region;
     }
 
-    public String getMinioSecretKey() {
-        return this.minioSecretKey;
+    public String getS3Host() {
+        return s3Host;
     }
 
-    public String getMinioHost() {
-        return this.minioHost;
+    public String getS3HostAccessKey() {
+        return s3HostAccessKey;
     }
 
-    public int getMinioPort() {
-        return this.minioPort;
+    public String getS3HostSecretKey() {
+        return s3HostSecretKey;
     }
 
-    public String getMinioBucket() {
-        return this.minioBucket;
-    }
-
-	public boolean isDebugVnc() {
+    public boolean isDebugVnc() {
 		return this.debugVnc;
 	}
 
@@ -395,11 +389,10 @@ public class LoadTestConfig {
 			videoFps = asInt("VIDEO_FPS");
 			videoUrl = asOptionalString("VIDEO_URL");
 			audioUrl = asOptionalString("AUDIO_URL");
-			minioAccessKey = asOptionalString("MINIO_ACCESS_KEY");
-			minioSecretKey = asOptionalString("MINIO_SECRET_KEY");
-			minioHost = asOptionalString("MINIO_HOST");
-			minioPort = asInt("MINIO_PORT");
-			minioBucket = asOptionalString("MINIO_BUCKET");
+            s3Region = asOptionalString("S3_REGION");
+            s3Host = asOptionalString("S3_HOST");
+            s3HostAccessKey = asOptionalString("S3_HOST_ACCESS_KEY");
+            s3HostSecretKey = asOptionalString("S3_HOST_SECRET_KEY");
 			debugVnc = asBoolean("DEBUG_VNC");
 			batchMaxRequests = asInt("BATCHES_MAX_REQUESTS");
 			if (batchMaxRequests == -1) {
@@ -475,8 +468,8 @@ public class LoadTestConfig {
 		}
 		if (recordingSessionGroup > 0) {
 			System.out.printf(format, "Recording starts each :", recordingSessionGroup + " session(s)");
-			if(s3bucketName.isBlank() && minioBucket.isBlank()) {
-				System.err.printf(format, "S3 or Minio Bucket Name is not defined");
+			if(s3bucketName.isBlank()) {
+				System.err.printf(format, "S3 Bucket Name is not defined");
 				System.exit(1);
 			}
 		}
