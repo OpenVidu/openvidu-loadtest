@@ -1,8 +1,8 @@
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
 import importPlugin from 'eslint-plugin-import';
 import prettierPlugin from 'eslint-plugin-prettier';
-import prettierConfig from 'eslint-config-prettier';
+import prettierConfig from 'eslint-config-prettier/flat';
 
 export default [
 	{
@@ -15,10 +15,13 @@ export default [
 			'recordings/',
 		],
 	},
+	js.configs.recommended,
+	...tseslint.configs.recommendedTypeChecked,
+	...tseslint.configs.stylisticTypeChecked,
 	{
 		files: ['src/**/*.ts', '*.ts', '*.js', 'tests/**/*.ts'],
 		languageOptions: {
-			parser: tsParser,
+			parser: tseslint.parser,
 			parserOptions: {
 				ecmaVersion: 'latest',
 				sourceType: 'module',
@@ -31,7 +34,6 @@ export default [
 			},
 		},
 		plugins: {
-			'@typescript-eslint': tsPlugin,
 			import: importPlugin,
 			prettier: prettierPlugin,
 		},
@@ -44,38 +46,16 @@ export default [
 			},
 		},
 		rules: {
-			// CRITICAL: Enforce .js extensions for ESM imports (catches the Node.js runtime error)
-			'import/extensions': [
-				'error',
-				'ignorePackages',
-				{
-					ts: 'never',
-					tsx: 'never',
-				},
-			],
-			'import/no-unresolved': 'error',
-
-			// TypeScript strict rules
-			'no-fallthrough': 'error',
-			'@typescript-eslint/explicit-function-return-types': 'error',
-			'@typescript-eslint/no-unused-vars': [
-				'error',
-				{
-					argsIgnorePattern: '^_',
-					varsIgnorePattern: '^_',
-				},
-			],
-			'@typescript-eslint/no-explicit-any': 'warn',
-
-			// Prettier integration
-			'prettier/prettier': 'error',
+			...importPlugin.configs.recommended.rules,
+			...importPlugin.configs.typescript.rules,
+			...prettierPlugin.configs.recommended.rules,
 			...prettierConfig.rules,
 		},
 	},
 	{
 		files: ['tests/**/*.ts'],
 		languageOptions: {
-			parser: tsParser,
+			parser: tseslint.parser,
 			parserOptions: {
 				ecmaVersion: 'latest',
 				sourceType: 'module',
@@ -93,7 +73,6 @@ export default [
 			},
 		},
 		plugins: {
-			'@typescript-eslint': tsPlugin,
 			import: importPlugin,
 			prettier: prettierPlugin,
 		},
@@ -106,29 +85,9 @@ export default [
 			},
 		},
 		rules: {
-			'import/extensions': [
-				'error',
-				'ignorePackages',
-				{
-					ts: 'never',
-					tsx: 'never',
-				},
-			],
-			'import/no-unresolved': 'error',
-			'no-fallthrough': 'error',
-			'@typescript-eslint/no-unused-vars': [
-				'error',
-				{
-					argsIgnorePattern: '^_',
-					varsIgnorePattern: '^_',
-				},
-			],
-			'@typescript-eslint/no-explicit-any': 'warn',
-			'@typescript-eslint/no-unsafe-member-access': 'error',
-			'@typescript-eslint/no-unsafe-assignment': 'error',
-
-			// Prettier integration
-			'prettier/prettier': 'warn',
+			...importPlugin.configs.recommended.rules,
+			...importPlugin.configs.typescript.rules,
+			...prettierPlugin.configs.recommended.rules,
 			...prettierConfig.rules,
 		},
 	},

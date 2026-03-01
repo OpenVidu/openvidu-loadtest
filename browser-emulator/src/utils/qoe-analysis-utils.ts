@@ -21,7 +21,7 @@ export async function runQoEAnalysisNonBlocking(
 	const files = await fsPromises
 		.access(dir, fs.constants.R_OK | fs.constants.W_OK)
 		.then(() => fsPromises.readdir(dir));
-	runQoEAnalysis(processingInfo, dir, files).then(() => {
+	void runQoEAnalysis(processingInfo, dir, files).then(() => {
 		console.log('Finished running QoE analysis');
 	});
 	return files;
@@ -60,7 +60,7 @@ async function runQoEAnalysis(
 	onlyFiles = false,
 	allAnalysis = false,
 	debug = false,
-) {
+): Promise<void> {
 	let timestamps: JSONUserInfo[] = [];
 	if (!onlyFiles) {
 		if (
@@ -80,7 +80,7 @@ async function runQoEAnalysis(
 	files.forEach(file => {
 		const filePath = `${dir}/${file}`;
 		const fileName = file.split('/').pop();
-		const prefix = fileName!.split('.')[0]!;
+		const prefix = fileName!.split('.')[0];
 		promises.push(
 			limit(() =>
 				runSingleAnalysis(
@@ -104,17 +104,17 @@ async function runQoEAnalysis(
 			),
 		);
 	});
-	return Promise.all(promises)
-		.then(info => {
-			if (!onlyFiles) {
-				processAndUploadResults(timestamps, info, processingInfo);
-			}
-		})
-		.then(() => {
-			if (!onlyFiles) {
+	return Promise.all(promises).then(info => {
+		if (!onlyFiles) {
+			return processAndUploadResults(
+				timestamps,
+				info,
+				processingInfo,
+			).then(() => {
 				console.log('Finished uploading results to ELK');
-			}
-		});
+			});
+		}
+	});
 }
 
 async function runSingleAnalysis(
@@ -125,7 +125,7 @@ async function runSingleAnalysis(
 	allAnalysis = false,
 	debug = false,
 ): Promise<ChildProcess> {
-	const qoeInfo = fileName.split('.')[0]!.split('_');
+	const qoeInfo = fileName.split('.')[0].split('_');
 	const session = qoeInfo[1];
 	const userFrom = qoeInfo[2];
 	const userTo = qoeInfo[3];
@@ -153,9 +153,9 @@ async function runSingleAnalysis(
 async function readJSONFile(prefix: string): Promise<string[]> {
 	console.log('Finished running script, reading JSON file...');
 	const qoeInfo = prefix.split('_');
-	const session = qoeInfo[1]!;
-	const userFrom = qoeInfo[2]!;
-	const userTo = qoeInfo[3]!;
+	const session = qoeInfo[1];
+	const userFrom = qoeInfo[2];
+	const userTo = qoeInfo[3];
 	const filePrefix = `v-${session}-${userFrom}-${userTo}`;
 	const jsonText = await fsPromises.readFile(
 		filePrefix + '_cuts.json',
@@ -175,13 +175,20 @@ async function getTimestamps(processingInfo: JSONQoeProcessing) {
 	}
 }
 
-async function processAndUploadResults(
+type QoECut = JSONQoEInfo & { cut_index: number };
+
+function isQoECut(value: unknown): value is QoECut {
+	if (typeof value !== 'object' || value === null) {
+		return false;
+	}
+	const record = value as Record<string, unknown>;
+	return typeof record.cut_index === 'number';
+}
+
+function buildUserStartMap(
 	timestamps: JSONUserInfo[],
-	info: string[][],
-	processingInfo: JSONQoeProcessing,
-) {
-	console.log('Finished running all scripts, processing results for ELK...');
-	const userStartMap: { [key: string]: { [key: string]: Date } } = {};
+): Record<string, Record<string, Date>> {
+	const userStartMap: Record<string, Record<string, Date>> = {};
 	for (const timestamp of timestamps) {
 		const timestampSession = timestamp.new_participant_session;
 		const timestampUserFrom = timestamp.new_participant_id;
@@ -189,50 +196,100 @@ async function processAndUploadResults(
 		userStartMap[timestampSession] ??= {};
 		userStartMap[timestampSession][timestampUserFrom] = timestampDate;
 	}
-	let jsonsELK: JSONQoEInfo[] = info.flatMap(infoArray => {
-		const session = infoArray[0]!;
-		const userFrom = infoArray[1]!;
-		const userTo = infoArray[2]!;
-		const jsonText = infoArray[3]!;
-		const json = JSON.parse(jsonText);
-		// Video starts when the latest of the 2 users enters the session
-		const sessionInMap = session in userStartMap;
-		const noUserFromInMap =
-			!!userStartMap[session] && !(userFrom in userStartMap[session]);
-		const noUserToInMap =
-			!!userStartMap[session] && !(userTo in userStartMap[session]);
-		if (!sessionInMap || noUserFromInMap || noUserToInMap) {
+	return userStartMap;
+}
+
+function getVideoStart(
+	userStartMap: Record<string, Record<string, Date>>,
+	session: string,
+	userFrom: string,
+	userTo: string,
+): number | null {
+	const sessionUsers = userStartMap[session];
+	if (!sessionUsers?.[userFrom] || !sessionUsers[userTo]) {
+		console.error(
+			`Could not find start time for session ${session} user ${userFrom} and user ${userTo}`,
+		);
+		return null;
+	}
+	const userFromDate = sessionUsers[userFrom].getTime();
+	const userToDate = sessionUsers[userTo].getTime();
+	return Math.max(userFromDate, userToDate);
+}
+
+function toQoEJsons(
+	parsedJson: unknown[],
+	session: string,
+	userFrom: string,
+	userTo: string,
+	videoStart: number,
+	processingInfo: JSONQoeProcessing,
+): JSONQoEInfo[] {
+	const results: JSONQoEInfo[] = [];
+	for (const cut of parsedJson) {
+		if (!isQoECut(cut)) {
+			continue;
+		}
+		cut.session = session;
+		cut.userFrom = userFrom;
+		cut.userTo = userTo;
+		const timestampDate = new Date(videoStart);
+		timestampDate.setSeconds(
+			timestampDate.getSeconds() +
+				2 * processingInfo.padding_duration * (cut.cut_index + 1) +
+				processingInfo.fragment_duration * (cut.cut_index + 1),
+		);
+		cut['@timestamp'] = timestampDate.toISOString();
+		results.push(cut);
+	}
+	return results;
+}
+
+async function processAndUploadResults(
+	timestamps: JSONUserInfo[],
+	info: string[][],
+	processingInfo: JSONQoeProcessing,
+) {
+	console.log('Finished running all scripts, processing results for ELK...');
+	const userStartMap = buildUserStartMap(timestamps);
+	const jsonsELK: JSONQoEInfo[] = [];
+
+	for (const infoArray of info) {
+		const session = infoArray[0];
+		const userFrom = infoArray[1];
+		const userTo = infoArray[2];
+		const jsonText = infoArray[3];
+		const parsedJson: unknown = JSON.parse(jsonText);
+
+		if (!Array.isArray(parsedJson)) {
 			console.error(
-				`Could not find start time for session ${session} user ${userFrom} and user ${userTo}`,
+				`Invalid QoE JSON format for session ${session} user ${userFrom} and user ${userTo}`,
 			);
-			return undefined;
+			continue;
 		}
-		if (
-			!!userStartMap[session] &&
-			!!userStartMap[session][userFrom] &&
-			!!userStartMap[session][userTo]
-		) {
-			const userFromDate = userStartMap[session][userFrom].getTime();
-			const userToDate = userStartMap[session][userTo].getTime();
-			const videoStart = Math.max(userFromDate, userToDate);
-			for (const cut of json) {
-				cut['session'] = session;
-				cut['userFrom'] = userFrom;
-				cut['userTo'] = userTo;
-				const timestampDate = new Date(videoStart);
-				timestampDate.setSeconds(
-					timestampDate.getSeconds() +
-						2 *
-							processingInfo.padding_duration *
-							(cut.cut_index + 1) +
-						processingInfo.fragment_duration * (cut.cut_index + 1),
-				);
-				cut['@timestamp'] = timestampDate.toISOString();
-			}
-			return json;
+
+		const videoStart = getVideoStart(
+			userStartMap,
+			session,
+			userFrom,
+			userTo,
+		);
+		if (videoStart === null) {
+			continue;
 		}
-	});
-	jsonsELK = jsonsELK.filter(json => json !== undefined);
+
+		jsonsELK.push(
+			...toQoEJsons(
+				parsedJson,
+				session,
+				userFrom,
+				userTo,
+				videoStart,
+				processingInfo,
+			),
+		);
+	}
+
 	console.log(
 		'Finished processing results for ELK, writing to ElasticSearch...',
 	);
@@ -258,7 +315,7 @@ export async function processFilesAndUploadResults(
 	const timestamps = await getTimestamps(processingInfo);
 	let files = processPath
 		? await fsPromises.readdir(processPath)
-		: await fsPromises.readdir(process.env['PWD'] || process.cwd());
+		: await fsPromises.readdir(process.env.PWD ?? process.cwd());
 	files = files.filter(
 		f =>
 			path.extname(f).toLowerCase() === '.json' &&
@@ -266,11 +323,11 @@ export async function processFilesAndUploadResults(
 	);
 	const filesInfo: string[][] = [];
 	for (const file of files) {
-		let prefix = file.split('_cuts')[0]!;
+		let prefix = file.split('_cuts')[0];
 		const qoeInfo = prefix.split('-');
-		const session = qoeInfo[1]!;
-		const userFrom = qoeInfo[2]!;
-		const userTo = qoeInfo[3]!;
+		const session = qoeInfo[1];
+		const userFrom = qoeInfo[2];
+		const userTo = qoeInfo[3];
 		if (processPath) {
 			prefix = processPath + prefix;
 		}

@@ -7,14 +7,14 @@ import { ContainerName } from '../types/container-info.type.js';
 
 export class InstanceService {
 	private static instance: InstanceService;
-	private isinstanceInitialized: boolean = false;
+	private isinstanceInitialized = false;
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE =
 		'docker.elastic.co/beats/metricbeat-oss:7.12.0';
 	private readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
 
 	readonly WORKER_UUID: string = Date.now().toString();
-	private pullImagesRetries: number = 0;
+	private pullImagesRetries = 0;
 
 	private readonly osutils = new OSUtils();
 	private readonly dockerService: DockerService;
@@ -38,7 +38,7 @@ export class InstanceService {
 		this.isinstanceInitialized = true;
 	}
 
-	async cleanEnvironment() {
+	cleanEnvironment() {
 		new LocalStorageService().clear(new WebrtcStatsService().getItemName());
 	}
 
@@ -55,14 +55,15 @@ export class InstanceService {
 		elasticsearchUsername?: string,
 		elasticsearchPassword?: string,
 	) {
+		await this.pullImagesNeeded();
 		const options: ContainerCreateOptions = {
 			Image: this.METRICBEAT_IMAGE,
 			name: ContainerName.METRICBEAT,
 			User: 'root',
 			Env: [
 				`ELASTICSEARCH_HOSTNAME=${elasticsearchHost}`,
-				`ELASTICSEARCH_USERNAME=${elasticsearchUsername || 'empty'}`,
-				`ELASTICSEARCH_PASSWORD=${elasticsearchPassword || 'empty'}`,
+				`ELASTICSEARCH_USERNAME=${elasticsearchUsername ?? 'empty'}`,
+				`ELASTICSEARCH_PASSWORD=${elasticsearchPassword ?? 'empty'}`,
 				`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
 				`WORKER_UUID=${this.WORKER_UUID}`,
 			],

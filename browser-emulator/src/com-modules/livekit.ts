@@ -1,10 +1,15 @@
 import { AccessToken } from 'livekit-server-sdk';
 import type { LKLoadTestPostRequest } from '../types/com-modules/livekit.js';
-import type { TestProperties } from '../types/api-rest.type.js';
+import type { UserJoinProperties } from '../types/api-rest.type.js';
 import BaseComModule from './base.js';
 
-export const PUBLIC_DIR = 'public-lk';
 class LiveKitComModule extends BaseComModule {
+	private readonly _PUBLIC_DIR = `public-lk`;
+
+	get PUBLIC_DIR(): string {
+		return this._PUBLIC_DIR;
+	}
+
 	static getInstance(): BaseComModule {
 		if (!BaseComModule.instance) {
 			BaseComModule.instance = new LiveKitComModule();
@@ -35,7 +40,7 @@ class LiveKitComModule extends BaseComModule {
 
 	areParametersCorrect(request: LKLoadTestPostRequest): boolean {
 		const openviduUrl: string = request.openviduUrl;
-		let properties: TestProperties = request.properties;
+		const properties: UserJoinProperties = request.properties;
 
 		const userConditions =
 			!!properties.userId && !!properties.sessionName && !!openviduUrl;
@@ -48,11 +53,11 @@ class LiveKitComModule extends BaseComModule {
 	}
 
 	generateWebappUrl(request: LKLoadTestPostRequest): string {
-		const properties: TestProperties = request.properties;
+		const properties: UserJoinProperties = request.properties;
 		const token: string | undefined = request.token;
 		const publicUrl = `publicurl=${request.openviduUrl}&`;
 		const tokenParam = token ? `token=${token}&` : '';
-		const qoeAnalysis = !!process.env['QOE_ANALYSIS'];
+		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
 			`https://${LiveKitComModule.locationHostname}/?` +
 			publicUrl +

@@ -9,8 +9,8 @@ import {
 import chrome from 'selenium-webdriver/chrome.js';
 import firefox from 'selenium-webdriver/firefox.js';
 import type {
-	LoadTestPostRequest,
-	TestProperties,
+	CreateUserBrowser,
+	UserJoinProperties,
 } from '../types/api-rest.type.js';
 import { OpenViduRole } from '../types/openvidu.type.js';
 import type { Storage } from './local-storage.service.js';
@@ -26,19 +26,19 @@ import BaseComModule from '../com-modules/base.js';
 import { Mutex } from 'async-mutex';
 import type { ChildProcess } from 'node:child_process';
 
-declare var localStorage: Storage;
+declare let localStorage: Storage;
 export class RealBrowserService {
-	private readonly connections: Map<
+	private readonly connections = new Map<
 		string,
 		{ publishers: string[]; subscribers: string[] }
-	> = new Map();
+	>();
 
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private readonly chromeOptions = new chrome.Options();
 	private readonly chromeCapabilities = Capabilities.chrome();
 	private readonly firefoxOptions = new firefox.Options();
 	private readonly firefoxCapabilities = Capabilities.firefox();
-	private readonly driverMap: Map<
+	private readonly driverMap = new Map<
 		string,
 		{
 			driver: WebDriver;
@@ -46,11 +46,11 @@ export class RealBrowserService {
 			userName: string;
 			connectionRole: OpenViduRole;
 		}
-	> = new Map();
+	>();
 	private readonly VIDEO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakevideo`;
 	private readonly AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
-	private readonly keepAliveIntervals = new Map();
-	private totalPublishers: number = 0;
+	private readonly keepAliveIntervals = new Map<string, NodeJS.Timeout>();
+	private totalPublishers = 0;
 	private recordingScript: ChildProcess | undefined;
 	private readonly muteButtonMutex = new Mutex();
 
@@ -63,7 +63,7 @@ export class RealBrowserService {
 		prefs.setLevel(logging.Type.PERFORMANCE, logging.Level.INFO);
 		prefs.setLevel(logging.Type.SERVER, logging.Level.INFO);
 		logging.installConsoleHandler();
-		if (process.env['REAL_DRIVER'] === 'firefox') {
+		if (process.env.REAL_DRIVER === 'firefox') {
 			this.firefoxCapabilities.setLoggingPrefs(prefs);
 			this.firefoxCapabilities.setAcceptInsecureCerts(true);
 			this.firefoxOptions
@@ -82,14 +82,14 @@ export class RealBrowserService {
 				'--start-maximized',
 			);
 		}
-		if (process.env['IS_DOCKER_CONTAINER'] === 'true') {
+		if (process.env.IS_DOCKER_CONTAINER === 'true') {
 			this.chromeOptions.addArguments(
 				`--unsafely-treat-insecure-origin-as-secure=http://${DOCKER_NAME}`,
 			);
 		}
 	}
 
-	public async startSelenium(properties: TestProperties): Promise<void> {
+	public async startSelenium(properties: UserJoinProperties): Promise<void> {
 		const videoPath = `${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`;
 		await SeleniumService.getInstance(videoPath, this.AUDIO_FILE_LOCATION);
 	}
@@ -263,10 +263,10 @@ export class RealBrowserService {
 	}
 
 	async launchBrowser(
-		request: LoadTestPostRequest,
+		request: CreateUserBrowser,
 		storageNameObj?: StorageNameObject,
 		storageValueObj?: StorageValueObject,
-		timeout: number = 1000,
+		timeout = 1000,
 	): Promise<string> {
 		const properties = request.properties;
 		if (
@@ -274,7 +274,7 @@ export class RealBrowserService {
 				properties.resolution,
 				properties.frameRate,
 			) &&
-			!process.env['IS_DOCKER_CONTAINER'] &&
+			!process.env.IS_DOCKER_CONTAINER &&
 			APPLICATION_MODE === ApplicationMode.PROD
 		) {
 			throw new Error(
@@ -288,24 +288,27 @@ export class RealBrowserService {
 			this.firefoxOptions.addArguments('--headless');
 		}
 		return new Promise((resolve, reject) => {
-			setTimeout(async () => {
-				try {
-					const driverId = await this.initializeBrowser(
-						request,
-						seleniumService,
-						storageNameObj,
-						storageValueObj,
+			setTimeout(() => {
+				this.initializeBrowser(
+					request,
+					seleniumService,
+					storageNameObj,
+					storageValueObj,
+				)
+					.then(driverId => resolve(driverId))
+					.catch(error =>
+						reject(
+							error instanceof Error
+								? error
+								: new Error(String(error)),
+						),
 					);
-					resolve(driverId);
-				} catch (error) {
-					reject(error);
-				}
 			}, timeout);
 		});
 	}
 
 	private async initializeBrowser(
-		request: LoadTestPostRequest,
+		request: CreateUserBrowser,
 		seleniumService: SeleniumService,
 		storageNameObj?: StorageNameObject,
 		storageValueObj?: StorageValueObject,
@@ -316,7 +319,7 @@ export class RealBrowserService {
 			const webappUrl = comModuleInstance.generateWebappUrl(request);
 			console.log(webappUrl);
 			let driver: WebDriver;
-			if (process.env['REAL_DRIVER'] === 'firefox') {
+			if (process.env.REAL_DRIVER === 'firefox') {
 				driver = await seleniumService.getFirefoxDriver(
 					this.firefoxCapabilities,
 					this.firefoxOptions,
@@ -347,7 +350,7 @@ export class RealBrowserService {
 
 			await this.setupBrowserWindow(driver, request.properties);
 			await this.waitForConnection(driver, request);
-			await this.setupKeepAlive(driver, driverId);
+			this.setupKeepAlive(driver, driverId);
 			return driverId;
 		} catch (error) {
 			console.log(error);
@@ -365,22 +368,22 @@ export class RealBrowserService {
 	): Promise<void> {
 		// Add webrtc stats config to LocalStorage
 		await driver.executeScript(
-			() => {
+			(names: StorageNameObject, values: StorageValueObject) => {
 				localStorage.setItem(
-					arguments[0].webrtcStorageName,
-					arguments[1].webrtcStorageValue,
+					names.webrtcStorageName,
+					values.webrtcStorageValue,
 				);
 				localStorage.setItem(
-					arguments[0].ovEventStorageName,
-					arguments[1].ovEventStorageValue,
+					names.ovEventStorageName,
+					values.ovEventStorageValue,
 				);
 				localStorage.setItem(
-					arguments[0].qoeStorageName,
-					arguments[1].qoeStorageValue,
+					names.qoeStorageName,
+					values.qoeStorageValue,
 				);
 				localStorage.setItem(
-					arguments[0].errorStorageName,
-					arguments[1].errorStorageValue,
+					names.errorStorageName,
+					values.errorStorageValue,
 				);
 			},
 			storageNameObj,
@@ -390,10 +393,10 @@ export class RealBrowserService {
 
 	private async setupBrowserWindow(
 		driver: WebDriver,
-		properties: TestProperties,
+		properties: UserJoinProperties,
 	): Promise<void> {
 		// Unlike chrome, firefox is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
-		if (process.env['REAL_DRIVER'] === 'firefox') {
+		if (process.env.REAL_DRIVER === 'firefox') {
 			await driver.manage().window().maximize();
 		}
 
@@ -413,7 +416,7 @@ export class RealBrowserService {
 
 	private async waitForConnection(
 		driver: WebDriver,
-		request: LoadTestPostRequest,
+		request: CreateUserBrowser,
 	): Promise<void> {
 		// Wait until connection has been created
 		await driver.wait(
@@ -440,14 +443,11 @@ export class RealBrowserService {
 		this.totalPublishers = currentPublishers + publisherVideos.length;
 	}
 
-	private async setupKeepAlive(
-		driver: WebDriver,
-		driverId: string,
-	): Promise<void> {
+	private setupKeepAlive(driver: WebDriver, driverId: string): void {
 		// Workaround, currently browsers timeout after 1h unless we send an HTTP request to Selenium
 		// set interval each minute to send a request to Selenium
 		const keepAliveInterval = setInterval(() => {
-			driver.executeScript(() => {
+			void driver.executeScript(() => {
 				return true;
 			});
 		}, 60000);
@@ -503,11 +503,8 @@ export class RealBrowserService {
 	getStreamsCreated(): number {
 		let result = 0;
 		this.connections.forEach(
-			(
-				value: { publishers: string[]; subscribers: string[] },
-				_: string,
-			) => {
-				let streamsSent = value.publishers.length;
+			(value: { publishers: string[]; subscribers: string[] }) => {
+				const streamsSent = value.publishers.length;
 				let streamsReceived = 0;
 				const publishersInWorker = value.publishers.length;
 				let externalPublishers =
@@ -533,7 +530,7 @@ export class RealBrowserService {
 		return this.driverMap.size;
 	}
 
-	storeConnection(connectionId: string, properties: TestProperties) {
+	storeConnection(connectionId: string, properties: UserJoinProperties) {
 		const conn = this.connections.get(properties.sessionName);
 		if (conn) {
 			if (properties.role === OpenViduRole.PUBLISHER) {
@@ -589,7 +586,7 @@ export class RealBrowserService {
 	}
 
 	private async saveQoERecordings(driverId: string) {
-		if (!!process.env['QOE_ANALYSIS'] && !!driverId) {
+		if (!!process.env.QOE_ANALYSIS && !!driverId) {
 			console.log('Saving QoE Recordings for driver ' + driverId);
 			const driverInfo = this.driverMap.get(driverId);
 			if (driverInfo) {
@@ -638,7 +635,7 @@ export class RealBrowserService {
 	}
 
 	private async printBrowserLogs(driverId: string) {
-		if (process.env['REAL_DRIVER'] !== 'firefox') {
+		if (process.env.REAL_DRIVER !== 'firefox') {
 			const driverInfo = this.driverMap.get(driverId);
 			if (driverInfo) {
 				const entries = await driverInfo.driver

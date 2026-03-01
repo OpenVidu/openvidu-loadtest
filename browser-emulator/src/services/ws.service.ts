@@ -6,7 +6,9 @@ export class WsService {
 	private readonly OPEN = 1;
 	private ws: WebSocket | undefined;
 
-	private constructor() {}
+	private constructor() {
+		/* empty */
+	}
 
 	static getInstance(): WsService {
 		if (!WsService.instance) {
@@ -31,7 +33,7 @@ export class WsService {
 		});
 	}
 
-	private handleMessage(message: string) {
+	private handleMessage(this: void, message: string) {
 		console.log('Received message: ' + message);
 	}
 

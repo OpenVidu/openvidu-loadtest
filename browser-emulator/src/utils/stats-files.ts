@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import { dirname } from 'node:path';
+import type { JsonValue } from '../types/json.type.ts';
 
 export const STATS_DIR = `${process.cwd()}/stats/`;
-export const LOCKS_DIR = `${STATS_DIR}locks/`;
 export const CON_FILE = `connections.json`;
 export const STATS_FILE = `stats.json`;
 export const EVENTS_FILE = `events.json`;
@@ -13,22 +13,31 @@ if (!fs.existsSync(STATS_DIR)) {
 	fs.mkdirSync(STATS_DIR, { recursive: true });
 }
 
-export async function createFile(
+export async function createAllStatFilesForSession(
 	userId: string,
 	sessionId: string,
-	fileName: string,
-) {
+): Promise<void> {
+	await Promise.all([
+		createFile(userId, sessionId, CON_FILE),
+		createFile(userId, sessionId, EVENTS_FILE),
+		createFile(userId, sessionId, ERRORS_FILE),
+		createFile(userId, sessionId, STATS_FILE),
+	]);
+}
+
+async function createFile(userId: string, sessionId: string, fileName: string) {
 	const filePath = `${STATS_DIR}${sessionId}/${userId}/${fileName}`;
 	console.log('Creating file: ' + filePath);
 	await fsp.mkdir(dirname(filePath), { recursive: true });
 	console.log('Created dir for file: ' + filePath);
 	try {
 		await fsp.writeFile(filePath, '[]', { flag: 'wx' });
-	} catch (error: any) {
-		if (error.code === 'EEXIST') {
+	} catch (error: unknown) {
+		const err = error as NodeJS.ErrnoException;
+		if (err.code === 'EEXIST') {
 			console.log('File already exists: ' + filePath);
 		} else {
-			throw error;
+			throw err;
 		}
 	}
 }
@@ -40,19 +49,25 @@ async function processQueue(filePath: string) {
 	if (processing.get(filePath)) return;
 	processing.set(filePath, true);
 
-	const queue = queues.get(filePath) || [];
+	const queue = queues.get(filePath) ?? [];
 	while (queue.length > 0) {
 		const task = queue.shift();
 		if (task) {
 			try {
 				await task();
-			} catch (error: any) {
-				console.error(
-					'Error processing task for file ' +
-						filePath +
-						': ' +
-						error.message,
-				);
+			} catch (error: unknown) {
+				if (error instanceof Error) {
+					console.error(
+						'Error processing task for file ' +
+							filePath +
+							': ' +
+							error.message,
+					);
+				} else {
+					console.error(
+						'Unknown error processing task for file ' + filePath,
+					);
+				}
 			}
 		}
 	}
@@ -60,11 +75,11 @@ async function processQueue(filePath: string) {
 	processing.set(filePath, false);
 }
 
-export async function saveStatsToFile(
+export function addSaveStatsToFileToQueue(
 	userId: string,
 	sessionId: string,
 	fileName: string,
-	data: any,
+	data: JsonValue,
 ) {
 	const filePath = `${STATS_DIR}${sessionId}/${userId}/${fileName}`;
 
@@ -77,10 +92,10 @@ export async function saveStatsToFile(
 	queues.get(filePath)!.push(() => saveStatsToFileAux(filePath, data));
 
 	// Process the queue
-	processQueue(filePath);
+	void processQueue(filePath);
 }
 
-async function saveStatsToFileAux(filePath: string, data: any) {
+async function saveStatsToFileAux(filePath: string, data: JsonValue) {
 	let fd: fsp.FileHandle | null = null;
 
 	try {
@@ -112,11 +127,22 @@ async function saveStatsToFileAux(filePath: string, data: any) {
 			const writeBuffer = new Uint8Array(Buffer.from(newData));
 			await fd.write(writeBuffer, 0);
 		}
-	} catch (error: any) {
-		console.error('Error saving stats to file: ' + error.message);
+	} catch (error: unknown) {
+		if (error instanceof Error) {
+			console.error('Error saving stats to file: ' + error.message);
+		} else {
+			console.error('Unknown error saving stats to file');
+		}
 		throw error;
 	} finally {
 		// Ensure resources are cleaned up
 		if (fd) await fd.close();
+	}
+}
+
+export async function waitForAllFilesToBeProcessed() {
+	// Wait until every queue is empty
+	while (Array.from(queues.values()).some(queue => queue.length > 0)) {
+		await new Promise(resolve => setTimeout(resolve, 100));
 	}
 }

@@ -9,7 +9,9 @@ export class SeleniumService {
 	//TODO: Add this as config
 	// private static readonly BROWSER_HOSTPORT = 4444;
 
-	private constructor() {}
+	private constructor() {
+		/* empty */
+	}
 
 	static async getInstance(videoPath?: string, audioPath?: string) {
 		if (!SeleniumService.instance) {
@@ -22,10 +24,10 @@ export class SeleniumService {
 			// TODO: choose display number in config
 			// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
 			// TODO: choose display number in config
-			process.env['DISPLAY'] = ':10';
-			if (!(await isRunning(`Xvfb ${process.env['DISPLAY']}`))) {
+			process.env.DISPLAY = ':10';
+			if (!(await isRunning(`Xvfb ${process.env.DISPLAY}`))) {
 				await runScript(
-					`Xvfb ${process.env['DISPLAY']} -screen 0 1920x1080x24 -ac`,
+					`Xvfb ${process.env.DISPLAY} -screen 0 1920x1080x24 -ac`,
 					{
 						detached: true,
 						ignoreLogs: true,
@@ -58,7 +60,7 @@ export class SeleniumService {
 	async getFirefoxDriver(
 		firefoxCapabilities: Capabilities,
 		firefoxOptions: firefox.Options,
-		verboseLogging: boolean = false,
+		verboseLogging = false,
 	): Promise<WebDriver> {
 		const sb = new firefox.ServiceBuilder()
 			.enableVerboseLogging(verboseLogging)

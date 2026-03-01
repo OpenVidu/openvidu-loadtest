@@ -1,13 +1,19 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
+import path from 'node:path';
 import {
 	S3Client,
 	type S3ClientConfig,
-	ListBucketsCommand,
 	CreateBucketCommand,
-	PutObjectCommand,
-	type CreateBucketCommandOutput,
+	BucketAlreadyExists,
+	BucketAlreadyOwnedByYou,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+
+interface UploadTask {
+	filePath: string;
+	key: string;
+}
 
 export class S3FilesService {
 	private static instance: S3FilesService | undefined;
@@ -33,7 +39,7 @@ export class S3FilesService {
 		this.accessKey = accessKey;
 		this.secretAccessKey = secretAccessKey;
 		this.bucket = bucketName;
-		this.region = region || this.region;
+		this.region = region ?? this.region;
 		this.host = host;
 		console.log('FilesService initialized with provided credentials');
 	}
@@ -63,6 +69,10 @@ export class S3FilesService {
 		return S3FilesService.instance;
 	}
 
+	private static readonly UPLOAD_CONCURRENCY = 5;
+	private static readonly UPLOAD_MAX_RETRIES = 3;
+	private static readonly UPLOAD_PART_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
 	private getS3Client(): S3Client {
 		const config: S3ClientConfig = {
 			region: this.region,
@@ -70,6 +80,8 @@ export class S3FilesService {
 				accessKeyId: this.accessKey,
 				secretAccessKey: this.secretAccessKey,
 			},
+			// SDK-level retries (separate from our own application-level retries below)
+			maxAttempts: 5,
 		};
 
 		if (this.host) {
@@ -80,164 +92,317 @@ export class S3FilesService {
 		return new S3Client(config);
 	}
 
-	async uploadFiles(): Promise<void> {
-		try {
-			const s3 = this.getS3Client();
-
-			if (!(await this.isBucketCreated(this.bucket))) {
-				try {
-					await this.createBucket(this.bucket);
-				} catch (error: any) {
-					if (error?.code === 'BucketAlreadyOwnedByYou') {
-						console.log('Bucket already exists');
-					} else {
-						console.error('Error creating bucket', error);
-					}
-				}
-			}
-
-			const uploadFile = async (
-				fileName: string,
-				filePath: string,
-			): Promise<void> => {
-				let randomDelay =
-					Math.floor(Math.random() * (10000 - 0 + 1)) + 0;
-				console.log(
-					`Uploading file ${fileName} to S3 bucket ${this.bucket} with delay ${randomDelay} ms`,
-				);
-				await new Promise(resolve => setTimeout(resolve, randomDelay));
-				try {
-					const params = {
-						Bucket: this.bucket,
-						Key: fileName,
-						Body: fs.createReadStream(filePath),
-					};
-					await s3.send(new PutObjectCommand(params));
-					console.log(
-						`Successfully uploaded data to ${this.bucket} / ${fileName}`,
-					);
-				} catch (err: any) {
-					if (err.name === 'SlowDown') {
-						let retryDelay =
-							Math.floor(Math.random() * (10000 - 5000 + 1)) +
-							5000; // Random delay between 5 and 10 seconds
-						console.warn(
-							`Received SlowDown error. Retrying upload file ${fileName} to S3 bucket ${this.bucket} after delay ${retryDelay} ms`,
-						);
-						await new Promise(resolve =>
-							setTimeout(resolve, retryDelay),
-						);
-						try {
-							await uploadFile(fileName, filePath);
-						} catch (retryError) {
-							console.error(retryError);
-							throw retryError;
-						}
-					} else {
-						console.error(err);
-						throw err;
-					}
-				}
-			};
-
-			const uploadVideo = async (
-				dir: string,
-				file: string,
-			): Promise<void> => {
-				const filePath = `${dir}/${file}`;
-				let fileName = file.split('/').pop();
-				return uploadFile(fileName!, filePath);
-			};
-
-			const uploadStat = async (
-				dir: string,
-				s3Dir: string,
-				file: string,
-			): Promise<void> => {
-				const filePath = `${dir}/${file}`;
-				let fileName = file.split('/').pop();
-				return uploadFile(s3Dir + fileName, filePath);
-			};
-
-			const promises: Promise<void[]>[] = [];
-			S3FilesService.fileDirs.forEach(dir => {
-				promises.push(
-					fsPromises
-						.access(dir, fs.constants.R_OK | fs.constants.W_OK)
-						.then(() => fsPromises.readdir(dir))
-						.then(async files => {
-							let uploadPromises: Promise<void>[] = [];
-							if (dir.includes('stats')) {
-								const sessions = await fsPromises.readdir(dir);
-								for (let session of sessions) {
-									if (
-										!session.includes('lock') &&
-										!session.startsWith('.')
-									) {
-										const users = await fsPromises.readdir(
-											`${dir}/${session}`,
-										);
-										for (let user of users) {
-											const absDir = `${dir}/${session}/${user}`;
-											const relDir = `stats/${session}/${user}/`;
-											const userFiles =
-												await fsPromises.readdir(
-													absDir,
-												);
-											uploadPromises = userFiles.map(
-												file =>
-													uploadStat(
-														absDir,
-														relDir,
-														file,
-													),
-											);
-										}
-									}
-								}
-							} else {
-								uploadPromises = files.map(file =>
-									uploadVideo(dir, file),
-								);
-							}
-							return Promise.all(uploadPromises);
-						}),
-				);
-			});
-
-			await Promise.all(promises);
-		} catch (error) {
-			console.error('Error uploading files to S3:', error);
-			throw error;
-		}
-	}
-
-	async isBucketCreated(bucketName: string): Promise<boolean> {
-		try {
-			const s3 = this.getS3Client();
-			const data = await s3.send(new ListBucketsCommand({}));
-			const bucketFound = !!data.Buckets?.find(b => {
-				return b.Name === bucketName;
-			});
-			return bucketFound;
-		} catch (err) {
-			console.error('Error', err);
-			throw err;
-		}
-	}
-
-	async createBucket(bucketName: string): Promise<CreateBucketCommandOutput> {
+	private async createBucket(): Promise<void> {
 		try {
 			const s3 = this.getS3Client();
 			const bucketParams = {
-				Bucket: bucketName,
+				Bucket: this.bucket,
 			};
 			const data = await s3.send(new CreateBucketCommand(bucketParams));
 			console.log('Success', data.Location);
-			return data;
-		} catch (err) {
-			console.error('Error', err);
-			throw err;
+		} catch (err: unknown) {
+			if (
+				err instanceof BucketAlreadyExists ||
+				err instanceof BucketAlreadyOwnedByYou
+			) {
+				console.log('Bucket already exists');
+			} else {
+				console.error('Error', err);
+				throw err;
+			}
 		}
+	}
+
+	/**
+	 * Uploads all files from {@link S3FilesService.fileDirs} to the configured S3 bucket.
+	 *
+	 * - Recording files (chrome / qoe) are placed at the root of the bucket.
+	 * - Stats files are placed under a `stats/` prefix that mirrors the local
+	 *   `stats/<session>/<user>/<file>` hierarchy.
+	 *
+	 * Uploads run with bounded concurrency. Every failed upload is retried up to
+	 * {@link S3FilesService.UPLOAD_MAX_RETRIES} times with exponential back-off before
+	 * being collected into a final error report. The method throws only after all
+	 * possible uploads have been attempted, so a single flaky file does not abort the
+	 * rest of the transfer.
+	 */
+	async uploadFiles(): Promise<void> {
+		await this.createBucket();
+
+		const s3 = this.getS3Client();
+		const tasks = await this.collectUploadTasks();
+
+		if (tasks.length === 0) {
+			console.log('No files found to upload.');
+			return;
+		}
+
+		console.log(
+			`Starting upload of ${tasks.length} file(s) to bucket "${this.bucket}"…`,
+		);
+
+		const failed: { filePath: string; key: string; error: unknown }[] = [];
+
+		// Process tasks in batches to keep concurrent S3 connections bounded.
+		for (
+			let i = 0;
+			i < tasks.length;
+			i += S3FilesService.UPLOAD_CONCURRENCY
+		) {
+			const batch = tasks.slice(i, i + S3FilesService.UPLOAD_CONCURRENCY);
+			const results = await Promise.allSettled(
+				batch.map(({ filePath, key }) =>
+					this.uploadWithRetry(
+						s3,
+						filePath,
+						key,
+						S3FilesService.UPLOAD_MAX_RETRIES,
+					),
+				),
+			);
+
+			for (let j = 0; j < results.length; j++) {
+				const result = results[j];
+				if (result.status === 'rejected') {
+					failed.push({
+						filePath: batch[j].filePath,
+						key: batch[j].key,
+						error: result.reason,
+					});
+				}
+			}
+		}
+
+		const succeeded = tasks.length - failed.length;
+		console.log(
+			`Upload complete: ${succeeded}/${tasks.length} file(s) succeeded.`,
+		);
+
+		if (failed.length > 0) {
+			const fileList = failed
+				.map(f => `  • ${f.filePath} → s3://${this.bucket}/${f.key}`)
+				.join('\n');
+			throw new Error(
+				`${failed.length} file(s) could not be uploaded after ${S3FilesService.UPLOAD_MAX_RETRIES} retries:\n${fileList}`,
+			);
+		}
+	}
+
+	/**
+	 * Scans every directory in {@link S3FilesService.fileDirs} and returns a flat list
+	 * of `{ filePath, key }` pairs describing every file that must be uploaded.
+	 */
+	private async collectUploadTasks(): Promise<UploadTask[]> {
+		const tasks: UploadTask[] = [];
+
+		for (const dir of S3FilesService.fileDirs) {
+			const dirName = path.basename(dir);
+
+			if (dirName === 'stats') {
+				tasks.push(...(await this.collectStatsTasks(dir)));
+			} else {
+				// recordings/chrome and recordings/qoe – all files go to the bucket root.
+				tasks.push(...(await this.collectRecordingTasks(dir)));
+			}
+		}
+
+		return tasks;
+	}
+
+	/**
+	 * Returns upload tasks for a recordings directory (chrome / qoe).
+	 * Only direct file children are collected; subdirectories are ignored.
+	 * The S3 key is just the file name (bucket root).
+	 */
+	private async collectRecordingTasks(dir: string): Promise<UploadTask[]> {
+		const tasks: UploadTask[] = [];
+
+		try {
+			const entries = await fsPromises.readdir(dir, {
+				withFileTypes: true,
+			});
+
+			for (const entry of entries) {
+				if (!entry.isFile()) continue;
+
+				tasks.push({
+					filePath: path.join(dir, entry.name),
+					key: entry.name,
+				});
+			}
+		} catch (err) {
+			console.error(`Could not read recordings directory "${dir}":`, err);
+		}
+
+		return tasks;
+	}
+
+	/**
+	 * Returns upload tasks for the stats directory.
+	 * Expected layout: `stats/<session>/<user>/<file.json>`
+	 * The `.gitkeep` placeholder is skipped.
+	 * The S3 key preserves the full relative path under a `stats/` prefix:
+	 * `stats/<session>/<user>/<file.json>`
+	 */
+	private async collectStatsTasks(statsDir: string): Promise<UploadTask[]> {
+		const tasks: UploadTask[] = [];
+
+		let sessionEntries: fs.Dirent[];
+		try {
+			sessionEntries = await fsPromises.readdir(statsDir, {
+				withFileTypes: true,
+			});
+		} catch (err) {
+			console.error(`Could not read stats directory "${statsDir}":`, err);
+			return tasks;
+		}
+
+		for (const sessionEntry of sessionEntries) {
+			if (!sessionEntry.isDirectory()) continue; // skips .gitkeep
+
+			const sessionPath = path.join(statsDir, sessionEntry.name);
+			const sessionTasks = await this.collectSessionTasks(
+				sessionEntry.name,
+				sessionPath,
+			);
+			tasks.push(...sessionTasks);
+		}
+
+		return tasks;
+	}
+
+	/** Returns upload tasks for a single session directory inside stats/. */
+	private async collectSessionTasks(
+		sessionName: string,
+		sessionPath: string,
+	): Promise<UploadTask[]> {
+		const tasks: UploadTask[] = [];
+
+		let userEntries: fs.Dirent[];
+		try {
+			userEntries = await fsPromises.readdir(sessionPath, {
+				withFileTypes: true,
+			});
+		} catch (err) {
+			console.error(
+				`Could not read session directory "${sessionPath}":`,
+				err,
+			);
+			return tasks;
+		}
+
+		for (const userEntry of userEntries) {
+			if (!userEntry.isDirectory()) continue;
+
+			const userPath = path.join(sessionPath, userEntry.name);
+			const userTasks = await this.collectUserTasks(
+				sessionName,
+				userEntry.name,
+				userPath,
+			);
+			tasks.push(...userTasks);
+		}
+
+		return tasks;
+	}
+
+	/**
+	 * Returns upload tasks for a single user directory inside a session
+	 * directory.
+	 */
+	private async collectUserTasks(
+		sessionName: string,
+		userName: string,
+		userPath: string,
+	): Promise<UploadTask[]> {
+		const tasks: UploadTask[] = [];
+
+		let fileEntries: fs.Dirent[];
+		try {
+			fileEntries = await fsPromises.readdir(userPath, {
+				withFileTypes: true,
+			});
+		} catch (err) {
+			console.error(`Could not read user directory "${userPath}":`, err);
+			return tasks;
+		}
+
+		for (const fileEntry of fileEntries) {
+			if (!fileEntry.isFile()) continue;
+
+			tasks.push({
+				filePath: path.join(userPath, fileEntry.name),
+				key: `stats/${sessionName}/${userName}/${fileEntry.name}`,
+			});
+		}
+
+		return tasks;
+	}
+
+	/**
+	 * Uploads a single file to S3, retrying on failure with exponential back-off.
+	 * Throws if all attempts are exhausted.
+	 */
+	private async uploadWithRetry(
+		s3: S3Client,
+		filePath: string,
+		key: string,
+		maxRetries: number,
+	): Promise<void> {
+		let lastError: unknown;
+
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			try {
+				await this.uploadSingleFile(s3, filePath, key);
+				console.log(
+					`Uploaded [${attempt}/${maxRetries}]: ${filePath} → s3://${this.bucket}/${key}`,
+				);
+				return;
+			} catch (err) {
+				lastError = err;
+				console.warn(
+					`Attempt ${attempt}/${maxRetries} failed for "${filePath}":`,
+					err instanceof Error ? err.message : err,
+				);
+
+				if (attempt < maxRetries) {
+					const delayMs = Math.pow(2, attempt) * 1000; // 2 s, 4 s, 8 s, …
+					await new Promise(resolve => setTimeout(resolve, delayMs));
+				}
+			}
+		}
+
+		throw lastError;
+	}
+
+	/**
+	 * Performs a single multipart-capable upload via {@link Upload}.
+	 * `@aws-sdk/lib-storage` automatically switches to multipart upload for files
+	 * exceeding {@link S3FilesService.UPLOAD_PART_SIZE_BYTES}, making it safe for
+	 * very large recording files.
+	 */
+	private async uploadSingleFile(
+		s3: S3Client,
+		filePath: string,
+		key: string,
+	): Promise<void> {
+		const body = fs.createReadStream(filePath);
+
+		const upload = new Upload({
+			client: s3,
+			params: {
+				Bucket: this.bucket,
+				Key: key,
+				Body: body,
+			},
+			// Number of concurrent part uploads per file
+			queueSize: 4,
+			// Part size for multipart uploads (min 5 MB required by S3)
+			partSize: S3FilesService.UPLOAD_PART_SIZE_BYTES,
+			// Clean up incomplete multipart uploads on error
+			leavePartsOnError: false,
+		});
+
+		await upload.done();
 	}
 }

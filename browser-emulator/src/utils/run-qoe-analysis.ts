@@ -21,19 +21,20 @@ const maxCpus = argv.cpus;
 const onlyFiles = argv.onlyfiles;
 const debug = argv.debug;
 const allAnalysis = argv['all-analysis'];
-const pythonpath = process.env['PYTHONPATH'];
+const pythonpath = process.env.PYTHONPATH;
 if (pythonpath) {
-	process.env['PYTHONPATH'] = process.env['PWD'];
+	process.env.PYTHONPATH = process.env.PWD;
 } else {
-	process.env['PYTHONPATH'] = pythonpath + ':' + process.env['PWD'];
+	process.env.PYTHONPATH = pythonpath + ':' + process.env.PWD;
 }
 const jsonText: string = readFileSync(
 	`${process.cwd()}/qoe-results-processing-config.json`,
 	'utf-8',
 );
-const info: JSONQoeProcessing = JSON.parse(jsonText);
+const parsedInfo: unknown = JSON.parse(jsonText);
+const info = parsedInfo as JSONQoeProcessing;
 if (argv.process) {
-	processFilesAndUploadResults(info, argv.processPath);
+	await processFilesAndUploadResults(info, argv.processPath);
 } else {
-	runQoEAnalysisBlocking(info, maxCpus, onlyFiles, allAnalysis, debug);
+	await runQoEAnalysisBlocking(info, maxCpus, onlyFiles, allAnalysis, debug);
 }

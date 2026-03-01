@@ -6,10 +6,10 @@ export const ContainerName = {
 
 export type ContainerName = (typeof ContainerName)[keyof typeof ContainerName];
 
-export type BrowserCContainerInfo = {
+export interface BrowserCContainerInfo {
 	containerName: string;
 	bindedPort: number;
 	connectionRole: OpenViduRole;
 	isRecording: boolean;
 	sessionName: string;
-};
+}

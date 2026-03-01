@@ -1,11 +1,15 @@
 import type {
-	LoadTestPostRequest,
-	TestProperties,
+	CreateUserBrowser,
+	UserJoinProperties,
 } from '../types/api-rest.type.js';
 import BaseComModule from './base.js';
 
-export const PUBLIC_DIR = 'public';
 class OpenviduComModule extends BaseComModule {
+	private readonly _PUBLIC_DIR = `public`;
+
+	get PUBLIC_DIR(): string {
+		return this._PUBLIC_DIR;
+	}
 	static getInstance(): BaseComModule {
 		if (!BaseComModule.instance) {
 			BaseComModule.instance = new OpenviduComModule();
@@ -13,15 +17,15 @@ class OpenviduComModule extends BaseComModule {
 		return BaseComModule.instance;
 	}
 
-	async processNewUserRequest(_req: LoadTestPostRequest): Promise<void> {
+	async processNewUserRequest(): Promise<void> {
 		// do nothing, openvidu 2 does not need any backend processing
 	}
 
-	areParametersCorrect(request: LoadTestPostRequest): boolean {
+	areParametersCorrect(request: CreateUserBrowser): boolean {
 		const openviduSecret: string | undefined = request.openviduSecret;
 		const openviduUrl: string = request.openviduUrl;
 		const token: string | undefined = request.token;
-		let properties: TestProperties = request.properties;
+		const properties: UserJoinProperties = request.properties;
 
 		const userConditions =
 			!!properties.userId && !!properties.sessionName && !!openviduUrl;
@@ -33,8 +37,8 @@ class OpenviduComModule extends BaseComModule {
 		return openviduConditions;
 	}
 
-	generateWebappUrl(request: LoadTestPostRequest): string {
-		const properties: TestProperties = request.properties;
+	generateWebappUrl(request: CreateUserBrowser): string {
+		const properties: UserJoinProperties = request.properties;
 		const token: string | undefined = request.token;
 		const publicUrl = `publicurl=${request.openviduUrl}&`;
 		const secret = request.openviduSecret
@@ -44,7 +48,7 @@ class OpenviduComModule extends BaseComModule {
 			? `recordingmode=${properties.recordingOutputMode}&`
 			: '';
 		const tokenParam = token ? `token=${token}` : '';
-		const qoeAnalysis = !!process.env['QOE_ANALYSIS'];
+		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
 			`https://${OpenviduComModule.locationHostname}/?` +
 			publicUrl +

@@ -14,14 +14,14 @@ import { app as instanceController } from './controllers/instance.controller.js'
 import { app as qoeController } from './controllers/qoe.controller.js';
 
 import { InstanceService } from './services/instance.service.js';
-import { ApplicationMode } from './types/config.type.js';
 import { WsService } from './services/ws.service.js';
-import nodeCleanup from 'node-cleanup';
 
 import { BrowserManagerService } from './services/browser-manager.service.js';
 import { killAllDetached } from './utils/run-script.js';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices.js';
 import { S3FilesService } from './services/files/s3files.service.ts';
+import type BaseComModule from './com-modules/base.ts';
+import { asyncExitHook } from 'exit-hook';
 
 async function cleanup() {
 	const browserManager = BrowserManagerService.getInstance();
@@ -37,20 +37,20 @@ async function cleanup() {
 export async function createServer() {
 	const app = express();
 
-	let publicDir: string;
+	let moduleName: string;
 	if (COM_MODULE) {
-		let moduleName = COM_MODULE.trim();
-		const ComModule = await import(`./com-modules/${moduleName}.js`);
-		ComModule.default.getInstance();
-		publicDir = ComModule.PUBLIC_DIR;
+		moduleName = COM_MODULE.trim();
 	} else {
 		console.warn(
 			'COM_MODULE environment variable is not set. Using default com-module (OpenVidu 2)',
 		);
-		const OpenviduComModule = await import('./com-modules/openvidu.js');
-		OpenviduComModule.default.getInstance();
-		publicDir = OpenviduComModule.PUBLIC_DIR;
+		moduleName = 'openvidu';
 	}
+	const ComModule = (await import(`./com-modules/${moduleName}.js`)) as {
+		default: typeof BaseComModule;
+	};
+	const comModuleInstance = ComModule.default.getInstance();
+	const publicDir = comModuleInstance.PUBLIC_DIR;
 
 	app.use(express.static(publicDir));
 
@@ -88,7 +88,7 @@ export async function createServer() {
 export async function startServer() {
 	const { app, server } = await createServer();
 
-	server.listen(SERVER_PORT, async () => {
+	server.listen(SERVER_PORT, () => {
 		const instanceService = InstanceService.getInstance();
 
 		try {
@@ -102,24 +102,22 @@ export async function startServer() {
 					fs.mkdirSync(directory, { recursive: true });
 				}
 			}
-			if (APPLICATION_MODE === ApplicationMode.PROD) {
-				console.log('Pulling Docker images needed...');
-				await instanceService.pullImagesNeeded();
-			}
 
-			const pythonpath = process.env['PYTHONPATH'];
+			const pythonpath = process.env.PYTHONPATH;
 			if (pythonpath) {
-				process.env['PYTHONPATH'] =
-					pythonpath + ':' + process.env['PWD'];
+				process.env.PYTHONPATH = pythonpath + ':' + process.env.PWD;
 			} else {
-				process.env['PYTHONPATH'] = process.env['PWD'];
+				process.env.PYTHONPATH = process.env.PWD;
 			}
 
-			nodeCleanup(() => {
-				cleanup();
-				nodeCleanup.uninstall();
-				return false;
-			});
+			asyncExitHook(
+				async () => {
+					console.log('Cleaning up before exit...');
+					await cleanup();
+					console.log('Cleanup completed. Exiting now.');
+				},
+				{ wait: 7.2e6 }, // 2 hours in milliseconds, to allow enough time for cleanup
+			);
 
 			console.log(
 				'---------------------------------------------------------',

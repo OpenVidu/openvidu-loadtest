@@ -3,7 +3,8 @@ import type { Request, Response } from 'express';
 import { BrowserManagerService } from '../services/browser-manager.service.js';
 import { OpenViduRole, Resolution } from '../types/openvidu.type.js';
 import type {
-	LoadTestPostRequest,
+	CreateUserBrowser,
+	CreateUserBrowserRequest,
 	LoadTestPostResponse,
 } from '../types/api-rest.type.js';
 import BaseComModule from '../com-modules/base.js';
@@ -12,52 +13,64 @@ export const app = express.Router({
 	strict: true,
 });
 
-app.post('/streamManager', async (req: Request, res: Response) => {
-	try {
-		const comModuleInstance: BaseComModule = BaseComModule.getInstance();
-		const request: LoadTestPostRequest = req.body;
+app.post(
+	'/streamManager',
+	async (req: CreateUserBrowserRequest, res: Response) => {
+		try {
+			const comModuleInstance: BaseComModule =
+				BaseComModule.getInstance();
+			const request: CreateUserBrowser = req.body;
 
-		if (comModuleInstance.areParametersCorrect(request)) {
-			comModuleInstance.processNewUserRequest(request);
-			const browserManagerService: BrowserManagerService =
-				BrowserManagerService.getInstance();
+			if (comModuleInstance.areParametersCorrect(request)) {
+				await comModuleInstance.processNewUserRequest(request);
+				const browserManagerService: BrowserManagerService =
+					BrowserManagerService.getInstance();
 
-			request.properties.frameRate = request.properties.frameRate || 30;
-			// Setting default role for publisher properties
-			request.properties.role =
-				request.properties.role || OpenViduRole.PUBLISHER;
+				request.properties.frameRate =
+					request.properties.frameRate || 30;
+				// Setting default role for publisher properties
+				request.properties.role =
+					request.properties.role || OpenViduRole.PUBLISHER;
 
-			if (
-				!(
-					request.properties.resolution &&
-					Object.values(Resolution).includes(
-						request.properties.resolution,
+				if (
+					!(
+						request.properties.resolution &&
+						Object.values(Resolution).includes(
+							request.properties.resolution,
+						)
 					)
-				)
-			) {
-				request.properties.resolution = Resolution.DEFAULT;
+				) {
+					request.properties.resolution = Resolution.DEFAULT;
+				}
+
+				request.properties.showVideoElements =
+					request.properties.showVideoElements ?? true;
+
+				const response: LoadTestPostResponse =
+					await browserManagerService.createStreamManager(request);
+				return res.status(200).send(response);
+			} else {
+				console.log(
+					'Problem with some body parameter' +
+						JSON.stringify(request),
+				);
+				return res.status(400).send('Problem with some body parameter');
 			}
-
-			request.properties.showVideoElements =
-				request.properties.showVideoElements || true;
-
-			const response: LoadTestPostResponse =
-				await browserManagerService.createStreamManager(request);
-			return res.status(200).send(response);
-		} else {
-			console.log(
-				'Problem with some body parameter' + JSON.stringify(request),
-			);
-			return res.status(400).send('Problem with some body parameter');
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				res.status(500).send({
+					message: error.message,
+					error: error,
+				});
+			} else {
+				res.status(500).send({
+					message: 'Unknown error',
+					error: error,
+				});
+			}
 		}
-	} catch (error: any) {
-		console.log('ERROR ', error);
-		res.status(error?.status || 500).send({
-			message: error?.statusText,
-			error: error,
-		});
-	}
-});
+	},
+);
 
 app.delete('/streamManager', async (req: Request, res: Response) => {
 	const browserManagerService: BrowserManagerService =
@@ -76,7 +89,7 @@ app.delete(
 	'/streamManager/connection/:connectionId',
 	async (req: Request, res: Response) => {
 		try {
-			const connectionId = req.params['connectionId'];
+			const connectionId = req.params.connectionId;
 
 			if (!connectionId || Array.isArray(connectionId)) {
 				return res
@@ -103,8 +116,8 @@ app.delete(
 	'/streamManager/session/:sessionId/user/:userId',
 	async (req: Request, res: Response) => {
 		try {
-			const sessionId = req.params['sessionId'];
-			const userId = req.params['userId'];
+			const sessionId = req.params.sessionId;
+			const userId = req.params.userId;
 
 			if (
 				!sessionId ||
@@ -135,35 +148,3 @@ app.delete(
 		}
 	},
 );
-
-app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
-	try {
-		let role: any = req.params['role'];
-		if (!role) {
-			return res
-				.status(400)
-				.send('Problem with ROLE parameter. IT DOES NOT EXIST');
-		} else if (
-			role !== OpenViduRole.PUBLISHER &&
-			role !== OpenViduRole.SUBSCRIBER
-		) {
-			return res
-				.status(400)
-				.send(
-					`Problem with ROLE parameter. IT MUST BE ${OpenViduRole.PUBLISHER} or ${OpenViduRole.SUBSCRIBER}`,
-				);
-		}
-		const browserManagerService: BrowserManagerService =
-			BrowserManagerService.getInstance();
-		role =
-			role === OpenViduRole.PUBLISHER
-				? OpenViduRole.PUBLISHER
-				: OpenViduRole.SUBSCRIBER;
-		console.log('Deleting streams with ROLE:' + role);
-		await browserManagerService.deleteStreamManagerWithRole(role);
-		res.status(200).send({});
-	} catch (error) {
-		console.log(error);
-		res.status(500).send(error);
-	}
-});

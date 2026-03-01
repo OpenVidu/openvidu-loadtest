@@ -7,22 +7,25 @@ import type {
 } from '../types/api-rest.type.js';
 import { ApplicationMode } from '../types/config.type.js';
 import fs from 'node:fs';
+import type { ClientOptions } from '@elastic/elasticsearch/lib/client';
 
 export class ElasticSearchService {
-	indexName: string = '';
+	indexName = '';
 
 	private client: Client | undefined;
-	private pingSuccess: boolean = false;
+	private pingSuccess = false;
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
-	private readonly mappings = JSON.parse(
-		fs.readFileSync(
-			`${process.cwd()}/src/services/index-mappings.json`,
-			'utf8',
-		),
-	);
+	private readonly mappings: Record<string, unknown>;
 	protected static instance: ElasticSearchService;
 
-	private constructor() {}
+	private constructor() {
+		this.mappings = JSON.parse(
+			fs.readFileSync(
+				`${process.cwd()}/src/services/index-mappings.json`,
+				'utf8',
+			),
+		) as Record<string, unknown>;
+	}
 
 	static getInstance(): ElasticSearchService {
 		if (!ElasticSearchService.instance) {
@@ -35,12 +38,12 @@ export class ElasticSearchService {
 		hostname: string,
 		username?: string,
 		password?: string,
-		indexName: string = '',
+		indexName = '',
 	) {
 		if (this.needsToBeConfigured()) {
 			console.log('Initializing ElasticSearch');
 			this.indexName = indexName;
-			const clientOptions = this.buildClientOptions(
+			const clientOptions: ClientOptions = this.buildClientOptions(
 				hostname,
 				username,
 				password,
@@ -64,23 +67,25 @@ export class ElasticSearchService {
 		hostname: string,
 		username?: string,
 		password?: string,
-	) {
-		const clientOptions: Record<string, any> = {
+	): ClientOptions {
+		const clientOptions = {
 			node: hostname,
 			maxRetries: 5,
 			requestTimeout: 10000,
 			ssl: {
 				rejectUnauthorized: false,
 			},
+			...(username && password
+				? {
+						auth: {
+							username,
+							password,
+						},
+					}
+				: {}),
 		};
 
-		if (username && password) {
-			clientOptions['auth'] = {
-				username: username,
-				password: password,
-			};
-		}
-		return clientOptions;
+		return clientOptions as ClientOptions;
 	}
 
 	private async ensureIndexExists(): Promise<void> {
@@ -104,12 +109,11 @@ export class ElasticSearchService {
 			this.isElasticSearchRunning() &&
 			APPLICATION_MODE === ApplicationMode.PROD
 		) {
-			const jsonRecord = json as Record<string, any>;
-			if (Object.keys(jsonRecord).length) {
+			if (Object.keys(json).length) {
 				try {
 					await this.client!.index({
 						index: this.indexName,
-						document: jsonRecord,
+						document: json,
 					});
 				} catch (error) {
 					console.error(error);
@@ -135,9 +139,11 @@ export class ElasticSearchService {
 					operations: operations,
 				});
 				if (bulkResponse.errors) {
+					const item = bulkResponse.items?.[0];
+					const error = item?.index?.error;
+					console.error('Error in bulk insert: ', error);
 					throw new Error(
-						(bulkResponse.items?.[0] as any)?.index?.error
-							?.reason || 'Bulk operation failed',
+						`Error in bulk insert: ${JSON.stringify(error)}`,
 					);
 				}
 			} catch (error) {
@@ -179,7 +185,7 @@ export class ElasticSearchService {
 			this.isElasticSearchRunning() &&
 			APPLICATION_MODE === ApplicationMode.PROD
 		) {
-			const result = await this.client!.search({
+			const result = await this.client!.search<JSONStreamsInfo>({
 				index: this.indexName,
 				query: {
 					exists: {
@@ -188,18 +194,23 @@ export class ElasticSearchService {
 				},
 				size: 10000,
 			});
-			return (result.hits?.hits?.map((hit: any) => {
-				const json: JSONStreamsInfo = {
-					'@timestamp': hit._source['@timestamp'],
-					new_participant_id: hit._source['new_participant_id'],
-					new_participant_session:
-						hit._source['new_participant_session'],
-					node_role: hit._source['node_role'],
-					streams: hit._source['streams'],
-					worker_name: hit._source['worker_name'],
-				};
-				return json;
-			}) ?? []) as JSONStreamsInfo[];
+			return (
+				result.hits?.hits?.flatMap(hit => {
+					if (!hit._source) {
+						return [];
+					}
+					const json: JSONStreamsInfo = {
+						'@timestamp': hit._source['@timestamp'],
+						new_participant_id: hit._source.new_participant_id,
+						new_participant_session:
+							hit._source.new_participant_session,
+						node_role: hit._source.node_role,
+						streams: hit._source.streams,
+						worker_name: hit._source.worker_name,
+					};
+					return [json];
+				}) ?? []
+			);
 		} else {
 			return [];
 		}

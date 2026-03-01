@@ -1,22 +1,24 @@
+import type { JsonValue } from './json.type.ts';
 import { OpenViduRole, Resolution } from './openvidu.type.js';
+import type { Request } from 'express';
 
-export type LoadTestPostRequest = {
+export interface CreateUserBrowser {
 	openviduUrl: string;
 	openviduSecret?: string;
 	token?: string;
-	properties: TestProperties;
-};
+	properties: UserJoinProperties;
+}
 
-type ElasticsearchCredentials = {
+export interface ElasticsearchCredentials {
 	elasticSearchPassword: string;
 	elasticSearchUserName: string;
 	elasticSearchHost: string;
 	elasticSearchIndex: string;
-};
+}
 
-export type InitializePostRequest = {
-	browserVideo: BrowserVideoRequest;
-	qoeAnalysis?: QoeAnalysisRequest;
+export type InitializePost = {
+	browserVideo: BrowserVideo;
+	qoeAnalysis?: QoeAnalysis;
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;
 	s3BucketName?: string;
@@ -29,40 +31,38 @@ export type InitializePostRequest = {
 	| Partial<Record<keyof ElasticsearchCredentials, never>>
 );
 
-export type BrowserVideoRequestCustom = {
+export interface BrowserVideoCustom {
 	videoType: 'custom';
-	customVideo: CustomBrowserVideoRequest;
-};
+	customVideo: CustomBrowserVideoConfig;
+}
 
-export type BrowserVideoRequestPreset = {
+export interface BrowserVideoPreset {
 	videoType: 'bunny' | 'interview' | 'game';
 	videoInfo: BrowserVideoInfo;
-};
+}
 
-export type BrowserVideoRequest =
-	| BrowserVideoRequestCustom
-	| BrowserVideoRequestPreset;
+export type BrowserVideo = BrowserVideoCustom | BrowserVideoPreset;
 
-export type BrowserVideoInfo = {
+export interface BrowserVideoInfo {
 	width: number;
 	height: number;
 	fps: number;
-};
+}
 
-export type CustomBrowserVideoRequest = {
+export interface CustomBrowserVideoConfig {
 	video: CustomBrowserVideo;
 	audioUrl: string;
-};
+}
 
 export type CustomBrowserVideo = BrowserVideoInfo & {
 	url: string;
 };
 
-export type QoeAnalysisRequest = {
+export interface QoeAnalysis {
 	enabled: boolean;
 	fragment_duration: number;
 	padding_duration: number;
-};
+}
 
 export const RecordingMode = {
 	ALWAYS: 'ALWAYS',
@@ -86,7 +86,7 @@ export const RecordingLayoutMode = {
 export type RecordingLayoutMode =
 	(typeof RecordingLayoutMode)[keyof typeof RecordingLayoutMode];
 
-export type TestProperties = {
+export interface UserJoinProperties {
 	userId: string;
 	sessionName: string;
 	role: OpenViduRole;
@@ -99,23 +99,23 @@ export type TestProperties = {
 	showVideoElements?: boolean;
 	headless?: boolean;
 	recordingMetadata?: string;
-};
+}
 
-export type LoadTestPostResponse = {
+export interface LoadTestPostResponse {
 	connectionId: string;
 	streams: number;
 	participants: number;
 	workerCpuUsage: number;
 	sessionId: string;
 	userId: string;
-};
+}
 
-export type JSONStatsResponse = {
+export interface JSONStatsResponse {
 	timestamp: string;
 	user: string;
 	session: string;
-	webrtcStats: any;
-};
+	webrtcStats: Record<string, JsonValue>;
+}
 
 export type JSONStreamsInfo = JSONUserInfo & {
 	streams: number;
@@ -123,18 +123,18 @@ export type JSONStreamsInfo = JSONUserInfo & {
 	node_role: string;
 };
 
-export type JSONUserInfo = {
+export interface JSONUserInfo {
 	'@timestamp': string;
 	new_participant_id: string;
 	new_participant_session: string;
-};
+}
 
-type ElasticsearchConfig = {
+interface ElasticsearchConfig {
 	elasticsearch_hostname: string;
 	elasticsearch_username: string;
 	elasticsearch_password: string;
 	index: string;
-};
+}
 
 export type JSONQoeProcessing = {
 	padding_duration: number;
@@ -147,7 +147,7 @@ export type JSONQoeProcessing = {
 	timestamps?: JSONUserInfo[];
 } & (ElasticsearchConfig | Partial<Record<keyof ElasticsearchConfig, never>>);
 
-export type JSONQoEInfo = {
+export interface JSONQoEInfo {
 	'@timestamp': string;
 	session: string;
 	userFrom: string;
@@ -162,4 +162,27 @@ export type JSONQoEInfo = {
 	psnrhvsm: number;
 	pesq: number;
 	visqol: number;
-};
+}
+
+export interface BrowserEvent {
+	participant: string;
+	session: string;
+	timestamp: Date;
+	[key: string]: JsonValue;
+}
+
+export interface WebRTCStatsRequest extends Request {
+	body: JSONStatsResponse;
+}
+
+export interface BrowserEventRequest extends Request {
+	body: BrowserEvent;
+}
+
+export interface InitializePostRequest extends Request {
+	body: InitializePost;
+}
+
+export interface CreateUserBrowserRequest extends Request {
+	body: CreateUserBrowser;
+}

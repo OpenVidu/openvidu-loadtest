@@ -8,14 +8,6 @@
 
 	// Compiler Options (https://www.typescriptlang.org/tsconfig#compiler-options)
 	"compilerOptions": {
-		// Linter Checks (https://www.typescriptlang.org/tsconfig#Additional_Checks_6176)
-		// These help with writing better code. Enable as many as possible.
-		"noFallthroughCasesInSwitch": true,
-		"noPropertyAccessFromIndexSignature": true,
-		"noUncheckedIndexedAccess": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
-
 		// Output Dir (https://www.typescriptlang.org/tsconfig#outDir)
 		// Put all compilation artifacts into a separate directory.
 		"outDir": "./dist",
@@ -34,5 +26,5 @@
 	// Excluded Files (https://www.typescriptlang.org/tsconfig#exclude)
 	// Filters out stuff that has been previously included in "include".
 	// Note the default value already has the most typical exclusions.
-	"exclude": ["node_modules", "dist", "tests"]
+	"exclude": []
 }

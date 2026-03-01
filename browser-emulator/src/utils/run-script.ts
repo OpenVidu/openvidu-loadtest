@@ -3,6 +3,12 @@ import fs from 'node:fs';
 
 const detachedPids: number[] = [];
 
+function chunkToString(chunk: unknown): string {
+	if (typeof chunk === 'string') return chunk;
+	if (Buffer.isBuffer(chunk)) return chunk.toString();
+	return String(chunk);
+}
+
 function handleStdout(
 	execProcess: ChildProcess,
 	options?: {
@@ -17,10 +23,12 @@ function handleStdout(
 			fs.createWriteStream(options.redirectStdoutToFile),
 		);
 	} else if (options?.stdoutCallback) {
-		execProcess.stdout.on('data', options.stdoutCallback);
+		execProcess.stdout.on('data', data => {
+			options.stdoutCallback?.(chunkToString(data));
+		});
 	} else {
 		execProcess.stdout.on('data', data => {
-			console.log(data.toString());
+			console.log(chunkToString(data));
 		});
 	}
 }
@@ -28,7 +36,7 @@ function handleStdout(
 function handleStderr(execProcess: ChildProcess) {
 	if (execProcess.stderr) {
 		execProcess.stderr.on('data', data => {
-			console.error(data.toString());
+			console.error(chunkToString(data));
 		});
 	}
 }
@@ -36,7 +44,7 @@ function handleStderr(execProcess: ChildProcess) {
 function setupExitHandler(
 	execProcess: ChildProcess,
 	resolve: (value: ChildProcess) => void,
-	reject: (reason?: any) => void,
+	reject: (reason: Error) => void,
 ) {
 	execProcess.on('exit', code => {
 		if (code === 0) {
@@ -98,7 +106,7 @@ export function stopDetached(process: ChildProcess) {
 }
 
 export function killAllDetached() {
-	console.log('PIDs to kill: ' + detachedPids);
+	console.log(`PIDs to kill: [${detachedPids.join(', ')}]`);
 	detachedPids.forEach(pid => {
 		try {
 			console.log('Killing ' + pid);
@@ -116,9 +124,9 @@ export function killAllDetached() {
 }
 
 export async function isRunning(query: string) {
-	let cmd = `ps -Awwf`;
+	const cmd = `ps -Awwf`;
 	return new Promise((resolve, reject) =>
-		exec(cmd, (err, stdout, _) => {
+		exec(cmd, (err, stdout) => {
 			if (err) reject(err);
 			const condition = stdout
 				.toLowerCase()

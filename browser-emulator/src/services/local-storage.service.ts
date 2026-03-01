@@ -17,7 +17,7 @@ export class LocalStorageService {
 		this.storage = globalThis.localStorage;
 	}
 
-	setItem(name: string, value: any) {
+	setItem(name: string, value: string) {
 		this.storage.setItem(name, value);
 	}
 

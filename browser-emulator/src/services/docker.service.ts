@@ -1,5 +1,11 @@
 import Docker from 'dockerode';
 
+interface PullProgressEvent {
+	status: string;
+	id: string;
+	progress: string;
+}
+
 export class DockerService {
 	private readonly docker: Docker;
 
@@ -29,12 +35,18 @@ export class DockerService {
 		try {
 			await container.stop();
 			console.log('Container ' + container.id + ' stopped');
-		} catch (error: any) {
-			console.warn(
-				'Container has already stopped. Skipping (' +
-					error?.message +
-					')',
-			);
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				console.warn(
+					'Container has already stopped. Skipping (' +
+						error.message +
+						')',
+				);
+			} else {
+				console.error(
+					'Container has already stopped. Skipping (unknown error)',
+				);
+			}
 		}
 	}
 
@@ -60,9 +72,19 @@ export class DockerService {
 		return images.length > 0;
 	}
 
+	private onPullProgress(this: void, event: PullProgressEvent) {
+		if (event.status === 'Downloading') {
+			console.log(
+				'    Downloading layer ' + event.id + ': ' + event.progress,
+			);
+		} else if (event.status === 'Download complete') {
+			console.log('    Layer ' + event.id + ' downloaded!');
+		}
+	}
+
 	async pullImage(image: string): Promise<void> {
 		return new Promise((resolve, reject) => {
-			function onFinished(err: any) {
+			function onFinished(err: Error | null) {
 				if (err) {
 					reject(err);
 				} else {
@@ -70,37 +92,21 @@ export class DockerService {
 					resolve();
 				}
 			}
-			function onProgress(event: any) {
-				if (event.status === 'Downloading') {
-					console.log(
-						'    Downloading layer ' +
-							event.id +
-							': ' +
-							event.progress,
-					);
-				} else if (event.status === 'Download complete') {
-					console.log('    Layer ' + event.id + ' downloaded!');
-				}
-			}
 			console.log('Pulling image ' + image);
-			this.docker.pull(
+			void this.docker.pull(
 				image,
-				(err: any, stream: NodeJS.ReadableStream) => {
-					try {
-						if (err) {
-							reject(err);
-						}
-						if (stream === null) {
-							reject(new Error('No stream'));
-						}
-						this.docker.modem.followProgress(
-							stream,
-							onFinished,
-							onProgress,
-						);
-					} catch (error) {
-						reject(error);
+				(err: Error, stream: NodeJS.ReadableStream) => {
+					if (err) {
+						reject(err);
 					}
+					if (stream === null) {
+						reject(new Error('No stream'));
+					}
+					this.docker.modem.followProgress(
+						stream,
+						onFinished,
+						this.onPullProgress,
+					);
 				},
 			);
 		});

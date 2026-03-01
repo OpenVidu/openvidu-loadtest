@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import * as express from 'express';
 import type { Request, Response } from 'express';
 import type {
-	BrowserVideoRequest,
+	BrowserVideo,
+	InitializePost,
 	InitializePostRequest,
 } from '../types/api-rest.type.js';
 import { InstanceService } from '../services/instance.service.js';
@@ -29,9 +30,9 @@ app.get('/ping', (_: Request, res: Response) => {
 	}
 });
 
-app.post('/initialize', async (req: Request, res: Response) => {
+app.post('/initialize', async (req: InitializePostRequest, res: Response) => {
 	try {
-		const request: InitializePostRequest = req.body;
+		const request: InitializePost = req.body;
 		const isProdMode: boolean = APPLICATION_MODE === ApplicationMode.PROD;
 		const elasticSearchService: ElasticSearchService =
 			ElasticSearchService.getInstance();
@@ -65,11 +66,11 @@ app.post('/initialize', async (req: Request, res: Response) => {
 				);
 			}
 		}
-		// Set up file service now so that it doesn't have to be initialized later when needed
-		const fileServicePromise = new Promise((resolve, _) => {
+		// Set up file service if possible now so that it doesn't have to be initialized later when needed
+		const fileServicePromise = new Promise(resolve => {
 			let accessKey: string | undefined;
 			let secretAccessKey: string | undefined;
-			let bucketName = request.s3BucketName;
+			const bucketName = request.s3BucketName;
 			let host: string | undefined;
 			if (request.awsAccessKey && request.awsSecretAccessKey) {
 				accessKey = request.awsAccessKey;
@@ -97,7 +98,7 @@ app.post('/initialize', async (req: Request, res: Response) => {
 		}).then(() => {
 			// TODO: this QOE_ANALYSIS should not be an env variable, there should be two separate properties: one to enable MediaRecorders in browser creation request and another one to actually do the QoE Analysis in situ
 			if (request.qoeAnalysis?.enabled) {
-				process.env['QOE_ANALYSIS'] =
+				process.env.QOE_ANALYSIS =
 					request.qoeAnalysis.enabled.toString();
 				QoeAnalyzerService.getInstance().setDurations(
 					request.qoeAnalysis.fragment_duration,
@@ -137,9 +138,10 @@ async function launchMetricBeat(
 			elasticsearchUsername,
 			elasticsearchPassword,
 		);
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.log('Error starting metricbeat', error);
-		if (error.statusCode === 409 && error.message.includes('Conflict')) {
+		const err = error as { statusCode?: number; message: string };
+		if (err.statusCode === 409 && err.message.includes('Conflict')) {
 			console.log('Retrying ...');
 			await instanceService.removeContainer(ContainerName.METRICBEAT);
 			await instanceService.launchMetricBeat(
@@ -152,14 +154,14 @@ async function launchMetricBeat(
 }
 
 async function downloadMediaFilesAndStartSeleniumService(
-	videoType: BrowserVideoRequest,
+	videoType: BrowserVideo,
 ): Promise<SeleniumService> {
 	const fileNames = await downloadBrowserMediaFiles(videoType);
 	return SeleniumService.getInstance(fileNames[0], fileNames[1]);
 }
 
 async function downloadBrowserMediaFiles(
-	videoType: BrowserVideoRequest,
+	videoType: BrowserVideo,
 ): Promise<string[]> {
 	const videoInfo =
 		videoType.videoType === 'custom'

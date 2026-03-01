@@ -12,8 +12,12 @@ export async function downloadFile(
 	const filePath = fileDir + '/' + name;
 	try {
 		await fsPromises.access(fileDir, fs.constants.W_OK);
-	} catch (err) {
-		throw new Error('Directory ' + fileDir + ' is not writable\n' + err);
+	} catch (err: unknown) {
+		if (err instanceof Error) {
+			throw new Error(
+				'Directory ' + fileDir + ' is not writable\n' + err.message,
+			);
+		}
 	}
 	const file = fs.createWriteStream(filePath);
 	console.log('Downloading ' + fileUrl + ' to ' + filePath);
@@ -27,7 +31,7 @@ async function download(
 ): Promise<string> {
 	const protocol = new URL(fileUrl).protocol.slice(0, -1);
 	const httpModule = protocol === 'https' ? https : http;
-	const promise: Promise<string> = new Promise((resolve, reject) => {
+	const promise = new Promise<string>((resolve, reject) => {
 		httpModule
 			.get(fileUrl, function (response: http.IncomingMessage) {
 				if (
@@ -44,7 +48,15 @@ async function download(
 				} else if (response.headers.location) {
 					download(response.headers.location, filePath, file)
 						.then(filePath => resolve(filePath))
-						.catch(err => reject(err));
+						.catch(err => {
+							if (err instanceof Error) {
+								reject(err);
+							} else {
+								reject(
+									new Error('Unknown error during download'),
+								);
+							}
+						});
 				} else {
 					reject(
 						new Error(

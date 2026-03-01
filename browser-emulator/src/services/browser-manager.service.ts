@@ -1,6 +1,6 @@
 import type {
 	JSONStreamsInfo,
-	LoadTestPostRequest,
+	CreateUserBrowser,
 	LoadTestPostResponse,
 } from '../types/api-rest.type.js';
 import { InstanceService } from './instance.service.js';
@@ -12,33 +12,33 @@ import {
 	QoERecordingsService,
 	WebrtcStatsService,
 } from './config-storage.service.js';
-import { OpenViduRole } from '../types/openvidu.type.js';
 import { APPLICATION_MODE } from '../config.js';
 import { ApplicationMode } from '../types/config.type.js';
 import { S3FilesService } from './files/s3files.service.ts';
 import {
 	CON_FILE,
-	ERRORS_FILE,
-	EVENTS_FILE,
-	STATS_FILE,
-	createFile,
-	saveStatsToFile,
+	addSaveStatsToFileToQueue,
+	waitForAllFilesToBeProcessed,
+	createAllStatFilesForSession,
 } from '../utils/stats-files.js';
+import type {
+	StorageNameObject,
+	StorageValueObject,
+} from '../types/storage-config.type.ts';
 
 export class BrowserManagerService {
 	protected static instance: BrowserManagerService;
-	private _lastRequestInfo: LoadTestPostRequest | undefined;
+	private _lastRequestInfo: CreateUserBrowser | undefined;
 	private readonly realBrowserService: RealBrowserService =
 		new RealBrowserService();
 	private readonly instanceService: InstanceService =
 		InstanceService.getInstance();
-	private readonly filesService: S3FilesService | undefined =
-		S3FilesService.getInstance();
 	private readonly elasticSearchService: ElasticSearchService =
 		ElasticSearchService.getInstance();
-	private readonly webrtcStorageService = new WebrtcStatsService();
 
-	private constructor() {}
+	private constructor() {
+		/* empty */
+	}
 
 	static getInstance() {
 		if (!BrowserManagerService.instance) {
@@ -48,39 +48,31 @@ export class BrowserManagerService {
 	}
 
 	async createStreamManager(
-		request: LoadTestPostRequest,
+		request: CreateUserBrowser,
 	): Promise<LoadTestPostResponse> {
 		const userId = request.properties.userId;
 		const sessionId = request.properties.sessionName;
-		await Promise.all([
-			createFile(userId, sessionId, CON_FILE),
-			createFile(userId, sessionId, EVENTS_FILE),
-			createFile(userId, sessionId, ERRORS_FILE),
-			createFile(userId, sessionId, STATS_FILE),
-		]);
+		await createAllStatFilesForSession(userId, sessionId);
 		let connectionId: string;
-		let webrtcStorageName: string;
-		let webrtcStorageValue: string;
 
-		webrtcStorageName = this.webrtcStorageService.getItemName();
-		webrtcStorageValue = this.webrtcStorageService.getConfig();
 		this.printRequestInfo(request);
 
 		// Create new stream manager using launching a normal Chrome browser
 		await this.realBrowserService.startSelenium(request.properties);
 		try {
+			const webrtcStorageService = new WebrtcStatsService();
 			const ovEventsService: OpenViduEventsService =
 				new OpenViduEventsService();
 			const qoeService: QoERecordingsService = new QoERecordingsService();
 			const errorService: ErrorLogService = new ErrorLogService();
-			const storageNameObject = {
-				webrtcStorageName,
+			const storageNameObject: StorageNameObject = {
+				webrtcStorageName: webrtcStorageService.getItemName(),
 				ovEventStorageName: ovEventsService.getItemName(),
 				qoeStorageName: qoeService.getItemName(),
 				errorStorageName: errorService.getItemName(),
 			};
-			const storageValueObject = {
-				webrtcStorageValue,
+			const storageValueObject: StorageValueObject = {
+				webrtcStorageValue: webrtcStorageService.getConfig(),
 				ovEventStorageValue: ovEventsService.getConfig(),
 				qoeStorageValue: qoeService.getConfig(),
 				errorStorageValue: errorService.getConfig(),
@@ -116,10 +108,6 @@ export class BrowserManagerService {
 		};
 	}
 
-	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
-		await this.realBrowserService.deleteStreamManagerWithRole(role);
-	}
-
 	async deleteStreamManagerWithConnectionId(
 		connectionId: string,
 	): Promise<void> {
@@ -139,14 +127,25 @@ export class BrowserManagerService {
 	}
 
 	async clean(): Promise<void> {
+		console.log('Cleaning browsers...');
 		await this.realBrowserService.clean();
 		console.log('Browsers cleaned');
+		console.log('Waiting for all files to finish writting...');
+		await waitForAllFilesToBeProcessed();
+		console.log('All files processed');
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
-			if (this.filesService) {
-				await this.filesService.uploadFiles();
-			} else {
+			try {
+				const fileService = S3FilesService.getInstance();
+				try {
+					console.log('Uploading files to S3...');
+					await fileService.uploadFiles();
+					console.log('Files uploaded to S3');
+				} catch (error) {
+					console.error('Error uploading files to S3', error);
+				}
+			} catch {
 				console.warn(
-					"FilesService is not defined (There is no S3 bucket specified). Can't upload recordings",
+					"FilesService is not defined (There is no S3 bucket specified). Can't upload files.",
 				);
 			}
 		}
@@ -173,27 +172,19 @@ export class BrowserManagerService {
 			new_participant_id,
 			new_participant_session,
 		};
-		const promises = [];
 		// Write the combined data back to the file
-		promises.push(
-			saveStatsToFile(
-				new_participant_id,
-				new_participant_session,
-				CON_FILE,
-				json,
-			),
+		addSaveStatsToFileToQueue(
+			new_participant_id,
+			new_participant_session,
+			CON_FILE,
+			json,
 		);
 		if (this.elasticSearchService.isElasticSearchRunning()) {
-			promises.push(this.elasticSearchService.sendJson(json));
-		}
-		try {
-			await Promise.all(promises);
-		} catch (error) {
-			console.error(error);
+			await this.elasticSearchService.sendJson(json);
 		}
 	}
 
-	private printRequestInfo(req: LoadTestPostRequest): void {
+	private printRequestInfo(req: CreateUserBrowser): void {
 		const info =
 			`\nStarting a ${req.properties.role} participant in a browser with: \n` +
 			`Audio: ${req.properties.audio} \n` +
@@ -206,7 +197,7 @@ export class BrowserManagerService {
 		console.log(info);
 	}
 
-	public get lastRequestInfo(): LoadTestPostRequest | undefined {
+	public get lastRequestInfo(): CreateUserBrowser | undefined {
 		return this._lastRequestInfo;
 	}
 }
