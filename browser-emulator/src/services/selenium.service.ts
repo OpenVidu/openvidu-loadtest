@@ -5,23 +5,12 @@ import firefox from 'selenium-webdriver/firefox.js';
 import { startFakeMediaDevices } from '../utils/fake-media-devices.js';
 
 export class SeleniumService {
-	private static instance: SeleniumService;
+	private isInitialized = false;
 	//TODO: Add this as config
 	// private static readonly BROWSER_HOSTPORT = 4444;
 
-	private constructor() {
-		/* empty */
-	}
-
-	static async getInstance(videoPath?: string, audioPath?: string) {
-		if (!SeleniumService.instance) {
-			if (!(videoPath && audioPath)) {
-				throw new Error(
-					'Video and audio are needed for initializing Selenium',
-				);
-			}
-			// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
-			// TODO: choose display number in config
+	async initialize(videoPath: string, audioPath: string): Promise<void> {
+		if (!this.isInitialized) {
 			// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
 			// TODO: choose display number in config
 			process.env.DISPLAY = ':10';
@@ -36,10 +25,8 @@ export class SeleniumService {
 			}
 			// Start fake webcam for media capture
 			await startFakeMediaDevices(videoPath, audioPath);
-			// Start selenium
-			SeleniumService.instance = new SeleniumService();
+			this.isInitialized = true;
 		}
-		return SeleniumService.instance;
 	}
 
 	async getChromeDriver(

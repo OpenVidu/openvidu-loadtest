@@ -1,20 +1,18 @@
 import fs from 'node:fs';
 import * as express from 'express';
 import type { Request, Response } from 'express';
+import { getContainer } from '../container.js';
 import type {
 	BrowserVideo,
 	InitializePost,
 	InitializePostRequest,
 } from '../types/api-rest.type.js';
-import { InstanceService } from '../services/instance.service.js';
-import { ElasticSearchService } from '../services/elasticsearch.service.js';
 import { APPLICATION_MODE } from '../config.js';
 import { ApplicationMode } from '../types/config.type.js';
 import { ContainerName } from '../types/container-info.type.js';
-import { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
 import { downloadFile } from '../utils/download-files.js';
 import { SeleniumService } from '../services/selenium.service.js';
-import { S3FilesService } from '../services/files/s3files.service.ts';
+import type { S3FilesService } from '../services/files/s3files.service.ts';
 
 export const app = express.Router({
 	strict: true,
@@ -23,19 +21,23 @@ export const app = express.Router({
 const MEDIAFILES_DIR = `${process.cwd()}/src/assets/mediafiles`;
 
 app.get('/ping', (_: Request, res: Response) => {
-	if (InstanceService.getInstance().isInstanceInitialized()) {
+	const container = getContainer();
+	const instanceService = container.resolve('instanceService');
+	if (instanceService.isInstanceInitialized()) {
 		res.status(200).send('Pong');
 	} else {
 		res.status(500).send();
 	}
 });
 
+// TODO: this should be divided into multiple endpoints, as it is doing multiple things (initializing different services, downloading media files, etc)
+// TODO: study if browser could have its own video and audio, it would probably require multiple ffmpeg instances with multiple fake devices
 app.post('/initialize', async (req: InitializePostRequest, res: Response) => {
 	try {
 		const request: InitializePost = req.body;
 		const isProdMode: boolean = APPLICATION_MODE === ApplicationMode.PROD;
-		const elasticSearchService: ElasticSearchService =
-			ElasticSearchService.getInstance();
+		const container = getContainer();
+		const elasticSearchService = container.resolve('elasticSearchService');
 
 		createRecordingsDirectory();
 
@@ -86,7 +88,10 @@ app.post('/initialize', async (req: InitializePostRequest, res: Response) => {
 				}
 			}
 			if (bucketName && accessKey && secretAccessKey) {
-				S3FilesService.getInstance(
+				const container = getContainer();
+				const s3FilesService: S3FilesService =
+					container.resolve('s3FilesService');
+				s3FilesService.initialize(
 					accessKey,
 					secretAccessKey,
 					bucketName,
@@ -98,9 +103,12 @@ app.post('/initialize', async (req: InitializePostRequest, res: Response) => {
 		}).then(() => {
 			// TODO: this QOE_ANALYSIS should not be an env variable, there should be two separate properties: one to enable MediaRecorders in browser creation request and another one to actually do the QoE Analysis in situ
 			if (request.qoeAnalysis?.enabled) {
+				const qoeContainer = getContainer();
+				const qoeAnalyzerService =
+					qoeContainer.resolve('qoeAnalyzerService');
 				process.env.QOE_ANALYSIS =
 					request.qoeAnalysis.enabled.toString();
-				QoeAnalyzerService.getInstance().setDurations(
+				qoeAnalyzerService.setDurations(
 					request.qoeAnalysis.fragment_duration,
 					request.qoeAnalysis.padding_duration,
 				);
@@ -131,7 +139,8 @@ async function launchMetricBeat(
 	elasticsearchUsername?: string,
 	elasticsearchPassword?: string,
 ) {
-	const instanceService = InstanceService.getInstance();
+	const container = getContainer();
+	const instanceService = container.resolve('instanceService');
 	try {
 		await instanceService.launchMetricBeat(
 			elasticsearchHost,
@@ -157,7 +166,10 @@ async function downloadMediaFilesAndStartSeleniumService(
 	videoType: BrowserVideo,
 ): Promise<SeleniumService> {
 	const fileNames = await downloadBrowserMediaFiles(videoType);
-	return SeleniumService.getInstance(fileNames[0], fileNames[1]);
+	const container = getContainer();
+	const seleniumService = container.resolve('seleniumService');
+	await seleniumService.initialize(fileNames[0], fileNames[1]);
+	return seleniumService;
 }
 
 async function downloadBrowserMediaFiles(

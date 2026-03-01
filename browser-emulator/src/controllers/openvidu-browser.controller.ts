@@ -1,13 +1,12 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
-import { BrowserManagerService } from '../services/browser-manager.service.js';
+import { getContainer } from '../container.js';
 import { OpenViduRole, Resolution } from '../types/openvidu.type.js';
 import type {
 	CreateUserBrowser,
 	CreateUserBrowserRequest,
 	LoadTestPostResponse,
 } from '../types/api-rest.type.js';
-import BaseComModule from '../com-modules/base.js';
 
 export const app = express.Router({
 	strict: true,
@@ -17,14 +16,15 @@ app.post(
 	'/streamManager',
 	async (req: CreateUserBrowserRequest, res: Response) => {
 		try {
-			const comModuleInstance: BaseComModule =
-				BaseComModule.getInstance();
+			const container = getContainer();
+			const comModuleInstance = container.resolve('comModule');
 			const request: CreateUserBrowser = req.body;
 
 			if (comModuleInstance.areParametersCorrect(request)) {
 				await comModuleInstance.processNewUserRequest(request);
-				const browserManagerService: BrowserManagerService =
-					BrowserManagerService.getInstance();
+				const browserManagerService = container.resolve(
+					'browserManagerService',
+				);
 
 				request.properties.frameRate =
 					request.properties.frameRate || 30;
@@ -73,8 +73,8 @@ app.post(
 );
 
 app.delete('/streamManager', async (req: Request, res: Response) => {
-	const browserManagerService: BrowserManagerService =
-		BrowserManagerService.getInstance();
+	const container = getContainer();
+	const browserManagerService = container.resolve('browserManagerService');
 	console.log('Deleting all participants');
 	try {
 		await browserManagerService.clean();
@@ -98,8 +98,10 @@ app.delete(
 						'Problem with connectionId parameter. IT DOES NOT EXIST',
 					);
 			}
-			const browserManagerService: BrowserManagerService =
-				BrowserManagerService.getInstance();
+			const container = getContainer();
+			const browserManagerService = container.resolve(
+				'browserManagerService',
+			);
 			console.log('Deleting streams with connectionId: ' + connectionId);
 			await browserManagerService.deleteStreamManagerWithConnectionId(
 				connectionId,
@@ -129,8 +131,10 @@ app.delete(
 					.status(400)
 					.send('Problem with userId or sessionId parameter ().');
 			}
-			const browserManagerService: BrowserManagerService =
-				BrowserManagerService.getInstance();
+			const container = getContainer();
+			const browserManagerService = container.resolve(
+				'browserManagerService',
+			);
 			console.log(
 				'Deleting streams with sessionId: ' +
 					sessionId +

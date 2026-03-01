@@ -1,7 +1,7 @@
 import * as express from 'express';
 import multer from 'multer';
 import type { Request, Response } from 'express';
-import { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
+import { getContainer } from '../container.js';
 import fs from 'node:fs';
 
 const RECORDINGS_PATH = `${process.cwd()}/recordings/qoe`;
@@ -38,8 +38,8 @@ app.post(
 );
 
 app.post('/analysis', async (_: Request, res: Response) => {
-	const qoeAnalyzerService: QoeAnalyzerService =
-		QoeAnalyzerService.getInstance();
+	const container = getContainer();
+	const qoeAnalyzerService = container.resolve('qoeAnalyzerService');
 	const status = await qoeAnalyzerService.runQoEAnalysis();
 	res.status(200).send(status);
 });

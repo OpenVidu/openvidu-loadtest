@@ -10,13 +10,6 @@ class LiveKitComModule extends BaseComModule {
 		return this._PUBLIC_DIR;
 	}
 
-	static getInstance(): BaseComModule {
-		if (!BaseComModule.instance) {
-			BaseComModule.instance = new LiveKitComModule();
-		}
-		return BaseComModule.instance;
-	}
-
 	async processNewUserRequest(request: LKLoadTestPostRequest): Promise<void> {
 		// Generate LiveKit Token
 		const roomName = request.properties.sessionName;

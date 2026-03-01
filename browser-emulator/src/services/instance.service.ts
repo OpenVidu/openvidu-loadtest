@@ -1,12 +1,9 @@
 import { OSUtils } from 'node-os-utils';
 import type { ContainerCreateOptions } from 'dockerode';
 import { DockerService } from './docker.service.js';
-import { LocalStorageService } from './local-storage.service.js';
-import { WebrtcStatsService } from './config-storage.service.js';
 import { ContainerName } from '../types/container-info.type.js';
 
 export class InstanceService {
-	private static instance: InstanceService;
 	private isinstanceInitialized = false;
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE =
@@ -19,15 +16,8 @@ export class InstanceService {
 	private readonly osutils = new OSUtils();
 	private readonly dockerService: DockerService;
 
-	private constructor(dockerService: DockerService = new DockerService()) {
+	constructor(dockerService: DockerService) {
 		this.dockerService = dockerService;
-	}
-
-	static getInstance(): InstanceService {
-		if (!InstanceService.instance) {
-			InstanceService.instance = new InstanceService();
-		}
-		return InstanceService.instance;
 	}
 
 	isInstanceInitialized() {
@@ -36,10 +26,6 @@ export class InstanceService {
 
 	instanceInitialized() {
 		this.isinstanceInitialized = true;
-	}
-
-	cleanEnvironment() {
-		new LocalStorageService().clear(new WebrtcStatsService().getItemName());
 	}
 
 	async getCpuUsage(): Promise<number> {

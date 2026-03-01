@@ -22,7 +22,7 @@ import { APPLICATION_MODE, DOCKER_NAME } from '../config.js';
 import { SeleniumService } from './selenium.service.js';
 import { runScript, stopDetached } from '../utils/run-script.js';
 import { ApplicationMode } from '../types/config.type.js';
-import BaseComModule from '../com-modules/base.js';
+import { getContainer } from '../container.js';
 import { Mutex } from 'async-mutex';
 import type { ChildProcess } from 'node:child_process';
 
@@ -53,8 +53,10 @@ export class RealBrowserService {
 	private totalPublishers = 0;
 	private recordingScript: ChildProcess | undefined;
 	private readonly muteButtonMutex = new Mutex();
+	private readonly seleniumService: SeleniumService;
 
-	constructor() {
+	constructor(seleniumService: SeleniumService) {
+		this.seleniumService = seleniumService;
 		const prefs = new logging.Preferences();
 		logging.getLogger('webdriver');
 		prefs.setLevel(logging.Type.BROWSER, logging.Level.INFO);
@@ -91,7 +93,10 @@ export class RealBrowserService {
 
 	public async startSelenium(properties: UserJoinProperties): Promise<void> {
 		const videoPath = `${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`;
-		await SeleniumService.getInstance(videoPath, this.AUDIO_FILE_LOCATION);
+		await this.seleniumService.initialize(
+			videoPath,
+			this.AUDIO_FILE_LOCATION,
+		);
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
@@ -282,7 +287,6 @@ export class RealBrowserService {
 			);
 		}
 		// TODO: This assumes that SeleniumService has already been initialized, we should make sure of that in the code structure instead of just assuming it here
-		const seleniumService = await SeleniumService.getInstance();
 		if (properties.headless) {
 			this.chromeOptions.addArguments('--headless');
 			this.firefoxOptions.addArguments('--headless');
@@ -291,7 +295,7 @@ export class RealBrowserService {
 			setTimeout(() => {
 				this.initializeBrowser(
 					request,
-					seleniumService,
+					this.seleniumService,
 					storageNameObj,
 					storageValueObj,
 				)
@@ -315,7 +319,8 @@ export class RealBrowserService {
 	): Promise<string> {
 		let driverId: string | undefined;
 		try {
-			const comModuleInstance = BaseComModule.getInstance();
+			const container = getContainer();
+			const comModuleInstance = container.resolve('comModule');
 			const webappUrl = comModuleInstance.generateWebappUrl(request);
 			console.log(webappUrl);
 			let driver: WebDriver;

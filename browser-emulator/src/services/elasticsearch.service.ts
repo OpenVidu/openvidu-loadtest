@@ -16,22 +16,14 @@ export class ElasticSearchService {
 	private pingSuccess = false;
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
 	private readonly mappings: Record<string, unknown>;
-	protected static instance: ElasticSearchService;
 
-	private constructor() {
+	constructor() {
 		this.mappings = JSON.parse(
 			fs.readFileSync(
 				`${process.cwd()}/src/services/index-mappings.json`,
 				'utf8',
 			),
 		) as Record<string, unknown>;
-	}
-
-	static getInstance(): ElasticSearchService {
-		if (!ElasticSearchService.instance) {
-			ElasticSearchService.instance = new ElasticSearchService();
-		}
-		return ElasticSearchService.instance;
 	}
 
 	async initialize(

@@ -16,57 +16,44 @@ interface UploadTask {
 }
 
 export class S3FilesService {
-	private static instance: S3FilesService | undefined;
 	static readonly fileDirs = [
 		`${process.cwd()}/recordings/chrome`,
 		`${process.cwd()}/recordings/qoe`,
 		`${process.cwd()}/stats`,
 	];
 
-	private readonly bucket: string;
-	private readonly host: string | undefined;
-	private readonly accessKey: string;
-	private readonly secretAccessKey: string;
-	private readonly region: string = 'us-east-1';
+	private bucket = '';
+	private host: string | undefined;
+	private accessKey = '';
+	private secretAccessKey = '';
+	private region = 'us-east-1';
+	private initialized = false;
 
-	private constructor(
+	/**
+	 * Initializes the S3FilesService with AWS/S3 credentials.
+	 * Must be called before using uploadFiles().
+	 */
+	initialize(
 		accessKey: string,
 		secretAccessKey: string,
 		bucketName: string,
 		region?: string,
 		host?: string,
-	) {
+	): void {
 		this.accessKey = accessKey;
 		this.secretAccessKey = secretAccessKey;
 		this.bucket = bucketName;
 		this.region = region ?? this.region;
 		this.host = host;
-		console.log('FilesService initialized with provided credentials');
+		this.initialized = true;
+		console.log('S3FilesService initialized with provided credentials');
 	}
 
-	static getInstance(
-		accessKey?: string,
-		secretAccessKey?: string,
-		bucketName?: string,
-		region?: string,
-		host?: string,
-	): S3FilesService {
-		if (!S3FilesService.instance) {
-			if (!accessKey || !secretAccessKey || !bucketName) {
-				throw new Error(
-					'S3FilesService not initialized. Please provide accessKey, secretAccessKey and bucketName to initialize.',
-				);
-			} else {
-				S3FilesService.instance ??= new S3FilesService(
-					accessKey,
-					secretAccessKey,
-					bucketName,
-					region,
-					host,
-				);
-			}
-		}
-		return S3FilesService.instance;
+	/**
+	 * Checks if the service has been initialized with credentials.
+	 */
+	isInitialized(): boolean {
+		return this.initialized;
 	}
 
 	private static readonly UPLOAD_CONCURRENCY = 5;
@@ -127,6 +114,11 @@ export class S3FilesService {
 	 * rest of the transfer.
 	 */
 	async uploadFiles(): Promise<void> {
+		if (!this.initialized) {
+			throw new Error(
+				'S3FilesService not initialized. Call initialize() with credentials first.',
+			);
+		}
 		await this.createBucket();
 
 		const s3 = this.getS3Client();

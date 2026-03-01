@@ -6,12 +6,6 @@ import type {
 import { InstanceService } from './instance.service.js';
 import { RealBrowserService } from './real-browser.service.js';
 import { ElasticSearchService } from './elasticsearch.service.js';
-import {
-	ErrorLogService,
-	OpenViduEventsService,
-	QoERecordingsService,
-	WebrtcStatsService,
-} from './config-storage.service.js';
 import { APPLICATION_MODE } from '../config.js';
 import { ApplicationMode } from '../types/config.type.js';
 import { S3FilesService } from './files/s3files.service.ts';
@@ -25,26 +19,28 @@ import type {
 	StorageNameObject,
 	StorageValueObject,
 } from '../types/storage-config.type.ts';
+import { WebrtcStatsLocalStorage } from '../data/browser-localstorage-configs/webrtc-stats-localstorage.ts';
+import { OpenViduEventsLocalStorage } from '../data/browser-localstorage-configs/openvidu-events-localstorage.ts';
+import { QoERecordingsLocalStorage } from '../data/browser-localstorage-configs/qoe-recordings-localstorage.ts';
+import { ErrorEventLocalStorage } from '../data/browser-localstorage-configs/openvidu-error-event-localstorage.ts';
 
 export class BrowserManagerService {
-	protected static instance: BrowserManagerService;
 	private _lastRequestInfo: CreateUserBrowser | undefined;
-	private readonly realBrowserService: RealBrowserService =
-		new RealBrowserService();
-	private readonly instanceService: InstanceService =
-		InstanceService.getInstance();
-	private readonly elasticSearchService: ElasticSearchService =
-		ElasticSearchService.getInstance();
+	private readonly realBrowserService: RealBrowserService;
+	private readonly instanceService: InstanceService;
+	private readonly elasticSearchService: ElasticSearchService;
+	private readonly s3FilesService: S3FilesService;
 
-	private constructor() {
-		/* empty */
-	}
-
-	static getInstance() {
-		if (!BrowserManagerService.instance) {
-			BrowserManagerService.instance = new BrowserManagerService();
-		}
-		return BrowserManagerService.instance;
+	constructor(
+		realBrowserService: RealBrowserService,
+		instanceService: InstanceService,
+		elasticSearchService: ElasticSearchService,
+		s3FilesService: S3FilesService,
+	) {
+		this.realBrowserService = realBrowserService;
+		this.instanceService = instanceService;
+		this.elasticSearchService = elasticSearchService;
+		this.s3FilesService = s3FilesService;
 	}
 
 	async createStreamManager(
@@ -60,11 +56,10 @@ export class BrowserManagerService {
 		// Create new stream manager using launching a normal Chrome browser
 		await this.realBrowserService.startSelenium(request.properties);
 		try {
-			const webrtcStorageService = new WebrtcStatsService();
-			const ovEventsService: OpenViduEventsService =
-				new OpenViduEventsService();
-			const qoeService: QoERecordingsService = new QoERecordingsService();
-			const errorService: ErrorLogService = new ErrorLogService();
+			const webrtcStorageService = new WebrtcStatsLocalStorage();
+			const ovEventsService = new OpenViduEventsLocalStorage();
+			const qoeService = new QoERecordingsLocalStorage();
+			const errorService = new ErrorEventLocalStorage();
 			const storageNameObject: StorageNameObject = {
 				webrtcStorageName: webrtcStorageService.getItemName(),
 				ovEventStorageName: ovEventsService.getItemName(),
@@ -134,18 +129,17 @@ export class BrowserManagerService {
 		await waitForAllFilesToBeProcessed();
 		console.log('All files processed');
 		if (APPLICATION_MODE === ApplicationMode.PROD) {
-			try {
-				const fileService = S3FilesService.getInstance();
+			if (this.s3FilesService.isInitialized()) {
 				try {
 					console.log('Uploading files to S3...');
-					await fileService.uploadFiles();
+					await this.s3FilesService.uploadFiles();
 					console.log('Files uploaded to S3');
 				} catch (error) {
 					console.error('Error uploading files to S3', error);
 				}
-			} catch {
+			} else {
 				console.warn(
-					"FilesService is not defined (There is no S3 bucket specified). Can't upload files.",
+					"S3FilesService is not initialized (There is no S3 bucket specified). Can't upload files.",
 				);
 			}
 		}

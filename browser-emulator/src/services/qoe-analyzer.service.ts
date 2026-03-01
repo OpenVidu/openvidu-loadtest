@@ -3,15 +3,12 @@ import type { JSONQoeProcessing } from '../types/api-rest.type.js';
 import { runQoEAnalysisNonBlocking } from '../utils/qoe-analysis-utils.js';
 
 export class QoeAnalyzerService {
-	private static instance: QoeAnalyzerService;
 	private FRAGMENT_DURATION = 5;
 	private PADDING_DURATION = 1;
+	private readonly browserManagerService: BrowserManagerService;
 
-	static getInstance() {
-		if (!QoeAnalyzerService.instance) {
-			QoeAnalyzerService.instance = new QoeAnalyzerService();
-		}
-		return QoeAnalyzerService.instance;
+	constructor(browserManagerService: BrowserManagerService) {
+		this.browserManagerService = browserManagerService;
 	}
 
 	public setDurations(fragment_duration: number, padding_duration: number) {
@@ -20,7 +17,7 @@ export class QoeAnalyzerService {
 	}
 
 	public async runQoEAnalysis() {
-		const lastRequest = BrowserManagerService.getInstance().lastRequestInfo;
+		const lastRequest = this.browserManagerService.lastRequestInfo;
 		if (lastRequest) {
 			const properties = lastRequest.properties;
 			if (properties) {

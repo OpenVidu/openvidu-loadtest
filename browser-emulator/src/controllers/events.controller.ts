@@ -1,7 +1,6 @@
 import * as express from 'express';
 import type { Response } from 'express';
-import { ElasticSearchService } from '../services/elasticsearch.service.js';
-import { WsService } from '../services/ws.service.js';
+import { getContainer } from '../container.js';
 import type {
 	BrowserEventRequest,
 	WebRTCStatsRequest,
@@ -20,11 +19,10 @@ export const app = express.Router({
 	strict: true,
 });
 
-const elasticSearchService: ElasticSearchService =
-	ElasticSearchService.getInstance();
-
 app.post('/webrtcStats', async (req: WebRTCStatsRequest, res: Response) => {
 	try {
+		const container = getContainer();
+		const elasticSearchService = container.resolve('elasticSearchService');
 		const statsResponse = req.body;
 		addSaveStatsToFileToQueue(
 			statsResponse.user,
@@ -45,8 +43,10 @@ app.post('/webrtcStats', async (req: WebRTCStatsRequest, res: Response) => {
 
 app.post('/events', (req: BrowserEventRequest, res: Response) => {
 	try {
+		const container = getContainer();
+		const wsService = container.resolve('wsService');
 		const message: string = JSON.stringify(req.body);
-		WsService.getInstance().send(message);
+		wsService.send(message);
 
 		addSaveStatsToFileToQueue(
 			req.body.participant,

@@ -2,20 +2,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { WEBSOCKET_PORT } from '../config.js';
 
 export class WsService {
-	protected static instance: WsService;
 	private readonly OPEN = 1;
 	private ws: WebSocket | undefined;
-
-	private constructor() {
-		/* empty */
-	}
-
-	static getInstance(): WsService {
-		if (!WsService.instance) {
-			WsService.instance = new WsService();
-		}
-		return WsService.instance;
-	}
 
 	async initializeServer(): Promise<void> {
 		return new Promise(resolve => {

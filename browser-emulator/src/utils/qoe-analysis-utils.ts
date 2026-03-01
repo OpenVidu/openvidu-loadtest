@@ -7,12 +7,16 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import pLimit from 'p-limit';
 import * as path from 'node:path';
-import { ElasticSearchService } from '../services/elasticsearch.service.js';
+import { getContainer } from '../container.js';
 import { runScript } from './run-script.js';
 import type { ChildProcess } from 'node:child_process';
 
 const limit = pLimit(1); // Scripts are already multithreaded
-const elasticSearchService = ElasticSearchService.getInstance();
+
+function getElasticSearchService() {
+	const container = getContainer();
+	return container.resolve('elasticSearchService');
+}
 
 export async function runQoEAnalysisNonBlocking(
 	processingInfo: JSONQoeProcessing,
@@ -61,6 +65,7 @@ async function runQoEAnalysis(
 	allAnalysis = false,
 	debug = false,
 ): Promise<void> {
+	const elasticSearchService = getElasticSearchService();
 	let timestamps: JSONUserInfo[] = [];
 	if (!onlyFiles) {
 		if (
@@ -171,6 +176,7 @@ async function getTimestamps(processingInfo: JSONQoeProcessing) {
 		return processingInfo.timestamps;
 	} else {
 		console.log('Timestamps not found in file, searching ELK...');
+		const elasticSearchService = getElasticSearchService();
 		return await elasticSearchService.getStartTimes();
 	}
 }
@@ -293,6 +299,7 @@ async function processAndUploadResults(
 	console.log(
 		'Finished processing results for ELK, writing to ElasticSearch...',
 	);
+	const elasticSearchService = getElasticSearchService();
 	return elasticSearchService.sendBulkJsons(jsonsELK);
 }
 
@@ -306,6 +313,7 @@ export async function processFilesAndUploadResults(
 		);
 		return;
 	}
+	const elasticSearchService = getElasticSearchService();
 	await elasticSearchService.initialize(
 		processingInfo.elasticsearch_hostname,
 		processingInfo.elasticsearch_username,

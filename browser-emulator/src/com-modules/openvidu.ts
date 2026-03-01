@@ -10,12 +10,6 @@ class OpenviduComModule extends BaseComModule {
 	get PUBLIC_DIR(): string {
 		return this._PUBLIC_DIR;
 	}
-	static getInstance(): BaseComModule {
-		if (!BaseComModule.instance) {
-			BaseComModule.instance = new OpenviduComModule();
-		}
-		return BaseComModule.instance;
-	}
 
 	async processNewUserRequest(): Promise<void> {
 		// do nothing, openvidu 2 does not need any backend processing

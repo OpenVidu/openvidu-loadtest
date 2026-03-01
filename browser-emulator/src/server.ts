@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import https from 'node:https';
 import express from 'express';
+import { asValue } from 'awilix';
+import { getContainer } from './container.js';
 import {
 	APPLICATION_MODE,
 	COM_MODULE,
@@ -13,18 +15,15 @@ import { app as eventsController } from './controllers/events.controller.js';
 import { app as instanceController } from './controllers/instance.controller.js';
 import { app as qoeController } from './controllers/qoe.controller.js';
 
-import { InstanceService } from './services/instance.service.js';
-import { WsService } from './services/ws.service.js';
-
-import { BrowserManagerService } from './services/browser-manager.service.js';
 import { killAllDetached } from './utils/run-script.js';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices.js';
 import { S3FilesService } from './services/files/s3files.service.ts';
-import type BaseComModule from './com-modules/base.ts';
+import type BaseComModule from './com-modules/base.js';
 import { asyncExitHook } from 'exit-hook';
 
 async function cleanup() {
-	const browserManager = BrowserManagerService.getInstance();
+	const container = getContainer();
+	const browserManager = container.resolve('browserManagerService');
 	try {
 		await browserManager.clean();
 	} catch (err) {
@@ -35,6 +34,7 @@ async function cleanup() {
 }
 
 export async function createServer() {
+	const container = getContainer();
 	const app = express();
 
 	let moduleName: string;
@@ -47,9 +47,15 @@ export async function createServer() {
 		moduleName = 'openvidu';
 	}
 	const ComModule = (await import(`./com-modules/${moduleName}.js`)) as {
-		default: typeof BaseComModule;
+		default: new () => BaseComModule;
 	};
-	const comModuleInstance = ComModule.default.getInstance();
+	const comModuleInstance = new ComModule.default();
+
+	// Register the com-module instance in the container so other services can use it
+	container.register({
+		comModule: asValue(comModuleInstance),
+	});
+
 	const publicDir = comModuleInstance.PUBLIC_DIR;
 
 	app.use(express.static(publicDir));
@@ -86,10 +92,11 @@ export async function createServer() {
 }
 
 export async function startServer() {
+	const container = getContainer();
 	const { app, server } = await createServer();
 
 	server.listen(SERVER_PORT, () => {
-		const instanceService = InstanceService.getInstance();
+		const instanceService = container.resolve('instanceService');
 
 		try {
 			if (!fs.existsSync(`${process.cwd()}/src/assets/mediafiles`)) {
@@ -136,7 +143,8 @@ export async function startServer() {
 		}
 	});
 
-	await WsService.getInstance().initializeServer();
+	const wsService = container.resolve('wsService');
+	await wsService.initializeServer();
 	return { app, server };
 }
 
