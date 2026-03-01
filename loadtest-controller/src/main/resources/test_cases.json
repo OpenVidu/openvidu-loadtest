@@ -10,7 +10,7 @@
             "resolution": "640x480",
             "recording": false,
             "headless": false,
-            "description": "This test case will add infinite sessions (until it reaches its limit) of publishers that the array of participants indicates"
+            "description": "This test case will add one session of 2 publishers"
         }
     ]
 }
