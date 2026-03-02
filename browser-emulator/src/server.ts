@@ -29,6 +29,8 @@ async function cleanup() {
 	} catch (err) {
 		console.error(err);
 	}
+	const s3FilesService = container.resolve('s3FilesService');
+	s3FilesService.clean();
 	killAllDetached();
 	await cleanupFakeMediaDevices();
 }
@@ -112,9 +114,9 @@ export async function startServer() {
 
 			const pythonpath = process.env.PYTHONPATH;
 			if (pythonpath) {
-				process.env.PYTHONPATH = pythonpath + ':' + process.env.PWD;
+				process.env.PYTHONPATH = pythonpath + ':' + process.cwd();
 			} else {
-				process.env.PYTHONPATH = process.env.PWD;
+				process.env.PYTHONPATH = process.cwd();
 			}
 
 			asyncExitHook(

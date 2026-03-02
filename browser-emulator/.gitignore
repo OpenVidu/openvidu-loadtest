@@ -3,3 +3,5 @@ stats/*
 !stats/locks/*
 outputs/fixed/*
 .env
+coverage/
+dist/

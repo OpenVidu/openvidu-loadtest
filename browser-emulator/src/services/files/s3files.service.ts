@@ -16,76 +16,77 @@ interface UploadTask {
 }
 
 export class S3FilesService {
-	static readonly fileDirs = [
-		`${process.cwd()}/recordings/chrome`,
-		`${process.cwd()}/recordings/qoe`,
-		`${process.cwd()}/stats`,
-	];
+	private static _fileDirsCache: string[] | null = null;
+
+	static get fileDirs(): string[] {
+		this._fileDirsCache ??= [
+			`${process.cwd()}/recordings/chrome`,
+			`${process.cwd()}/recordings/qoe`,
+			`${process.cwd()}/stats`,
+		];
+		return this._fileDirsCache;
+	}
+
+	static resetFilesDirsCache(): void {
+		this._fileDirsCache = null;
+	}
 
 	private bucket = '';
-	private host: string | undefined;
-	private accessKey = '';
-	private secretAccessKey = '';
-	private region = 'us-east-1';
-	private initialized = false;
+	private s3Client: S3Client | undefined;
+
+	private static readonly UPLOAD_CONCURRENCY = 5;
+	private static readonly UPLOAD_MAX_RETRIES = 3;
+	private static readonly UPLOAD_PART_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 	/**
 	 * Initializes the S3FilesService with AWS/S3 credentials.
 	 * Must be called before using uploadFiles().
 	 */
-	initialize(
+	public initialize(
 		accessKey: string,
 		secretAccessKey: string,
 		bucketName: string,
 		region?: string,
 		host?: string,
 	): void {
-		this.accessKey = accessKey;
-		this.secretAccessKey = secretAccessKey;
 		this.bucket = bucketName;
-		this.region = region ?? this.region;
-		this.host = host;
-		this.initialized = true;
-		console.log('S3FilesService initialized with provided credentials');
-	}
 
-	/**
-	 * Checks if the service has been initialized with credentials.
-	 */
-	isInitialized(): boolean {
-		return this.initialized;
-	}
-
-	private static readonly UPLOAD_CONCURRENCY = 5;
-	private static readonly UPLOAD_MAX_RETRIES = 3;
-	private static readonly UPLOAD_PART_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
-
-	private getS3Client(): S3Client {
 		const config: S3ClientConfig = {
-			region: this.region,
+			region: region ?? 'us-east-1',
 			credentials: {
-				accessKeyId: this.accessKey,
-				secretAccessKey: this.secretAccessKey,
+				accessKeyId: accessKey,
+				secretAccessKey: secretAccessKey,
 			},
 			// SDK-level retries (separate from our own application-level retries below)
 			maxAttempts: 5,
 		};
 
-		if (this.host) {
-			config.endpoint = this.host;
+		if (host) {
+			config.endpoint = host;
 			config.forcePathStyle = true; // Required for MinIO and other S3-compatible services
 		}
 
-		return new S3Client(config);
+		this.s3Client = new S3Client(config);
+		console.log('S3FilesService initialized with provided credentials');
+	}
+
+	public isInitialized(): boolean {
+		return !!this.s3Client && !!this.bucket;
 	}
 
 	private async createBucket(): Promise<void> {
+		if (!this.isInitialized()) {
+			throw new Error(
+				'S3FilesService not initialized. Call initialize() with credentials first.',
+			);
+		}
 		try {
-			const s3 = this.getS3Client();
 			const bucketParams = {
 				Bucket: this.bucket,
 			};
-			const data = await s3.send(new CreateBucketCommand(bucketParams));
+			const data = await this.s3Client!.send(
+				new CreateBucketCommand(bucketParams),
+			);
 			console.log('Success', data.Location);
 		} catch (err: unknown) {
 			if (
@@ -113,15 +114,14 @@ export class S3FilesService {
 	 * possible uploads have been attempted, so a single flaky file does not abort the
 	 * rest of the transfer.
 	 */
-	async uploadFiles(): Promise<void> {
-		if (!this.initialized) {
+	public async uploadFiles(): Promise<void> {
+		if (!this.isInitialized()) {
 			throw new Error(
 				'S3FilesService not initialized. Call initialize() with credentials first.',
 			);
 		}
 		await this.createBucket();
 
-		const s3 = this.getS3Client();
 		const tasks = await this.collectUploadTasks();
 
 		if (tasks.length === 0) {
@@ -134,7 +134,6 @@ export class S3FilesService {
 		);
 
 		const failed: { filePath: string; key: string; error: unknown }[] = [];
-
 		// Process tasks in batches to keep concurrent S3 connections bounded.
 		for (
 			let i = 0;
@@ -145,7 +144,7 @@ export class S3FilesService {
 			const results = await Promise.allSettled(
 				batch.map(({ filePath, key }) =>
 					this.uploadWithRetry(
-						s3,
+						this.s3Client!,
 						filePath,
 						key,
 						S3FilesService.UPLOAD_MAX_RETRIES,
@@ -214,6 +213,11 @@ export class S3FilesService {
 				withFileTypes: true,
 			});
 
+			if (!entries || entries.length === 0) {
+				console.warn(`Recordings directory "${dir}" is empty.`);
+				return tasks;
+			}
+
 			for (const entry of entries) {
 				if (!entry.isFile()) continue;
 
@@ -244,6 +248,10 @@ export class S3FilesService {
 			sessionEntries = await fsPromises.readdir(statsDir, {
 				withFileTypes: true,
 			});
+			if (!sessionEntries || sessionEntries.length === 0) {
+				console.warn(`Stats directory "${statsDir}" is empty.`);
+				return tasks;
+			}
 		} catch (err) {
 			console.error(`Could not read stats directory "${statsDir}":`, err);
 			return tasks;
@@ -394,7 +402,14 @@ export class S3FilesService {
 			// Clean up incomplete multipart uploads on error
 			leavePartsOnError: false,
 		});
-
+		// TODO: progress could be tracked here with `upload.on('httpUploadProgress', progress => { … })`
 		await upload.done();
+	}
+
+	public clean(): void {
+		this.s3Client?.destroy();
+		this.s3Client = undefined;
+		this.bucket = '';
+		console.log('S3FilesService cleaned up');
 	}
 }

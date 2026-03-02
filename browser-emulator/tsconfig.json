@@ -21,7 +21,7 @@
 	},
 
 	// Included Files (https://www.typescriptlang.org/tsconfig#include)
-	"include": ["./src/**/*.ts"],
+	"include": ["./src/**/*.ts", "./tests/**/*.ts"],
 
 	// Excluded Files (https://www.typescriptlang.org/tsconfig#exclude)
 	// Filters out stuff that has been previously included in "include".

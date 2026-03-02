@@ -323,7 +323,7 @@ export async function processFilesAndUploadResults(
 	const timestamps = await getTimestamps(processingInfo);
 	let files = processPath
 		? await fsPromises.readdir(processPath)
-		: await fsPromises.readdir(process.env.PWD ?? process.cwd());
+		: await fsPromises.readdir(process.cwd());
 	files = files.filter(
 		f =>
 			path.extname(f).toLowerCase() === '.json' &&

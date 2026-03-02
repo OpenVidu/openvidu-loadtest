@@ -89,6 +89,7 @@ export default [
 			...importPlugin.configs.typescript.rules,
 			...prettierPlugin.configs.recommended.rules,
 			...prettierConfig.rules,
+			'@typescript-eslint/no-unsafe-assignment': 'off',
 		},
 	},
 ];
