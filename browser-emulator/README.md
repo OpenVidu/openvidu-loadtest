@@ -7,96 +7,87 @@ It is able to start and launch **Chrome/Firefox browsers** using Selenium, emula
 This app provides a simple **REST API** that will be used by **Load Test application** and it allows:
 
 - [Ping to instance](#ping-instance). Do ping to check if instance is ready.
-- [Initialize instance](#initialize-instance). Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container. This request also set the AWS public and secret keys for uploading the **video recordings files to S3**, or Minio keys for uploading the **video recordings files to Minio** (just in case the test case includes recordings).
-- [Create a participant](#create-participant) (`PUBLISHER` or `SUBSCRIBER`) **using a custom token** created by you or **creating a new token**.
+- [Initialize instance](#initialize-instance). Initialize monitoring stuffs like ElasticSearch env variables and Metricbeat container. This request also set the AWS public and secret keys for uploading the **video recordings files and stats' files to S3**.
+- [Create a participant](#create-participant) (`PUBLISHER` or `SUBSCRIBER`).
 - [Delete a specific participant](#delete-participant-by-connectionId) by its connectionId
-- [Delete all participant](#delete-participants-by-role-publisher-or-subscriber) with a specific role (`PUBLISHER` or `SUBSCRIBER`).
 - [Delete all participant](#delete-participants).
 
-This services also is listening for a **WebSocket communication** on `ws:browser-emulator-addres:5000/events`. It will send information from the clients to the loadtest-controller.
+This services also is listening for a **WebSocket communication** on `ws://browser-emulator-address:5000/events`. It will send information from the clients to the loadtest-controller.
 
 # Browser Emulator development
 
-Now you can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator. Ensure you have Vagrant and VirtualBox installed on your system.
+You can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator with every dependency installed. Ensure you have Vagrant and VirtualBox installed on your system.
 
 You can either choose an already made box or make a personalized one yourself.
 
 - **Already made box**
 
-You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters.
+You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters. This box includes all the necessary dependencies to run the browser-emulator, along with both OpenVidu 2 CE and LiveKit installed and ready to use.
 
 - **Customizable Parameters in Vagrantfile**
-    - **BOX**: Box to use as base. You can choose one of our already made boxes or choose the path to a box made by youself. Defaults to a box with the latest OpenVidu 2 CE and Firefox installed.
-    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
+    - **BOX**: Box to use as base. You can choose our already made box or choose the path to a box made by yourself. Defaults to our default box with everything installed.
+    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096.
     - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
-    - **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
+    - **DISK**: Disk size in GB for the virtual machine. Default: 20.
+    - **START_SERVER**: Set to 'true' to start the browser-emulator server during provisioning and on each reboot. Default is 'true'.
+    - **START_PLATFORM**: Set to 'true' to start the OpenVidu 2 CE or LiveKit server during provisioning and on each reboot. Default is 'true'.
+      _OpenVidu note_: with this deployment, the OpenVidu URL is _https://localhost_ and the OpenVidu secret is _vagrant_.
+      _LiveKit note_: With this deployment, LiveKit is deployed in dev mode, so the URL is _https://localhost_, API Key is _devkey_ and the API Secret is _secret_.
     - **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i \_ 10) for the BrowserEmulator server and 5900 + (i \* 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000 and 5900, node2 will have 5010 and 5911 and so on. Defaults to 1.
-
-- **Available boxes**
-
-Here are our already made boxes that you can use:
-
-    - ivchicano/browseremulator-ov-ff: Default box. Comes ready to use against OpenVidu 2, using Firefox as the browser.
-    - ivchicano/browseremulator-lk-ff: Comes ready to use against LiveKit, using Firefox as the browser.
-    - ivchicano/browseremulator-ov-ff-dev: Comes with the latest OpenVidu 2 CE and Firefox installed. Starts an OpenVidu 2 CE server in the same machine.
-    - ivchicano/browseremulator-lk-ff-dev: Comes with the latest LiveKit and Firefox installed. Starts a LiveKit server in the same machine.
 
 - **Start vagrant**
 
 To customize these parameters, you can set environment variables before running `vagrant up`. For example:
 
 ```bash
-export BOX=ivchicano/browseremulator-lk-ff
+export BOX=ivchicano/browseremulator
 vagrant up
 ```
 
 - **Personalized box**
 
-You can also construct your personalized box with the parameters you choose. You can start it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then use this box as is or package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
+You can also construct your base personalized box with the parameters you choose. To start it, run `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
 
 - **Customizable Parameters in Vagrantfile**
-    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 8192. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 8GB of memory).
-    - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
-    - **VAGRANT_PROVIDER**: Virtualization provider to use (e.g., 'virtualbox', 'vmware'). Default: 'virtualbox'.
-    - **FIREFOX**: Set to 'true' to use Firefox instead of Chrome for testing. Default is 'false'.
-    - **START_MEDIASERVER**: Set to 'true' to start the media server (either the latest Openvidu 2 CE or LiveKit) during provisioning. Default is 'true'.
-      OpenVidu note: with this deployment, the OpenVidu URL is ^_https://localhost_ and the OpenVidu secret is _vagrant_.
-      LiveKit note: (Experimental) with this deployment, LiveKit is deployed in dev mode, so the API Key is _devkey_ and the API Secret is _secret_.
-    - **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'false'.
-    - **LIVEKIT**: (Experimental) Set to 'true' to use LiveKit instead of OpenVidu. Default: 'false'.
-    - **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i _ 10) for the BrowserEmulator server and 5900 + (i _ 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000 and 5900, node2 will have 5010 and 5910 and so on. Defaults to 1.
+    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096.
+    - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 12.
+    - **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'true'.
+    - **VAGRANT_PROVIDER**: Provider to use to create the virtual machine. Default is 'virtualbox'.
+
+With this box, you can now set the **BOX** environment variable to the path of the box you just created and run `vagrant up` to start the virtual machine with the personalized box. Refer to the customizable parameters in the Vagrantfile section to customize the machine.
 
 ## Running QoE Analysis
 
 BrowserEmulator can run analysis on the Quality of Experience on your video and audio. For this, the following requisites have to be met:
 
-- The `browserMode` when adding a participant has to be `REAL` (at the moment this option doesn't work with `EMULATED` users).
-- AWS public and secret keys or Minio keys have to be set so the recorded video fragments can be uploaded to S3 or Minio.
-- The original video and audio (separate files expected) need to be cut and concrete paddings added to them. This can be done with the _generate-mediafiles-qoe.sh_ script. The mandatory options are:
+- AWS's public and secret keys or any S3 compatible system's keys have to be set, so the recorded video fragments can be uploaded to S3.
+- The original video and audio (separate files expected) need to be cut, and concrete paddings added to them. This can be done with the `mediafile_generation/generate-mediafiles-qoe.sh` script. The mandatory options are:
     - -d: Duration of the cut video, the video will be cut from the beginning to the second passed in this argument.
     - -p: Duration of the padding to be added (in seconds)
     - -v: Video location URL, the script will try to download the video from this URL using wget.
     - -a: Audio location URL, the script will try to download the audio from this URL using wget.
     - -w: Video width.
     - -h: Video height.
-    - -f: Video framerate.The video and audio have to be saved in `src/assets/mediafiles` in y4m and wav fromat respectively so browser-emulator can see them.
+    - -f: Video frame rate. The video and audio have to be saved in `src/assets/mediafiles` in y4m and wav format respectively so browser-emulator can see them.
         - The video file has to have the following name: `fakevideo_[framerate]fps_[width]x[height].y4m`, for example: `fakevideo_30fps_640x480.y4m`.
         - The audio file has to have the following name: `fakeaudio.wav`.
-          Alternatively you can use our already preprocessed videos that can be downloaded using the _download_mediafiles.sh_ script. These have 1 secvond of padding and 5 seconds of cut video.
+          Alternatively you can use our already preprocessed videos that can be downloaded using the _download_mediafiles.sh_ script. These have 1 second of padding and 5 seconds of cut video.
 
-For the purpose of running the QoE Analysis, for each user pair 2 videos will be recorded during the run, one recording what the first user is receiving from the second and viceversa. These videos will be uploaded to S3 or Minio when [Delete all participant](#delete-participants) is run. These recordings will be called individual recordings.
+For the purpose of running the QoE Analysis, for each user pair 2 videos will be recorded during the run, one recording what the first user is receiving from the second and vice versa. These videos will be uploaded to S3 when [Delete all participant](#delete-participants) is run. These recordings will be called individual recordings.
 
-When running [Initialize instance](#initialize-instance), you can add the property `"qoeAnalysis"` to the body, an object with the following options: - enabled: defaults `false`, setting this to true will enable the individual recordings. - fragment*duration: The duration of the cut video without the paddings chosen when running \_generate-mediafiles-qoe.sh* - padding*duration: The duration of the padding chosen when running \_generate-mediafiles-qoe.sh*
+When running [Initialize instance](#initialize-instance), you can add the property `"qoeAnalysis"` to the body, an object with the following options:
 
-When [Delete all participant](#delete-participants) is run, all individual recorded videos will be uploaded to S3 with the following name structure: `QOE_[Session]_[UserFrom]_[UserTo].webm`, from here you have 2 options.
+- enabled: defaults `false`, setting this to true will enable the individual recordings.
+- fragment_duration: The duration of the cut video without the paddings chosen when running \_generate-mediafiles-qoe.sh\*
+- padding_duration: The duration of the padding chosen when running \_generate-mediafiles-qoe.sh\*
 
-- Running the analysis in the same worker machine that recorded the videos, for that send a request to [Start QoE Analysis](#start-qoe-analysis)
+When [Delete all participant](#delete-participants) is run, all individual recorded videos will be uploaded to S3 with the following name structure: `QOE_[Session]_[UserFrom]_[UserTo].webm`. From here you have 2 options.
+
+- Running the analysis in the same worker machine that recorded the videos (not recommended as analysis might take hours to days for longer load tests), for that send a request to [Start QoE Analysis](#start-qoe-analysis)
 - Running the analysis on another machine, for that pull this repository in that machine, cd to browser-emulator and follow the next steps:
-    - Install all the needed dependencies on the machine, which are:
+    - Install all the needed dependencies on the machine. You can run both install scripts in the `prepare_scripts` directory, or install the dependencies manually. The dependencies are:
         - Python3 and pip3
         - [VMAF](https://github.com/Netflix/vmaf), set a VMAF_PATH environment variable with the path to the vmaf binary and move the `vmaf_v0.6.1.json` file found in the model directory to `/usr/local/share/vmaf/models/vmaf_v0.6.1.json`
-        - [VQMT](https://github.com/Rolinh/VQMT), set a VQMT_PATH environment variable with the path to the vqmt binary
-        - [PESQ](https://github.com/dennisguse/ITU-T_pesq), set a PESQ_PATH environment variable with the path to the pesq binary
         - [ViSQOL](https://github.com/google/visqol), set a VISQOL_PATH environment variable with the path to the directory that contains banzel-bin/visqol
         - [Tesseract OCR](https://github.com/tesseract-ocr/tesseract), it is highly recommended to build it disabling multithreading as explained [here](https://tesseract-ocr.github.io/tessdoc/Compiling-%E2%80%93-GitInstallation.html#release-builds-for-mass-production) to improve performance.
             - You will probably need to save the necessary model found [here](https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata) in `/usr/local/share/tessdata/eng.traineddata`
@@ -108,18 +99,20 @@ When [Delete all participant](#delete-participants) is run, all individual recor
             ```bash
             pip3 install -r qoe_scripts/requirements.txt
             ```
+        - (Optional) [VQMT](https://github.com/Rolinh/VQMT), set a VQMT_PATH environment variable with the path to the vqmt binary
+        - (Optional) [PESQ](https://github.com/dennisguse/ITU-T_pesq), set a PESQ_PATH environment variable with the path to the pesq binary
     - Save the individual recordings you want to analyze in `./recordings/qoe` directory.
     - Create a `qoe-results-processing-config.json` file (there is an example file with the same name in this repo), with the following structure:
         - elasticsearch_hostname: ELK hostname
         - elasticsearch_username: ELK username
         - elasticsearch_password: ELK password
         - index: ELK index to save the data
-        - fragment*duration: The duration of the cut video without the paddings chosen when running \_generate-mediafiles-qoe.sh*
-        - padding*duration: The duration of the padding chosen when running \_generate-mediafiles-qoe.sh*
+        - fragment_duration: The duration of the cut video without the paddings chosen when running \_generate-mediafiles-qoe.sh\*
+        - padding_duration: The duration of the padding chosen when running \_generate-mediafiles-qoe.sh\*
         - width: Video width
         - height: Video height
-        - framerate: Video framerate
-        - presenter*video_file_location: Location of the original video, usually located in `src/assets/mediafiles/fakevideo*[framerate]fps\_[width]x[height].y4m`
+        - framerate: Video frame rate
+        - presenter_video_file_location: Location of the original video, usually located in `src/assets/mediafiles/fakevideo*[framerate]fps\_[width]x[height].y4m`
         - presenter_audio_file_location: Location of the original audio, usually located in `src/assets/mediafiles/fakeaudio.wav`
         - timestamps: Optional. An array of objects with info about when a user has been added to a session, used to make a timeline. If not added, this info will be searched in the index indicated in ELK. The objects have the following structure:
             - new_participant_id: username of the user
@@ -133,7 +126,7 @@ When [Delete all participant](#delete-participants) is run, all individual recor
         ```bash
         npm run qoe -- --cpus=4
         ```
-    - If you have the results of running the qoe scripts but have not uploaded them to ELK (\*\_cuts.json files) you can upload them by running:
+    - If you have the results of running the QoE scripts but have not uploaded them to ELK (\*\_cuts.json files) you can upload them by running:
         ```bash
         npm run qoe -- --process
         ```
@@ -146,6 +139,8 @@ After the analysis is done, the results will be uploaded to the selected index i
 Note: The QoE results are normalized in the range 0-1 before importing them to ELK.
 
 ## REST API
+
+TODO: This documentation is very old and probably incorrect, will be updated as soon as possible. For now, check the loadtest-controller for correct API usage.
 
 ### PING INSTANCE
 
