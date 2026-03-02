@@ -3,6 +3,9 @@ import request from 'supertest';
 import { startServer, stopServer } from '../../src/app.js';
 import type { Application } from 'express';
 import { createServer } from 'node:http';
+import { FilesRepository } from '../../src/repositories/files/files.repository.js';
+import fsPromises from 'node:fs/promises';
+import path from 'node:path';
 
 let app: Application;
 
@@ -22,9 +25,24 @@ beforeEach(async () => {
 	({ app } = await startServer());
 });
 
+async function deleteAllFilesFromDir(dir: string) {
+	for (const file of await fsPromises.readdir(dir)) {
+		if (file !== '.gitkeep') {
+			const filePath = path.join(dir, file);
+			await fsPromises.rm(filePath, { recursive: true, force: true });
+		}
+	}
+}
+
 afterEach(async () => {
 	await stopServer();
 	delete process.env.SERVER_PORT;
+	await Promise.all([
+		deleteAllFilesFromDir(FilesRepository.FULLSCREEN_RECORDING_DIR),
+		deleteAllFilesFromDir(FilesRepository.QOE_RECORDING_DIR),
+		deleteAllFilesFromDir(FilesRepository.STATS_DIR),
+		deleteAllFilesFromDir(FilesRepository.MEDIAFILES_DIR),
+	]);
 });
 
 describe('Browser-emulator', () => {

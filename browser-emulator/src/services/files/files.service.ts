@@ -1,4 +1,4 @@
-import type { FilesRepository } from '../../repositories/files/files.repository.ts';
+import { FilesRepository } from '../../repositories/files/files.repository.js';
 import type { BrowserVideo } from '../../types/api-rest.type.ts';
 
 export class FilesService {
@@ -28,12 +28,12 @@ export class FilesService {
 			this.filesRepository.downloadFile(
 				videoFile,
 				videoUrl,
-				this.filesRepository.MEDIAFILES_DIR,
+				FilesRepository.MEDIAFILES_DIR,
 			),
 			this.filesRepository.downloadFile(
 				audioFile,
 				audioUrl,
-				this.filesRepository.MEDIAFILES_DIR,
+				FilesRepository.MEDIAFILES_DIR,
 			),
 		];
 		return Promise.all(promises);
