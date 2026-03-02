@@ -16,7 +16,7 @@ app.post(
 	'/streamManager',
 	async (req: CreateUserBrowserRequest, res: Response) => {
 		try {
-			const container = getContainer();
+			const container = await getContainer();
 			const comModuleInstance = container.resolve('comModule');
 			const request: CreateUserBrowser = req.body;
 
@@ -73,7 +73,7 @@ app.post(
 );
 
 app.delete('/streamManager', async (req: Request, res: Response) => {
-	const container = getContainer();
+	const container = await getContainer();
 	const browserManagerService = container.resolve('browserManagerService');
 	console.log('Deleting all participants');
 	try {
@@ -98,7 +98,7 @@ app.delete(
 						'Problem with connectionId parameter. IT DOES NOT EXIST',
 					);
 			}
-			const container = getContainer();
+			const container = await getContainer();
 			const browserManagerService = container.resolve(
 				'browserManagerService',
 			);
@@ -131,7 +131,7 @@ app.delete(
 					.status(400)
 					.send('Problem with userId or sessionId parameter ().');
 			}
-			const container = getContainer();
+			const container = await getContainer();
 			const browserManagerService = container.resolve(
 				'browserManagerService',
 			);

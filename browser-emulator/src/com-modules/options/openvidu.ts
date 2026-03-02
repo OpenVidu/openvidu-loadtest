@@ -1,11 +1,18 @@
 import type {
 	CreateUserBrowser,
 	UserJoinProperties,
-} from '../types/api-rest.type.js';
-import BaseComModule from './base.js';
+} from '../../types/api-rest.type.ts';
+import type { ConfigService } from '../../services/config.service.ts';
+import BaseComModule from '../base.ts';
 
-class OpenviduComModule extends BaseComModule {
+export default class OpenviduComModule extends BaseComModule {
 	private readonly _PUBLIC_DIR = `public`;
+	private readonly configService: ConfigService;
+
+	constructor(configService: ConfigService) {
+		super();
+		this.configService = configService;
+	}
 
 	get PUBLIC_DIR(): string {
 		return this._PUBLIC_DIR;
@@ -44,7 +51,7 @@ class OpenviduComModule extends BaseComModule {
 		const tokenParam = token ? `token=${token}` : '';
 		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
-			`https://${OpenviduComModule.locationHostname}/?` +
+			`https://localhost:${this.configService.getServerPort()}/?` +
 			publicUrl +
 			secret +
 			recordingMode +
@@ -61,5 +68,3 @@ class OpenviduComModule extends BaseComModule {
 		);
 	}
 }
-
-export default OpenviduComModule;

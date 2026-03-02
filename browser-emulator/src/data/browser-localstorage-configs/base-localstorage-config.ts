@@ -1,12 +1,12 @@
-import BaseComModule from '../../com-modules/base.ts';
-
 export abstract class BaseLocalStorageConfig {
 	protected readonly itemName: string;
 	protected readonly endpoint: string;
+	protected readonly hostname: string;
 
-	constructor(itemName: string, endpoint: string) {
+	constructor(itemName: string, endpoint: string, hostname: string) {
 		this.itemName = itemName;
 		this.endpoint = endpoint;
+		this.hostname = hostname;
 	}
 
 	protected abstract buildConfig(): unknown;
@@ -19,7 +19,7 @@ export abstract class BaseLocalStorageConfig {
 		return this.itemName;
 	}
 
-	protected getEndpointUrl(path: string): string {
-		return `https://${BaseComModule.locationHostname}${path}`;
+	protected getEndpointUrl(): string {
+		return `https://${this.hostname}${this.endpoint}`;
 	}
 }

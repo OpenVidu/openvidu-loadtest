@@ -9,7 +9,8 @@ export async function startFakeMediaDevices(
 ) {
 	if (!started) {
 		started = true;
-		// Assumes ffmpeg installed, v4l2loopback installed and enabled, and pulseaudio installed, check prepare.sh for help
+		// Assumes ffmpeg installed, v4l2loopback installed and enabled, and pulseaudio installed,
+		// check install scripts for guidance
 		let loadedModules = '';
 		try {
 			await runScript('pactl list modules short', {

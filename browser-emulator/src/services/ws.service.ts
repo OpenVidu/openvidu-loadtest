@@ -1,23 +1,41 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import { WEBSOCKET_PORT } from '../config.js';
+import type { Server } from 'node:https';
 
 export class WsService {
 	private readonly OPEN = 1;
 	private ws: WebSocket | undefined;
+	private server: WebSocketServer | undefined;
 
-	async initializeServer(): Promise<void> {
+	initializeServer(httpServer: Server): void {
+		console.log('Starting WebSocket server...');
+		this.server = new WebSocketServer({
+			server: httpServer,
+			path: '/events',
+		});
+
+		this.server.on('error', error => {
+			console.error('WebSocket server error:', error);
+		});
+
+		this.server.on('connection', (ws: WebSocket) => {
+			ws.on('message', this.handleMessage);
+			this.ws = ws;
+			console.log('WebSocket connection established');
+		});
+
+		console.log('WebSocket server attached to HTTPS server');
+	}
+
+	async close(): Promise<void> {
 		return new Promise(resolve => {
-			console.log('Starting WebSocket server...');
-			const server = new WebSocketServer({
-				port: WEBSOCKET_PORT,
-				path: '/events',
-			});
-			server.on('connection', (ws: WebSocket) => {
-				ws.on('message', this.handleMessage);
-				this.ws = ws;
-				console.log('WebSocket server created, connection established');
+			if (this.server) {
+				this.server.close(() => {
+					console.log('WebSocket server closed');
+					resolve();
+				});
+			} else {
 				resolve();
-			});
+			}
 		});
 	}
 

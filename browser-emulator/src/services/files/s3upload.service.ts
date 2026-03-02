@@ -9,28 +9,14 @@ import {
 	BucketAlreadyOwnedByYou,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
+import type { FilesRepository } from '../../repositories/files/files.repository.ts';
 
 interface UploadTask {
 	filePath: string;
 	key: string;
 }
 
-export class S3FilesService {
-	private static _fileDirsCache: string[] | null = null;
-
-	static get fileDirs(): string[] {
-		this._fileDirsCache ??= [
-			`${process.cwd()}/recordings/chrome`,
-			`${process.cwd()}/recordings/qoe`,
-			`${process.cwd()}/stats`,
-		];
-		return this._fileDirsCache;
-	}
-
-	static resetFilesDirsCache(): void {
-		this._fileDirsCache = null;
-	}
-
+export class S3UploadService {
 	private bucket = '';
 	private s3Client: S3Client | undefined;
 
@@ -38,8 +24,20 @@ export class S3FilesService {
 	private static readonly UPLOAD_MAX_RETRIES = 3;
 	private static readonly UPLOAD_PART_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
+	private readonly filesRepository: FilesRepository;
+	private readonly fileDirs: string[];
+
+	constructor(filesRepository: FilesRepository) {
+		this.filesRepository = filesRepository;
+		this.fileDirs = [
+			this.filesRepository.FULLSCREEN_RECORDING_DIR,
+			this.filesRepository.QOE_RECORDING_DIR,
+			this.filesRepository.STATS_DIR,
+		];
+	}
+
 	/**
-	 * Initializes the S3FilesService with AWS/S3 credentials.
+	 * Initializes the S3UploadService with AWS/S3 credentials.
 	 * Must be called before using uploadFiles().
 	 */
 	public initialize(
@@ -102,14 +100,14 @@ export class S3FilesService {
 	}
 
 	/**
-	 * Uploads all files from {@link S3FilesService.fileDirs} to the configured S3 bucket.
+	 * Uploads all files from {@link S3UploadService.fileDirs} to the configured S3 bucket.
 	 *
 	 * - Recording files (chrome / qoe) are placed at the root of the bucket.
 	 * - Stats files are placed under a `stats/` prefix that mirrors the local
 	 *   `stats/<session>/<user>/<file>` hierarchy.
 	 *
 	 * Uploads run with bounded concurrency. Every failed upload is retried up to
-	 * {@link S3FilesService.UPLOAD_MAX_RETRIES} times with exponential back-off before
+	 * {@link S3UploadService.UPLOAD_MAX_RETRIES} times with exponential back-off before
 	 * being collected into a final error report. The method throws only after all
 	 * possible uploads have been attempted, so a single flaky file does not abort the
 	 * rest of the transfer.
@@ -138,16 +136,19 @@ export class S3FilesService {
 		for (
 			let i = 0;
 			i < tasks.length;
-			i += S3FilesService.UPLOAD_CONCURRENCY
+			i += S3UploadService.UPLOAD_CONCURRENCY
 		) {
-			const batch = tasks.slice(i, i + S3FilesService.UPLOAD_CONCURRENCY);
+			const batch = tasks.slice(
+				i,
+				i + S3UploadService.UPLOAD_CONCURRENCY,
+			);
 			const results = await Promise.allSettled(
 				batch.map(({ filePath, key }) =>
 					this.uploadWithRetry(
 						this.s3Client!,
 						filePath,
 						key,
-						S3FilesService.UPLOAD_MAX_RETRIES,
+						S3UploadService.UPLOAD_MAX_RETRIES,
 					),
 				),
 			);
@@ -174,19 +175,19 @@ export class S3FilesService {
 				.map(f => `  • ${f.filePath} → s3://${this.bucket}/${f.key}`)
 				.join('\n');
 			throw new Error(
-				`${failed.length} file(s) could not be uploaded after ${S3FilesService.UPLOAD_MAX_RETRIES} retries:\n${fileList}`,
+				`${failed.length} file(s) could not be uploaded after ${S3UploadService.UPLOAD_MAX_RETRIES} retries:\n${fileList}`,
 			);
 		}
 	}
 
 	/**
-	 * Scans every directory in {@link S3FilesService.fileDirs} and returns a flat list
+	 * Scans every directory in {@link S3UploadService.fileDirs} and returns a flat list
 	 * of `{ filePath, key }` pairs describing every file that must be uploaded.
 	 */
 	private async collectUploadTasks(): Promise<UploadTask[]> {
 		const tasks: UploadTask[] = [];
 
-		for (const dir of S3FilesService.fileDirs) {
+		for (const dir of this.fileDirs) {
 			const dirName = path.basename(dir);
 
 			if (dirName === 'stats') {
@@ -378,7 +379,7 @@ export class S3FilesService {
 	/**
 	 * Performs a single multipart-capable upload via {@link Upload}.
 	 * `@aws-sdk/lib-storage` automatically switches to multipart upload for files
-	 * exceeding {@link S3FilesService.UPLOAD_PART_SIZE_BYTES}, making it safe for
+	 * exceeding {@link S3UploadService.UPLOAD_PART_SIZE_BYTES}, making it safe for
 	 * very large recording files.
 	 */
 	private async uploadSingleFile(
@@ -398,7 +399,7 @@ export class S3FilesService {
 			// Number of concurrent part uploads per file
 			queueSize: 4,
 			// Part size for multipart uploads (min 5 MB required by S3)
-			partSize: S3FilesService.UPLOAD_PART_SIZE_BYTES,
+			partSize: S3UploadService.UPLOAD_PART_SIZE_BYTES,
 			// Clean up incomplete multipart uploads on error
 			leavePartsOnError: false,
 		});

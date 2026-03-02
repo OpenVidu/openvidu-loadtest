@@ -21,7 +21,7 @@ export const app = express.Router({
 
 app.post('/webrtcStats', async (req: WebRTCStatsRequest, res: Response) => {
 	try {
-		const container = getContainer();
+		const container = await getContainer();
 		const elasticSearchService = container.resolve('elasticSearchService');
 		const statsResponse = req.body;
 		addSaveStatsToFileToQueue(
@@ -41,9 +41,9 @@ app.post('/webrtcStats', async (req: WebRTCStatsRequest, res: Response) => {
 	}
 });
 
-app.post('/events', (req: BrowserEventRequest, res: Response) => {
+app.post('/events', async (req: BrowserEventRequest, res: Response) => {
 	try {
-		const container = getContainer();
+		const container = await getContainer();
 		const wsService = container.resolve('wsService');
 		const message: string = JSON.stringify(req.body);
 		wsService.send(message);

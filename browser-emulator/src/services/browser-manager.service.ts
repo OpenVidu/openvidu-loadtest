@@ -6,9 +6,8 @@ import type {
 import { InstanceService } from './instance.service.js';
 import { RealBrowserService } from './real-browser.service.js';
 import { ElasticSearchService } from './elasticsearch.service.js';
-import { APPLICATION_MODE } from '../config.js';
-import { ApplicationMode } from '../types/config.type.js';
-import { S3FilesService } from './files/s3files.service.ts';
+import type { ConfigService } from './config.service.js';
+import { S3UploadService } from './files/s3upload.service.ts';
 import {
 	CON_FILE,
 	addSaveStatsToFileToQueue,
@@ -26,17 +25,20 @@ import { ErrorEventLocalStorage } from '../data/browser-localstorage-configs/ope
 
 export class BrowserManagerService {
 	private _lastRequestInfo: CreateUserBrowser | undefined;
+	private readonly configService: ConfigService;
 	private readonly realBrowserService: RealBrowserService;
 	private readonly instanceService: InstanceService;
 	private readonly elasticSearchService: ElasticSearchService;
-	private readonly s3FilesService: S3FilesService;
+	private readonly s3FilesService: S3UploadService;
 
 	constructor(
+		configService: ConfigService,
 		realBrowserService: RealBrowserService,
 		instanceService: InstanceService,
 		elasticSearchService: ElasticSearchService,
-		s3FilesService: S3FilesService,
+		s3FilesService: S3UploadService,
 	) {
+		this.configService = configService;
 		this.realBrowserService = realBrowserService;
 		this.instanceService = instanceService;
 		this.elasticSearchService = elasticSearchService;
@@ -56,10 +58,11 @@ export class BrowserManagerService {
 		// Create new stream manager using launching a normal Chrome browser
 		await this.realBrowserService.startSelenium(request.properties);
 		try {
-			const webrtcStorageService = new WebrtcStatsLocalStorage();
-			const ovEventsService = new OpenViduEventsLocalStorage();
-			const qoeService = new QoERecordingsLocalStorage();
-			const errorService = new ErrorEventLocalStorage();
+			const hostname = `https://localhost:${this.configService.getServerPort()}`;
+			const webrtcStorageService = new WebrtcStatsLocalStorage(hostname);
+			const ovEventsService = new OpenViduEventsLocalStorage(hostname);
+			const qoeService = new QoERecordingsLocalStorage(hostname);
+			const errorService = new ErrorEventLocalStorage(hostname);
 			const storageNameObject: StorageNameObject = {
 				webrtcStorageName: webrtcStorageService.getItemName(),
 				ovEventStorageName: ovEventsService.getItemName(),
@@ -128,7 +131,7 @@ export class BrowserManagerService {
 		console.log('Waiting for all files to finish writting...');
 		await waitForAllFilesToBeProcessed();
 		console.log('All files processed');
-		if (APPLICATION_MODE === ApplicationMode.PROD) {
+		if (this.configService.isProdMode()) {
 			if (this.s3FilesService.isInitialized()) {
 				try {
 					console.log('Uploading files to S3...');
@@ -139,7 +142,7 @@ export class BrowserManagerService {
 				}
 			} else {
 				console.warn(
-					"S3FilesService is not initialized (There is no S3 bucket specified). Can't upload files.",
+					"S3FilesService is not initialized. Can't upload files.",
 				);
 			}
 		}

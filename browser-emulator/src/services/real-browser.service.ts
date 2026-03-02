@@ -18,13 +18,12 @@ import type {
 	StorageNameObject,
 	StorageValueObject,
 } from '../types/storage-config.type.js';
-import { APPLICATION_MODE, DOCKER_NAME } from '../config.js';
+import type { ConfigService } from './config.service.js';
 import { SeleniumService } from './selenium.service.js';
 import { runScript, stopDetached } from '../utils/run-script.js';
-import { ApplicationMode } from '../types/config.type.js';
-import { getContainer } from '../container.js';
 import { Mutex } from 'async-mutex';
 import type { ChildProcess } from 'node:child_process';
+import type BaseComModule from '../com-modules/base.ts';
 
 declare let localStorage: Storage;
 export class RealBrowserService {
@@ -53,10 +52,18 @@ export class RealBrowserService {
 	private totalPublishers = 0;
 	private recordingScript: ChildProcess | undefined;
 	private readonly muteButtonMutex = new Mutex();
+	private readonly configService: ConfigService;
 	private readonly seleniumService: SeleniumService;
+	private readonly comModule: BaseComModule;
 
-	constructor(seleniumService: SeleniumService) {
+	constructor(
+		configService: ConfigService,
+		seleniumService: SeleniumService,
+		comModule: BaseComModule,
+	) {
+		this.configService = configService;
 		this.seleniumService = seleniumService;
+		this.comModule = comModule;
 		const prefs = new logging.Preferences();
 		logging.getLogger('webdriver');
 		prefs.setLevel(logging.Type.BROWSER, logging.Level.INFO);
@@ -86,7 +93,7 @@ export class RealBrowserService {
 		}
 		if (process.env.IS_DOCKER_CONTAINER === 'true') {
 			this.chromeOptions.addArguments(
-				`--unsafely-treat-insecure-origin-as-secure=http://${DOCKER_NAME}`,
+				`--unsafely-treat-insecure-origin-as-secure=http://${this.configService.getDockerName()}`,
 			);
 		}
 	}
@@ -280,7 +287,7 @@ export class RealBrowserService {
 				properties.frameRate,
 			) &&
 			!process.env.IS_DOCKER_CONTAINER &&
-			APPLICATION_MODE === ApplicationMode.PROD
+			this.configService.isProdMode()
 		) {
 			throw new Error(
 				'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
@@ -319,9 +326,7 @@ export class RealBrowserService {
 	): Promise<string> {
 		let driverId: string | undefined;
 		try {
-			const container = getContainer();
-			const comModuleInstance = container.resolve('comModule');
-			const webappUrl = comModuleInstance.generateWebappUrl(request);
+			const webappUrl = this.comModule.generateWebappUrl(request);
 			console.log(webappUrl);
 			let driver: WebDriver;
 			if (process.env.REAL_DRIVER === 'firefox') {

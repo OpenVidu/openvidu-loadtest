@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { S3Client, type S3ClientConfig } from '@aws-sdk/client-s3';
-import { S3FilesService } from '../src/services/files/s3files.service.ts';
-import { MOCK_CWD } from './globalFsSetup.ts';
+import { S3UploadService } from '../../src/services/files/s3upload.service.ts';
+import { MOCK_CWD } from '../setup/unit/globalFsSetup.ts';
 import { vol, fs } from 'memfs';
 import type { Options } from '@aws-sdk/lib-storage';
+import { FilesRepository } from '../../src/repositories/files/files.repository.ts';
 
 const s3CtorMock = vi.fn();
 const s3SendMock = vi.fn(() =>
@@ -41,18 +42,17 @@ vi.mock('@aws-sdk/client-s3', async () => {
 	};
 });
 
-let s3FilesService: S3FilesService;
+let s3FilesService: S3UploadService;
 
 beforeEach(() => {
-	s3FilesService = new S3FilesService();
+	s3FilesService = new S3UploadService(new FilesRepository());
 	s3CtorMock.mockClear();
 	s3SendMock.mockClear();
-	S3FilesService.resetFilesDirsCache();
 	uploadCtorMock.mockClear();
 	uploadDoneMock.mockClear();
 });
 
-describe('S3FilesService', () => {
+describe('S3UploadService', () => {
 	it('should initialize with valid credentials', () => {
 		s3FilesService.initialize(
 			'fakeAccessKey',

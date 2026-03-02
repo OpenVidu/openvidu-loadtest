@@ -1,10 +1,17 @@
 import { AccessToken } from 'livekit-server-sdk';
-import type { LKLoadTestPostRequest } from '../types/com-modules/livekit.js';
-import type { UserJoinProperties } from '../types/api-rest.type.js';
-import BaseComModule from './base.js';
+import type { LKLoadTestPostRequest } from '../../types/com-modules/livekit.ts';
+import type { UserJoinProperties } from '../../types/api-rest.type.ts';
+import type { ConfigService } from '../../services/config.service.ts';
+import BaseComModule from '../base.ts';
 
-class LiveKitComModule extends BaseComModule {
+export default class LiveKitComModule extends BaseComModule {
 	private readonly _PUBLIC_DIR = `public-lk`;
+	private readonly configService: ConfigService;
+
+	constructor(configService: ConfigService) {
+		super();
+		this.configService = configService;
+	}
 
 	get PUBLIC_DIR(): string {
 		return this._PUBLIC_DIR;
@@ -52,7 +59,7 @@ class LiveKitComModule extends BaseComModule {
 		const tokenParam = token ? `token=${token}&` : '';
 		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
 		return (
-			`https://${LiveKitComModule.locationHostname}/?` +
+			`https://localhost:${this.configService.getServerPort()}/?` +
 			publicUrl +
 			tokenParam +
 			`role=${properties.role}&` +
@@ -67,5 +74,3 @@ class LiveKitComModule extends BaseComModule {
 		);
 	}
 }
-
-export default LiveKitComModule;

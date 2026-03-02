@@ -5,15 +5,15 @@ export class WebrtcStatsLocalStorage extends BaseLocalStorageConfig {
 	private readonly WEBRTC_INTERVAL: number = 1;
 	private readonly SEND_INTERVAL: number = 2;
 
-	constructor() {
-		super('webrtc-stats-info', '/webrtcStats');
+	constructor(hostname: string) {
+		super('webrtc-stats-info', '/webrtcStats', hostname);
 	}
 
 	protected buildConfig(): WebrtcStatsConfig {
 		return {
 			interval: this.WEBRTC_INTERVAL,
 			sendInterval: this.SEND_INTERVAL,
-			httpEndpoint: this.getEndpointUrl(this.endpoint),
+			httpEndpoint: this.getEndpointUrl(),
 		};
 	}
 }

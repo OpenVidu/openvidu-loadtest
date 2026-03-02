@@ -19,7 +19,7 @@ export default [
 	...tseslint.configs.recommendedTypeChecked,
 	...tseslint.configs.stylisticTypeChecked,
 	{
-		files: ['src/**/*.ts', '*.ts', '*.js', 'tests/**/*.ts'],
+		files: ['src/**/*.ts', '*.ts', '*.js'],
 		languageOptions: {
 			parser: tseslint.parser,
 			parserOptions: {
@@ -59,7 +59,7 @@ export default [
 			parserOptions: {
 				ecmaVersion: 'latest',
 				sourceType: 'module',
-				project: './tsconfig.json',
+				project: './tsconfig.test.json',
 			},
 			globals: {
 				describe: 'readonly',
@@ -80,7 +80,7 @@ export default [
 			'import/resolver': {
 				typescript: {
 					alwaysTryTypes: true,
-					project: './tsconfig.json',
+					project: './tsconfig.test.json',
 				},
 			},
 		},

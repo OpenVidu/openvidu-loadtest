@@ -2,6 +2,7 @@ import { createContainer, asClass, InjectionMode } from 'awilix';
 import type { AwilixContainer } from 'awilix';
 
 // Services
+import { ConfigService } from './services/config.service.js';
 import { BrowserManagerService } from './services/browser-manager.service.js';
 import { RealBrowserService } from './services/real-browser.service.js';
 import { InstanceService } from './services/instance.service.js';
@@ -11,11 +12,16 @@ import { SeleniumService } from './services/selenium.service.js';
 import { DockerService } from './services/docker.service.js';
 import { LocalStorageService } from './services/local-storage.service.js';
 import { QoeAnalyzerService } from './services/qoe-analyzer.service.js';
-import { S3FilesService } from './services/files/s3files.service.js';
+import { S3UploadService } from './services/files/s3upload.service.js';
 import type BaseComModule from './com-modules/base.js';
+import { FilesRepository } from './repositories/files/files.repository.js';
+import { InstanceController } from './controllers/instance.controller.js';
+import { discoverComModules } from './com-modules/discoverComModules.ts';
+import { FilesService } from './services/files/files.service.js';
 
 // Define the container interface for type safety
 export interface DIContainer {
+	configService: ConfigService;
 	browserManagerService: BrowserManagerService;
 	realBrowserService: RealBrowserService;
 	instanceService: InstanceService;
@@ -25,14 +31,20 @@ export interface DIContainer {
 	dockerService: DockerService;
 	localStorageService: LocalStorageService;
 	qoeAnalyzerService: QoeAnalyzerService;
-	s3FilesService: S3FilesService;
+	s3FilesService: S3UploadService;
 	comModule: BaseComModule;
+	filesRepository: FilesRepository;
+	filesService: FilesService;
+	s3UploadService: S3UploadService;
+	instanceController: InstanceController;
 }
 
 /**
  * Creates and configures the application's dependency injection container
  */
-export function configureContainer(): AwilixContainer<DIContainer> {
+export async function configureContainer(): Promise<
+	AwilixContainer<DIContainer>
+> {
 	const container = createContainer<DIContainer>({
 		injectionMode: InjectionMode.CLASSIC,
 		strict: true,
@@ -40,6 +52,9 @@ export function configureContainer(): AwilixContainer<DIContainer> {
 
 	// Register all services as singletons
 	container.register({
+		// Configuration
+		configService: asClass(ConfigService).singleton(),
+
 		// Core services - singleton pattern
 		dockerService: asClass(DockerService).singleton(),
 		instanceService: asClass(InstanceService).singleton(),
@@ -47,6 +62,8 @@ export function configureContainer(): AwilixContainer<DIContainer> {
 		wsService: asClass(WsService).singleton(),
 		localStorageService: asClass(LocalStorageService).singleton(),
 		qoeAnalyzerService: asClass(QoeAnalyzerService).singleton(),
+		filesService: asClass(FilesService).singleton(),
+		s3UploadService: asClass(S3UploadService).singleton(),
 
 		// Browser management services
 		seleniumService: asClass(SeleniumService).singleton(),
@@ -54,7 +71,28 @@ export function configureContainer(): AwilixContainer<DIContainer> {
 		browserManagerService: asClass(BrowserManagerService).singleton(),
 
 		// File services
-		s3FilesService: asClass(S3FilesService).singleton(),
+		s3FilesService: asClass(S3UploadService).singleton(),
+
+		// Repositories
+		filesRepository: asClass(FilesRepository).singleton(),
+
+		// Controllers
+		instanceController: asClass(InstanceController).singleton(),
+	});
+
+	const comModuleRegistry = await discoverComModules();
+
+	const moduleKey = container.resolve('configService').getComModule();
+
+	if (!comModuleRegistry[moduleKey]) {
+		throw new Error(
+			`Unknown COM_MODULE="${moduleKey}". Valid options: ${Object.keys(comModuleRegistry).join(', ')}`,
+		);
+	}
+
+	container.register({
+		// Communication module (dynamic based on environment variable)
+		comModule: asClass(comModuleRegistry[moduleKey]).singleton(),
 	});
 
 	return container;
@@ -66,8 +104,8 @@ let container: AwilixContainer<DIContainer> | null = null;
 /**
  * Gets or creates the global DI container
  */
-export function getContainer(): AwilixContainer<DIContainer> {
-	container ??= configureContainer();
+export async function getContainer(): Promise<AwilixContainer<DIContainer>> {
+	container ??= await configureContainer();
 	return container;
 }
 

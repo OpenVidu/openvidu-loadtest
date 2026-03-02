@@ -4,7 +4,7 @@ import { DockerService } from './docker.service.js';
 import { ContainerName } from '../types/container-info.type.js';
 
 export class InstanceService {
-	private isinstanceInitialized = false;
+	private instanceReady = false;
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE =
 		'docker.elastic.co/beats/metricbeat-oss:7.12.0';
@@ -20,12 +20,12 @@ export class InstanceService {
 		this.dockerService = dockerService;
 	}
 
-	isInstanceInitialized() {
-		return this.isinstanceInitialized;
+	public isInstanceReady() {
+		return this.instanceReady;
 	}
 
-	instanceInitialized() {
-		this.isinstanceInitialized = true;
+	public setInstanceReady() {
+		this.instanceReady = true;
 	}
 
 	async getCpuUsage(): Promise<number> {
@@ -69,7 +69,21 @@ export class InstanceService {
 				NetworkMode: 'browseremulator',
 			},
 		};
-		await this.dockerService.startContainer(options);
+		try {
+			await this.dockerService.startContainer(options);
+		} catch (error: unknown) {
+			console.log('Error starting metricbeat', error);
+			const err = error as { statusCode?: number; message: string };
+			if (err.statusCode === 409 && err.message.includes('Conflict')) {
+				console.log('Retrying ...');
+				await this.removeContainer(ContainerName.METRICBEAT);
+				await this.launchMetricBeat(
+					elasticsearchHost,
+					elasticsearchUsername,
+					elasticsearchPassword,
+				);
+			}
+		}
 	}
 
 	async removeContainer(containerNameOrId: string) {

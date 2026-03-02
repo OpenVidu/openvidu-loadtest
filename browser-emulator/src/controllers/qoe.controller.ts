@@ -38,7 +38,7 @@ app.post(
 );
 
 app.post('/analysis', async (_: Request, res: Response) => {
-	const container = getContainer();
+	const container = await getContainer();
 	const qoeAnalyzerService = container.resolve('qoeAnalyzerService');
 	const status = await qoeAnalyzerService.runQoEAnalysis();
 	res.status(200).send(status);

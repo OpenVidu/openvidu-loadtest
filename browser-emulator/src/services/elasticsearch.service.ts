@@ -1,11 +1,10 @@
 import { Client } from '@elastic/elasticsearch';
-import { APPLICATION_MODE } from '../config.js';
+import type { ConfigService } from './config.service.js';
 import type {
 	JSONQoEInfo,
 	JSONStatsResponse,
 	JSONStreamsInfo,
 } from '../types/api-rest.type.js';
-import { ApplicationMode } from '../types/config.type.js';
 import fs from 'node:fs';
 import type { ClientOptions } from '@elastic/elasticsearch/lib/client';
 
@@ -16,8 +15,10 @@ export class ElasticSearchService {
 	private pingSuccess = false;
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
 	private readonly mappings: Record<string, unknown>;
+	private readonly configService: ConfigService;
 
-	constructor() {
+	constructor(configService: ConfigService) {
+		this.configService = configService;
 		this.mappings = JSON.parse(
 			fs.readFileSync(
 				`${process.cwd()}/src/services/index-mappings.json`,
@@ -97,10 +98,7 @@ export class ElasticSearchService {
 	}
 
 	async sendJson(json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo) {
-		if (
-			this.isElasticSearchRunning() &&
-			APPLICATION_MODE === ApplicationMode.PROD
-		) {
+		if (this.isElasticSearchRunning() && this.configService.isProdMode()) {
 			if (Object.keys(json).length) {
 				try {
 					await this.client!.index({
@@ -117,10 +115,7 @@ export class ElasticSearchService {
 	async sendBulkJsons(
 		jsons: JSONStatsResponse[] | JSONStreamsInfo[] | JSONQoEInfo[],
 	) {
-		if (
-			this.isElasticSearchRunning() &&
-			APPLICATION_MODE === ApplicationMode.PROD
-		) {
+		if (this.isElasticSearchRunning() && this.configService.isProdMode()) {
 			try {
 				const operations = jsons.flatMap(json => [
 					{ index: { _index: this.indexName } },
@@ -173,10 +168,7 @@ export class ElasticSearchService {
 	}
 
 	async getStartTimes(): Promise<JSONStreamsInfo[]> {
-		if (
-			this.isElasticSearchRunning() &&
-			APPLICATION_MODE === ApplicationMode.PROD
-		) {
+		if (this.isElasticSearchRunning() && this.configService.isProdMode()) {
 			const result = await this.client!.search<JSONStreamsInfo>({
 				index: this.indexName,
 				query: {
