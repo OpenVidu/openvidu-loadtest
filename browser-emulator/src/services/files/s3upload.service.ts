@@ -9,7 +9,7 @@ import {
 	BucketAlreadyOwnedByYou,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import type { FilesRepository } from '../../repositories/files/files.repository.ts';
+import { FilesRepository } from '../../repositories/files/files.repository.js';
 
 interface UploadTask {
 	filePath: string;
@@ -30,9 +30,9 @@ export class S3UploadService {
 	constructor(filesRepository: FilesRepository) {
 		this.filesRepository = filesRepository;
 		this.fileDirs = [
-			this.filesRepository.FULLSCREEN_RECORDING_DIR,
-			this.filesRepository.QOE_RECORDING_DIR,
-			this.filesRepository.STATS_DIR,
+			FilesRepository.FULLSCREEN_RECORDING_DIR,
+			FilesRepository.QOE_RECORDING_DIR,
+			FilesRepository.STATS_DIR,
 		];
 	}
 
