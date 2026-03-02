@@ -44,6 +44,7 @@ export interface BrowserVideoPreset {
 export type BrowserVideo = BrowserVideoCustom | BrowserVideoPreset;
 
 export interface BrowserVideoInfo {
+	// TODO: This should probably use the Resolution enum
 	width: number;
 	height: number;
 	fps: number;
