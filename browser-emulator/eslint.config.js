@@ -92,4 +92,38 @@ export default [
 			'@typescript-eslint/no-unsafe-assignment': 'off',
 		},
 	},
+	{
+		files: ['dev_scripts/**/*.ts'],
+		languageOptions: {
+			parser: tseslint.parser,
+			parserOptions: {
+				ecmaVersion: 'latest',
+				sourceType: 'module',
+				project: './tsconfig.dev_scripts.json',
+			},
+			globals: {
+				console: 'readonly',
+				process: 'readonly',
+				Buffer: 'readonly',
+			},
+		},
+		plugins: {
+			import: importPlugin,
+			prettier: prettierPlugin,
+		},
+		settings: {
+			'import/resolver': {
+				typescript: {
+					alwaysTryTypes: true,
+					project: './tsconfig.dev_scripts.json',
+				},
+			},
+		},
+		rules: {
+			...importPlugin.configs.recommended.rules,
+			...importPlugin.configs.typescript.rules,
+			...prettierPlugin.configs.recommended.rules,
+			...prettierConfig.rules,
+		},
+	},
 ];

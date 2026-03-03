@@ -16,6 +16,39 @@ This services also is listening for a **WebSocket communication** on `ws://brows
 
 # Browser Emulator development
 
+## Development Requirements and Constraints
+
+### Runtime Environment
+
+The browser-emulator has several **Linux-specific dependencies** that are required. These components **cannot be easily replicated on Windows or macOS** due to kernel-level dependencies and availability. As a result, you can use one of these options:
+
+- **Recommended**: Use the provided Vagrant + VirtualBox setup (works on Windows, macOS, Linux)
+- **Alternative**: Use native Ubuntu 24.04 (or you can try WSL2, although it is mostly untested). If you want to use this option, either run `prepare_scripts/install_base.sh` (it may conflict with already installed dependencies if not installing on a fresh Ubuntu machine) or manually install all dependencies listed in that script.
+
+### Host System Requirements
+
+#### For Vagrant-based development (Recommended)
+
+**Required:**
+
+- [Vagrant](https://developer.hashicorp.com/vagrant/install) (>= 2.4.9)
+- [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (>= 7.2)
+- ~20 GB free disk space for VM
+- 4 GB RAM available (8 GB recommended)
+
+**Optional (for VS Code debugging):**
+
+- VS Code with [JavaScript Debug Terminal](https://marketplace.visualstudio.com/items?itemName=ms-vscode.js-debug-terminal) extension
+- VS Code Remote SSH extension (for SSH debugging into VM)
+
+#### For Native Linux Development
+
+**Required:**
+
+- All Linux-specific packages necesary (see `prepare_scripts/install_base.sh` for full list)
+
+## Using Vagrant (Recommended Cross-Platform)
+
 You can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator with every dependency installed. Ensure you have Vagrant and VirtualBox installed on your system.
 
 You can either choose an already made box or make a personalized one yourself.
@@ -56,6 +89,15 @@ You can also construct your base personalized box with the parameters you choose
     - **VAGRANT_PROVIDER**: Provider to use to create the virtual machine. Default is 'virtualbox'.
 
 With this box, you can now set the **BOX** environment variable to the path of the box you just created and run `vagrant up` to start the virtual machine with the personalized box. Refer to the customizable parameters in the Vagrantfile section to customize the machine.
+
+### Running tests
+
+The command `pnpm test` will only run tests that don't need any installed software, such as unit tests. For other types of tests, such as end-to-end tests, you can use the following commands:
+
+- `pnpm test:all`: Run all tests using the Vagrant virtual machine. This will run the tests in the VM, which has all dependencies installed.
+- `pnpm test:all:native`: Run all tests in the host machine, without using Vagrant. This requires all dependencies to be installed in the native machine.
+
+There are more options available in the `package.json` file, such as adding coverage or destroying the VM after running the tests, so check it out for more information.
 
 ## Running QoE Analysis
 

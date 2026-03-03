@@ -22,7 +22,6 @@ Vagrant.configure("2") do |config|
   synced_folders = [
     "./src:/opt/openvidu-loadtest/browser-emulator/src",
     "./tests:/opt/openvidu-loadtest/browser-emulator/tests",
-    "./coverage:/opt/openvidu-loadtest/browser-emulator/coverage",
     "./qoe_scripts:/opt/openvidu-loadtest/browser-emulator/qoe_scripts",
     "./recording_scripts:/opt/openvidu-loadtest/browser-emulator/recording_scripts",
     "./recordings:/opt/openvidu-loadtest/browser-emulator/recordings",
@@ -47,6 +46,7 @@ Vagrant.configure("2") do |config|
     "./eslint.config.js:/opt/openvidu-loadtest/browser-emulator/eslint.config.js",
     "./.prettierrc:/opt/openvidu-loadtest/browser-emulator/.prettierrc",
     './.prettierignore:/opt/openvidu-loadtest/browser-emulator/.prettierignore',
+    './tsconfig.dev_scripts.json:/opt/openvidu-loadtest/browser-emulator/tsconfig.dev_scripts.json',
   ]
   files_to_provision.each do |file|
     config.vm.provision "file", source: file.split(':')[0], destination: file.split(':')[1]
@@ -55,6 +55,7 @@ Vagrant.configure("2") do |config|
   config.vm.provider provider do |vb|
     vb.memory = memory
     vb.cpus = cpus
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
   end
 
   config.vm.provision "shell", :path => "vagrant_create_box_provision.sh", :args => [qoe]

@@ -5,3 +5,4 @@ outputs/fixed/*
 .env
 coverage/
 dist/
+artifacts/
