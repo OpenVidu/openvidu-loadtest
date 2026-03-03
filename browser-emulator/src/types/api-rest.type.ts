@@ -87,6 +87,8 @@ export const RecordingLayoutMode = {
 export type RecordingLayoutMode =
 	(typeof RecordingLayoutMode)[keyof typeof RecordingLayoutMode];
 
+export type AvailableBrowsers = 'chrome' | 'firefox';
+
 export interface UserJoinProperties {
 	userId: string;
 	sessionName: string;
@@ -96,6 +98,7 @@ export interface UserJoinProperties {
 	resolution: Resolution;
 	recordingOutputMode?: RecordingOutputMode;
 	frameRate: number;
+	browser: AvailableBrowsers;
 	recording?: boolean;
 	showVideoElements?: boolean;
 	headless?: boolean;

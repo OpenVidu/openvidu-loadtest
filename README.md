@@ -7,6 +7,7 @@ Take into account that you must to deploy OpenVidu platform before using this to
 <br>
 
 # **Table of Contents**
+
 1. [Project Architecture](#project-architecture)
 2. [Usage instructions](#usage-instructions)
 
@@ -16,9 +17,9 @@ Take into account that you must to deploy OpenVidu platform before using this to
 
 ![Load test architecture](resources/diagram.png)
 
-* [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It reads the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
+- [**Loadtest Controller**](#loadtest-controller): Controller service in charge of the coordination of the browser-emulator workers. It reads the load test scenario from a file and control the browser-emulator workers to connect participants loading OpenVidu platform.
 
-* [**Browser-emulator**](#browser-emulator): Worker service capable of connecting to an OpenVidu room and sending and receiving WebRTC media. It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
+- [**Browser-emulator**](#browser-emulator): Worker service capable of connecting to an OpenVidu room and sending and receiving WebRTC media. It is able to start and launch **Chrome/Firefox browsers** using Selenium, emulating a fully real user.
 
 ## **Usage Instructions**
 
@@ -30,40 +31,37 @@ Take into account that you must to deploy OpenVidu platform before using this to
 <br>
   If you want to launch the load tests in a production environment, you can do that with AWS.
 
-
-  The browser-emulator services will be launched (**_by the loadtest-controller_**) in EC2 instances with the aim of emulate real users connected to OpenVidu.
+The browser-emulator services will be launched (**_by the loadtest-controller_**) in EC2 instances with the aim of emulate real users connected to OpenVidu.
 
 **Requirements**
-* **Create browser-emulator AMI**:
 
-	Before trying to create an AMI, ensure that your AWS credentials are properly configured. You can check it running `aws configure`.
+- **Create browser-emulator AMI**:
 
-	**Once aws credentials have been configured in your PC**, it's time to create the browser-emulator AMI. For creating it, you only have to run the `createAMI.sh` script.
+  Before trying to create an AMI, ensure that your AWS credentials are properly configured. You can check it running `aws configure`.
 
-	```bash
-	cd ./browser-emulator/aws/
-	./createAMI.sh
-	```
+  **Once aws credentials have been configured in your PC**, it's time to create the browser-emulator AMI. For creating it, you only have to run the `createAMI.sh` script.
 
-	You can change the default values of the [`createAMI.sh`](browser-emulator/aws/createAMI.sh) script for customizing the AMI. You can get detailed help about the parameters running `./createAMI.sh --help`:
+  ```bash
+  cd ./browser-emulator/aws/
+  ./createAMI.sh
+  ```
 
-	```bash
-	cd ./browser-emulator/aws/
-	./createAMI.sh --help
-	```
+  You can change the default values of the [`createAMI.sh`](browser-emulator/aws/createAMI.sh) script for customizing the AMI. You can get detailed help about the parameters running `./createAMI.sh --help`:
 
+  ```bash
+  cd ./browser-emulator/aws/
+  ./createAMI.sh --help
+  ```
 
-	After AMI was created, you must set the **AMI ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_AMI_ID` property.
+  After AMI was created, you must set the **AMI ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_AMI_ID` property.
 
-* **Create a security group**:
+- **Create a security group**:
 
-	The instance which will contain the browser-emulator service **must have** the **5000** _(REST API)_ and **5001** _(WebSocket)_ ports opened. For doing this, **you will have to create a AWS Security Group (SG)** with these requeriments.
+  The instance which will contain the browser-emulator service **must have** the **5000** _(REST API)_ and **5001** _(WebSocket)_ ports opened. For doing this, **you will have to create a AWS Security Group (SG)** with these requeriments.
 
+  After SG was created, you must set the **security group ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_SECURITY_GROUP_ID` property.
 
-	After SG was created, you must set the **security group ID** to [`load-test/src/main/resources/application.properties`](loadtest-controller/src/main/resources/application.properties), in particular `WORKER_SECURITY_GROUP_ID` property.
-
-The *loadtest-controller* will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
-
+The _loadtest-controller_ will use the BrowserEmulator AMI (previously created) for create instances on demand. All you have to do is fill the [AWS configuration](#AWS-parameters-for-testing-on-AWS) in loadtest-controller properties besides the [required parameters](#Required-parameters)
 
 </details>
 <details>
@@ -71,17 +69,21 @@ The *loadtest-controller* will use the BrowserEmulator AMI (previously created) 
 
 <br>
 
->WARNING: These instructions assume you are using **Ubuntu** and that your kernel can build and install the module v4l2loopback. To check if you can build v4l2loopback, run the following commands:
+> WARNING: These instructions assume you are using **Ubuntu** and that your kernel can build and install the module v4l2loopback. To check if you can build v4l2loopback, run the following commands:
+
 ```bash
 cat /usr/src/linux-headers-$(uname -r)/.config | grep CONFIG_VIDEO_DEV
 cat /usr/src/linux-headers-$(uname -r)/.config | grep CONFIG_VIDEO_V4L2
 ```
+
 If one of them has output similar to:
+
 ```
 CONFIG_VIDEO_DEV=m
 or
 CONFIG_VIDEO_V4L2=m
 ```
+
 It means your system is compatible. If there is no output, your system is not compatible with v4l2loopback (this is common when using virtualized kernel releases such as kvm or wsl2).
 
 <br>
@@ -131,7 +133,7 @@ In this file you will see:
 
 #### Required parameters
 
-By default, OpenVidu 3 is enabled, to use this tool for OpenVidu 2 please comment and uncomment the indicated properties.
+By default, OpenVidu 3 is enabled (also works for LiveKit, as OpenVidu 3 is LiveKit compatible), to use this tool for OpenVidu 2 please comment and uncomment the indicated properties.
 
 ```properties
 # Load Test Parameters (Required)
@@ -151,7 +153,7 @@ SECONDS_TO_WAIT_BETWEEN_TEST_CASES=10
 
 #### Monitoring parameters (optional)
 
->WARNING: **The experiments we made have been tested with Elasticsearch 7.8.0 version. A deployment with a different version could cause errors**.
+> WARNING: **The experiments we made have been tested with Elasticsearch 7.8.0 version. A deployment with a different version could cause errors**.
 
 ```properties
 # Monitoring Parameters (Optional)
@@ -213,6 +215,7 @@ FORCE_CONTINUE=false
 ```
 
 ##### For the MANUAL distribution of participants to workers
+
 ```properties
 # Boolean param for MANUAL participants allocation
 MANUAL_PARTICIPANTS_ALLOCATION=false
@@ -220,8 +223,8 @@ MANUAL_PARTICIPANTS_ALLOCATION=false
 USERS_PER_WORKER=
 ```
 
-
 ##### For the AUTOMATIC distribution of participants to workers
+
 ```properties
 # Percentage worker limit (based on streams created)
 # Reacher this limit, the controller will use a new worker
@@ -230,6 +233,7 @@ WORKER_MAX_LOAD=70
 ```
 
 ##### For video quality control
+
 These properties allow record a participant (launching an external browser) for check the received video quality. Another option is to record in-browser media streams, which can be used for QoE Analysis later.
 
 When test finishes, the recording(s) will be saved in the S3 Bucket configured.
@@ -244,7 +248,7 @@ When test finishes, the recording(s) will be saved in the S3 Bucket configured.
 # it will start to record the session when media node has archieved this value
 # Needs an ElasticSearch instance to work
 MEDIANODE_LOAD_FOR_START_RECORDING=0
-# it will start to record the sessions gruped by the specifyed value. 
+# it will start to record the sessions gruped by the specifyed value.
 # 0: Recording disabled, 1 recording starts each session, 2 recording starts each two session ...
 RECORDING_SESSION_GRUPED_BY=0
 # Number of new recording workers incrementation, if 0 it won't launch a any workers
@@ -276,17 +280,21 @@ S3_HOST=
 S3_HOST_ACCESS_KEY=
 S3_HOST_SECRET_KEY=
 ```
+
 #### For retrying the participant creation
 
 These properties allow retry the participant creation when it fails
+
 ```properties
 RETRY_MODE=false
 RETRY_TIMES=5
 ```
 
 #### For selecting the video to use
+
 These properties allow you to select the video to use.
 There are 3 default options, and you can also use a custom video, check the description of the [browser-emulator Initialize instance API](https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#initialize-instance) for more information about these options:
+
 ```properties
 # Video type options: BUNNY, INTERVIEW, GAME, CUSTOM
 VIDEO_TYPE=BUNNY
@@ -299,6 +307,7 @@ AUDIO_URL=
 ```
 
 ### Miscellaneous configuration
+
 Recommended to leave default values unless you know what you are doing.
 
 ```properties
@@ -322,42 +331,51 @@ To configure the test cases the file [`loadtest-controller/src/main/resources/te
 
 ```json
 {
-	"testcases": [
-		{
-			"topology": "N:M",
-			"participants": ["1:10", "1:100", "2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
-			"sessions": "infinite",
-			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS and SUBSCRIBERS as the participants array indicates."
-		},
-		{
-			"topology": "TEACHING",
-			"participants": ["2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
-			"sessions": "infinite",
-			"desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers:students) as the participants array indicates. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio"
-		},
-		{
-			"topology": "TERMINATE",
-			"desciption": "This terminate all EC2 instances launched for loadtest purposes"
-		}
-	]
+  "testcases": [
+    {
+      "topology": "N:M",
+      "participants": [
+        "1:10",
+        "1:100",
+        "2:10",
+        "2:30",
+        "2:50",
+        "3:10",
+        "3:30",
+        "3:50"
+      ],
+      "sessions": "infinite",
+      "desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS and SUBSCRIBERS as the participants array indicates."
+    },
+    {
+      "topology": "TEACHING",
+      "participants": ["2:10", "2:30", "2:50", "3:10", "3:30", "3:50"],
+      "sessions": "infinite",
+      "desciption": "This test case will add infinite sessions (until it reaches its limit) with as many PUBLISHERS (teachers:students) as the participants array indicates. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio"
+    },
+    {
+      "topology": "TERMINATE",
+      "desciption": "This terminate all EC2 instances launched for loadtest purposes"
+    }
+  ]
 }
 ```
 
 ##### Test Case JSON properties
 
-|Properties|Type|Description|
-|---|---|---|
-|  **topology** * |  `N:N`, `N:M`, `TEACHING` or `TERMINATE`| **N:N**: All users will be PUBLISHERS and SUBSCRIBERS <br> **N:M**: **_N_** number will be PUBLISHERS and **_M_** number will be SUBSCRIBERS <br> **TEACHING**:  It will emulate a teaching videoconference. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio <br> **TERMINATE**: It will terminate all EC2 instances launched for loadtest purposes  |
-|  **participants** *  |  String [] | Number of participants in each session. It will run the same test case as many time as the positions in the array. <br> For example: <br>For **_N:N_** topology: `["2","5"]` where all of them will be _publishers_ and test case will be run twice (sessions with 2 and 5 participants)  <br>For **_N:M_** topology: `["2:30"]` where 2 will be _publishers_ and 30 will be _subscribers_ <br>For **_TEACHING_** topology: `["2:30"]` where 2 will be teachers and 30 will be students   |
-|  **sessions** *  |  `infinite` or Number | **infinite**: It will create infinite sessions until the limit is reached. <br> **Number value**: It will create only (**_number value_**) sessions  |
-|  **startingParticipants** |  Number | Create this number of participants at the beginning of the test in a batch. Useful for loading the media server up to a certain point before adding users in a more controlled manner. Defaults to 0 |
-|**resolution**| String | Desired resolution of the video. <br> `640x480` or `1280x720` <br> Default `640x480`|
-|**frameRate**| Number (0-30)  | Desired framerate of the video in frames per second. Default `30`|
-|  **openviduRecordingMode** | String   | `COMPOSED` or `INDIVIDUAL` <br> See [OpenVidu recording](https://docs.openvidu.io/en/stable/advanced-features/recording/).|
-|  **browserRecording** | Boolean  |  If `browserMode` is `REAL` and you want record the Chrome browser using ffmpeg. Otherwise, If `browserMode` is `EMULATE` and you have started browser-emulator with `KMS` user type (see [worker running options](#running-options)) Default `false`.  |
-|  **showBrowserVideoElements** | Boolean  | If `browserMode` is `REAL` and you want show videos elements into the app running in Chrome. Default `true`|
-|  **headlessBrowser** | Boolean  | If `browserMode` is `REAL` and you want launch a headless Chrome. Default `false`.  [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)  |
-
+| Properties                   | Type                                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **topology** \*              | `N:N`, `N:M`, `TEACHING` or `TERMINATE` | **N:N**: All users will be PUBLISHERS and SUBSCRIBERS <br> **N:M**: **_N_** number will be PUBLISHERS and **_M_** number will be SUBSCRIBERS <br> **TEACHING**: It will emulate a teaching videoconference. The students (FAKE SUBSCRIBERS, they will be PUBLIHSERS with only audio) will only publish audio <br> **TERMINATE**: It will terminate all EC2 instances launched for loadtest purposes                                                                                    |
+| **participants** \*          | String []                               | Number of participants in each session. It will run the same test case as many time as the positions in the array. <br> For example: <br>For **_N:N_** topology: `["2","5"]` where all of them will be _publishers_ and test case will be run twice (sessions with 2 and 5 participants) <br>For **_N:M_** topology: `["2:30"]` where 2 will be _publishers_ and 30 will be _subscribers_ <br>For **_TEACHING_** topology: `["2:30"]` where 2 will be teachers and 30 will be students |
+| **sessions** \*              | `infinite` or Number                    | **infinite**: It will create infinite sessions until the limit is reached. <br> **Number value**: It will create only (**_number value_**) sessions                                                                                                                                                                                                                                                                                                                                    |
+| **startingParticipants**     | Number                                  | Create this number of participants at the beginning of the test in a batch. Useful for loading the media server up to a certain point before adding users in a more controlled manner. Defaults to 0                                                                                                                                                                                                                                                                                   |
+| **resolution**               | String                                  | Desired resolution of the video. <br> `640x480` or `1280x720` <br> Default `640x480`                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **frameRate**                | Number (0-30)                           | Desired framerate of the video in frames per second. Default `30`                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **browser**                  | String                                  | Desired browser to use in the test. <br> `chrome` or `firefox` <br> Default `chrome`                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **openviduRecordingMode**    | String                                  | `COMPOSED` or `INDIVIDUAL` <br> See [OpenVidu recording](https://docs.openvidu.io/en/stable/advanced-features/recording/).                                                                                                                                                                                                                                                                                                                                                             |
+| **browserRecording**         | Boolean                                 | If `browserMode` is `REAL` and you want record the Chrome browser using ffmpeg. Otherwise, If `browserMode` is `EMULATE` and you have started browser-emulator with `KMS` user type (see [worker running options](#running-options)) Default `false`.                                                                                                                                                                                                                                  |
+| **showBrowserVideoElements** | Boolean                                 | If `browserMode` is `REAL` and you want show videos elements into the app running in Chrome. Default `true`                                                                                                                                                                                                                                                                                                                                                                            |
+| **headlessBrowser**          | Boolean                                 | If `browserMode` is `REAL` and you want launch a headless Chrome. Default `false`. [See Headless Chromium](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md)                                                                                                                                                                                                                                                                                                   |
 
 ### 3. Run load test
 
@@ -365,13 +383,13 @@ When you execute the load test the controller will create sessions and will conn
 
 The load test has **several stop conditions**. It will stop when any of the following conditions occur:
 
-* When loadtest-controller receives an **exception error** from any of the workers (or the number of exceptions in RETRY_TIMES when RETRY_MODE is true).
+- When loadtest-controller receives an **exception error** from any of the workers (or the number of exceptions in RETRY_TIMES when RETRY_MODE is true).
 
-* When any of workers **can't create a new participant** because of lack of resources or a long time trying creating it (will retry if RETRY_MODE is true).
+- When any of workers **can't create a new participant** because of lack of resources or a long time trying creating it (will retry if RETRY_MODE is true).
 
 Take into account that errors can be produced by OpenVidu errors or if the worker itself is overloaded. Please control CPU usage in workers.
 
-When an error in a worker is produced, the load test will stop and will order to destroy and close every participants and sessions to the workers.
+When an error in a worker is produced, the load test will stop and will order destroying and closing all participants and sessions to the workers.
 
 For start with it, run the following command:
 

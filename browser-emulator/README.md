@@ -30,6 +30,7 @@ You can use the default Vagrantfile to create a preconfigured browser-emulator V
     - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
     - **DISK**: Disk size in GB for the virtual machine. Default: 20.
     - **START_SERVER**: Set to 'true' to start the browser-emulator server during provisioning and on each reboot. Default is 'true'.
+    - **LIVEKIT**: Set to 'true' to set browser-emulator to use LiveKit client, as well as run LiveKit as the plaform instead of OpenVidu 2 when START_PLATFORM is set to 'true'. Default is 'false'.
     - **START_PLATFORM**: Set to 'true' to start the OpenVidu 2 CE or LiveKit server during provisioning and on each reboot. Default is 'true'.
       _OpenVidu note_: with this deployment, the OpenVidu URL is _https://localhost_ and the OpenVidu secret is _vagrant_.
       _LiveKit note_: With this deployment, LiveKit is deployed in dev mode, so the URL is _https://localhost_, API Key is _devkey_ and the API Secret is _secret_.

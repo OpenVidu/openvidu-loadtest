@@ -1,7 +1,6 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 box = ENV['BOX'] || 'ivchicano/browseremulator'
-firefox = ENV['FIREFOX'] || 'false'
 livekit = ENV['LIVEKIT'] || 'false'
 start_server = ENV['START_SERVER'] || 'true'
 start_platform = ENV['START_PLATFORM'] || 'true'

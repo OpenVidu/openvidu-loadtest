@@ -9,6 +9,7 @@ public class TestCase {
     private int sessions;
     private Resolution resolution;
     private int frameRate;
+    private Browser browser;
     private OpenViduRecordingMode openviduRecordingMode;
     private boolean browserRecording = false;
     private boolean headlessBrowser = false;
@@ -18,12 +19,13 @@ public class TestCase {
 
     public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
             OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
-            boolean showBrowserVideoElements) {
+            boolean showBrowserVideoElements, Browser browser) {
         this.topology = getTopology(topology);
         this.participants = participants;
         this.sessions = sessions;
         this.resolution = resolution;
         this.frameRate = frameRate;
+        this.browser = browser;
         this.openviduRecordingMode = openviduRecordingMode;
         this.browserRecording = browserRecording;
         this.headlessBrowser = headlessBrowser;
@@ -104,6 +106,10 @@ public class TestCase {
         return browserRecording;
     }
 
+    public Browser getBrowser() {
+        return this.browser;
+    }
+
     public void setBrowserRecording(boolean browserRecording) {
         this.browserRecording = browserRecording;
     }
@@ -132,6 +138,10 @@ public class TestCase {
         this.startingParticipants = startingParticipants;
     }
 
+    public void setBrowser(Browser browser) {
+        this.browser = browser;
+    }
+
     @Override
     public String toString() {
         // @formatter:off
@@ -143,7 +153,8 @@ public class TestCase {
 				+ " | Starting participants: " + startingParticipantString
 				+ " | Sessions limit: "	+ sessionLimit
 				+ " | Resolution: " + resolution.getValue()
-				+ " | Frame rate: " + frameRate 
+				+ " | Frame rate: " + frameRate
+                + " | Browser: " + browser.getValue()
 				+ " | Headless browser: " + isHeadlessBrowser()
 				+ " | Browser recording: " + isBrowserRecording()
 				+ " | Browser show video elements: " + isShowBrowserVideoElements();

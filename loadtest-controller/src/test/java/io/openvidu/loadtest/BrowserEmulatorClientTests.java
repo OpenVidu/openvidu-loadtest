@@ -18,6 +18,7 @@ import java.net.http.HttpResponse;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
+import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
@@ -110,7 +111,7 @@ class BrowserEmulatorClientTests {
 
         TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
-                true);
+                true, Browser.CHROME);
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
         expectedBody.addProperty("openviduSecret", "MYSECRET");
@@ -125,6 +126,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("recording", false);
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
+        properties.addProperty("browser", "chrome");
         expectedBody.add("properties", properties);
         @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);
@@ -170,7 +172,7 @@ class BrowserEmulatorClientTests {
 
         TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
-                true);
+                true, Browser.CHROME);
 
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
@@ -186,6 +188,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("recording", false);
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
+        properties.addProperty("browser", "chrome");
         expectedBody.add("properties", properties);
 
         @SuppressWarnings("unchecked")
@@ -222,7 +225,7 @@ class BrowserEmulatorClientTests {
 
         TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
-                true);
+                true, Browser.FIREFOX);
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
         expectedBody.addProperty("openviduSecret", "MYSECRET");
@@ -237,6 +240,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("recording", false);
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
+        properties.addProperty("browser", "firefox");
         expectedBody.add("properties", properties);
         @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);

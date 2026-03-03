@@ -3,6 +3,7 @@ package io.openvidu.loadtest.models.testcase.request;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRole;
 import io.openvidu.loadtest.models.testcase.Resolution;
@@ -25,6 +26,7 @@ public class CreateUserRequestBody {
     private String recordingMetadata = "";
     private String openviduUrl = "";
     private String openviduSecret = "";
+    private Browser browser = Browser.CHROME;
 
     public CreateUserRequestBody(LoadTestConfig config, TestCase testCase, boolean video, boolean audio,
             OpenViduRole role, String userId, String sessionId) {
@@ -34,6 +36,7 @@ public class CreateUserRequestBody {
         this.userId = userId;
         this.sessionName = sessionId;
         this.role = role;
+        this.browser = testCase.getBrowser();
         this.audio = audio;
         this.video = video;
         this.resolution = testCase.getResolution();
@@ -63,6 +66,7 @@ public class CreateUserRequestBody {
         properties.addProperty("video", this.video);
         properties.addProperty("resolution", this.resolution.getValue());
         properties.addProperty("frameRate", this.frameRate);
+        properties.addProperty("browser", this.browser.getValue());
 
         if (!token.isEmpty()) {
             properties.addProperty("token", this.token);

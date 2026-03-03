@@ -27,6 +27,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.services.ec2.model.Instance;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
@@ -143,7 +144,7 @@ class LoadTestServiceTests {
         List<String> participants = List.of("8");
 
         TestCase testCase = new TestCase("N:N", participants, -1,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
 
@@ -237,7 +238,7 @@ class LoadTestServiceTests {
         List<String> participants = List.of("3:10");
 
         TestCase testCase = new TestCase("N:M", participants, -1,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
 
@@ -341,7 +342,7 @@ class LoadTestServiceTests {
         List<String> participants = List.of("8");
 
         TestCase testCase = new TestCase("N:N", participants, -1,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
 
         List<TestCase> testCases = List.of(testCase);
 
@@ -450,7 +451,7 @@ class LoadTestServiceTests {
         List<String> participants = List.of("1:N");
 
         TestCase testCase = new TestCase("ONE_SESSION", participants, -1,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
 
@@ -523,7 +524,7 @@ class LoadTestServiceTests {
         when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
         List<String> participants = List.of("1:N");
         TestCase testCase = new TestCase("ONE_SESSION", participants, -1,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.FIREFOX);
         createEstimationResponseMock(null, testCase);
 
         List<TestCase> testCases = List.of(testCase);
@@ -553,7 +554,7 @@ class LoadTestServiceTests {
         when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
         List<String> participants = List.of("8");
         TestCase testCase = new TestCase("N:N", participants, 10,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         when(this.loadTestConfig.getWorkerMaxLoad()).thenReturn(75); // 4 browsers per worker
         createEstimationResponseMock(instance1Url, testCase);
         List<TestCase> testCases = List.of(testCase);
@@ -585,7 +586,7 @@ class LoadTestServiceTests {
         List<String> participants = List.of("8");
 
         TestCase testCase = new TestCase("N:N", participants, -1,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         // testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
 
@@ -673,7 +674,7 @@ class LoadTestServiceTests {
         List<String> participants = List.of("8");
 
         TestCase testCase = new TestCase("N:N", participants, -1,
-                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true);
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         // testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
 

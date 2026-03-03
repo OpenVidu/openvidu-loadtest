@@ -10,11 +10,7 @@
 	"scripts": {
 		"start:prod": "node ./dist/server.js",
 		"start:prod-livekit": "COM_MODULE=livekit node ./dist/server.js",
-		"start:prod-firefox": "REAL_DRIVER=firefox node ./dist/server.js",
-		"start:prod-livekit-firefox": "REAL_DRIVER=firefox COM_MODULE=livekit node ./dist/server.js",
-		"start:dev-none": "APPLICATION_MODE=DEVELOPMENT ts-node ./src/server.ts",
-		"start:dev-none-firefox": "APPLICATION_MODE=DEVELOPMENT REAL_DRIVER=firefox ts-node ./src/server.ts",
-		"start:dev-livekit-firefox": "APPLICATION_MODE=DEVELOPMENT REAL_DRIVER=firefox COM_MODULE=livekit ts-node ./src/server.ts",
+		"start:dev": "APPLICATION_MODE=DEVELOPMENT ts-node ./src/server.ts",
 		"build": "tsc",
 		"watch": "tsc -w",
 		"lint": "eslint src tests --ext .ts",

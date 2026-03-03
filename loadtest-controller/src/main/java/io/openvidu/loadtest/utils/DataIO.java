@@ -18,6 +18,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
 
+import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
@@ -85,6 +86,7 @@ public class DataIO {
             List<String> participants = new ArrayList<String>();
             int sessions = 0;
             OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
+            Browser browser = Browser.CHROME;
             // DEPRECATED: Typology was a typo in the initial versions of the code, so we
             // need to check both "topology" and "typology" to avoid breaking existing test
             // cases files.
@@ -133,11 +135,21 @@ public class DataIO {
                         ? element.get("showBrowserVideoElements").getAsBoolean()
                         : false;
 
+                if (element.has("browser") && !element.get("browser").getAsString().isBlank()) {
+                    String browserStr = element.get("browser").getAsString();
+                    if (browserStr.equalsIgnoreCase(Browser.CHROME.getValue())) {
+                        browser = Browser.CHROME;
+                    } else if (browserStr.equalsIgnoreCase(Browser.FIREFOX.getValue())) {
+                        browser = Browser.FIREFOX;
+                    } else {
+                        log.warn("Browser {} not recognized. Defaulting to Chrome.", browserStr);
+                    }
+                }
             }
 
             TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution,
                     openviduRecordingMode,
-                    headlessBrowser, browserRecording, showBrowserVideoElements);
+                    headlessBrowser, browserRecording, showBrowserVideoElements, browser);
             testCase.setStartingParticipants(startingParticipants);
             testCaseList.add(testCase);
         }

@@ -112,7 +112,7 @@ afterEach(async () => {
 });
 
 describe('Browser-emulator', () => {
-	it('should ping, initialize instance, start 2 publisher browsers, connect to openvidu 2 and delete them', async () => {
+	it('should test basic workflow with Chrome and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)', async () => {
 		// IMPORTANT: This test assumes it is running alongside a local OpenVidu 2 deployment with secret vagrant.
 		// Using the vagrant box available in this project should suffice.
 		const pingResponse = await request(app).get('/instance/ping');

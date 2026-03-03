@@ -1,13 +1,5 @@
 import fs from 'node:fs';
-import {
-	By,
-	Capabilities,
-	until,
-	WebDriver,
-	logging,
-} from 'selenium-webdriver';
-import chrome from 'selenium-webdriver/chrome.js';
-import firefox from 'selenium-webdriver/firefox.js';
+import { By, logging, until, WebDriver } from 'selenium-webdriver';
 import type {
 	CreateUserBrowser,
 	UserJoinProperties,
@@ -33,10 +25,6 @@ export class RealBrowserService {
 	>();
 
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
-	private readonly chromeOptions = new chrome.Options();
-	private readonly chromeCapabilities = Capabilities.chrome();
-	private readonly firefoxOptions = new firefox.Options();
-	private readonly firefoxCapabilities = Capabilities.firefox();
 	private readonly driverMap = new Map<
 		string,
 		{
@@ -46,8 +34,6 @@ export class RealBrowserService {
 			connectionRole: OpenViduRole;
 		}
 	>();
-	private readonly VIDEO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakevideo`;
-	private readonly AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 	private readonly keepAliveIntervals = new Map<string, NodeJS.Timeout>();
 	private totalPublishers = 0;
 	private recordingScript: ChildProcess | undefined;
@@ -64,46 +50,6 @@ export class RealBrowserService {
 		this.configService = configService;
 		this.seleniumService = seleniumService;
 		this.comModule = comModule;
-		const prefs = new logging.Preferences();
-		logging.getLogger('webdriver');
-		prefs.setLevel(logging.Type.BROWSER, logging.Level.INFO);
-		prefs.setLevel(logging.Type.DRIVER, logging.Level.INFO);
-		prefs.setLevel(logging.Type.CLIENT, logging.Level.INFO);
-		prefs.setLevel(logging.Type.PERFORMANCE, logging.Level.INFO);
-		prefs.setLevel(logging.Type.SERVER, logging.Level.INFO);
-		logging.installConsoleHandler();
-		if (process.env.REAL_DRIVER === 'firefox') {
-			this.firefoxCapabilities.setLoggingPrefs(prefs);
-			this.firefoxCapabilities.setAcceptInsecureCerts(true);
-			this.firefoxOptions
-				.setPreference('permissions.default.microphone', 1)
-				.setPreference('permissions.default.camera', 1)
-				.setPreference('devtools.console.stdout.content', true);
-		} else {
-			this.chromeCapabilities.setLoggingPrefs(prefs);
-			this.chromeCapabilities.setAcceptInsecureCerts(true);
-			// Unlike firefox, chrome is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
-			this.chromeOptions.addArguments(
-				'--disable-dev-shm-usage',
-				'--use-fake-ui-for-media-stream',
-				'--no-sandbox',
-				'--disable-gpu',
-				'--start-maximized',
-			);
-		}
-		if (process.env.IS_DOCKER_CONTAINER === 'true') {
-			this.chromeOptions.addArguments(
-				`--unsafely-treat-insecure-origin-as-secure=http://${this.configService.getDockerName()}`,
-			);
-		}
-	}
-
-	public async startSelenium(properties: UserJoinProperties): Promise<void> {
-		const videoPath = `${this.VIDEO_FILE_LOCATION}_${properties.frameRate}fps_${properties.resolution}.y4m`;
-		await this.seleniumService.initialize(
-			videoPath,
-			this.AUDIO_FILE_LOCATION,
-		);
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
@@ -293,10 +239,8 @@ export class RealBrowserService {
 				'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
 			);
 		}
-		// TODO: This assumes that SeleniumService has already been initialized, we should make sure of that in the code structure instead of just assuming it here
 		if (properties.headless) {
-			this.chromeOptions.addArguments('--headless');
-			this.firefoxOptions.addArguments('--headless');
+			this.seleniumService.setHeadless();
 		}
 		return new Promise((resolve, reject) => {
 			setTimeout(() => {
@@ -328,18 +272,9 @@ export class RealBrowserService {
 		try {
 			const webappUrl = this.comModule.generateWebappUrl(request);
 			console.log(webappUrl);
-			let driver: WebDriver;
-			if (process.env.REAL_DRIVER === 'firefox') {
-				driver = await seleniumService.getFirefoxDriver(
-					this.firefoxCapabilities,
-					this.firefoxOptions,
-				);
-			} else {
-				driver = await seleniumService.getChromeDriver(
-					this.chromeCapabilities,
-					this.chromeOptions,
-				);
-			}
+			const driver = await seleniumService.getDriver(
+				request.properties.browser,
+			);
 			driverId = (await driver.getSession()).getId();
 			this.driverMap.set(driverId, {
 				driver,
@@ -406,7 +341,7 @@ export class RealBrowserService {
 		properties: UserJoinProperties,
 	): Promise<void> {
 		// Unlike chrome, firefox is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
-		if (process.env.REAL_DRIVER === 'firefox') {
+		if (properties.browser === 'firefox') {
 			await driver.manage().window().maximize();
 		}
 
@@ -645,6 +580,7 @@ export class RealBrowserService {
 	}
 
 	private async printBrowserLogs(driverId: string) {
+		// FIX: Use the properties browser, probably will need to be saved in driverMap, although it will probably get refactored
 		if (process.env.REAL_DRIVER !== 'firefox') {
 			const driverInfo = this.driverMap.get(driverId);
 			if (driverInfo) {
