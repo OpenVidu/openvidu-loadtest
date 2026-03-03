@@ -55,8 +55,6 @@ export class BrowserManagerService {
 
 		this.printRequestInfo(request);
 
-		// Create new stream manager using launching a normal Chrome browser
-		await this.realBrowserService.startSelenium(request.properties);
 		try {
 			const hostname = `https://localhost:${this.configService.getServerPort()}`;
 			const webrtcStorageService = new WebrtcStatsLocalStorage(hostname);
