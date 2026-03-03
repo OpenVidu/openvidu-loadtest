@@ -1,4 +1,31 @@
 {
 	"version": "2.0.0",
-	"tasks": []
+	"tasks": [
+		{
+			"label": "Run Vagrant Tests (Destroy)",
+			"type": "shell",
+			"command": "pnpm",
+			"args": ["run", "test:all:debug:destroy"],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"clear": false
+			},
+			"problemMatcher": {
+				"owner": "custom",
+				"pattern": {
+					"regexp": "^$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".",
+					"endsPattern": "Debugger listening on"
+				}
+			}
+		}
+	]
 }

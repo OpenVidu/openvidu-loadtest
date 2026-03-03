@@ -269,9 +269,9 @@ function collectGuestLogs(nodeName: string, outputDir: string): void {
 	const marker = '__VAGRANT_LOG_SPLIT__';
 	const escapedQuote = String.raw`'\''`;
 	const quotedLogs = logs
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 		.map(log => `'${log.replaceAll("'", escapedQuote)}'`)
 		.join(' ');
-
 	// Single vagrant ssh command; stdout is split locally into separate files.
 	const markerStart = marker + 'START';
 	const markerEnd = marker + 'END';
@@ -327,13 +327,20 @@ function runTestsInsideGuest(
 	coverage: boolean,
 	debug: boolean,
 ): number {
-	const testCommand = coverage
-		? 'test:all:native:coverage'
-		: 'test:all:native';
-	const nodeFlags = debug ? '--inspect-brk=0.0.0.0:9230' : '';
-	const command = debug
-		? `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && NODE_OPTIONS='${nodeFlags}' pnpm run ${testCommand} 2>&1 | tee /var/log/tests.log"`
-		: `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && pnpm run ${testCommand} 2>&1 | tee /var/log/tests.log"`;
+	const coverageFlag = coverage ? '--coverage' : '';
+	let testCommand: string;
+
+	if (debug) {
+		// Run vitest directly with node inspector to avoid port conflicts
+		testCommand = `pnpm exec node --inspect-brk=0.0.0.0:9230 ./node_modules/vitest/vitest.mjs run ${coverageFlag}`;
+	} else {
+		const scriptName = coverage
+			? 'test:all:native:coverage'
+			: 'test:all:native';
+		testCommand = `pnpm run ${scriptName}`;
+	}
+
+	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && ${testCommand} 2>&1 | tee /var/log/tests.log"`;
 	const result = runCommand('vagrant', ['ssh', nodeName, '-c', command], {
 		allowFailure: true,
 		capture: false,
@@ -350,9 +357,7 @@ function main(): void {
 	const options = parseArgs(process.argv.slice(2));
 	const nodeName = options.nodeName;
 
-	console.log(
-		`Vagrant Test runner: node=${nodeName}, livekit=${options.livekit}, timeout=${options.timeoutSeconds}s`,
-	);
+	printOptions(options);
 
 	handleVMState(nodeName);
 
@@ -394,4 +399,14 @@ try {
 } catch (error) {
 	console.error(error instanceof Error ? error.message : error);
 	process.exit(1);
+}
+function printOptions(options: RunOptions) {
+	console.log('Running with options:');
+	console.log(`  Node: ${options.nodeName}`);
+	console.log(`  Platform: ${options.livekit ? 'LiveKit' : 'OpenVidu'}`);
+	console.log(`  Timeout: ${options.timeoutSeconds} seconds`);
+	console.log(`  Coverage: ${options.coverage ? 'enabled' : 'disabled'}`);
+	console.log(`  Debug: ${options.debug ? 'enabled' : 'disabled'}`);
+	console.log(`  Halt after tests: ${options.halt ? 'yes' : 'no'}`);
+	console.log(`  Destroy after tests: ${options.destroy ? 'yes' : 'no'}`);
 }
