@@ -8,7 +8,7 @@ echo "QOE: $QOE"
 
 JOB_LOG="/var/log/provision_jobs.log"
 mkdir -p /var/log
-: > "$JOB_LOG"
+: >"$JOB_LOG"
 declare -a JOB_PIDS=()
 declare -a JOB_NAMES=()
 
@@ -44,6 +44,7 @@ run_openvidu_install() {
     sed -i "s/OPENVIDU_STREAMS_VIDEO_MIN_RECV_BANDWIDTH=300/OPENVIDU_STREAMS_VIDEO_MIN_RECV_BANDWIDTH=0/g" .env
     sed -i "s/OPENVIDU_STREAMS_VIDEO_MAX_SEND_BANDWIDTH=1000/OPENVIDU_STREAMS_VIDEO_MAX_SEND_BANDWIDTH=0/g" .env
     sed -i "s/OPENVIDU_STREAMS_VIDEO_MIN_SEND_BANDWIDTH=300/OPENVIDU_STREAMS_VIDEO_MIN_SEND_BANDWIDTH=0/g" .env
+    docker compose pull
 }
 
 # Start memory monitoring
@@ -81,7 +82,7 @@ chmod +x ./*.sh
 PREPARE_SCRIPT_PATH=/opt/openvidu-loadtest/browser-emulator/prepare_scripts/
 chmod +x $PREPARE_SCRIPT_PATH/*.sh
 
-${PREPARE_SCRIPT_PATH}/install_base.sh > /var/log/install.log 2>&1
+${PREPARE_SCRIPT_PATH}/install_base.sh >/var/log/install.log 2>&1
 
 start_bg "install_qoe" run_install_qoe
 start_bg "install_livekit" bash -c "curl -sSL https://get.livekit.io | bash"
