@@ -38,7 +38,6 @@ The browser-emulator has several **Linux-specific dependencies** that are requir
 
 **Optional (for VS Code debugging):**
 
-- VS Code with [JavaScript Debug Terminal](https://marketplace.visualstudio.com/items?itemName=ms-vscode.js-debug-terminal) extension
 - VS Code Remote SSH extension (for SSH debugging into VM)
 
 #### For Native Linux Development

@@ -12,6 +12,7 @@ interface RunOptions {
 	halt: boolean;
 	destroy: boolean;
 	coverage: boolean;
+	debug: boolean;
 }
 
 function printUsage(): void {
@@ -22,6 +23,7 @@ Options:
   --node=<name>       Vagrant machine name (default: node1)
   --timeout=<secs>    Readiness timeout in seconds (default: 600, 10 minutes)
   --coverage          Run tests with coverage (test:all:native:coverage)
+  --debug             Enable Node debugger (port 9229 forwarded to host)
   --halt              Halt VM after successful execution (vagrant halt)
   --destroy           Destroy VM after successful execution (vagrant destroy -f)
   --help              Show this help
@@ -36,6 +38,7 @@ function parseArgs(argv: string[]): RunOptions {
 		halt: false,
 		destroy: false,
 		coverage: false,
+		debug: false,
 	};
 
 	for (const arg of argv) {
@@ -43,6 +46,8 @@ function parseArgs(argv: string[]): RunOptions {
 			options.livekit = true;
 		} else if (arg === '--coverage') {
 			options.coverage = true;
+		} else if (arg === '--debug') {
+			options.debug = true;
 		} else if (arg === '--halt') {
 			options.halt = true;
 		} else if (arg === '--destroy') {
@@ -226,7 +231,7 @@ function waitForPlatform(
 	const checkLabel = livekit ? 'LiveKit process' : 'OpenVidu endpoint';
 	const checkCommand = livekit
 		? "pgrep -af 'livekit-server --dev' >/dev/null"
-		: "grep -q 'OpenVidu Server URL' /var/log/openvidu.log";
+		: "grep -qE '(OpenVidu Server URL|initialization completed)' /var/log/openvidu.log";
 
 	console.log(`Waiting for ${checkLabel} (${timeoutSeconds}s timeout)...`);
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -317,11 +322,18 @@ function collectGuestLogs(nodeName: string, outputDir: string): void {
 	flush();
 }
 
-function runTestsInsideGuest(nodeName: string, coverage: boolean): number {
+function runTestsInsideGuest(
+	nodeName: string,
+	coverage: boolean,
+	debug: boolean,
+): number {
 	const testCommand = coverage
 		? 'test:all:native:coverage'
 		: 'test:all:native';
-	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && pnpm run ${testCommand} 2>&1 | tee /var/log/tests.log"`;
+	const nodeFlags = debug ? '--inspect-brk=0.0.0.0:9230' : '';
+	const command = debug
+		? `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && NODE_OPTIONS='${nodeFlags}' pnpm run ${testCommand} 2>&1 | tee /var/log/tests.log"`
+		: `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && pnpm run ${testCommand} 2>&1 | tee /var/log/tests.log"`;
 	const result = runCommand('vagrant', ['ssh', nodeName, '-c', command], {
 		allowFailure: true,
 		capture: false,
@@ -347,7 +359,11 @@ function main(): void {
 	waitForPlatform(nodeName, options.livekit, options.timeoutSeconds);
 
 	console.log('Running tests inside VM...');
-	const exitCode = runTestsInsideGuest(nodeName, options.coverage);
+	const exitCode = runTestsInsideGuest(
+		nodeName,
+		options.coverage,
+		options.debug,
+	);
 
 	const artifactsDir = join(
 		process.cwd(),

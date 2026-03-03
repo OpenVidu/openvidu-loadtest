@@ -1,0 +1,107 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Launch: Unit Tests",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["test:unit", "--", "--testTimeout", "0"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"skipFiles": ["<node_internals>/**"],
+			"resolveSourceMapLocations": [
+				"${workspaceFolder}/**",
+				"!**/node_modules/**"
+			]
+		},
+		{
+			"name": "Launch: All tests (Native)",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["run", "test:all:native"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"skipFiles": ["<node_internals>/**"],
+			"resolveSourceMapLocations": [
+				"${workspaceFolder}/**",
+				"!**/node_modules/**"
+			]
+		},
+		{
+			"name": "Debug: Vagrant Tests (Destroy)",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["run", "test:all:debug:destroy"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"skipFiles": ["<node_internals>/**"],
+			"resolveSourceMapLocations": [
+				"${workspaceFolder}/**",
+				"!**/node_modules/**"
+			]
+		},
+		{
+			"name": "Debug: Vagrant Tests (Attach)",
+			"type": "node",
+			"request": "attach",
+			"port": 9230,
+			"address": "localhost",
+			"localRoot": "${workspaceFolder}",
+			"remoteRoot": "/opt/openvidu-loadtest/browser-emulator",
+			"skipFiles": ["<node_internals>/**"],
+			"resolveSourceMapLocations": [
+				"${workspaceFolder}/**",
+				"!**/node_modules/**"
+			]
+		},
+		{
+			"name": "Debug: Vagrant Tests (Halt)",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["run", "test:all:debug:halt"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"skipFiles": ["<node_internals>/**"],
+			"resolveSourceMapLocations": [
+				"${workspaceFolder}/**",
+				"!**/node_modules/**"
+			]
+		}
+	],
+	"compounds": [
+		{
+			"name": "Debug & Attach (Destroy)",
+			"configurations": [
+				"Debug: Vagrant Tests (Destroy)",
+				"Debug: Vagrant Tests (Attach)"
+			],
+			"stopOnEntry": false,
+			"presentation": {
+				"hidden": false,
+				"group": "compounds",
+				"order": 1
+			}
+		},
+		{
+			"name": "Debug & Attach (Halt)",
+			"configurations": [
+				"Debug: Vagrant Tests (Halt)",
+				"Debug: Vagrant Tests (Attach)"
+			],
+			"stopOnEntry": false,
+			"presentation": {
+				"hidden": false,
+				"group": "compounds",
+				"order": 2
+			}
+		}
+	]
+}

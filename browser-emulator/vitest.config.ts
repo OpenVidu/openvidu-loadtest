@@ -21,7 +21,7 @@ export default defineConfig({
 				test: {
 					name: 'e2e',
 					include: ['tests/e2e/**/*.test.ts'],
-					testTimeout: 300000, // 5 minutes, because some tests may involve starting a browser and that can take some time
+					testTimeout: 600000, // 10 minutes, because some tests may involve starting a browser and that can take some time
 					sequence: {
 						concurrent: false,
 					},
