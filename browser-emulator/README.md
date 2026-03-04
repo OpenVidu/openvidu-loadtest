@@ -20,6 +20,16 @@ This services also is listening for a **WebSocket communication** on `ws://brows
 
 ### Runtime Environment
 
+Base software needed:
+- Node 24.14.0+
+- pnpm@10.30.3
+
+Download at: [https://nodejs.org/en/download](https://nodejs.org/en/download) and [https://pnpm.io/installation#using-corepack](https://pnpm.io/installation#using-corepack)
+
+Then you can run:
+
+`pnpm install`
+
 The browser-emulator has several **Linux-specific dependencies** that are required. These components **cannot be easily replicated on Windows or macOS** due to kernel-level dependencies and availability. As a result, you can use one of these options:
 
 - **Recommended**: Use the provided Vagrant + VirtualBox setup (works on Windows, macOS, Linux)
@@ -32,13 +42,9 @@ The browser-emulator has several **Linux-specific dependencies** that are requir
 **Required:**
 
 - [Vagrant](https://developer.hashicorp.com/vagrant/install) (>= 2.4.9)
-- [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (>= 7.2)
+- [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (>= 7.2.6)
 - ~20 GB free disk space for VM
 - 4 GB RAM available (8 GB recommended)
-
-**Optional (for VS Code debugging):**
-
-- VS Code Remote SSH extension (for SSH debugging into VM)
 
 #### For Native Linux Development
 
