@@ -356,7 +356,7 @@ export class S3UploadService {
 			try {
 				await this.uploadSingleFile(s3, filePath, key);
 				console.log(
-					`Uploaded [${attempt}/${maxRetries}]: ${filePath} → s3://${this.bucket}/${key}`,
+					`Uploaded [attempt ${attempt}/${maxRetries}]: ${filePath} → s3://${this.bucket}/${key}`,
 				);
 				return;
 			} catch (err) {
