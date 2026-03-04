@@ -33,6 +33,7 @@
 		"test:e2e:native": "vitest run --project=e2e",
 		"test:all:native": "vitest run",
 		"test:all:native:coverage": "vitest run --coverage",
+		"test:all:native:debug": "vitest run --inspect=0.0.0.0:9230 --no-file-parallelism --test-timeout=0",
 		"qoe": "tsx ./src/utils/run-qoe-analysis.ts"
 	},
 	"author": "Carlos Santos & Iván Chicano",

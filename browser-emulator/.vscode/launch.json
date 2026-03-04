@@ -2,36 +2,38 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Debug Vagrant Tests",
+			"name": "Launch tests in Vagrant for Debugging",
 			"type": "node",
-			"request": "attach",
-			"address": "localhost",
-			"port": 9230,
-			"restart": false,
-			"skipFiles": [
-				"<node_internals>/**",
-				"**/node_modules/**"
-			],
-			"localRoot": "${workspaceFolder}",
-			"remoteRoot": "/opt/openvidu-loadtest/browser-emulator",
-			"preLaunchTask": "Run Vagrant Tests",
-			"autoAttachChildProcesses": true
+			"request": "launch",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["run", "test:all:debug"],
+			"cwd": "${workspaceFolder}"
 		},
 		{
-			"name": "Debug Vagrant Tests (Destroy)",
+			"name": "Attach to Vagrant debug session",
 			"type": "node",
 			"request": "attach",
-			"address": "localhost",
+			"address": "127.0.0.1",
 			"port": 9230,
-			"restart": false,
-			"skipFiles": [
-				"<node_internals>/**",
-				"**/node_modules/**"
-			],
+			"timeout": 600000,
 			"localRoot": "${workspaceFolder}",
 			"remoteRoot": "/opt/openvidu-loadtest/browser-emulator",
-			"preLaunchTask": "Run Vagrant Tests (Destroy)",
-			"autoAttachChildProcesses": true
+			"skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+		}
+	],
+	"compounds": [
+		{
+			"name": "Launch and Attach to Vagrant Tests",
+			"configurations": [
+				"Launch tests in Vagrant for Debugging",
+				"Attach to Vagrant debug session"
+			],
+			"presentation": {
+				"hidden": false,
+				"group": "1",
+				"order": 1
+			},
+			"stopAll": true
 		}
 	]
 }
