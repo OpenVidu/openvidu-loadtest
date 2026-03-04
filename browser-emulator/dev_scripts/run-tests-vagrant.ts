@@ -23,7 +23,7 @@ Options:
   --node=<name>       Vagrant machine name (default: node1)
   --timeout=<secs>    Readiness timeout in seconds (default: 600, 10 minutes)
   --coverage          Run tests with coverage (test:all:native:coverage)
-  --debug             Enable Node debugger (port 9229 forwarded to host)
+  --debug             Enable Node debugger (port 9230 forwarded to host)
   --halt              Halt VM after successful execution (vagrant halt)
   --destroy           Destroy VM after successful execution (vagrant destroy -f)
   --help              Show this help
@@ -327,17 +327,14 @@ function runTestsInsideGuest(
 	coverage: boolean,
 	debug: boolean,
 ): number {
-	const coverageFlag = coverage ? '--coverage' : '';
 	let testCommand: string;
 
+	const scriptName = coverage
+		? 'test:all:native:coverage'
+		: 'test:all:native';
+	testCommand = `pnpm run ${scriptName}`;
 	if (debug) {
-		// Run vitest directly with node inspector to avoid port conflicts
-		testCommand = `pnpm exec node --inspect-brk=0.0.0.0:9230 ./node_modules/vitest/vitest.mjs run ${coverageFlag}`;
-	} else {
-		const scriptName = coverage
-			? 'test:all:native:coverage'
-			: 'test:all:native';
-		testCommand = `pnpm run ${scriptName}`;
+		testCommand += ` -- --inspect-wait=127.0.0.1:9230`;
 	}
 
 	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && ${testCommand} 2>&1 | tee /var/log/tests.log"`;

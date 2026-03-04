@@ -8,9 +8,30 @@
 			"address": "localhost",
 			"port": 9230,
 			"restart": false,
-			"skipFiles": ["<node_internals>/**"],
+			"skipFiles": [
+				"<node_internals>/**",
+				"**/node_modules/**"
+			],
+			"localRoot": "${workspaceFolder}",
+			"remoteRoot": "/opt/openvidu-loadtest/browser-emulator",
+			"preLaunchTask": "Run Vagrant Tests",
+			"autoAttachChildProcesses": true
+		},
+		{
+			"name": "Debug Vagrant Tests (Destroy)",
+			"type": "node",
+			"request": "attach",
+			"address": "localhost",
+			"port": 9230,
+			"restart": false,
+			"skipFiles": [
+				"<node_internals>/**",
+				"**/node_modules/**"
+			],
+			"localRoot": "${workspaceFolder}",
+			"remoteRoot": "/opt/openvidu-loadtest/browser-emulator",
 			"preLaunchTask": "Run Vagrant Tests (Destroy)",
-			"autoAttachChildProcesses": false
+			"autoAttachChildProcesses": true
 		}
 	]
 }

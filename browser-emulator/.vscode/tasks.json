@@ -2,6 +2,32 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "Run Vagrant Tests",
+			"type": "shell",
+			"command": "pnpm",
+			"args": ["run", "test:all:debug"],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"clear": false
+			},
+			"problemMatcher": {
+				"owner": "custom",
+				"pattern": {
+					"regexp": "^$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".",
+					"endsPattern": "Debugger listening on|Debugger attached"
+				}
+			}
+		},
+		{
 			"label": "Run Vagrant Tests (Destroy)",
 			"type": "shell",
 			"command": "pnpm",
@@ -23,7 +49,7 @@
 				"background": {
 					"activeOnStart": true,
 					"beginsPattern": ".",
-					"endsPattern": "Debugger listening on"
+					"endsPattern": " v.* /opt/openvidu-loadtest/browser-emulator"
 				}
 			}
 		}
