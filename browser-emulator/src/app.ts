@@ -24,7 +24,7 @@ async function cleanup() {
 	}
 	const s3FilesService = container.resolve('s3FilesService');
 	s3FilesService.clean();
-	killAllDetached();
+	await killAllDetached();
 	await cleanupFakeMediaDevices();
 }
 
