@@ -20,6 +20,6 @@ export abstract class BaseLocalStorageConfig {
 	}
 
 	protected getEndpointUrl(): string {
-		return `https://${this.hostname}${this.endpoint}`;
+		return `${this.hostname}${this.endpoint}`;
 	}
 }
