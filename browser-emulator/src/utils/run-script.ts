@@ -105,22 +105,48 @@ export function stopDetached(process: ChildProcess) {
 	}
 }
 
-export function killAllDetached() {
+export async function killAllDetached() {
 	console.log(`PIDs to kill: [${detachedPids.join(', ')}]`);
-	detachedPids.forEach(pid => {
-		try {
-			console.log('Killing ' + pid);
-			process.kill(-pid);
-		} catch (err) {
-			try {
-				console.warn(err);
-				console.log('Retrying killing ' + pid);
-				process.kill(pid);
-			} catch (retryError) {
-				console.error(retryError);
-			}
-		}
-	});
+	const killPromises = detachedPids.map(
+		pid =>
+			new Promise<void>((resolve, reject) => {
+				try {
+					console.log('Killing ' + pid);
+					process.kill(-pid);
+				} catch (err) {
+					try {
+						console.warn(err);
+						console.log('Retrying killing ' + pid);
+						process.kill(pid);
+					} catch (retryError) {
+						console.error(retryError);
+					}
+				}
+
+				// Wait and verify process is killed
+				const checkInterval = setInterval(() => {
+					try {
+						process.kill(pid, 0); // Check if process exists
+					} catch {
+						// Process doesn't exist anymore
+						console.log(`Process ${pid} confirmed killed`);
+						clearInterval(checkInterval);
+						resolve();
+					}
+				}, 100);
+
+				// Timeout after 20 seconds
+				setTimeout(() => {
+					clearInterval(checkInterval);
+					reject(
+						new Error(`Timeout waiting for process ${pid} to die`),
+					);
+				}, 20000);
+			}),
+	);
+
+	await Promise.all(killPromises);
+	detachedPids.length = 0;
 }
 
 export async function isRunning(query: string) {
