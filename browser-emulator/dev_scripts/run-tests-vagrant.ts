@@ -230,8 +230,8 @@ function waitForPlatform(
 	const maxAttempts = Math.ceil(timeoutSeconds / 2);
 	const checkLabel = livekit ? 'LiveKit process' : 'OpenVidu endpoint';
 	const checkCommand = livekit
-		? "pgrep -af 'livekit-server --dev' >/dev/null"
-		: "grep -qE '(OpenVidu Server URL|initialization completed)' /var/log/openvidu.log";
+		? 'curl http://localhost:7880'
+		: `curl -k -H 'Authorization: Basic ${Buffer.from('OPENVIDUAPP:vagrant').toString('base64')}' https://localhost/openvidu/api/sessions >/dev/null`;
 
 	console.log(`Waiting for ${checkLabel} (${timeoutSeconds}s timeout)...`);
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -269,7 +269,6 @@ function collectGuestLogs(nodeName: string, outputDir: string): void {
 	const marker = '__VAGRANT_LOG_SPLIT__';
 	const escapedQuote = String.raw`'\''`;
 	const quotedLogs = logs
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 		.map(log => `'${log.replaceAll("'", escapedQuote)}'`)
 		.join(' ');
 	// Single vagrant ssh command; stdout is split locally into separate files.
@@ -327,15 +326,14 @@ function runTestsInsideGuest(
 	coverage: boolean,
 	debug: boolean,
 ): number {
-	let testCommand: string;
+	let scriptName: string;
 
-	const scriptName = coverage
-		? 'test:all:native:coverage'
-		: 'test:all:native';
-	testCommand = `pnpm run ${scriptName}`;
 	if (debug) {
-		testCommand += ` -- --inspect-wait=127.0.0.1:9230`;
+		scriptName = 'test:all:native:debug';
+	} else {
+		scriptName = coverage ? 'test:all:native:coverage' : 'test:all:native';
 	}
+	const testCommand = `pnpm run ${scriptName}`;
 
 	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && ${testCommand} 2>&1 | tee /var/log/tests.log"`;
 	const result = runCommand('vagrant', ['ssh', nodeName, '-c', command], {
