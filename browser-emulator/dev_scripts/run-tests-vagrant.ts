@@ -177,13 +177,49 @@ function savePreviousHash(cacheFile: string, hash: string): void {
 	writeFileSync(cacheFile, hash, 'utf-8');
 }
 
+function parseProvisionFilesFromVagrantfile(): string[] {
+	try {
+		const vagrantfileContent = readFileSync('Vagrantfile', 'utf-8');
+		const files: string[] = [];
+
+		// Extract files_to_provision array
+		const arrayMatch = /files_to_provision\s*=\s*\[([\s\S]*?)\]/.exec(
+			vagrantfileContent,
+		);
+		if (!arrayMatch) {
+			throw new Error(
+				'Could not find files_to_provision array in Vagrantfile',
+			);
+		}
+
+		const arrayContent = arrayMatch[1];
+		// Extract each file path (the part before ':')
+		const fileMatches = arrayContent.matchAll(/["']([^"':]+)\s*:/g);
+
+		for (const match of fileMatches) {
+			const filePath = match[1];
+			files.push(filePath);
+		}
+
+		// Add other files that affect provisioning
+		files.push('Vagrantfile', 'vagrant_setup_start.sh');
+
+		return files;
+	} catch (error) {
+		console.warn(
+			`Unable to parse Vagrantfile: ${error instanceof Error ? error.message : 'Unknown error'}. Falling back to default list.`,
+		);
+		return [
+			'Vagrantfile',
+			'vagrant_setup_start.sh',
+			'package.json',
+			'pnpm-lock.yaml',
+		];
+	}
+}
+
 function shouldProvision(machine: string): boolean {
-	const provisionFiles = [
-		'Vagrantfile',
-		'vagrant_setup_start.sh',
-		'package.json',
-		'pnpm-lock.yaml',
-	];
+	const provisionFiles = parseProvisionFilesFromVagrantfile();
 
 	const cacheFile = resolve('.vagrant', `provision-hash-${machine}`);
 	const currentHash = computeProvisionFilesHash(provisionFiles);
