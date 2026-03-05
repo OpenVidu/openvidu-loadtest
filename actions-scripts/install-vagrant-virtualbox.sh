@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euox pipefail
+
+curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
+apt-get update
+apt-get install -y vagrant virtualbox
+
+# Unload KVM modules to avoid conflict with VirtualBox AMD-V/VT-x extension.
+# See: https://github.com/actions/runner-images/issues/13202
+modprobe -r kvm_amd 2>/dev/null || true
+modprobe -r kvm_intel 2>/dev/null || true
+modprobe -r kvm 2>/dev/null || true
