@@ -21,7 +21,8 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
-      
+          cache-dependency-path: browser-emulator/pnpm-lock.yaml
+
       - name: Install Vagrant & VirtualBox
         run: |
           wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
