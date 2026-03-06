@@ -25,11 +25,6 @@ jobs:
         run: |
           sudo bash actions-scripts/install-vagrant-virtualbox.sh
 
-      - name: Resolve Vagrant parent box version and hash
-        id: resolve_vagrant_box
-        run: |
-          bash actions-scripts/resolve-vagrant-box.sh
-
       - name: Install project dependencies
         run: |
           cd browser-emulator
