@@ -20,8 +20,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'pnpm'
-          cache-dependency-path: browser-emulator/pnpm-lock.yaml
 
       - name: Install Vagrant & VirtualBox
         run: |
@@ -31,25 +29,6 @@ jobs:
         id: resolve_vagrant_box
         run: |
           bash actions-scripts/resolve-vagrant-box.sh
-
-      - name: Cache Vagrant boxes
-        uses: actions/cache@v4
-        with:
-          path: ~/.vagrant.d/boxes
-          key: vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ steps.resolve_vagrant_box.outputs.box_version }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
-          restore-keys: |
-            vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-
-            vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-
-            vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ steps.resolve_vagrant_box.outputs.box_version }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
-
-      - name: Cache Vagrant machine state
-        uses: actions/cache@v4
-        with:
-          path: browser-emulator/.vagrant
-          key: vagrant-state-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
-          restore-keys: |
-            vagrant-state-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-
-            vagrant-state-${{ steps.resolve_vagrant_box.outputs.box_name }}-
 
       - name: Install project dependencies
         run: |
