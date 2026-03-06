@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -36,20 +36,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.vagrant.d/boxes
-          key: vagrant-boxes-${{ runner.os }}-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ steps.resolve_vagrant_box.outputs.box_version }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
+          key: vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ steps.resolve_vagrant_box.outputs.box_version }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
           restore-keys: |
-            vagrant-boxes-${{ runner.os }}-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-
-            vagrant-boxes-${{ runner.os }}-${{ steps.resolve_vagrant_box.outputs.box_name }}-
-            vagrant-boxes-${{ runner.os }}-
+            vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-
+            vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-
+            vagrant-boxes-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ steps.resolve_vagrant_box.outputs.box_version }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
 
       - name: Cache Vagrant machine state
         uses: actions/cache@v4
         with:
           path: browser-emulator/.vagrant
-          key: vagrant-state-${{ runner.os }}-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
+          key: vagrant-state-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-${{ hashFiles('browser-emulator/Vagrantfile') }}
           restore-keys: |
-            vagrant-state-${{ runner.os }}-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-
-            vagrant-state-${{ runner.os }}-${{ steps.resolve_vagrant_box.outputs.box_name }}-
+            vagrant-state-${{ steps.resolve_vagrant_box.outputs.box_name }}-${{ steps.resolve_vagrant_box.outputs.box_hash }}-
+            vagrant-state-${{ steps.resolve_vagrant_box.outputs.box_name }}-
 
       - name: Install project dependencies
         run: |
