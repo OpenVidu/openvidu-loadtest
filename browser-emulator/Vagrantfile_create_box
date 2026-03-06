@@ -55,7 +55,7 @@ Vagrant.configure("2") do |config|
   config.vm.provider provider do |vb|
     vb.memory = memory
     vb.cpus = cpus
-    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on", "--usb", "off", "--usbehci", "off", "--usb-xhci", "off"]
   end
 
   config.vm.provision "shell", :path => "vagrant_create_box_provision.sh", :args => [qoe]
