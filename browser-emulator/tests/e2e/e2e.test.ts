@@ -3,10 +3,10 @@ import request from 'supertest';
 import { startServer, stopServer } from '../../src/app.js';
 import type { Application } from 'express';
 import { createServer } from 'node:http';
-import { FilesRepository } from '../../src/repositories/files/files.repository.js';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import { Resolution } from '../../src/types/openvidu.type.js';
+import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
 
 let app: Application;
 const SESSION_NAME = 'LoadTestSession1';
@@ -47,6 +47,7 @@ async function createPublisherUser(
 	userId: string,
 	expectedParticipants: number,
 	expectedStreams: number,
+	browser = 'chrome',
 ) {
 	const createUserResponse = await request(app)
 		.post('/openvidu-browser/streamManager')
@@ -62,6 +63,7 @@ async function createPublisherUser(
 				resolution: Resolution.DEFAULT,
 				framerate: 30,
 				showVideoElements: true,
+				browser,
 			},
 		});
 
@@ -104,10 +106,10 @@ afterEach(async () => {
 	await stopServer();
 	delete process.env.SERVER_PORT;
 	await Promise.all([
-		deleteAllFilesFromDir(FilesRepository.FULLSCREEN_RECORDING_DIR),
-		deleteAllFilesFromDir(FilesRepository.QOE_RECORDING_DIR),
-		deleteAllFilesFromDir(FilesRepository.STATS_DIR),
-		deleteAllFilesFromDir(FilesRepository.MEDIAFILES_DIR),
+		deleteAllFilesFromDir(LocalFilesRepository.FULLSCREEN_RECORDING_DIR),
+		deleteAllFilesFromDir(LocalFilesRepository.QOE_RECORDING_DIR),
+		deleteAllFilesFromDir(LocalFilesRepository.STATS_DIR),
+		deleteAllFilesFromDir(LocalFilesRepository.MEDIAFILES_DIR),
 	]);
 });
 
@@ -145,10 +147,57 @@ describe('Browser-emulator', () => {
 		expect(deleteAllUsersResponse.text).toContain('is clean');
 
 		// Check there is a directory stats for the session
-		const statsDir = path.join(FilesRepository.STATS_DIR, SESSION_NAME);
+		const statsDir = path.join(
+			LocalFilesRepository.STATS_DIR,
+			SESSION_NAME,
+		);
 		const statsDirExists = await pathExists(statsDir);
 		expect(statsDirExists).toBe(true);
-		// Future improvement: validate JSON structure/content in these stats files.
+		// TODO: validate JSON structure/content in these stats files.
+		await assertUserStats(statsDir, 'User1');
+		await assertUserStats(statsDir, 'User2');
+	});
+
+	it('should test basic workflow with Firefox and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)', async () => {
+		// IMPORTANT: This test assumes it is running alongside a local OpenVidu 2 deployment with secret vagrant.
+		// Using the vagrant box available in this project should suffice.
+		const pingResponse = await request(app).get('/instance/ping');
+		expect(pingResponse.status).toBe(200);
+		const initializeResponse = await request(app)
+			.post('/instance/initialize')
+			.send({
+				browserVideo: {
+					videoType: 'bunny',
+					videoInfo: {
+						width: 640,
+						height: 480,
+						fps: 30,
+					},
+				},
+			});
+
+		expect(initializeResponse.status).toBe(200);
+		expect(initializeResponse.text).toContain('Instance');
+		expect(initializeResponse.text).toContain('has been initialized');
+		await createPublisherUser('User1', 1, 1, 'firefox');
+		await createPublisherUser('User2', 2, 4, 'firefox');
+		// Wait 10 seconds to let the browsers connect and send stats
+		await new Promise(resolve => setTimeout(resolve, 10000));
+		const deleteAllUsersResponse = await request(app).delete(
+			'/openvidu-browser/streamManager',
+		);
+		expect(deleteAllUsersResponse.status).toBe(200);
+		expect(deleteAllUsersResponse.text).toContain('Instance');
+		expect(deleteAllUsersResponse.text).toContain('is clean');
+
+		// Check there is a directory stats for the session
+		const statsDir = path.join(
+			LocalFilesRepository.STATS_DIR,
+			SESSION_NAME,
+		);
+		const statsDirExists = await pathExists(statsDir);
+		expect(statsDirExists).toBe(true);
+		// TODO: validate JSON structure/content in these stats files.
 		await assertUserStats(statsDir, 'User1');
 		await assertUserStats(statsDir, 'User2');
 	});

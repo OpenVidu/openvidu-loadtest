@@ -4,7 +4,7 @@ import https from 'node:https';
 import http from 'node:http';
 import { URL } from 'node:url';
 
-export class FilesRepository {
+export class LocalFilesRepository {
 	public static readonly FULLSCREEN_RECORDING_DIR = `${process.cwd()}/recordings/chrome`;
 	public static readonly QOE_RECORDING_DIR = `${process.cwd()}/recordings/qoe`;
 	public static readonly STATS_DIR = `${process.cwd()}/stats`;
@@ -15,21 +15,23 @@ export class FilesRepository {
 	}
 
 	private createNeededDirectories() {
-		if (!fs.existsSync(FilesRepository.FULLSCREEN_RECORDING_DIR)) {
-			fs.mkdirSync(FilesRepository.FULLSCREEN_RECORDING_DIR, {
+		if (!fs.existsSync(LocalFilesRepository.FULLSCREEN_RECORDING_DIR)) {
+			fs.mkdirSync(LocalFilesRepository.FULLSCREEN_RECORDING_DIR, {
 				recursive: true,
 			});
 		}
-		if (!fs.existsSync(FilesRepository.QOE_RECORDING_DIR)) {
-			fs.mkdirSync(FilesRepository.QOE_RECORDING_DIR, {
+		if (!fs.existsSync(LocalFilesRepository.QOE_RECORDING_DIR)) {
+			fs.mkdirSync(LocalFilesRepository.QOE_RECORDING_DIR, {
 				recursive: true,
 			});
 		}
-		if (!fs.existsSync(FilesRepository.STATS_DIR)) {
-			fs.mkdirSync(FilesRepository.STATS_DIR, { recursive: true });
+		if (!fs.existsSync(LocalFilesRepository.STATS_DIR)) {
+			fs.mkdirSync(LocalFilesRepository.STATS_DIR, { recursive: true });
 		}
-		if (!fs.existsSync(FilesRepository.MEDIAFILES_DIR)) {
-			fs.mkdirSync(FilesRepository.MEDIAFILES_DIR, { recursive: true });
+		if (!fs.existsSync(LocalFilesRepository.MEDIAFILES_DIR)) {
+			fs.mkdirSync(LocalFilesRepository.MEDIAFILES_DIR, {
+				recursive: true,
+			});
 		}
 	}
 

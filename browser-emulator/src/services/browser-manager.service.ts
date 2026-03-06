@@ -7,7 +7,7 @@ import { InstanceService } from './instance.service.js';
 import { RealBrowserService } from './real-browser.service.js';
 import { ElasticSearchService } from './elasticsearch.service.js';
 import type { ConfigService } from './config.service.js';
-import { S3UploadService } from './files/s3upload.service.ts';
+import { RemotePersistenceService } from './files/remote-persistence.service.ts';
 import {
 	CON_FILE,
 	addSaveStatsToFileToQueue,
@@ -29,20 +29,20 @@ export class BrowserManagerService {
 	private readonly realBrowserService: RealBrowserService;
 	private readonly instanceService: InstanceService;
 	private readonly elasticSearchService: ElasticSearchService;
-	private readonly s3FilesService: S3UploadService;
+	private readonly remotePersistenceService: RemotePersistenceService;
 
 	constructor(
 		configService: ConfigService,
 		realBrowserService: RealBrowserService,
 		instanceService: InstanceService,
 		elasticSearchService: ElasticSearchService,
-		s3FilesService: S3UploadService,
+		remotePersistenceService: RemotePersistenceService,
 	) {
 		this.configService = configService;
 		this.realBrowserService = realBrowserService;
 		this.instanceService = instanceService;
 		this.elasticSearchService = elasticSearchService;
-		this.s3FilesService = s3FilesService;
+		this.remotePersistenceService = remotePersistenceService;
 	}
 
 	async createStreamManager(
@@ -130,17 +130,22 @@ export class BrowserManagerService {
 		await waitForAllFilesToBeProcessed();
 		console.log('All files processed');
 		if (this.configService.isProdMode()) {
-			if (this.s3FilesService.isInitialized()) {
+			if (this.remotePersistenceService.isInitialized()) {
 				try {
-					console.log('Uploading files to S3...');
-					await this.s3FilesService.uploadFiles();
-					console.log('Files uploaded to S3');
+					console.log(
+						'Uploading files to remote persistence target...',
+					);
+					await this.remotePersistenceService.uploadFiles();
+					console.log('Files uploaded to remote persistence target');
 				} catch (error) {
-					console.error('Error uploading files to S3', error);
+					console.error(
+						'Error uploading files to remote persistence target',
+						error,
+					);
 				}
 			} else {
 				console.warn(
-					"S3FilesService is not initialized. Can't upload files.",
+					"RemotePersistenceService is not initialized. Can't upload files.",
 				);
 			}
 		}

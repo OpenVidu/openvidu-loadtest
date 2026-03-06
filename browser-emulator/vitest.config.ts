@@ -13,7 +13,15 @@ export default defineConfig({
 				test: {
 					name: 'unit',
 					include: ['tests/unit/**/*.test.ts'],
-					setupFiles: ['tests/setup/unit/globalFsSetup.ts'],
+					setupFiles: ['tests/setup/unit/global-fs-setup.ts'],
+				},
+			},
+			{
+				extends: true,
+				test: {
+					name: 'integration',
+					include: ['tests/integration/**/**.test.ts'],
+					testTimeout: 600000, // 10 minutes for container startup and file operations
 				},
 			},
 			{
@@ -21,7 +29,7 @@ export default defineConfig({
 				test: {
 					name: 'e2e',
 					include: ['tests/e2e/**/*.test.ts'],
-					testTimeout: 600000, // 10 minutes, because some tests may involve starting a browser and that can take some time
+					testTimeout: 600000, // 10 minutes
 					sequence: {
 						concurrent: false,
 					},

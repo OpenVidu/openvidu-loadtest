@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import https from 'node:https';
 import express from 'express';
-import { getContainer } from './container.js';
+import { getContainer, resetContainer } from './container.js';
 
 import { app as ovBrowserController } from './controllers/openvidu-browser.controller.js';
 import { app as eventsController } from './controllers/events.controller.js';
@@ -22,8 +22,10 @@ async function cleanup() {
 	} catch (err) {
 		console.error(err);
 	}
-	const s3FilesService = container.resolve('s3FilesService');
-	s3FilesService.clean();
+	const remotePersistenceService = container.resolve(
+		'remotePersistenceService',
+	);
+	remotePersistenceService.clean();
 	await killAllDetached();
 	await cleanupFakeMediaDevices();
 }
@@ -118,9 +120,18 @@ export async function stopServer() {
 	const wsService = container.resolve('wsService');
 	await wsService.close();
 	await cleanup();
+	await resetContainer();
 	if (server) {
-		server.close(() => {
-			console.log('Server stopped');
+		return new Promise<void>((resolve, reject) => {
+			server.close(err => {
+				if (err) {
+					console.error('Error closing server:', err);
+					reject(err);
+				} else {
+					console.log('Server stopped');
+					resolve();
+				}
+			});
 		});
 	}
 }

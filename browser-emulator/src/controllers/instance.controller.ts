@@ -7,10 +7,10 @@ import type {
 } from '../types/api-rest.type.js';
 import type { ConfigService } from '../services/config.service.js';
 import { SeleniumService } from '../services/selenium.service.js';
-import type { S3UploadService } from '../services/files/s3upload.service.ts';
+import type { RemotePersistenceService } from '../services/files/remote-persistence.service.ts';
 import type { ElasticSearchService } from '../services/elasticsearch.service.ts';
 import type { InstanceService } from '../services/instance.service.ts';
-import type { FilesService } from '../services/files/files.service.ts';
+import type { LocalFilesService } from '../services/files/local-files.service.ts';
 import type { QoeAnalyzerService } from '../services/qoe-analyzer.service.ts';
 
 export class InstanceController {
@@ -19,26 +19,26 @@ export class InstanceController {
 	private readonly configService: ConfigService;
 	private readonly elasticSearchService: ElasticSearchService;
 	private readonly instanceService: InstanceService;
-	private readonly filesService: FilesService;
+	private readonly localFilesService: LocalFilesService;
 	private readonly seleniumService: SeleniumService;
-	private readonly s3UploadService: S3UploadService;
+	private readonly remotePersistenceService: RemotePersistenceService;
 	private readonly qoeAnalyzerService: QoeAnalyzerService;
 
 	constructor(
 		configService: ConfigService,
 		elasticSearchService: ElasticSearchService,
 		instanceService: InstanceService,
-		filesService: FilesService,
+		localFilesService: LocalFilesService,
 		seleniumService: SeleniumService,
-		s3UploadService: S3UploadService,
+		remotePersistenceService: RemotePersistenceService,
 		qoeAnalyzerService: QoeAnalyzerService,
 	) {
 		this.configService = configService;
 		this.elasticSearchService = elasticSearchService;
 		this.instanceService = instanceService;
-		this.filesService = filesService;
+		this.localFilesService = localFilesService;
 		this.seleniumService = seleniumService;
-		this.s3UploadService = s3UploadService;
+		this.remotePersistenceService = remotePersistenceService;
 		this.qoeAnalyzerService = qoeAnalyzerService;
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
@@ -72,7 +72,7 @@ export class InstanceController {
 			const promises = [];
 			if (isProdMode) {
 				// Set up file service if possible now so that it doesn't have to be initialized later when needed
-				this.setupS3UploadService(request);
+				this.setupRemotePersistenceService(request);
 				promises.push(
 					this.downloadMediaFilesAndStartSeleniumService(
 						request.browserVideo,
@@ -116,7 +116,7 @@ export class InstanceController {
 		}
 	}
 
-	private setupS3UploadService(request: InitializePost) {
+	private setupRemotePersistenceService(request: InitializePost) {
 		let accessKey: string | undefined;
 		let secretAccessKey: string | undefined;
 		const bucketName = request.s3BucketName;
@@ -135,7 +135,7 @@ export class InstanceController {
 			}
 		}
 		if (bucketName && accessKey && secretAccessKey) {
-			this.s3UploadService.initialize(
+			this.remotePersistenceService.initialize(
 				accessKey,
 				secretAccessKey,
 				bucketName,
@@ -149,7 +149,7 @@ export class InstanceController {
 		videoType: BrowserVideo,
 	): Promise<SeleniumService> {
 		const fileNames =
-			await this.filesService.downloadBrowserMediaFiles(videoType);
+			await this.localFilesService.downloadBrowserMediaFiles(videoType);
 		await this.seleniumService.initialize(fileNames[0], fileNames[1]);
 		return this.seleniumService;
 	}

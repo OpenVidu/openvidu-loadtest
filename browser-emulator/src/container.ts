@@ -12,12 +12,13 @@ import { SeleniumService } from './services/selenium.service.js';
 import { DockerService } from './services/docker.service.js';
 import { LocalStorageService } from './services/local-storage.service.js';
 import { QoeAnalyzerService } from './services/qoe-analyzer.service.js';
-import { S3UploadService } from './services/files/s3upload.service.js';
+import { RemotePersistenceService } from './services/files/remote-persistence.service.ts';
 import type BaseComModule from './com-modules/base.js';
-import { FilesRepository } from './repositories/files/files.repository.js';
+import { LocalFilesRepository } from './repositories/files/local-files.repository.ts';
+import { S3Repository } from './repositories/files/s3.repository.js';
 import { InstanceController } from './controllers/instance.controller.js';
 import { discoverComModules } from './com-modules/discoverComModules.ts';
-import { FilesService } from './services/files/files.service.js';
+import { LocalFilesService } from './services/files/local-files.service.ts';
 
 // Define the container interface for type safety
 export interface DIContainer {
@@ -31,11 +32,11 @@ export interface DIContainer {
 	dockerService: DockerService;
 	localStorageService: LocalStorageService;
 	qoeAnalyzerService: QoeAnalyzerService;
-	s3FilesService: S3UploadService;
+	s3Repository: S3Repository;
 	comModule: BaseComModule;
-	filesRepository: FilesRepository;
-	filesService: FilesService;
-	s3UploadService: S3UploadService;
+	filesRepository: LocalFilesRepository;
+	filesService: LocalFilesService;
+	remotePersistenceService: RemotePersistenceService;
 	instanceController: InstanceController;
 }
 
@@ -62,19 +63,17 @@ export async function configureContainer(): Promise<
 		wsService: asClass(WsService).singleton(),
 		localStorageService: asClass(LocalStorageService).singleton(),
 		qoeAnalyzerService: asClass(QoeAnalyzerService).singleton(),
-		filesService: asClass(FilesService).singleton(),
-		s3UploadService: asClass(S3UploadService).singleton(),
+		localFilesService: asClass(LocalFilesService).singleton(),
+		remotePersistenceService: asClass(RemotePersistenceService).singleton(),
 
 		// Browser management services
 		seleniumService: asClass(SeleniumService).singleton(),
 		realBrowserService: asClass(RealBrowserService).singleton(),
 		browserManagerService: asClass(BrowserManagerService).singleton(),
 
-		// File services
-		s3FilesService: asClass(S3UploadService).singleton(),
-
 		// Repositories
-		filesRepository: asClass(FilesRepository).singleton(),
+		filesRepository: asClass(LocalFilesRepository).singleton(),
+		remotePersistenceRepository: asClass(S3Repository).singleton(), // Registering S3Repository as the implementation for RemotePersistenceRepository
 
 		// Controllers
 		instanceController: asClass(InstanceController).singleton(),

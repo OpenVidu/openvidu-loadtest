@@ -1,9 +1,9 @@
-import { FilesRepository } from '../../repositories/files/files.repository.js';
+import { LocalFilesRepository } from '../../repositories/files/local-files.repository.ts';
 import type { BrowserVideo } from '../../types/api-rest.type.ts';
 
-export class FilesService {
-	private readonly filesRepository: FilesRepository;
-	constructor(filesRepository: FilesRepository) {
+export class LocalFilesService {
+	private readonly filesRepository: LocalFilesRepository;
+	constructor(filesRepository: LocalFilesRepository) {
 		this.filesRepository = filesRepository;
 	}
 
@@ -28,12 +28,12 @@ export class FilesService {
 			this.filesRepository.downloadFile(
 				videoFile,
 				videoUrl,
-				FilesRepository.MEDIAFILES_DIR,
+				LocalFilesRepository.MEDIAFILES_DIR,
 			),
 			this.filesRepository.downloadFile(
 				audioFile,
 				audioUrl,
-				FilesRepository.MEDIAFILES_DIR,
+				LocalFilesRepository.MEDIAFILES_DIR,
 			),
 		];
 		return Promise.all(promises);
