@@ -5,8 +5,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
-    
+    runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
