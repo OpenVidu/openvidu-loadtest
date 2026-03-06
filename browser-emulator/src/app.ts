@@ -3,10 +3,6 @@ import https from 'node:https';
 import express from 'express';
 import { getContainer, resetContainer } from './container.js';
 
-import { app as ovBrowserController } from './controllers/openvidu-browser.controller.js';
-import { app as eventsController } from './controllers/events.controller.js';
-import { app as qoeController } from './controllers/qoe.controller.js';
-
 import { killAllDetached } from './utils/run-script.js';
 import { cleanupFakeMediaDevices } from './utils/fake-media-devices.js';
 import { asyncExitHook } from 'exit-hook';
@@ -56,10 +52,13 @@ async function createServer() {
 	app.use(express.json({ limit: '50mb' }));
 	app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-	app.use('/', eventsController);
-	app.use('/openvidu-browser', ovBrowserController);
+	app.use('/', container.resolve('eventsController').getRouter());
+	app.use(
+		'/openvidu-browser',
+		container.resolve('openViduBrowserController').getRouter(),
+	);
 	app.use('/instance', container.resolve('instanceController').getRouter());
-	app.use('/qoe', qoeController);
+	app.use('/qoe', container.resolve('qoeController').getRouter());
 
 	const options = {
 		key: fs.readFileSync(publicDir + '/key.pem', 'utf8'),

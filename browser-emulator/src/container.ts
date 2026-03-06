@@ -17,6 +17,9 @@ import type BaseComModule from './com-modules/base.js';
 import { LocalFilesRepository } from './repositories/files/local-files.repository.ts';
 import { S3Repository } from './repositories/files/s3.repository.js';
 import { InstanceController } from './controllers/instance.controller.js';
+import { EventsController } from './controllers/events.controller.js';
+import { OpenViduBrowserController } from './controllers/openvidu-browser.controller.js';
+import { QoeController } from './controllers/qoe.controller.js';
 import { discoverComModules } from './com-modules/discoverComModules.ts';
 import { LocalFilesService } from './services/files/local-files.service.ts';
 
@@ -38,6 +41,9 @@ export interface DIContainer {
 	filesService: LocalFilesService;
 	remotePersistenceService: RemotePersistenceService;
 	instanceController: InstanceController;
+	eventsController: EventsController;
+	openViduBrowserController: OpenViduBrowserController;
+	qoeController: QoeController;
 }
 
 /**
@@ -77,6 +83,11 @@ export async function configureContainer(): Promise<
 
 		// Controllers
 		instanceController: asClass(InstanceController).singleton(),
+		eventsController: asClass(EventsController).singleton(),
+		openViduBrowserController: asClass(
+			OpenViduBrowserController,
+		).singleton(),
+		qoeController: asClass(QoeController).singleton(),
 	});
 
 	const comModuleRegistry = await discoverComModules();

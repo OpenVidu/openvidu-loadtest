@@ -1,30 +1,57 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
-import { getContainer } from '../container.js';
 import { OpenViduRole, Resolution } from '../types/openvidu.type.js';
 import type {
 	CreateUserBrowser,
 	CreateUserBrowserRequest,
 	LoadTestPostResponse,
 } from '../types/api-rest.type.js';
+import type BaseComModule from '../com-modules/base.js';
+import type { BrowserManagerService } from '../services/browser-manager.service.js';
 
-export const app = express.Router({
-	strict: true,
-});
+export class OpenViduBrowserController {
+	private readonly router: express.Router;
+	private readonly comModule: BaseComModule;
+	private readonly browserManagerService: BrowserManagerService;
 
-app.post(
-	'/streamManager',
-	async (req: CreateUserBrowserRequest, res: Response) => {
+	constructor(
+		comModule: BaseComModule,
+		browserManagerService: BrowserManagerService,
+	) {
+		this.comModule = comModule;
+		this.browserManagerService = browserManagerService;
+		this.router = express.Router({ strict: true });
+		this.setupRoutes();
+	}
+
+	private setupRoutes(): void {
+		this.router.post(
+			'/streamManager',
+			this.handleStreamManagerPost.bind(this),
+		);
+		this.router.delete(
+			'/streamManager',
+			this.handleStreamManagerDelete.bind(this),
+		);
+		this.router.delete(
+			'/streamManager/connection/:connectionId',
+			this.handleStreamManagerConnectionDelete.bind(this),
+		);
+		this.router.delete(
+			'/streamManager/session/:sessionId/user/:userId',
+			this.handleStreamManagerSessionUserDelete.bind(this),
+		);
+	}
+
+	private async handleStreamManagerPost(
+		req: CreateUserBrowserRequest,
+		res: Response,
+	): Promise<void> {
 		try {
-			const container = await getContainer();
-			const comModuleInstance = container.resolve('comModule');
 			const request: CreateUserBrowser = req.body;
 
-			if (comModuleInstance.areParametersCorrect(request)) {
-				await comModuleInstance.processNewUserRequest(request);
-				const browserManagerService = container.resolve(
-					'browserManagerService',
-				);
+			if (this.comModule.areParametersCorrect(request)) {
+				await this.comModule.processNewUserRequest(request);
 
 				request.properties.frameRate =
 					request.properties.frameRate || 30;
@@ -47,14 +74,16 @@ app.post(
 					request.properties.showVideoElements ?? true;
 
 				const response: LoadTestPostResponse =
-					await browserManagerService.createStreamManager(request);
-				return res.status(200).send(response);
+					await this.browserManagerService.createStreamManager(
+						request,
+					);
+				res.status(200).send(response);
 			} else {
 				console.log(
 					'Problem with some body parameter' +
 						JSON.stringify(request),
 				);
-				return res.status(400).send('Problem with some body parameter');
+				res.status(400).send('Problem with some body parameter');
 			}
 		} catch (error: unknown) {
 			if (error instanceof Error) {
@@ -69,41 +98,37 @@ app.post(
 				});
 			}
 		}
-	},
-);
-
-app.delete('/streamManager', async (req: Request, res: Response) => {
-	const container = await getContainer();
-	const browserManagerService = container.resolve('browserManagerService');
-	console.log('Deleting all participants');
-	try {
-		await browserManagerService.clean();
-		res.status(200).send(`Instance ${req.headers.host} is clean`);
-	} catch (error) {
-		console.error(error);
-		res.status(500).send(error);
 	}
-});
 
-app.delete(
-	'/streamManager/connection/:connectionId',
-	async (req: Request, res: Response) => {
+	private async handleStreamManagerDelete(
+		req: Request,
+		res: Response,
+	): Promise<void> {
+		console.log('Deleting all participants');
+		try {
+			await this.browserManagerService.clean();
+			res.status(200).send(`Instance ${req.headers.host} is clean`);
+		} catch (error) {
+			console.error(error);
+			res.status(500).send(error);
+		}
+	}
+
+	private async handleStreamManagerConnectionDelete(
+		req: Request,
+		res: Response,
+	): Promise<void> {
 		try {
 			const connectionId = req.params.connectionId;
 
 			if (!connectionId || Array.isArray(connectionId)) {
-				return res
-					.status(400)
-					.send(
-						'Problem with connectionId parameter. IT DOES NOT EXIST',
-					);
+				res.status(400).send(
+					'Problem with connectionId parameter. IT DOES NOT EXIST',
+				);
+				return;
 			}
-			const container = await getContainer();
-			const browserManagerService = container.resolve(
-				'browserManagerService',
-			);
 			console.log('Deleting streams with connectionId: ' + connectionId);
-			await browserManagerService.deleteStreamManagerWithConnectionId(
+			await this.browserManagerService.deleteStreamManagerWithConnectionId(
 				connectionId,
 			);
 			res.status(200).send({});
@@ -111,12 +136,12 @@ app.delete(
 			console.log(error);
 			res.status(500).send(error);
 		}
-	},
-);
+	}
 
-app.delete(
-	'/streamManager/session/:sessionId/user/:userId',
-	async (req: Request, res: Response) => {
+	private async handleStreamManagerSessionUserDelete(
+		req: Request,
+		res: Response,
+	): Promise<void> {
 		try {
 			const sessionId = req.params.sessionId;
 			const userId = req.params.userId;
@@ -127,21 +152,18 @@ app.delete(
 				Array.isArray(sessionId) ||
 				Array.isArray(userId)
 			) {
-				return res
-					.status(400)
-					.send('Problem with userId or sessionId parameter ().');
+				res.status(400).send(
+					'Problem with userId or sessionId parameter ().',
+				);
+				return;
 			}
-			const container = await getContainer();
-			const browserManagerService = container.resolve(
-				'browserManagerService',
-			);
 			console.log(
 				'Deleting streams with sessionId: ' +
 					sessionId +
 					' and userId: ' +
 					userId,
 			);
-			await browserManagerService.deleteStreamManagerWithSessionAndUser(
+			await this.browserManagerService.deleteStreamManagerWithSessionAndUser(
 				sessionId,
 				userId,
 			);
@@ -150,5 +172,9 @@ app.delete(
 			console.log(error);
 			res.status(500).send(error);
 		}
-	},
-);
+	}
+
+	public getRouter(): express.Router {
+		return this.router;
+	}
+}

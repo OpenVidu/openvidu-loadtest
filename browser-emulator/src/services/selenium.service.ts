@@ -1,4 +1,4 @@
-import { isRunning, runScript } from '../utils/run-script.js';
+import { isRunning, run } from '../utils/run-script.js';
 import {
 	Browser,
 	Builder,
@@ -57,7 +57,7 @@ export class SeleniumService {
 			// TODO: choose display number in config
 			process.env.DISPLAY = ':10';
 			if (!(await isRunning(`Xvfb ${process.env.DISPLAY}`))) {
-				await runScript(
+				await run(
 					`Xvfb ${process.env.DISPLAY} -screen 0 1920x1080x24 -ac`,
 					{
 						detached: true,

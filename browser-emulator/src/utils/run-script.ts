@@ -56,7 +56,7 @@ function setupExitHandler(
 	});
 }
 
-export async function runScript(
+export async function run(
 	script: string,
 	options?: {
 		detached?: boolean;

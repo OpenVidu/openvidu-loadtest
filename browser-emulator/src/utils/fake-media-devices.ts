@@ -1,4 +1,4 @@
-import { runScript } from './run-script.js';
+import { run } from './run-script.js';
 import fsPromises from 'node:fs/promises';
 
 let started = false;
@@ -13,7 +13,7 @@ export async function startFakeMediaDevices(
 		// check install scripts for guidance
 		let loadedModules = '';
 		try {
-			await runScript('pactl list modules short', {
+			await run('pactl list modules short', {
 				stdoutCallback(chunk: string) {
 					loadedModules += chunk;
 				},
@@ -24,12 +24,12 @@ export async function startFakeMediaDevices(
 					loadedModules.includes('source_name=virtmic')
 				)
 			) {
-				await runScript(
+				await run(
 					`${process.cwd()}/recording_scripts/create-fake-microphone.sh`,
 				);
 			}
 		} catch {
-			await runScript(
+			await run(
 				`${process.cwd()}/recording_scripts/create-fake-microphone.sh`,
 			);
 		}
@@ -51,7 +51,7 @@ export async function startFakeMediaDevices(
 			}
 		}
 		// Start ffmpeg to read video and audio from files and write to virtual webcam and microphone
-		await runScript(
+		await run(
 			`${process.cwd()}/recording_scripts/start-fake-media.sh ${videoPath} ${audioPath}`,
 			{
 				detached: true,
@@ -64,7 +64,7 @@ export async function startFakeMediaDevices(
 
 export async function cleanupFakeMediaDevices() {
 	try {
-		await runScript(
+		await run(
 			`${process.cwd()}/recording_scripts/clear-fake-microphone.sh`,
 		);
 	} catch (err) {

@@ -12,7 +12,7 @@ import type {
 } from '../types/storage-config.type.js';
 import type { ConfigService } from './config.service.js';
 import { SeleniumService } from './selenium.service.js';
-import { runScript, stopDetached } from '../utils/run-script.js';
+import { run, stopDetached } from '../utils/run-script.js';
 import { Mutex } from 'async-mutex';
 import type { ChildProcess } from 'node:child_process';
 import type BaseComModule from '../com-modules/base.ts';
@@ -353,7 +353,7 @@ export class RealBrowserService {
 				` -f pulse -i 0 `,
 				`${process.cwd()}/recordings/chrome/session_${Date.now()}.mp4`,
 			].join('');
-			this.recordingScript = await runScript(ffmpegCommand, {
+			this.recordingScript = await run(ffmpegCommand, {
 				detached: true,
 			});
 		}
