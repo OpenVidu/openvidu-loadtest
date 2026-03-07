@@ -1,0 +1,43 @@
+name: Build and upload browser-emulator base box
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+  
+      - name: Setup Node.js with pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Vagrant & VirtualBox
+        run: |
+          sudo bash actions-scripts/install-vagrant-virtualbox.sh
+
+      - name: Fill .env file with secrets
+        run: |
+          cd browser-emulator
+          cat > .env << EOF
+          HCP_CLIENT_ID=${{ secrets.HCP_CLIENT_ID }}
+          HCP_CLIENT_SECRET=${{ secrets.HCP_CLIENT_SECRET }}
+          ORGANIZATION_ID=${{ secrets.ORGANIZATION_ID }}
+          PROJECT_ID=${{ secrets.PROJECT_ID }}
+          REGISTRY_NAME=${{ secrets.REGISTRY_NAME }}
+          EOF
+
+      - name: Create and upload Vagrant box
+        run: |
+          cd browser-emulator
+          bash ./create_and_upload_vagrant_box.sh
+
