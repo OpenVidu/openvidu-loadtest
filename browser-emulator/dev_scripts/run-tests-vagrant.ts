@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import {
+	mkdirSync,
+	writeFileSync,
+	readFileSync,
+	openSync,
+	closeSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -9,10 +15,45 @@ interface RunOptions {
 	livekit: boolean;
 	nodeName: string;
 	timeoutSeconds: number;
+	project: string | null;
 	halt: boolean;
 	destroy: boolean;
 	coverage: boolean;
 	debug: boolean;
+}
+
+type BooleanOptionKey = 'livekit' | 'coverage' | 'debug' | 'halt' | 'destroy';
+
+const DEFAULT_OPTIONS: RunOptions = {
+	livekit: false,
+	nodeName: 'node1',
+	timeoutSeconds: 600,
+	project: null,
+	halt: false,
+	destroy: false,
+	coverage: false,
+	debug: false,
+};
+
+const BOOLEAN_FLAGS: Record<string, BooleanOptionKey> = {
+	'--livekit': 'livekit',
+	'--coverage': 'coverage',
+	'--debug': 'debug',
+	'--halt': 'halt',
+	'--destroy': 'destroy',
+};
+
+const GUEST_LOG_DIRS = [
+	'/opt/openvidu-loadtest/browser-emulator/logs/',
+	'/var/log/',
+];
+
+function vagrantSshArgs(machine: string, command: string): string[] {
+	return ['ssh', machine, '-c', command];
+}
+
+function ensureParentDir(filePath: string): void {
+	mkdirSync(join(filePath, '..'), { recursive: true });
 }
 
 function printUsage(): void {
@@ -22,6 +63,7 @@ Options:
   --livekit           Wait for LiveKit readiness (default: OpenVidu)
   --node=<name>       Vagrant machine name (default: node1)
   --timeout=<secs>    Readiness timeout in seconds (default: 600, 10 minutes)
+  --project=<name>    Run only one Vitest project (for example: unit, e2e)
   --coverage          Run tests with coverage (test:all:native:coverage)
   --debug             Enable Node debugger (port 9230 forwarded to host)
   --halt              Halt VM after successful execution (vagrant halt)
@@ -31,27 +73,12 @@ Options:
 }
 
 function parseArgs(argv: string[]): RunOptions {
-	const options: RunOptions = {
-		livekit: false,
-		nodeName: 'node1',
-		timeoutSeconds: 600,
-		halt: false,
-		destroy: false,
-		coverage: false,
-		debug: false,
-	};
+	const options: RunOptions = { ...DEFAULT_OPTIONS };
 
 	for (const arg of argv) {
-		if (arg === '--livekit') {
-			options.livekit = true;
-		} else if (arg === '--coverage') {
-			options.coverage = true;
-		} else if (arg === '--debug') {
-			options.debug = true;
-		} else if (arg === '--halt') {
-			options.halt = true;
-		} else if (arg === '--destroy') {
-			options.destroy = true;
+		const booleanFlag = BOOLEAN_FLAGS[arg];
+		if (booleanFlag) {
+			options[booleanFlag] = true;
 		} else if (arg === '--help' || arg === '-h') {
 			printUsage();
 			process.exit(0);
@@ -63,6 +90,12 @@ function parseArgs(argv: string[]): RunOptions {
 				throw new Error(`Invalid timeout value: ${arg}`);
 			}
 			options.timeoutSeconds = parsed;
+		} else if (arg.startsWith('--project=')) {
+			const project = arg.slice('--project='.length).trim();
+			if (!project) {
+				throw new Error('Project name cannot be empty.');
+			}
+			options.project = project;
 		} else {
 			throw new Error(`Unknown option: ${arg}`);
 		}
@@ -112,10 +145,32 @@ function runVagrantCapture(
 	machine: string,
 	command: string,
 ): { status: number; stdout?: string; stderr?: string } {
-	return runCommand('vagrant', ['ssh', machine, '-c', command], {
+	return runCommand('vagrant', vagrantSshArgs(machine, command), {
 		capture: true,
 		allowFailure: true,
 	});
+}
+
+function runVagrantToFile(
+	machine: string,
+	command: string,
+	outputFile: string,
+): number {
+	const outputFd = openSync(outputFile, 'w');
+	try {
+		const result = spawnSync('vagrant', vagrantSshArgs(machine, command), {
+			stdio: ['ignore', outputFd, 'inherit'],
+			shell: false,
+		});
+
+		if (result.error) {
+			throw result.error;
+		}
+
+		return result.status ?? 1;
+	} finally {
+		closeSync(outputFd);
+	}
 }
 
 function nowStamp(): string {
@@ -173,7 +228,7 @@ function getPreviousHash(cacheFile: string): string | null {
 }
 
 function savePreviousHash(cacheFile: string, hash: string): void {
-	mkdirSync(join(cacheFile, '..'), { recursive: true });
+	ensureParentDir(cacheFile);
 	writeFileSync(cacheFile, hash, 'utf-8');
 }
 
@@ -292,75 +347,44 @@ function waitForPlatform(
 function collectGuestLogs(nodeName: string, outputDir: string): void {
 	mkdirSync(outputDir, { recursive: true });
 
-	const logs = [
-		'/var/log/openvidu.log',
-		'/var/log/livekit.log',
-		'/var/log/server.log',
-		'/var/log/build.log',
-		'/var/log/pnpm_install.log',
-		'/var/log/tests.log',
-		'/opt/openvidu-loadtest/browser-emulator/selenium.log',
-	];
+	const escapedSingleQuote = String.raw`'\''`;
+	const quotedDirs = GUEST_LOG_DIRS.map(dir => `"${dir}"`).join(' ');
+	const listCommand = `bash -lc 'for dir in ${quotedDirs}; do if [ -d "$dir" ]; then find "$dir" -type f -name "*.log" -readable; fi; done | sort -u'`;
+	const listResult = runVagrantCapture(nodeName, listCommand);
 
-	const marker = '__VAGRANT_LOG_SPLIT__';
-	const escapedQuote = String.raw`'\''`;
-	const quotedLogs = logs
-		.map(log => `'${log.replaceAll("'", escapedQuote)}'`)
-		.join(' ');
-	// Single vagrant ssh command; stdout is split locally into separate files.
-	const markerStart = marker + 'START';
-	const markerEnd = marker + 'END';
-	const command = `bash -lc 'for log in ${quotedLogs}; do if [ -f "$log" ]; then echo "${markerStart} $log"; cat "$log"; echo "${markerEnd} $log"; fi; done'`;
-	const result = runVagrantCapture(nodeName, command);
-
-	if (!result.stdout) {
+	if ((listResult.status ?? 1) !== 0) {
+		console.warn(
+			'Could not list guest log files. Log collection will be skipped.',
+		);
 		return;
 	}
 
-	const lines = result.stdout.split('\n');
-	const markerRegex = new RegExp(String.raw`^${marker}(START|END)\s+(.+)$`);
+	const guestLogPaths = (listResult.stdout ?? '')
+		.split('\n')
+		.map(path => path.trim())
+		.filter(Boolean);
 
-	let currentLog: string | null = null;
-	let buffer: string[] = [];
-
-	const flush = (): void => {
-		if (!currentLog) {
-			return;
-		}
-		const relativePath = currentLog.replace(/^\/+/, '');
+	for (const guestLogPath of guestLogPaths) {
+		const relativePath = guestLogPath.replace(/^\/+/, '');
 		const localPath = join(outputDir, relativePath);
-		mkdirSync(join(localPath, '..'), { recursive: true });
-		writeFileSync(localPath, buffer.join('\n'), 'utf-8');
-		buffer = [];
-	};
+		ensureParentDir(localPath);
 
-	for (const line of lines) {
-		const match = markerRegex.exec(line);
-		if (match) {
-			const [, kind, logPath] = match;
-			if (kind === 'START') {
-				flush();
-				currentLog = logPath;
-				buffer = [];
-			} else if (kind === 'END' && currentLog === logPath) {
-				flush();
-				currentLog = null;
-			}
-			continue;
-		}
-
-		if (currentLog) {
-			buffer.push(line);
+		const quotedLogPath = `'${guestLogPath.replaceAll("'", escapedSingleQuote)}'`;
+		const command = `bash -lc "if [ -f ${quotedLogPath} ]; then cat ${quotedLogPath}; fi"`;
+		const status = runVagrantToFile(nodeName, command, localPath);
+		if (status !== 0) {
+			console.warn(
+				`Could not collect guest log ${guestLogPath} (exit code ${status}).`,
+			);
 		}
 	}
-
-	flush();
 }
 
 function runTestsInsideGuest(
 	nodeName: string,
 	coverage: boolean,
 	debug: boolean,
+	project: string | null,
 ): number {
 	let scriptName: string;
 
@@ -369,10 +393,14 @@ function runTestsInsideGuest(
 	} else {
 		scriptName = coverage ? 'test:all:native:coverage' : 'test:all:native';
 	}
-	const testCommand = `pnpm run ${scriptName}`;
+	let testCommand = `pnpm run ${scriptName}`;
+	if (project) {
+		const escapedProject = project.replaceAll("'", String.raw`'\\''`);
+		testCommand += ` -- --project='${escapedProject}'`;
+	}
 
 	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && ${testCommand} 2>&1 | tee /var/log/tests.log"`;
-	const result = runCommand('vagrant', ['ssh', nodeName, '-c', command], {
+	const result = runCommand('vagrant', vagrantSshArgs(nodeName, command), {
 		allowFailure: true,
 		capture: false,
 	});
@@ -399,6 +427,7 @@ function main(): void {
 		nodeName,
 		options.coverage,
 		options.debug,
+		options.project,
 	);
 
 	const artifactsDir = join(
@@ -432,12 +461,19 @@ try {
 	process.exit(1);
 }
 function printOptions(options: RunOptions) {
+	const lines = [
+		`  Node: ${options.nodeName}`,
+		`  Platform: ${options.livekit ? 'LiveKit' : 'OpenVidu'}`,
+		`  Timeout: ${options.timeoutSeconds} seconds`,
+		`  Vitest project: ${options.project ?? 'all projects'}`,
+		`  Coverage: ${options.coverage ? 'enabled' : 'disabled'}`,
+		`  Debug: ${options.debug ? 'enabled' : 'disabled'}`,
+		`  Halt after tests: ${options.halt ? 'yes' : 'no'}`,
+		`  Destroy after tests: ${options.destroy ? 'yes' : 'no'}`,
+	];
+
 	console.log('Running with options:');
-	console.log(`  Node: ${options.nodeName}`);
-	console.log(`  Platform: ${options.livekit ? 'LiveKit' : 'OpenVidu'}`);
-	console.log(`  Timeout: ${options.timeoutSeconds} seconds`);
-	console.log(`  Coverage: ${options.coverage ? 'enabled' : 'disabled'}`);
-	console.log(`  Debug: ${options.debug ? 'enabled' : 'disabled'}`);
-	console.log(`  Halt after tests: ${options.halt ? 'yes' : 'no'}`);
-	console.log(`  Destroy after tests: ${options.destroy ? 'yes' : 'no'}`);
+	for (const line of lines) {
+		console.log(line);
+	}
 }
