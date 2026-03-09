@@ -21,6 +21,7 @@ This services also is listening for a **WebSocket communication** on `ws://brows
 ### Runtime Environment
 
 Base software needed:
+
 - Node 24.14.0+
 - pnpm@10.30.3
 
@@ -99,7 +100,7 @@ With this box, you can now set the **BOX** environment variable to the path of t
 
 The command `pnpm test` will only run tests that don't need any installed software, such as unit tests. For other types of tests, such as end-to-end tests, you can use the following commands:
 
-- `pnpm test:all`: Run all tests using the Vagrant virtual machine. This will run the tests in the VM, which has all dependencies installed.
+- `pnpm test:all`: Run all tests using the Vagrant virtual machine. This will run the tests in the VM, which has all dependencies installed. Arguments can be passed to customize the test run. Use `pnpm run test:all --help` to see all available arguments.
 - `pnpm test:all:native`: Run all tests in the host machine, without using Vagrant. This requires all dependencies to be installed in the native machine.
 
 There are more options available in the `package.json` file, such as adding coverage or destroying the VM after running the tests, so check it out for more information.
