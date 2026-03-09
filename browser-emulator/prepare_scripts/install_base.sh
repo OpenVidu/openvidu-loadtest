@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Shell setup, assumes running on Ubuntu 20.04 able to build and install v4l2loopback module
+# Shell setup, assumes running on Ubuntu 24.04 able to build and install v4l2loopback module
 # ====================================================
 
 # Trace all commands.
@@ -103,44 +103,10 @@ pull_images() {
     echo "docker images pulled"
 }
 
-install_firefox() {
-    # Get the latest Firefox release version
-    FFCHANNEL="latest"
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "x86_64" ]; then
-        LIBDIRSUFFIX="64"
-    elif [[ "$ARCH" = i?86 ]]; then
-        ARCH=i686
-        LIBDIRSUFFIX=""
-    else
-        echo "The architecture $ARCH is not supported." >&2
-        exit 1
-    fi
-    FFLANG="en-US"
-    VERSION=$(wget --spider -S --max-redirect 0 "https://download.mozilla.org/?product=firefox-${FFCHANNEL}&os=linux${LIBDIRSUFFIX}&lang=${FFLANG}" 2>&1 | sed -n '/Location: /{s|.*/firefox-\(.*\)\.tar.*|\1|p;q;}')
-    wget "https://download.mozilla.org/?product=firefox-${FFCHANNEL}&os=linux${LIBDIRSUFFIX}&lang=${FFLANG}" -O "firefox-${VERSION}.tar.xz"
-    tar xJf "firefox-${VERSION}.tar.xz"
-    mv firefox /opt
-    ln -s /opt/firefox/firefox /usr/bin/firefox
-    rm "firefox-${VERSION}.tar.xz"
-    echo "firefox installed"
-}
-
-download_chrome() {
-    wget -c https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-}
-
 install_v4l2loopback &
 pull_images &
 install_node_dependencies_and_build &
-install_firefox &
-install_chrome &
 wait
 
-
-apt-get install -f -yq ./google-chrome-stable_current_amd64.deb
-apt-get install -f -yq
 apt-get install -yq --no-install-recommends v4l2loopback-utils
-rm -f google-chrome-stable_current_amd64.deb
-echo "chrome installed"
-
+echo "base installation completed"
