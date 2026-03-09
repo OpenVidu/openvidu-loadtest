@@ -131,6 +131,7 @@ describe('RemotePersistenceService Integration Tests', () => {
 	beforeAll(async () => {
 		// Start S3Mock container
 		try {
+			console.log('Starting S3Mock container...');
 			s3MockContainer = await new S3MockContainer(
 				'adobe/s3mock:4.11.0',
 			).start();
@@ -150,14 +151,37 @@ describe('RemotePersistenceService Integration Tests', () => {
 			console.error('Failed to start S3Mock container:', error);
 			throw error;
 		}
-	}, 60000); // Allow up to 60 seconds for container pulling and startup
+	}, 120000);
 
 	afterAll(async () => {
 		if (s3MockContainer) {
-			await s3MockContainer.stop();
-			console.log(`S3Mock container stopped`);
+			try {
+				const maxRetries = 3;
+				let lastError: unknown;
+				for (let attempt = 1; attempt <= maxRetries; attempt++) {
+					try {
+						await s3MockContainer.stop();
+						console.log(`S3Mock container stopped`);
+						return;
+					} catch (error) {
+						lastError = error;
+						if (attempt < maxRetries) {
+							console.log(
+								`Retry ${attempt}/${maxRetries - 1} stopping S3Mock container...`,
+							);
+							await new Promise(resolve =>
+								setTimeout(resolve, 1000),
+							);
+						}
+					}
+				}
+
+				console.error('Error stopping S3Mock container:', lastError);
+			} catch (error) {
+				console.error('Error stopping S3Mock container:', error);
+			}
 		}
-	});
+	}, 120000);
 
 	afterEach(async () => {
 		remotePersistenceService.clean();
@@ -201,9 +225,8 @@ describe('RemotePersistenceService Integration Tests', () => {
 			removeDir(LocalFilesRepository.FULLSCREEN_RECORDING_DIR),
 			removeDir(LocalFilesRepository.QOE_RECORDING_DIR),
 			removeDir(LocalFilesRepository.STATS_DIR),
-			removeDir(LocalFilesRepository.MEDIAFILES_DIR),
 		]);
-	});
+	}, 120000);
 
 	beforeEach(() => {
 		// Generate unique bucket name for this test

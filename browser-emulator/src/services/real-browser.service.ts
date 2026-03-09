@@ -1,6 +1,8 @@
 import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import { By, logging, until, WebDriver } from 'selenium-webdriver';
 import type {
+	AvailableBrowsers,
 	CreateUserBrowser,
 	UserJoinProperties,
 } from '../types/api-rest.type.js';
@@ -12,10 +14,11 @@ import type {
 } from '../types/storage-config.type.js';
 import type { ConfigService } from './config.service.js';
 import { SeleniumService } from './selenium.service.js';
-import { run, stopDetached } from '../utils/run-script.js';
 import { Mutex } from 'async-mutex';
 import type { ChildProcess } from 'node:child_process';
 import type BaseComModule from '../com-modules/base.ts';
+import type { ScriptRunnerService } from './script-runner.service.ts';
+import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 
 declare let localStorage: Storage;
 export class RealBrowserService {
@@ -32,24 +35,29 @@ export class RealBrowserService {
 			sessionName: string;
 			userName: string;
 			connectionRole: OpenViduRole;
+			browser: AvailableBrowsers;
 		}
 	>();
 	private readonly keepAliveIntervals = new Map<string, NodeJS.Timeout>();
 	private totalPublishers = 0;
 	private recordingScript: ChildProcess | undefined;
+	private isRecordingFullScreen = false;
 	private readonly muteButtonMutex = new Mutex();
 	private readonly configService: ConfigService;
 	private readonly seleniumService: SeleniumService;
+	private readonly scriptRunnerService: ScriptRunnerService;
 	private readonly comModule: BaseComModule;
 
 	constructor(
 		configService: ConfigService,
 		seleniumService: SeleniumService,
 		comModule: BaseComModule,
+		scriptRunnerService: ScriptRunnerService,
 	) {
 		this.configService = configService;
 		this.seleniumService = seleniumService;
 		this.comModule = comModule;
+		this.scriptRunnerService = scriptRunnerService;
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
@@ -205,7 +213,7 @@ export class RealBrowserService {
 
 	async clean(): Promise<void> {
 		console.log('Cleaning real browsers');
-		this.stopRecording();
+		await this.stopRecording();
 		await Promise.all([
 			this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER),
 			this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER),
@@ -213,10 +221,10 @@ export class RealBrowserService {
 		console.log('Real browsers cleaned');
 	}
 
-	stopRecording() {
+	async stopRecording() {
 		if (this.recordingScript) {
 			console.log('Stopping general recording');
-			stopDetached(this.recordingScript);
+			await this.scriptRunnerService.killDetached(this.recordingScript);
 		}
 	}
 
@@ -274,6 +282,9 @@ export class RealBrowserService {
 			console.log(webappUrl);
 			const driver = await seleniumService.getDriver(
 				request.properties.browser,
+				request.properties.sessionName +
+					'_' +
+					request.properties.userId,
 			);
 			driverId = (await driver.getSession()).getId();
 			this.driverMap.set(driverId, {
@@ -281,6 +292,7 @@ export class RealBrowserService {
 				sessionName: request.properties.sessionName,
 				userName: request.properties.userId,
 				connectionRole: request.properties.role,
+				browser: request.properties.browser,
 			});
 			await driver.manage().setTimeouts({ script: 1800000 });
 			await driver.get(webappUrl);
@@ -345,17 +357,33 @@ export class RealBrowserService {
 			await driver.manage().window().maximize();
 		}
 
-		const isRecording = !!properties.recording && !properties.headless;
-		if (isRecording && !this.recordingScript) {
+		const recordFullScreen = !!properties.recording && !properties.headless;
+		if (recordFullScreen && !this.isRecordingFullScreen) {
+			this.isRecordingFullScreen = true;
 			const ffmpegCommand = [
 				'ffmpeg -hide_banner -loglevel warning -nostdin -y',
 				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
 				` -f pulse -i 0 `,
-				`${process.cwd()}/recordings/chrome/session_${Date.now()}.mp4`,
+				`${LocalFilesRepository.FULLSCREEN_RECORDING_DIR}/session_${Date.now()}.mp4`,
 			].join('');
-			this.recordingScript = await run(ffmpegCommand, {
-				detached: true,
-			});
+			const logFileFd = await fsPromises.open(
+				`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/fullscreen_recording_ffmpeg.log`,
+				'a',
+			);
+			this.recordingScript = await this.scriptRunnerService.run(
+				ffmpegCommand,
+				{
+					detached: true,
+					stdio: ['ignore', logFileFd.fd, logFileFd.fd],
+					onCloseCallback: code => {
+						console.log(
+							`Recording process exited with code ${code}`,
+						);
+						this.isRecordingFullScreen = false;
+					},
+				},
+			);
+			await logFileFd.close();
 		}
 	}
 
@@ -580,33 +608,30 @@ export class RealBrowserService {
 	}
 
 	private async printBrowserLogs(driverId: string) {
-		// FIX: Use the properties browser, probably will need to be saved in driverMap, although it will probably get refactored
-		if (process.env.REAL_DRIVER !== 'firefox') {
-			const driverInfo = this.driverMap.get(driverId);
-			if (driverInfo) {
-				const entries = await driverInfo.driver
-					.manage()
-					.logs()
-					.get(logging.Type.BROWSER);
-				if (entries) {
-					function formatTime(s: number): string {
-						const dtFormat = new Intl.DateTimeFormat('en-GB', {
-							timeStyle: 'medium',
-							timeZone: 'UTC',
-						});
-
-						return dtFormat.format(new Date(s * 1e3));
-					}
-
-					entries.forEach(function (entry) {
-						console.log(
-							'%s - [%s] %s',
-							formatTime(entry.timestamp),
-							entry.level.name,
-							entry.message,
-						);
+		const driverInfo = this.driverMap.get(driverId);
+		if (driverInfo && driverInfo.browser !== 'firefox') {
+			const entries = await driverInfo.driver
+				.manage()
+				.logs()
+				.get(logging.Type.BROWSER);
+			if (entries) {
+				function formatTime(s: number): string {
+					const dtFormat = new Intl.DateTimeFormat('en-GB', {
+						timeStyle: 'medium',
+						timeZone: 'UTC',
 					});
+
+					return dtFormat.format(new Date(s * 1e3));
 				}
+
+				entries.forEach(function (entry) {
+					console.log(
+						'%s - [%s] %s',
+						formatTime(entry.timestamp),
+						entry.level.name,
+						entry.message,
+					);
+				});
 			}
 		}
 	}

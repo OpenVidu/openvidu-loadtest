@@ -17,11 +17,28 @@ export default defineConfig({
 				},
 			},
 			{
+				// These integration tests don't require to be running in an ubuntu instance
+				// with software package dependencies from install scripts installed,
+				// just docker
 				extends: true,
 				test: {
-					name: 'integration',
-					include: ['tests/integration/**/**.test.ts'],
+					name: 'integration-generic',
+					include: ['tests/integration-generic/**/**.test.ts'],
 					testTimeout: 600000, // 10 minutes for container startup and file operations
+				},
+			},
+			{
+				// These integration tests require to be running in an ubuntu instance
+				// with software package dependencies from install scripts installed
+				extends: true,
+				test: {
+					name: 'integration-native',
+					include: ['tests/integration-native/**/**.test.ts'],
+					testTimeout: 600000, // 10 minutes for container startup and file operations
+					sequence: {
+						concurrent: false,
+					},
+					fileParallelism: false,
 				},
 			},
 			{

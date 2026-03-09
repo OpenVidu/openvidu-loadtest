@@ -1,4 +1,3 @@
-import { isRunning, run } from '../utils/run-script.js';
 import {
 	Browser,
 	Builder,
@@ -8,8 +7,11 @@ import {
 } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import firefox from 'selenium-webdriver/firefox.js';
-import { startFakeMediaDevices } from '../utils/fake-media-devices.js';
 import type { AvailableBrowsers } from '../types/api-rest.type.ts';
+import type { ScriptRunnerService } from './script-runner.service.ts';
+import type { FakeMediaDevicesService } from './fake-media/fake-media-devices.service.ts';
+import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
+import fsPromises from 'node:fs/promises';
 
 export class SeleniumService {
 	private isInitialized = false;
@@ -21,14 +23,23 @@ export class SeleniumService {
 	private readonly firefoxOptions = new firefox.Options();
 	private readonly firefoxCapabilities = Capabilities.firefox();
 
-	public constructor() {
+	private readonly scriptRunnerService: ScriptRunnerService;
+	private readonly fakeMediaDevicesService: FakeMediaDevicesService;
+
+	public constructor(
+		scriptRunnerService: ScriptRunnerService,
+		fakeMediaDevicesService: FakeMediaDevicesService,
+	) {
+		this.scriptRunnerService = scriptRunnerService;
+		this.fakeMediaDevicesService = fakeMediaDevicesService;
 		const prefs = new logging.Preferences();
 		logging.getLogger('webdriver');
-		prefs.setLevel(logging.Type.BROWSER, logging.Level.INFO);
-		prefs.setLevel(logging.Type.DRIVER, logging.Level.INFO);
-		prefs.setLevel(logging.Type.CLIENT, logging.Level.INFO);
-		prefs.setLevel(logging.Type.PERFORMANCE, logging.Level.INFO);
-		prefs.setLevel(logging.Type.SERVER, logging.Level.INFO);
+		const logLevel = logging.Level.INFO;
+		prefs.setLevel(logging.Type.BROWSER, logLevel);
+		prefs.setLevel(logging.Type.DRIVER, logLevel);
+		prefs.setLevel(logging.Type.CLIENT, logLevel);
+		prefs.setLevel(logging.Type.PERFORMANCE, logLevel);
+		prefs.setLevel(logging.Type.SERVER, logLevel);
 		logging.installConsoleHandler();
 		this.firefoxCapabilities.setLoggingPrefs(prefs);
 		this.firefoxCapabilities.setAcceptInsecureCerts(true);
@@ -54,35 +65,57 @@ export class SeleniumService {
 	): Promise<void> {
 		if (!this.isInitialized) {
 			// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
+			// TODO: launch vnc server, maybe in some debug mode
 			// TODO: choose display number in config
 			process.env.DISPLAY = ':10';
-			if (!(await isRunning(`Xvfb ${process.env.DISPLAY}`))) {
-				await run(
+			if (
+				!(await this.scriptRunnerService.isRunning(
+					`Xvfb ${process.env.DISPLAY}`,
+				))
+			) {
+				const xvfbLogFd = await fsPromises.open(
+					`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/xvfb.log`,
+					'a',
+				);
+				// TODO: Maybe screen res should be parametrized somehow
+				await this.scriptRunnerService.run(
 					`Xvfb ${process.env.DISPLAY} -screen 0 1920x1080x24 -ac`,
 					{
 						detached: true,
-						ignoreLogs: true,
+						stdio: ['ignore', xvfbLogFd.fd, xvfbLogFd.fd],
 					},
 				);
+				await xvfbLogFd.close();
 			}
 			// Start fake webcam for media capture
-			await startFakeMediaDevices(videoPath, audioPath);
+			await this.fakeMediaDevicesService.startFakeMediaDevices(
+				videoPath,
+				audioPath,
+				() => {
+					this.isInitialized = false;
+				},
+			);
 			this.isInitialized = true;
 		}
 	}
 
-	public async getDriver(browser: AvailableBrowsers): Promise<WebDriver> {
+	public async getDriver(
+		browser: AvailableBrowsers,
+		logName?: string,
+	): Promise<WebDriver> {
 		if (browser === 'firefox') {
 			return await this.getFirefoxDriver();
 		} else {
-			return await this.getChromeDriver();
+			return await this.getChromeDriver(logName);
 		}
 	}
 
-	private async getChromeDriver(): Promise<WebDriver> {
+	private async getChromeDriver(logName?: string): Promise<WebDriver> {
 		const sb = new chrome.ServiceBuilder()
 			.enableVerboseLogging()
-			.loggingTo(`${process.cwd()}/selenium.log`);
+			.loggingTo(
+				`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/selenium-${logName ?? Date.now()}.log`,
+			);
 		return await new Builder()
 			.forBrowser(Browser.CHROME)
 			.withCapabilities(this.chromeCapabilities)

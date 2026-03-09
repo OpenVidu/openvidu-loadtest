@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import http from 'node:http';
+import { createHash } from 'node:crypto';
 import { URL } from 'node:url';
 
 export class LocalFilesRepository {
@@ -9,30 +10,22 @@ export class LocalFilesRepository {
 	public static readonly QOE_RECORDING_DIR = `${process.cwd()}/recordings/qoe`;
 	public static readonly STATS_DIR = `${process.cwd()}/stats`;
 	public static readonly MEDIAFILES_DIR = `${process.cwd()}/src/assets/mediafiles`;
+	public static readonly SCRIPTS_LOGS_DIR = `${process.cwd()}/logs`;
 
 	constructor() {
 		this.createNeededDirectories();
 	}
 
 	private createNeededDirectories() {
-		if (!fs.existsSync(LocalFilesRepository.FULLSCREEN_RECORDING_DIR)) {
-			fs.mkdirSync(LocalFilesRepository.FULLSCREEN_RECORDING_DIR, {
-				recursive: true,
-			});
-		}
-		if (!fs.existsSync(LocalFilesRepository.QOE_RECORDING_DIR)) {
-			fs.mkdirSync(LocalFilesRepository.QOE_RECORDING_DIR, {
-				recursive: true,
-			});
-		}
-		if (!fs.existsSync(LocalFilesRepository.STATS_DIR)) {
-			fs.mkdirSync(LocalFilesRepository.STATS_DIR, { recursive: true });
-		}
-		if (!fs.existsSync(LocalFilesRepository.MEDIAFILES_DIR)) {
-			fs.mkdirSync(LocalFilesRepository.MEDIAFILES_DIR, {
-				recursive: true,
-			});
-		}
+		const requiredDirs = [
+			LocalFilesRepository.FULLSCREEN_RECORDING_DIR,
+			LocalFilesRepository.QOE_RECORDING_DIR,
+			LocalFilesRepository.STATS_DIR,
+			LocalFilesRepository.MEDIAFILES_DIR,
+			LocalFilesRepository.SCRIPTS_LOGS_DIR,
+		];
+
+		requiredDirs.forEach(dir => fs.mkdirSync(dir, { recursive: true }));
 	}
 
 	public async downloadFile(
@@ -50,9 +43,102 @@ export class LocalFilesRepository {
 				);
 			}
 		}
+
+		const fileExistsLocally = await this.fileExists(filePath);
+		if (fileExistsLocally) {
+			const remoteSha256 = await this.getRemoteSha256Header(fileUrl);
+			if (remoteSha256) {
+				const localSha256 = await this.calculateFileSha256(filePath);
+				if (localSha256.toLowerCase() === remoteSha256.toLowerCase()) {
+					console.log(
+						'File ' +
+							filePath +
+							' already exists with matching SHA-256',
+					);
+					return filePath;
+				}
+			}
+		}
+
 		const file = fs.createWriteStream(filePath);
 		console.log('Downloading ' + fileUrl + ' to ' + filePath);
 		return this.download(fileUrl, filePath, file);
+	}
+
+	private async fileExists(filePath: string): Promise<boolean> {
+		try {
+			await fsPromises.access(filePath, fs.constants.F_OK);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	private async calculateFileSha256(filePath: string): Promise<string> {
+		return new Promise<string>((resolve, reject) => {
+			const hash = createHash('sha256');
+			const readStream = fs.createReadStream(filePath);
+
+			readStream.on('data', chunk => hash.update(chunk));
+			readStream.on('end', () => resolve(hash.digest('hex')));
+			readStream.on('error', err => reject(err));
+		});
+	}
+
+	private async getRemoteSha256Header(
+		fileUrl: string,
+	): Promise<string | undefined> {
+		const headers = await this.headRequest(fileUrl);
+		const shaHeader = headers['x-amz-meta-sha256'];
+		if (Array.isArray(shaHeader)) {
+			return shaHeader[0]?.trim();
+		}
+		return shaHeader?.trim();
+	}
+
+	private async headRequest(
+		fileUrl: string,
+	): Promise<http.IncomingHttpHeaders> {
+		const requestUrl = new URL(fileUrl);
+		const protocol = requestUrl.protocol.slice(0, -1);
+		const httpModule = protocol === 'https' ? https : http;
+
+		return new Promise<http.IncomingHttpHeaders>((resolve, reject) => {
+			const request = httpModule.request(
+				requestUrl,
+				{ method: 'HEAD' },
+				(response: http.IncomingMessage) => {
+					if (
+						!!response.statusCode &&
+						response.statusCode >= 200 &&
+						response.statusCode < 300
+					) {
+						resolve(response.headers);
+						return;
+					}
+
+					if (response.headers.location) {
+						const redirectUrl = new URL(
+							response.headers.location,
+							requestUrl,
+						).toString();
+						this.headRequest(redirectUrl)
+							.then(resolve)
+							.catch(reject);
+						return;
+					}
+
+					reject(
+						new Error(
+							response.statusCode + ' ' + response.statusMessage,
+						),
+					);
+				},
+			);
+
+			request.on('error', err => reject(err));
+			request.end();
+		});
 	}
 
 	private async download(

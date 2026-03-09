@@ -8,7 +8,6 @@ import fsPromises from 'node:fs/promises';
 import pLimit from 'p-limit';
 import * as path from 'node:path';
 import { getContainer } from '../container.js';
-import { run } from './run-script.js';
 import type { ChildProcess } from 'node:child_process';
 
 const limit = pLimit(1); // Scripts are already multithreaded
@@ -147,7 +146,9 @@ async function runSingleAnalysis(
 	if (allAnalysis) {
 		allAnalysisString = ' --all_analysis';
 	}
-	return run(
+	const container = await getContainer();
+	const scriptRunnerService = container.resolve('scriptRunnerService');
+	return scriptRunnerService.run(
 		`python3 ${process.cwd()}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` +
 			maxCpusString +
 			debugString +

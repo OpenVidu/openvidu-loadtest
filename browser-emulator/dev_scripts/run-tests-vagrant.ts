@@ -57,18 +57,26 @@ function ensureParentDir(filePath: string): void {
 }
 
 function printUsage(): void {
-	console.log(`Usage: tsx ./dev_scripts/run-tests-vagrant.ts [options]
+	console.log(`Usage: pnpm run test:all -- [options]
 
 Options:
-  --livekit           Wait for LiveKit readiness (default: OpenVidu)
+  --livekit           Wait for LiveKit readiness (default: wait for OpenVidu)
   --node=<name>       Vagrant machine name (default: node1)
   --timeout=<secs>    Readiness timeout in seconds (default: 600, 10 minutes)
   --project=<name>    Run only one Vitest project (for example: unit, e2e)
-  --coverage          Run tests with coverage (test:all:native:coverage)
+  --coverage          Run tests with coverage
   --debug             Enable Node debugger (port 9230 forwarded to host)
   --halt              Halt VM after successful execution (vagrant halt)
   --destroy           Destroy VM after successful execution (vagrant destroy -f)
   --help              Show this help
+
+Examples:
+  # Run all tests on OpenVidu 2
+  pnpm run test:all
+  # Run only e2e tests on LiveKit with coverage
+  pnpm run test:all -- --livekit --project=e2e --coverage
+  # Run integration-native tests with debugger enabled (Recommended: Use the VSCode launch configuration instead for easier use)
+  pnpm run test:all -- --project=integration-native --debug
 `);
 }
 
@@ -386,18 +394,18 @@ function runTestsInsideGuest(
 	debug: boolean,
 	project: string | null,
 ): number {
-	let scriptName: string;
-
+	let testCommand = 'pnpm exec vitest run';
+	if (coverage) {
+		testCommand += ' --coverage';
+	}
 	if (debug) {
-		scriptName = 'test:all:native:debug';
-	} else {
-		scriptName = coverage ? 'test:all:native:coverage' : 'test:all:native';
+		testCommand +=
+			' --inspect-brk=0.0.0.0:9230 --no-file-parallelism --test-timeout=0';
 	}
-	let testCommand = `pnpm run ${scriptName}`;
 	if (project) {
-		const escapedProject = project.replaceAll("'", String.raw`'\\''`);
-		testCommand += ` -- --project='${escapedProject}'`;
+		testCommand += ` --project=${project}`;
 	}
+	console.log(`Running test command inside guest: ${testCommand}`);
 
 	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && ${testCommand} 2>&1 | tee /var/log/tests.log"`;
 	const result = runCommand('vagrant', vagrantSshArgs(nodeName, command), {

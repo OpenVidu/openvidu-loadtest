@@ -6,7 +6,7 @@
 			"type": "node",
 			"request": "launch",
 			"runtimeExecutable": "pnpm",
-			"runtimeArgs": ["run", "test:all:debug"],
+			"runtimeArgs": ["run", "test:all", "--debug"],
 			"cwd": "${workspaceFolder}"
 		},
 		{
@@ -15,25 +15,10 @@
 			"request": "attach",
 			"address": "127.0.0.1",
 			"port": 9230,
-			"timeout": 600000,
+			"timeout": 1200000,
 			"localRoot": "${workspaceFolder}",
 			"remoteRoot": "/opt/openvidu-loadtest/browser-emulator",
 			"skipFiles": ["<node_internals>/**", "**/node_modules/**"]
-		}
-	],
-	"compounds": [
-		{
-			"name": "Launch and Attach to Vagrant Tests",
-			"configurations": [
-				"Launch tests in Vagrant for Debugging",
-				"Attach to Vagrant debug session"
-			],
-			"presentation": {
-				"hidden": false,
-				"group": "1",
-				"order": 1
-			},
-			"stopAll": true
 		}
 	]
 }

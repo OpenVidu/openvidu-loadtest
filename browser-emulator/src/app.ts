@@ -2,9 +2,6 @@ import fs from 'node:fs';
 import https from 'node:https';
 import express from 'express';
 import { getContainer, resetContainer } from './container.js';
-
-import { killAllDetached } from './utils/run-script.js';
-import { cleanupFakeMediaDevices } from './utils/fake-media-devices.js';
 import { asyncExitHook } from 'exit-hook';
 
 let app: express.Application;
@@ -22,8 +19,12 @@ async function cleanup() {
 		'remotePersistenceService',
 	);
 	remotePersistenceService.clean();
-	await killAllDetached();
-	await cleanupFakeMediaDevices();
+	const scriptRunnerService = container.resolve('scriptRunnerService');
+	await scriptRunnerService.killAllDetached();
+	const fakeMediaDevicesService = container.resolve(
+		'fakeMediaDevicesService',
+	);
+	await fakeMediaDevicesService.cleanupFakeMediaDevices();
 }
 
 async function createServer() {

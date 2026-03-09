@@ -22,6 +22,8 @@ import { OpenViduBrowserController } from './controllers/openvidu-browser.contro
 import { QoeController } from './controllers/qoe.controller.js';
 import { discoverComModules } from './com-modules/discoverComModules.ts';
 import { LocalFilesService } from './services/files/local-files.service.ts';
+import { ScriptRunnerService } from './services/script-runner.service.ts';
+import { FakeMediaDevicesService } from './services/fake-media/fake-media-devices.service.ts';
 
 // Define the container interface for type safety
 export interface DIContainer {
@@ -35,6 +37,8 @@ export interface DIContainer {
 	dockerService: DockerService;
 	localStorageService: LocalStorageService;
 	qoeAnalyzerService: QoeAnalyzerService;
+	scriptRunnerService: ScriptRunnerService;
+	fakeMediaDevicesService: FakeMediaDevicesService;
 	s3Repository: S3Repository;
 	comModule: BaseComModule;
 	filesRepository: LocalFilesRepository;
@@ -71,6 +75,8 @@ export async function configureContainer(): Promise<
 		qoeAnalyzerService: asClass(QoeAnalyzerService).singleton(),
 		localFilesService: asClass(LocalFilesService).singleton(),
 		remotePersistenceService: asClass(RemotePersistenceService).singleton(),
+		scriptRunnerService: asClass(ScriptRunnerService).singleton(),
+		fakeMediaDevicesService: asClass(FakeMediaDevicesService).singleton(),
 
 		// Browser management services
 		seleniumService: asClass(SeleniumService).singleton(),
