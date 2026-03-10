@@ -1,13 +1,12 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
 import { OpenViduRole, Resolution } from '../types/openvidu.type.js';
-import type {
-	CreateUserBrowser,
-	CreateUserBrowserRequest,
-	LoadTestPostResponse,
-} from '../types/api-rest.type.js';
 import type BaseComModule from '../com-modules/base.js';
 import type { BrowserManagerService } from '../services/browser-manager.service.js';
+import type {
+	CreateUserBrowserResponse,
+	CreateUserBrowserRequest,
+} from '../types/create-user.type.ts';
 
 export class OpenViduBrowserController {
 	private readonly router: express.Router;
@@ -48,7 +47,7 @@ export class OpenViduBrowserController {
 		res: Response,
 	): Promise<void> {
 		try {
-			const request: CreateUserBrowser = req.body;
+			const request = req.body;
 
 			if (this.comModule.areParametersCorrect(request)) {
 				await this.comModule.processNewUserRequest(request);
@@ -73,7 +72,7 @@ export class OpenViduBrowserController {
 				request.properties.showVideoElements =
 					request.properties.showVideoElements ?? true;
 
-				const response: LoadTestPostResponse =
+				const response: CreateUserBrowserResponse =
 					await this.browserManagerService.createStreamManager(
 						request,
 					);

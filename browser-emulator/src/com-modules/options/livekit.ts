@@ -1,8 +1,8 @@
 import { AccessToken } from 'livekit-server-sdk';
-import type { LKLoadTestPostRequest } from '../../types/com-modules/livekit.ts';
-import type { UserJoinProperties } from '../../types/api-rest.type.ts';
+import type { LKCreateUserBrowser } from '../../types/com-modules/livekit.ts';
 import type { ConfigService } from '../../services/config.service.ts';
 import BaseComModule from '../base.ts';
+import type { UserJoinProperties } from '../../types/create-user.type.ts';
 
 export default class LiveKitComModule extends BaseComModule {
 	private readonly _PUBLIC_DIR = `public-lk`;
@@ -17,7 +17,7 @@ export default class LiveKitComModule extends BaseComModule {
 		return this._PUBLIC_DIR;
 	}
 
-	async processNewUserRequest(request: LKLoadTestPostRequest): Promise<void> {
+	async processNewUserRequest(request: LKCreateUserBrowser): Promise<void> {
 		// Generate LiveKit Token
 		const roomName = request.properties.sessionName;
 		const participantName = request.properties.userId;
@@ -38,7 +38,7 @@ export default class LiveKitComModule extends BaseComModule {
 		console.log(token);
 	}
 
-	areParametersCorrect(request: LKLoadTestPostRequest): boolean {
+	areParametersCorrect(request: LKCreateUserBrowser): boolean {
 		const openviduUrl: string = request.openviduUrl;
 		const properties: UserJoinProperties = request.properties;
 
@@ -52,7 +52,7 @@ export default class LiveKitComModule extends BaseComModule {
 		return livekitConditions;
 	}
 
-	generateWebappUrl(request: LKLoadTestPostRequest): string {
+	generateWebappUrl(request: LKCreateUserBrowser): string {
 		const properties: UserJoinProperties = request.properties;
 		const token: string | undefined = request.token;
 		const publicUrl = `publicurl=${request.openviduUrl}&`;

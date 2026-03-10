@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
-import type { JSONQoeProcessing } from '../types/api-rest.type.js';
 import {
 	runQoEAnalysisBlocking,
 	processFilesAndUploadResults,
 } from '../utils/qoe-analysis-utils.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import type { JSONQoeProcessing } from '../types/json.type.ts';
 const argv = yargs(hideBin(process.argv))
 	.options({
 		cpus: { type: 'number', default: undefined },

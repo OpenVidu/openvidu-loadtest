@@ -1,4 +1,4 @@
-import type { CreateUserBrowser } from '../types/api-rest.type.js';
+import type { CreateUserBrowser } from '../types/create-user.type.ts';
 
 export default abstract class BaseComModule {
 	abstract processNewUserRequest(request: CreateUserBrowser): Promise<void>;

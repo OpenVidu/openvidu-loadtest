@@ -1,8 +1,8 @@
+import type { ConfigService } from '../../services/config.service.ts';
 import type {
 	CreateUserBrowser,
 	UserJoinProperties,
-} from '../../types/api-rest.type.ts';
-import type { ConfigService } from '../../services/config.service.ts';
+} from '../../types/create-user.type.ts';
 import BaseComModule from '../base.ts';
 
 export default class OpenviduComModule extends BaseComModule {

@@ -1,14 +1,14 @@
-import type {
-	JSONQoEInfo,
-	JSONQoeProcessing,
-	JSONUserInfo,
-} from '../types/api-rest.type.js';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import pLimit from 'p-limit';
 import * as path from 'node:path';
 import { getContainer } from '../container.js';
 import type { ChildProcess } from 'node:child_process';
+import type {
+	JSONQoEInfo,
+	JSONQoeProcessing,
+	JSONUserInfo,
+} from '../types/json.type.ts';
 
 const limit = pLimit(1); // Scripts are already multithreaded
 

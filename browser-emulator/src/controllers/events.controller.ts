@@ -1,9 +1,5 @@
 import * as express from 'express';
 import type { Response } from 'express';
-import type {
-	BrowserEventRequest,
-	WebRTCStatsRequest,
-} from '../types/api-rest.type.js';
 import type { ElasticSearchService } from '../services/elasticsearch.service.js';
 import type { WsService } from '../services/ws.service.js';
 import {
@@ -12,6 +8,8 @@ import {
 	STATS_FILE,
 	addSaveStatsToFileToQueue,
 } from '../utils/stats-files.js';
+import type { WebRTCStatsRequest } from '../types/webrtc-stats.type.ts';
+import type { BrowserEventRequest } from '../types/browser-event.type.ts';
 
 // DEBUG: Print full objects (only uncomment for debug sessions during development)
 // require("util").inspect.defaultOptions.depth = null;

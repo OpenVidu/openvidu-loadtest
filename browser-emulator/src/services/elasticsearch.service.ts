@@ -1,12 +1,12 @@
 import { Client } from '@elastic/elasticsearch';
 import type { ConfigService } from './config.service.js';
+import fs from 'node:fs';
+import type { ClientOptions } from '@elastic/elasticsearch/lib/client';
 import type {
 	JSONQoEInfo,
 	JSONStatsResponse,
 	JSONStreamsInfo,
-} from '../types/api-rest.type.js';
-import fs from 'node:fs';
-import type { ClientOptions } from '@elastic/elasticsearch/lib/client';
+} from '../types/json.type.ts';
 
 export class ElasticSearchService {
 	indexName = '';

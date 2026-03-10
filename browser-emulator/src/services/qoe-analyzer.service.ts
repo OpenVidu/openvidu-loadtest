@@ -1,6 +1,6 @@
 import { BrowserManagerService } from './browser-manager.service.js';
-import type { JSONQoeProcessing } from '../types/api-rest.type.js';
 import { runQoEAnalysisNonBlocking } from '../utils/qoe-analysis-utils.js';
+import type { JSONQoeProcessing } from '../types/json.type.ts';
 
 export class QoeAnalyzerService {
 	private FRAGMENT_DURATION = 5;

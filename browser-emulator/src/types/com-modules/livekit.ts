@@ -1,6 +1,6 @@
-import type { CreateUserBrowser } from '../api-rest.type.js';
+import type { CreateUserBrowser } from '../create-user.type.ts';
 
-export type LKLoadTestPostRequest = CreateUserBrowser & {
+export type LKCreateUserBrowser = CreateUserBrowser & {
 	livekitApiKey?: string;
 	livekitApiSecret?: string;
 };

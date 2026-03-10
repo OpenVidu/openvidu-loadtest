@@ -1,8 +1,3 @@
-import type {
-	JSONStreamsInfo,
-	CreateUserBrowser,
-	LoadTestPostResponse,
-} from '../types/api-rest.type.js';
 import { InstanceService } from './instance.service.js';
 import { RealBrowserService } from './real-browser.service.js';
 import { ElasticSearchService } from './elasticsearch.service.js';
@@ -22,6 +17,11 @@ import { WebrtcStatsLocalStorage } from '../data/browser-localstorage-configs/we
 import { OpenViduEventsLocalStorage } from '../data/browser-localstorage-configs/openvidu-events-localstorage.ts';
 import { QoERecordingsLocalStorage } from '../data/browser-localstorage-configs/qoe-recordings-localstorage.ts';
 import { ErrorEventLocalStorage } from '../data/browser-localstorage-configs/openvidu-error-event-localstorage.ts';
+import type {
+	CreateUserBrowser,
+	CreateUserBrowserResponse,
+} from '../types/create-user.type.ts';
+import type { JSONStreamsInfo } from '../types/json.type.ts';
 
 export class BrowserManagerService {
 	private _lastRequestInfo: CreateUserBrowser | undefined;
@@ -47,7 +47,7 @@ export class BrowserManagerService {
 
 	async createStreamManager(
 		request: CreateUserBrowser,
-	): Promise<LoadTestPostResponse> {
+	): Promise<CreateUserBrowserResponse> {
 		const userId = request.properties.userId;
 		const sessionId = request.properties.sessionName;
 		await createAllStatFilesForSession(userId, sessionId);
