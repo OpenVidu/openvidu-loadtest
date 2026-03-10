@@ -1,11 +1,5 @@
-import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import { By, logging, until, WebDriver } from 'selenium-webdriver';
-import type {
-	AvailableBrowsers,
-	CreateUserBrowser,
-	UserJoinProperties,
-} from '../types/api-rest.type.js';
 import { OpenViduRole } from '../types/openvidu.type.js';
 import type { Storage } from './local-storage.service.js';
 import type {
@@ -19,6 +13,11 @@ import type { ChildProcess } from 'node:child_process';
 import type BaseComModule from '../com-modules/base.ts';
 import type { ScriptRunnerService } from './script-runner.service.ts';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
+import type {
+	AvailableBrowsers,
+	CreateUserBrowser,
+	UserJoinProperties,
+} from '../types/create-user.type.ts';
 
 declare let localStorage: Storage;
 export class RealBrowserService {
@@ -46,6 +45,7 @@ export class RealBrowserService {
 	private readonly configService: ConfigService;
 	private readonly seleniumService: SeleniumService;
 	private readonly scriptRunnerService: ScriptRunnerService;
+	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly comModule: BaseComModule;
 
 	constructor(
@@ -53,11 +53,13 @@ export class RealBrowserService {
 		seleniumService: SeleniumService,
 		comModule: BaseComModule,
 		scriptRunnerService: ScriptRunnerService,
+		localFilesRepository: LocalFilesRepository,
 	) {
 		this.configService = configService;
 		this.seleniumService = seleniumService;
 		this.comModule = comModule;
 		this.scriptRunnerService = scriptRunnerService;
+		this.localFilesRepository = localFilesRepository;
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
@@ -236,16 +238,16 @@ export class RealBrowserService {
 	): Promise<string> {
 		const properties = request.properties;
 		if (
-			!this.existMediaFiles(
-				properties.resolution,
-				properties.frameRate,
-			) &&
 			!process.env.IS_DOCKER_CONTAINER &&
 			this.configService.isProdMode()
 		) {
-			throw new Error(
-				'WARNING! Media files not found. fakevideo.y4m and fakeaudio.wav. Have you run downloaded the mediafiles?',
-			);
+			const filesExist =
+				await this.localFilesRepository.existMediaFiles();
+			if (!filesExist) {
+				throw new Error(
+					'WARNING! Media files not found. Have you run downloaded the mediafiles?',
+				);
+			}
 		}
 		if (properties.headless) {
 			this.seleniumService.setHeadless();
@@ -545,16 +547,6 @@ export class RealBrowserService {
 					value.subscribers.splice(index, 1);
 				}
 			}
-		}
-	}
-
-	private existMediaFiles(resolution: string, framerate: number): boolean {
-		const videoFile = `${process.cwd()}/src/assets/mediafiles/fakevideo_${framerate}fps_${resolution}.y4m`;
-		const audioFile = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
-		try {
-			return fs.existsSync(videoFile) && fs.existsSync(audioFile);
-		} catch {
-			return false;
 		}
 	}
 

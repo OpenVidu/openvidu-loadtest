@@ -41,7 +41,7 @@ export interface DIContainer {
 	fakeMediaDevicesService: FakeMediaDevicesService;
 	s3Repository: S3Repository;
 	comModule: BaseComModule;
-	filesRepository: LocalFilesRepository;
+	localFilesRepository: LocalFilesRepository;
 	filesService: LocalFilesService;
 	remotePersistenceService: RemotePersistenceService;
 	instanceController: InstanceController;
@@ -84,7 +84,7 @@ export async function configureContainer(): Promise<
 		browserManagerService: asClass(BrowserManagerService).singleton(),
 
 		// Repositories
-		filesRepository: asClass(LocalFilesRepository).singleton(),
+		localFilesRepository: asClass(LocalFilesRepository).singleton(),
 		remotePersistenceRepository: asClass(S3Repository).singleton(), // Registering S3Repository as the implementation for RemotePersistenceRepository
 
 		// Controllers

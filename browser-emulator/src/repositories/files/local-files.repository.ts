@@ -12,8 +12,19 @@ export class LocalFilesRepository {
 	public static readonly MEDIAFILES_DIR = `${process.cwd()}/src/assets/mediafiles`;
 	public static readonly SCRIPTS_LOGS_DIR = `${process.cwd()}/logs`;
 
+	private _fakevideo: string | undefined;
+	private _fakeaudio: string | undefined;
+
 	constructor() {
 		this.createNeededDirectories();
+	}
+
+	public get fakevideo(): string | undefined {
+		return this._fakevideo;
+	}
+
+	public get fakeaudio(): string | undefined {
+		return this._fakeaudio;
 	}
 
 	private createNeededDirectories() {
@@ -28,18 +39,36 @@ export class LocalFilesRepository {
 		requiredDirs.forEach(dir => fs.mkdirSync(dir, { recursive: true }));
 	}
 
-	public async downloadFile(
-		name: string,
-		fileUrl: string,
-		fileDir: string,
-	): Promise<string> {
-		const filePath = fileDir + '/' + name;
+	public async downloadMediaFiles(
+		videoFile: string,
+		videoUrl: string,
+		audioFile: string,
+		audioUrl: string,
+	): Promise<string[]> {
+		const filePaths = await Promise.all([
+			this.downloadFile(videoFile, videoUrl),
+			this.downloadFile(audioFile, audioUrl),
+		]);
+		this._fakevideo = filePaths[0];
+		this._fakeaudio = filePaths[1];
+
+		return filePaths;
+	}
+
+	private async downloadFile(name: string, fileUrl: string): Promise<string> {
+		const filePath = LocalFilesRepository.MEDIAFILES_DIR + '/' + name;
 		try {
-			await fsPromises.access(fileDir, fs.constants.W_OK);
+			await fsPromises.access(
+				LocalFilesRepository.MEDIAFILES_DIR,
+				fs.constants.W_OK,
+			);
 		} catch (err: unknown) {
 			if (err instanceof Error) {
 				throw new Error(
-					'Directory ' + fileDir + ' is not writable\n' + err.message,
+					'Directory ' +
+						LocalFilesRepository.MEDIAFILES_DIR +
+						' is not writable\n' +
+						err.message,
 				);
 			}
 		}
@@ -193,5 +222,20 @@ export class LocalFilesRepository {
 					reject(err);
 				});
 		});
+	}
+
+	public async existMediaFiles() {
+		if (!this._fakevideo || !this._fakeaudio) {
+			return false;
+		}
+		try {
+			await Promise.all([
+				fsPromises.access(this._fakevideo, fs.constants.F_OK),
+				fsPromises.access(this._fakeaudio, fs.constants.F_OK),
+			]);
+			return true;
+		} catch {
+			return false;
+		}
 	}
 }

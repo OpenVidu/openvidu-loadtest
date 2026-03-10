@@ -98,23 +98,23 @@ export class ScriptRunnerService {
 		timeoutMs = 5000,
 	): Promise<boolean> {
 		return new Promise<boolean>(resolve => {
-			const checkInterval = setInterval(() => {
-				try {
-					process.kill(pid, 0); // Check if process exists
-				} catch {
-					console.log(`Process ${pid} confirmed killed`);
-					clearInterval(checkInterval);
-					resolve(true);
-				}
-			}, 100);
-
-			setTimeout(() => {
+			const checkTimeout = setTimeout(() => {
 				clearInterval(checkInterval);
 				console.warn(
 					`Timeout (${timeoutMs}ms) waiting for process ${pid} to die`,
 				);
 				resolve(false);
 			}, timeoutMs);
+			const checkInterval = setInterval(() => {
+				try {
+					process.kill(pid, 0); // Check if process exists
+				} catch {
+					clearTimeout(checkTimeout);
+					console.log(`Process ${pid} confirmed killed`);
+					clearInterval(checkInterval);
+					resolve(true);
+				}
+			}, 100);
 		});
 	}
 
@@ -283,10 +283,12 @@ export class ScriptRunnerService {
 			this.detachedProcessCache.delete(execProcess.pid!);
 			if (code === 0) {
 				console.log(
-					`Detached script exited successfully with code ${code}`,
+					`Detached script ${execProcess.pid} exited successfully with code ${code}`,
 				);
 			} else {
-				console.error(`Detached script exited with code ${code}`);
+				console.error(
+					`Detached script ${execProcess.pid} exited with code ${code}`,
+				);
 			}
 		});
 
@@ -342,6 +344,10 @@ export class ScriptRunnerService {
 
 	public async killAllDetached() {
 		const pids = Array.from(this.detachedProcessCache.keys());
+		if (pids.length === 0) {
+			console.log('No detached processes to kill');
+			return;
+		}
 		console.log(`Detached processes to kill: `);
 		for (const [pid, script] of this.detachedProcessCache.entries()) {
 			console.log(`${script} (PID: ${pid})`);

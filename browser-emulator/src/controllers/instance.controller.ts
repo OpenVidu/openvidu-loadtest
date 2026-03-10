@@ -1,17 +1,16 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
-import type {
-	BrowserVideo,
-	InitializePost,
-	InitializePostRequest,
-} from '../types/api-rest.type.js';
 import type { ConfigService } from '../services/config.service.js';
-import { SeleniumService } from '../services/selenium.service.js';
 import type { RemotePersistenceService } from '../services/files/remote-persistence.service.ts';
 import type { ElasticSearchService } from '../services/elasticsearch.service.ts';
 import type { InstanceService } from '../services/instance.service.ts';
 import type { LocalFilesService } from '../services/files/local-files.service.ts';
 import type { QoeAnalyzerService } from '../services/qoe-analyzer.service.ts';
+import type { FakeMediaDevicesService } from '../services/fake-media/fake-media-devices.service.ts';
+import type {
+	InitializePost,
+	InitializePostRequest,
+} from '../types/initialize.type.ts';
 
 export class InstanceController {
 	private readonly router: express.Router;
@@ -20,7 +19,7 @@ export class InstanceController {
 	private readonly elasticSearchService: ElasticSearchService;
 	private readonly instanceService: InstanceService;
 	private readonly localFilesService: LocalFilesService;
-	private readonly seleniumService: SeleniumService;
+	private readonly fakeMediaDevicesService: FakeMediaDevicesService;
 	private readonly remotePersistenceService: RemotePersistenceService;
 	private readonly qoeAnalyzerService: QoeAnalyzerService;
 
@@ -29,7 +28,7 @@ export class InstanceController {
 		elasticSearchService: ElasticSearchService,
 		instanceService: InstanceService,
 		localFilesService: LocalFilesService,
-		seleniumService: SeleniumService,
+		fakeMediaDevicesService: FakeMediaDevicesService,
 		remotePersistenceService: RemotePersistenceService,
 		qoeAnalyzerService: QoeAnalyzerService,
 	) {
@@ -37,7 +36,7 @@ export class InstanceController {
 		this.elasticSearchService = elasticSearchService;
 		this.instanceService = instanceService;
 		this.localFilesService = localFilesService;
-		this.seleniumService = seleniumService;
+		this.fakeMediaDevicesService = fakeMediaDevicesService;
 		this.remotePersistenceService = remotePersistenceService;
 		this.qoeAnalyzerService = qoeAnalyzerService;
 		this.router = express.Router({ strict: true });
@@ -64,7 +63,7 @@ export class InstanceController {
 		res: Response,
 	): Promise<void> {
 		try {
-			const request: InitializePost = req.body;
+			const request = req.body;
 			const isProdMode = this.configService.isProdMode();
 
 			console.log('Initialize browser-emulator');
@@ -74,9 +73,14 @@ export class InstanceController {
 				// Set up file service if possible now so that it doesn't have to be initialized later when needed
 				this.setupRemotePersistenceService(request);
 				promises.push(
-					this.downloadMediaFilesAndStartSeleniumService(
-						request.browserVideo,
-					),
+					this.localFilesService
+						.downloadBrowserMediaFiles(request.browserVideo)
+						.then((fileNames: string[]) =>
+							this.fakeMediaDevicesService.startFakeMediaDevices(
+								fileNames[0],
+								fileNames[1],
+							),
+						),
 				);
 				if (
 					request.elasticSearchHost &&
@@ -143,15 +147,6 @@ export class InstanceController {
 				host,
 			);
 		}
-	}
-
-	private async downloadMediaFilesAndStartSeleniumService(
-		videoType: BrowserVideo,
-	): Promise<SeleniumService> {
-		const fileNames =
-			await this.localFilesService.downloadBrowserMediaFiles(videoType);
-		await this.seleniumService.initialize(fileNames[0], fileNames[1]);
-		return this.seleniumService;
 	}
 
 	public getRouter(): express.Router {
