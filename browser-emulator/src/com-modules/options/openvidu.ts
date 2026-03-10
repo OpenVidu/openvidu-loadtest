@@ -1,8 +1,8 @@
 import type { ConfigService } from '../../services/config.service.ts';
 import type {
-	CreateUserBrowser,
-	UserJoinProperties,
-} from '../../types/create-user.type.ts';
+	OVCreateUserBrowser,
+	OVUserJoinProperties,
+} from '../../types/com-modules/openvidu.ts';
 import BaseComModule from '../base.ts';
 
 export default class OpenviduComModule extends BaseComModule {
@@ -22,11 +22,11 @@ export default class OpenviduComModule extends BaseComModule {
 		// do nothing, openvidu 2 does not need any backend processing
 	}
 
-	areParametersCorrect(request: CreateUserBrowser): boolean {
+	areParametersCorrect(request: OVCreateUserBrowser): boolean {
 		const openviduSecret: string | undefined = request.openviduSecret;
 		const openviduUrl: string = request.openviduUrl;
 		const token: string | undefined = request.token;
-		const properties: UserJoinProperties = request.properties;
+		const properties: OVUserJoinProperties = request.properties;
 
 		const userConditions =
 			!!properties.userId && !!properties.sessionName && !!openviduUrl;
@@ -38,8 +38,8 @@ export default class OpenviduComModule extends BaseComModule {
 		return openviduConditions;
 	}
 
-	generateWebappUrl(request: CreateUserBrowser): string {
-		const properties: UserJoinProperties = request.properties;
+	generateWebappUrl(request: OVCreateUserBrowser): string {
+		const properties: OVUserJoinProperties = request.properties;
 		const token: string | undefined = request.token;
 		const publicUrl = `publicurl=${request.openviduUrl}&`;
 		const secret = request.openviduSecret

@@ -1,6 +1,5 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
-import type { ConfigService } from '../services/config.service.js';
 import type { RemotePersistenceService } from '../services/files/remote-persistence.service.ts';
 import type { ElasticSearchService } from '../services/elasticsearch.service.ts';
 import type { InstanceService } from '../services/instance.service.ts';
@@ -15,7 +14,6 @@ import type {
 export class InstanceController {
 	private readonly router: express.Router;
 
-	private readonly configService: ConfigService;
 	private readonly elasticSearchService: ElasticSearchService;
 	private readonly instanceService: InstanceService;
 	private readonly localFilesService: LocalFilesService;
@@ -24,7 +22,6 @@ export class InstanceController {
 	private readonly qoeAnalyzerService: QoeAnalyzerService;
 
 	constructor(
-		configService: ConfigService,
 		elasticSearchService: ElasticSearchService,
 		instanceService: InstanceService,
 		localFilesService: LocalFilesService,
@@ -32,7 +29,6 @@ export class InstanceController {
 		remotePersistenceService: RemotePersistenceService,
 		qoeAnalyzerService: QoeAnalyzerService,
 	) {
-		this.configService = configService;
 		this.elasticSearchService = elasticSearchService;
 		this.instanceService = instanceService;
 		this.localFilesService = localFilesService;

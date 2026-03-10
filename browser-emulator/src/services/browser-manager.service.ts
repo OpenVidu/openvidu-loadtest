@@ -181,15 +181,17 @@ export class BrowserManagerService {
 	}
 
 	private printRequestInfo(req: CreateUserBrowser): void {
-		const info =
+		let info =
 			`\nStarting a ${req.properties.role} participant in a browser with: \n` +
 			`Audio: ${req.properties.audio} \n` +
 			`Video: ${req.properties.video} \n` +
 			`Frame Rate: ${req.properties.frameRate} \n` +
 			`Resolution: ${req.properties.resolution} \n` +
-			`OpenVidu Recording: ${req.properties.recordingOutputMode} \n` +
 			`Recording Browser: ${req.properties.recording} \n` +
 			`Headless Browser: ${req.properties.headless} \n`;
+		if ('recordingOutputMode' in req.properties) {
+			info += `Recording Output Mode: ${String(req.properties.recordingOutputMode)} \n`;
+		}
 		console.log(info);
 	}
 

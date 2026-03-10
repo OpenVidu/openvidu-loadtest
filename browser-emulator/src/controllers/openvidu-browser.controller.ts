@@ -1,11 +1,12 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
-import { OpenViduRole, Resolution } from '../types/openvidu.type.js';
 import type BaseComModule from '../com-modules/base.js';
 import type { BrowserManagerService } from '../services/browser-manager.service.js';
-import type {
-	CreateUserBrowserResponse,
-	CreateUserBrowserRequest,
+import {
+	type CreateUserBrowserResponse,
+	type CreateUserBrowserRequest,
+	Role,
+	Resolution,
 } from '../types/create-user.type.ts';
 
 export class OpenViduBrowserController {
@@ -56,7 +57,7 @@ export class OpenViduBrowserController {
 					request.properties.frameRate || 30;
 				// Setting default role for publisher properties
 				request.properties.role =
-					request.properties.role || OpenViduRole.PUBLISHER;
+					request.properties.role || Role.PUBLISHER;
 
 				if (
 					!(

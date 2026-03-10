@@ -1,4 +1,3 @@
-import type { OpenViduRole, Resolution } from './openvidu.type.ts';
 import type { Request } from 'express';
 
 export interface CreateUserBrowserRequest extends Request {
@@ -7,7 +6,6 @@ export interface CreateUserBrowserRequest extends Request {
 
 export interface CreateUserBrowser {
 	openviduUrl: string;
-	openviduSecret?: string;
 	token?: string;
 	properties: UserJoinProperties;
 }
@@ -15,26 +13,32 @@ export interface CreateUserBrowser {
 export interface UserJoinProperties {
 	userId: string;
 	sessionName: string;
-	role: OpenViduRole;
+	role: Role;
 	audio: boolean;
 	video: boolean;
 	resolution: Resolution;
-	recordingOutputMode?: RecordingOutputMode;
 	frameRate: number;
 	browser: AvailableBrowsers;
 	recording?: boolean;
 	showVideoElements?: boolean;
 	headless?: boolean;
 	recordingMetadata?: string;
+	mediaRecorders?: boolean;
 }
-
-export const RecordingOutputMode = {
-	COMPOSED: 'COMPOSED',
-	INDIVIDUAL: 'INDIVIDUAL',
+export const Role = {
+	PUBLISHER: 'PUBLISHER',
+	SUBSCRIBER: 'SUBSCRIBER',
 } as const;
 
-export type RecordingOutputMode =
-	(typeof RecordingOutputMode)[keyof typeof RecordingOutputMode];
+export type Role = (typeof Role)[keyof typeof Role];
+
+export const Resolution = {
+	DEFAULT: '640x480',
+	HIGH: '1280x720',
+	FULLHIGH: '1920x1080',
+} as const;
+
+export type Resolution = (typeof Resolution)[keyof typeof Resolution];
 
 export type AvailableBrowsers = 'chrome' | 'firefox';
 

@@ -1,6 +1,5 @@
 import fsPromises from 'node:fs/promises';
 import { By, logging, until, WebDriver } from 'selenium-webdriver';
-import { OpenViduRole } from '../types/openvidu.type.js';
 import type { Storage } from './local-storage.service.js';
 import type {
 	StorageNameObject,
@@ -13,10 +12,11 @@ import type { ChildProcess } from 'node:child_process';
 import type BaseComModule from '../com-modules/base.ts';
 import type { ScriptRunnerService } from './script-runner.service.ts';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
-import type {
-	AvailableBrowsers,
-	CreateUserBrowser,
-	UserJoinProperties,
+import {
+	type AvailableBrowsers,
+	type CreateUserBrowser,
+	type UserJoinProperties,
+	Role,
 } from '../types/create-user.type.ts';
 
 declare let localStorage: Storage;
@@ -33,8 +33,9 @@ export class RealBrowserService {
 			driver: WebDriver;
 			sessionName: string;
 			userName: string;
-			connectionRole: OpenViduRole;
+			connectionRole: Role;
 			browser: AvailableBrowsers;
+			mediaRecorders: boolean;
 		}
 	>();
 	private readonly keepAliveIntervals = new Map<string, NodeJS.Timeout>();
@@ -93,7 +94,7 @@ export class RealBrowserService {
 				driver: WebDriver;
 				sessionName: string;
 				userName: string;
-				connectionRole: OpenViduRole;
+				connectionRole: Role;
 			};
 		}[] = [];
 		const promisesToResolve: Promise<void>[] = [];
@@ -124,7 +125,7 @@ export class RealBrowserService {
 		}
 	}
 
-	async deleteStreamManagerWithRole(role: OpenViduRole): Promise<void> {
+	async deleteStreamManagerWithRole(role: Role): Promise<void> {
 		console.log(
 			'Current number of total users in worker: ' + this.driverMap.size,
 		);
@@ -134,7 +135,7 @@ export class RealBrowserService {
 			value: {
 				driver: WebDriver;
 				sessionName: string;
-				connectionRole: OpenViduRole;
+				connectionRole: Role;
 			};
 		}[] = [];
 		const promisesToResolve: Promise<void>[] = [];
@@ -187,7 +188,7 @@ export class RealBrowserService {
 		value: {
 			driver: WebDriver;
 			sessionName: string;
-			connectionRole: OpenViduRole;
+			connectionRole: Role;
 		},
 	) {
 		console.log(
@@ -217,8 +218,8 @@ export class RealBrowserService {
 		console.log('Cleaning real browsers');
 		await this.stopRecording();
 		await Promise.all([
-			this.deleteStreamManagerWithRole(OpenViduRole.PUBLISHER),
-			this.deleteStreamManagerWithRole(OpenViduRole.SUBSCRIBER),
+			this.deleteStreamManagerWithRole(Role.PUBLISHER),
+			this.deleteStreamManagerWithRole(Role.SUBSCRIBER),
 		]);
 		console.log('Real browsers cleaned');
 	}
@@ -289,6 +290,7 @@ export class RealBrowserService {
 				userName: request.properties.userId,
 				connectionRole: request.properties.role,
 				browser: request.properties.browser,
+				mediaRecorders: request.properties.mediaRecorders ?? false,
 			});
 			await driver.manage().setTimeouts({ script: 1800000 });
 			await driver.get(webappUrl);
@@ -393,7 +395,7 @@ export class RealBrowserService {
 			this.BROWSER_WAIT_TIMEOUT_MS,
 		);
 		let currentPublishers = 0;
-		if (request.properties.role === OpenViduRole.PUBLISHER) {
+		if (request.properties.role === Role.PUBLISHER) {
 			// Wait until publisher has been published regardless of whether the videos are shown or not
 			await driver.wait(
 				until.elementsLocated(By.id('local-stream-created')),
@@ -502,7 +504,7 @@ export class RealBrowserService {
 	storeConnection(connectionId: string, properties: UserJoinProperties) {
 		const conn = this.connections.get(properties.sessionName);
 		if (conn) {
-			if (properties.role === OpenViduRole.PUBLISHER) {
+			if (properties.role === Role.PUBLISHER) {
 				conn.publishers.push(connectionId);
 			} else {
 				conn.subscribers.push(connectionId);
@@ -510,7 +512,7 @@ export class RealBrowserService {
 		} else {
 			const subscribers = [];
 			const publishers = [];
-			if (properties.role === OpenViduRole.PUBLISHER) {
+			if (properties.role === Role.PUBLISHER) {
 				publishers.push(connectionId);
 			} else {
 				subscribers.push(connectionId);
@@ -525,12 +527,12 @@ export class RealBrowserService {
 	private deleteConnection(
 		sessionName: string,
 		connectionId: string,
-		role: OpenViduRole,
+		role: Role,
 	) {
 		const value = this.connections.get(sessionName);
 		if (value) {
 			let index = -1;
-			if (role === OpenViduRole.PUBLISHER) {
+			if (role === Role.PUBLISHER) {
 				index = value.publishers.indexOf(connectionId, 0);
 				if (index >= 0) {
 					value.publishers.splice(index, 1);
