@@ -77,6 +77,7 @@ export class InstanceController {
 						this.fakeMediaDevicesService.startFakeMediaDevices(
 							fileNames[0],
 							fileNames[1],
+							request.vnc,
 						),
 					),
 			);

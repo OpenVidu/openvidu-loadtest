@@ -71,6 +71,7 @@ class BrowserEmulatorClientTests {
         when(this.loadTestConfigMock.getOpenViduSecret()).thenReturn("MYSECRET");
         when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
         when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
+        when(this.loadTestConfigMock.isDebugVnc()).thenReturn(true);
 
         this.browserEmulatorClient = new BrowserEmulatorClient(this.loadTestConfigMock, this.httpClientMock,
                 this.jsonUtilsMock, this.sleeper);
@@ -84,6 +85,7 @@ class BrowserEmulatorClientTests {
         this.browserEmulatorClient.initializeInstance("localhost");
 
         JsonObject expectedBody = new JsonObject();
+        expectedBody.addProperty("vnc", true);
         expectedBody.addProperty("elasticSearchHost", "https://localhost:9200");
         expectedBody.addProperty("elasticSearchUserName", "elasticadmin");
         expectedBody.addProperty("elasticSearchPassword", "passwordtest");

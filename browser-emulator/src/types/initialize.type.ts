@@ -6,6 +6,7 @@ export interface InitializePostRequest extends Request {
 
 export type InitializePost = {
 	browserVideo: BrowserVideo;
+	vnc?: boolean;
 	qoeAnalysis?: QoeAnalysis;
 	awsAccessKey?: string;
 	awsSecretAccessKey?: string;

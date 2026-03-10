@@ -121,9 +121,6 @@ done
 
 kill "$JOB_MONITOR_PID" 2>/dev/null || true
 
-cd /opt/openvidu-loadtest/browser-emulator
-./debug_vnc.sh
-
 usermod -aG docker vagrant
 usermod -aG syslog vagrant
 usermod -aG video vagrant

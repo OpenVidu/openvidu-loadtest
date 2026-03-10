@@ -38,7 +38,6 @@ Vagrant.configure("2") do |config|
     "./pnpm-lock.yaml:/opt/openvidu-loadtest/browser-emulator/pnpm-lock.yaml",
     "./pnpm-workspace.yaml:/opt/openvidu-loadtest/browser-emulator/pnpm-workspace.yaml",
     "./tsconfig.json:/opt/openvidu-loadtest/browser-emulator/tsconfig.json",
-    "./debug_vnc_local.sh:/opt/openvidu-loadtest/browser-emulator/debug_vnc.sh",
     "./vitest.config.ts:/opt/openvidu-loadtest/browser-emulator/vitest.config.ts",
     "./tsconfig.test.json:/opt/openvidu-loadtest/browser-emulator/tsconfig.test.json",
     "./eslint.config.js:/opt/openvidu-loadtest/browser-emulator/eslint.config.js",

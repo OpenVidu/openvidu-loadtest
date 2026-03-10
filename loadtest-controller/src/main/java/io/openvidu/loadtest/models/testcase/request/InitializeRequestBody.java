@@ -26,6 +26,7 @@ public class InitializeRequestBody {
     private int videoFps = 30;
     private String videoUrl = "";
     private String audioUrl = "";
+    private boolean vnc = false;
 
     public InitializeRequestBody(LoadTestConfig config, String loadtestIndex) {
         this.elasticSearchHost = config.getElasticsearchHost();
@@ -47,10 +48,12 @@ public class InitializeRequestBody {
         this.videoFps = config.getVideoFps();
         this.videoUrl = config.getVideoUrl();
         this.audioUrl = config.getAudioUrl();
+        this.vnc = config.isDebugVnc();
     }
 
     public JsonObject toJson() {
         JsonObject jsonBody = new JsonObject();
+        jsonBody.addProperty("vnc", this.vnc);
         jsonBody.addProperty("elasticSearchHost", this.elasticSearchHost);
         jsonBody.addProperty("elasticSearchUserName", this.elasticSearchUserName);
         jsonBody.addProperty("elasticSearchPassword", this.elasticSearchPassword);
@@ -72,6 +75,7 @@ public class InitializeRequestBody {
             }
         }
 
+        // TODO: Maybe allow different types of videos per browser
         JsonObject browserVideo = new JsonObject();
         if (this.videoType.equals("custom")) {
             browserVideo.addProperty("videoType", "custom");

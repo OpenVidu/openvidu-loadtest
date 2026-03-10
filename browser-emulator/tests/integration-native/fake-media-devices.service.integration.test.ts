@@ -32,12 +32,23 @@ describe('FakeMediaDevicesService', () => {
 	});
 
 	afterEach(async () => {
-		await scriptRunnerService.killAllDetached();
 		await fakeMediaService.cleanupFakeMediaDevices();
+		await scriptRunnerService.killAllDetached();
 	});
 
 	it('should start readable fake media devices without errors', async () => {
-		await fakeMediaService.startFakeMediaDevices(videoPath, audioPath);
+		await fakeMediaService.startFakeMediaDevices(
+			videoPath,
+			audioPath,
+			true,
+		);
+		// Check Xvfb has started
+		expect(scriptRunnerService.isRunning('Xvfb :10'));
+		expect(process.env.DISPLAY).toBe(':10');
+		// Check vnc server has started
+		expect(scriptRunnerService.isRunning('x11vnc -display :10'));
+		// Check window manager has started
+		expect(scriptRunnerService.isRunning('fvwm -display :10'));
 		// Check if the devices are readable by another process
 		// Read from the devices using another ffmpeg process.
 		const duration = 5; // seconds
@@ -120,8 +131,5 @@ describe('FakeMediaDevicesService', () => {
 			expect(median).toBeGreaterThan(0.7);
 			expect(median).toBeLessThan(1.3);
 		}
-		// Check Xvfb has started
-		expect(scriptRunnerService.isRunning('Xvfb :10'));
-		expect(process.env.DISPLAY).toBe(':10');
 	});
 });

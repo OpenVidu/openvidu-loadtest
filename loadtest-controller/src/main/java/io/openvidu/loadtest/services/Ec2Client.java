@@ -55,8 +55,6 @@ public class Ec2Client {
     private static int RECORDING_WORKERS_NUMBER_AT_THE_BEGINNING;
     private static int WORKERS_RAMP_UP;
 
-    private static Path USER_DATA_VNC = Path.of("debug_vnc.sh");
-
     private static final Tag NAME_TAG = Tag.builder().key("Name").value("Worker").build();
     private static final Tag RECORDING_NAME_TAG = Tag.builder().key("Name").value("Recording Worker").build();
     private static final Tag LOADTEST_WORKER_TAG = Tag.builder().key("Type").value("OpenViduLoadTest").build();
@@ -261,17 +259,6 @@ public class Ec2Client {
                     Placement.builder()
                             .availabilityZone(this.loadTestConfig.getWorkerAvailabilityZone())
                             .build());
-        }
-
-        if (this.loadTestConfig.isDebugVnc()) {
-            try {
-                byte[] userDataBytes = Files.readAllBytes(USER_DATA_VNC);
-                String encodedUserData = Base64.getEncoder().encodeToString(userDataBytes);
-                requestBuilder.userData(encodedUserData);
-            } catch (IOException e) {
-                log.error("Error reading user data file", e);
-                System.exit(1);
-            }
         }
 
         if (!this.loadTestConfig.getWorkerInstanceKeyPair().isBlank()) {

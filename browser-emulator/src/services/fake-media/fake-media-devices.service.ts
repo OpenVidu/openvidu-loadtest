@@ -9,6 +9,8 @@ export class FakeMediaDevicesService {
 	private readonly PULSEAUDIO_CONF_PATH = `${os.homedir()}/.config/pulse/client.conf`;
 	private ffmpegProcess: ChildProcess | undefined;
 	private xvfbProcess: ChildProcess | undefined;
+	private x11vncProcess: ChildProcess | undefined;
+	private fvwmProcess: ChildProcess | undefined;
 
 	public constructor(scriptRunnerService: ScriptRunnerService) {
 		this.scriptRunnerService = scriptRunnerService;
@@ -29,7 +31,11 @@ export class FakeMediaDevicesService {
 		console.log('Fake microphone created.');
 	}
 
-	public async startFakeMediaDevices(videoPath: string, audioPath: string) {
+	public async startFakeMediaDevices(
+		videoPath: string,
+		audioPath: string,
+		vnc = false,
+	) {
 		// Assumes ffmpeg installed, v4l2loopback installed and enabled, and pulseaudio installed,
 		// check install scripts for guidance
 
@@ -40,7 +46,7 @@ export class FakeMediaDevicesService {
 			return;
 		}
 		await Promise.all([
-			this.startXvfb(),
+			this.startXvfb(vnc),
 			this.waitForV4L2Device(),
 			this.createFakeMicrophone(),
 		]);
@@ -68,7 +74,7 @@ export class FakeMediaDevicesService {
 		}
 	}
 
-	private async startXvfb() {
+	private async startXvfb(vnc = false) {
 		// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
 		// TODO: launch vnc server, maybe in some debug mode
 		// TODO: choose display number in config
@@ -91,6 +97,28 @@ export class FakeMediaDevicesService {
 				},
 			);
 			await xvfbLogFd.close();
+		}
+		if (vnc) {
+			// Start x11vnc server to allow visual debugging, assumes x11vnc and fvwm installed
+			const x11vncLogFd = await fsPromises.open(
+				`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/x11vnc.log`,
+				'a',
+			);
+			this.x11vncProcess = await this.scriptRunnerService.run(
+				`x11vnc -display :10 -forever -shared -nopw`,
+				{
+					detached: true,
+					stdio: ['ignore', x11vncLogFd.fd, x11vncLogFd.fd],
+				},
+			);
+			this.fvwmProcess = await this.scriptRunnerService.run(
+				`fvwm -display :10`,
+				{
+					detached: true,
+					stdio: ['ignore', x11vncLogFd.fd, x11vncLogFd.fd],
+				},
+			);
+			await x11vncLogFd.close();
 		}
 	}
 
@@ -219,6 +247,20 @@ export class FakeMediaDevicesService {
 				this.scriptRunnerService
 					.killDetached(this.ffmpegProcess)
 					.then(() => (this.ffmpegProcess = undefined)),
+			);
+		}
+		if (this.x11vncProcess) {
+			promises.push(
+				this.scriptRunnerService
+					.killDetached(this.x11vncProcess)
+					.then(() => (this.x11vncProcess = undefined)),
+			);
+		}
+		if (this.fvwmProcess) {
+			promises.push(
+				this.scriptRunnerService
+					.killDetached(this.fvwmProcess)
+					.then(() => (this.fvwmProcess = undefined)),
 			);
 		}
 		return Promise.all(promises);
