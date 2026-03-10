@@ -9,7 +9,6 @@ import { Resolution } from '../../src/types/openvidu.type.js';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
 
 let app: Application;
-const SESSION_NAME = 'LoadTestSession1';
 const EXPECTED_STATS_FILES = [
 	'connections.json',
 	'events.json',
@@ -44,6 +43,7 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 async function createPublisherUser(
+	sessionName: string,
 	userId: string,
 	expectedParticipants: number,
 	expectedStreams: number,
@@ -56,7 +56,7 @@ async function createPublisherUser(
 			openviduSecret: 'vagrant',
 			properties: {
 				userId,
-				sessionName: SESSION_NAME,
+				sessionName: sessionName,
 				role: 'PUBLISHER',
 				audio: true,
 				video: true,
@@ -73,7 +73,7 @@ async function createPublisherUser(
 		streams: expectedStreams,
 		participants: expectedParticipants,
 		workerCpuUsage: expect.any(Number),
-		sessionId: SESSION_NAME,
+		sessionId: sessionName,
 		userId,
 	});
 }
@@ -117,90 +117,122 @@ afterEach(async () => {
 // Using the vagrant box available in this project should suffice.
 describe('Browser-emulator', () => {
 	describe('OpenVidu 2', () => {
-		it('should test basic workflow with Chrome and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)', async () => {
-			const pingResponse = await request(app).get('/instance/ping');
-			expect(pingResponse.status).toBe(200);
-			const initializeResponse = await request(app)
-				.post('/instance/initialize')
-				.send({
-					browserVideo: {
-						videoType: 'bunny',
-						videoInfo: {
-							width: 640,
-							height: 480,
-							fps: 30,
+		it(
+			'should test basic workflow with Chrome and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)',
+			{ repeats: 0 },
+			async () => {
+				const pingResponse = await request(app).get('/instance/ping');
+				expect(pingResponse.status).toBe(200);
+				const initializeResponse = await request(app)
+					.post('/instance/initialize')
+					.send({
+						browserVideo: {
+							videoType: 'bunny',
+							videoInfo: {
+								width: 640,
+								height: 480,
+								fps: 30,
+							},
 						},
-					},
-				});
+					});
 
-			expect(initializeResponse.status).toBe(200);
-			expect(initializeResponse.text).toContain('Instance');
-			expect(initializeResponse.text).toContain('has been initialized');
-			await createPublisherUser('User1', 1, 1);
-			await createPublisherUser('User2', 2, 4);
-			// Wait 10 seconds to let the browsers connect and send stats
-			await new Promise(resolve => setTimeout(resolve, 10000));
-			const deleteAllUsersResponse = await request(app).delete(
-				'/openvidu-browser/streamManager',
-			);
-			expect(deleteAllUsersResponse.status).toBe(200);
-			expect(deleteAllUsersResponse.text).toContain('Instance');
-			expect(deleteAllUsersResponse.text).toContain('is clean');
+				expect(initializeResponse.status).toBe(200);
+				expect(initializeResponse.text).toContain('Instance');
+				expect(initializeResponse.text).toContain(
+					'has been initialized',
+				);
+				// Platforms might have some delay in cleaning sessions, so we avoid reusing the same session between tests
+				const sessionName = 'LoadTestSession' + Date.now();
+				await createPublisherUser(sessionName, 'User1', 1, 1);
+				await createPublisherUser(sessionName, 'User2', 2, 4);
+				console.log(
+					'Wait 10 seconds to let the browsers connect and send stats',
+				);
+				await new Promise(resolve => setTimeout(resolve, 10000));
+				const deleteAllUsersResponse = await request(app).delete(
+					'/openvidu-browser/streamManager',
+				);
+				expect(deleteAllUsersResponse.status).toBe(200);
+				expect(deleteAllUsersResponse.text).toContain('Instance');
+				expect(deleteAllUsersResponse.text).toContain('is clean');
 
-			// Check there is a directory stats for the session
-			const statsDir = path.join(
-				LocalFilesRepository.STATS_DIR,
-				SESSION_NAME,
-			);
-			const statsDirExists = await pathExists(statsDir);
-			expect(statsDirExists).toBe(true);
-			// TODO: validate JSON structure/content in these stats files.
-			await assertUserStats(statsDir, 'User1');
-			await assertUserStats(statsDir, 'User2');
-		});
+				// Check there is a directory stats for the session
+				const statsDir = path.join(
+					LocalFilesRepository.STATS_DIR,
+					sessionName,
+				);
+				const statsDirExists = await pathExists(statsDir);
+				expect(statsDirExists).toBe(true);
+				// TODO: validate JSON structure/content in these stats files.
+				await assertUserStats(statsDir, 'User1');
+				await assertUserStats(statsDir, 'User2');
+			},
+		);
 
-		it('should test basic workflow with Firefox and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)', async () => {
-			// IMPORTANT: This test assumes it is running alongside a local OpenVidu 2 deployment with secret vagrant.
-			// Using the vagrant box available in this project should suffice.
-			const pingResponse = await request(app).get('/instance/ping');
-			expect(pingResponse.status).toBe(200);
-			const initializeResponse = await request(app)
-				.post('/instance/initialize')
-				.send({
-					browserVideo: {
-						videoType: 'bunny',
-						videoInfo: {
-							width: 640,
-							height: 480,
-							fps: 30,
+		it(
+			'should test basic workflow with Firefox and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)',
+			{ repeats: 0 },
+			async () => {
+				// IMPORTANT: This test assumes it is running alongside a local OpenVidu 2 deployment with secret vagrant.
+				// Using the vagrant box available in this project should suffice.
+				const pingResponse = await request(app).get('/instance/ping');
+				expect(pingResponse.status).toBe(200);
+				const initializeResponse = await request(app)
+					.post('/instance/initialize')
+					.send({
+						browserVideo: {
+							videoType: 'bunny',
+							videoInfo: {
+								width: 640,
+								height: 480,
+								fps: 30,
+							},
 						},
-					},
-				});
+					});
 
-			expect(initializeResponse.status).toBe(200);
-			expect(initializeResponse.text).toContain('Instance');
-			expect(initializeResponse.text).toContain('has been initialized');
-			await createPublisherUser('User1', 1, 1, 'firefox');
-			await createPublisherUser('User2', 2, 4, 'firefox');
-			// Wait 10 seconds to let the browsers connect and send stats
-			await new Promise(resolve => setTimeout(resolve, 10000));
-			const deleteAllUsersResponse = await request(app).delete(
-				'/openvidu-browser/streamManager',
-			);
-			expect(deleteAllUsersResponse.status).toBe(200);
-			expect(deleteAllUsersResponse.text).toContain('Instance');
-			expect(deleteAllUsersResponse.text).toContain('is clean');
+				expect(initializeResponse.status).toBe(200);
+				expect(initializeResponse.text).toContain('Instance');
+				expect(initializeResponse.text).toContain(
+					'has been initialized',
+				);
+				// Platforms might have some delay in cleaning sessions, so we avoid reusing the same session between tests
+				const sessionName = 'LoadTestSession' + Date.now();
+				await createPublisherUser(
+					sessionName,
+					'User1',
+					1,
+					1,
+					'firefox',
+				);
+				await createPublisherUser(
+					sessionName,
+					'User2',
+					2,
+					4,
+					'firefox',
+				);
+				console.log(
+					'Wait 10 seconds to let the browsers connect and send stats',
+				);
+				await new Promise(resolve => setTimeout(resolve, 10000));
+				const deleteAllUsersResponse = await request(app).delete(
+					'/openvidu-browser/streamManager',
+				);
+				expect(deleteAllUsersResponse.status).toBe(200);
+				expect(deleteAllUsersResponse.text).toContain('Instance');
+				expect(deleteAllUsersResponse.text).toContain('is clean');
 
-			// Check there is a directory stats for the session
-			const statsDir = path.join(
-				LocalFilesRepository.STATS_DIR,
-				SESSION_NAME,
-			);
-			const statsDirExists = await pathExists(statsDir);
-			expect(statsDirExists).toBe(true);
-			// TODO: validate JSON structure/content in these stats files.
-			await assertUserStats(statsDir, 'User1');
-			await assertUserStats(statsDir, 'User2');
-		});
+				// Check there is a directory stats for the session
+				const statsDir = path.join(
+					LocalFilesRepository.STATS_DIR,
+					sessionName,
+				);
+				const statsDirExists = await pathExists(statsDir);
+				expect(statsDirExists).toBe(true);
+				// TODO: validate JSON structure/content in these stats files.
+				await assertUserStats(statsDir, 'User1');
+				await assertUserStats(statsDir, 'User2');
+			},
+		);
 	});
 });
