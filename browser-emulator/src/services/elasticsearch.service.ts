@@ -98,7 +98,7 @@ export class ElasticSearchService {
 	}
 
 	async sendJson(json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo) {
-		if (this.isElasticSearchRunning() && this.configService.isProdMode()) {
+		if (this.isElasticSearchRunning()) {
 			if (Object.keys(json).length) {
 				try {
 					await this.client!.index({
@@ -115,7 +115,7 @@ export class ElasticSearchService {
 	async sendBulkJsons(
 		jsons: JSONStatsResponse[] | JSONStreamsInfo[] | JSONQoEInfo[],
 	) {
-		if (this.isElasticSearchRunning() && this.configService.isProdMode()) {
+		if (this.isElasticSearchRunning()) {
 			try {
 				const operations = jsons.flatMap(json => [
 					{ index: { _index: this.indexName } },
@@ -168,7 +168,7 @@ export class ElasticSearchService {
 	}
 
 	async getStartTimes(): Promise<JSONStreamsInfo[]> {
-		if (this.isElasticSearchRunning() && this.configService.isProdMode()) {
+		if (this.isElasticSearchRunning()) {
 			const result = await this.client!.search<JSONStreamsInfo>({
 				index: this.indexName,
 				query: {

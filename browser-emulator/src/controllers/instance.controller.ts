@@ -64,44 +64,42 @@ export class InstanceController {
 	): Promise<void> {
 		try {
 			const request = req.body;
-			const isProdMode = this.configService.isProdMode();
 
 			console.log('Initialize browser-emulator');
 
 			const promises = [];
-			if (isProdMode) {
-				// Set up file service if possible now so that it doesn't have to be initialized later when needed
-				this.setupRemotePersistenceService(request);
+			// Set up file service if possible now so that it doesn't have to be initialized later when needed
+			this.setupRemotePersistenceService(request);
+			promises.push(
+				this.localFilesService
+					.downloadBrowserMediaFiles(request.browserVideo)
+					.then((fileNames: string[]) =>
+						this.fakeMediaDevicesService.startFakeMediaDevices(
+							fileNames[0],
+							fileNames[1],
+						),
+					),
+			);
+			if (
+				request.elasticSearchHost &&
+				!this.elasticSearchService.isElasticSearchRunning()
+			) {
 				promises.push(
-					this.localFilesService
-						.downloadBrowserMediaFiles(request.browserVideo)
-						.then((fileNames: string[]) =>
-							this.fakeMediaDevicesService.startFakeMediaDevices(
-								fileNames[0],
-								fileNames[1],
-							),
-						),
+					this.elasticSearchService.initialize(
+						request.elasticSearchHost,
+						request.elasticSearchUserName,
+						request.elasticSearchPassword,
+						request.elasticSearchIndex,
+					),
+					this.instanceService.launchMetricBeat(
+						request.elasticSearchHost,
+						request.elasticSearchUserName,
+						request.elasticSearchPassword,
+					),
 				);
-				if (
-					request.elasticSearchHost &&
-					!this.elasticSearchService.isElasticSearchRunning()
-				) {
-					promises.push(
-						this.elasticSearchService.initialize(
-							request.elasticSearchHost,
-							request.elasticSearchUserName,
-							request.elasticSearchPassword,
-							request.elasticSearchIndex,
-						),
-						this.instanceService.launchMetricBeat(
-							request.elasticSearchHost,
-							request.elasticSearchUserName,
-							request.elasticSearchPassword,
-						),
-					);
-				}
-				await Promise.all(promises);
 			}
+			await Promise.all(promises);
+
 			// TODO: this QOE_ANALYSIS should not be an env variable, there should be two separate properties: one to enable MediaRecorders in browser creation request and another one to actually do the QoE Analysis in situ
 			if (request.qoeAnalysis?.enabled) {
 				process.env.QOE_ANALYSIS =

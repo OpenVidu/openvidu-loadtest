@@ -129,25 +129,21 @@ export class BrowserManagerService {
 		console.log('Waiting for all files to finish writting...');
 		await waitForAllFilesToBeProcessed();
 		console.log('All files processed');
-		if (this.configService.isProdMode()) {
-			if (this.remotePersistenceService.isInitialized()) {
-				try {
-					console.log(
-						'Uploading files to remote persistence target...',
-					);
-					await this.remotePersistenceService.uploadFiles();
-					console.log('Files uploaded to remote persistence target');
-				} catch (error) {
-					console.error(
-						'Error uploading files to remote persistence target',
-						error,
-					);
-				}
-			} else {
-				console.warn(
-					"RemotePersistenceService is not initialized. Can't upload files.",
+		if (this.remotePersistenceService.isInitialized()) {
+			try {
+				console.log('Uploading files to remote persistence target...');
+				await this.remotePersistenceService.uploadFiles();
+				console.log('Files uploaded to remote persistence target');
+			} catch (error) {
+				console.error(
+					'Error uploading files to remote persistence target',
+					error,
 				);
 			}
+		} else {
+			console.warn(
+				"RemotePersistenceService is not initialized. Can't upload files.",
+			);
 		}
 	}
 

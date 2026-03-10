@@ -8,9 +8,9 @@
 	},
 	"type": "module",
 	"scripts": {
+		"start": "node ./dist/server.js",
 		"start:prod": "node ./dist/server.js",
 		"start:prod-livekit": "COM_MODULE=livekit node ./dist/server.js",
-		"start:dev": "APPLICATION_MODE=DEVELOPMENT tsx ./src/server.ts",
 		"build": "tsc",
 		"watch": "tsc -w",
 		"lint": "eslint src tests dev_scripts --ext .ts",

@@ -237,17 +237,11 @@ export class RealBrowserService {
 		timeout = 1000,
 	): Promise<string> {
 		const properties = request.properties;
-		if (
-			!process.env.IS_DOCKER_CONTAINER &&
-			this.configService.isProdMode()
-		) {
-			const filesExist =
-				await this.localFilesRepository.existMediaFiles();
-			if (!filesExist) {
-				throw new Error(
-					'WARNING! Media files not found. Have you run downloaded the mediafiles?',
-				);
-			}
+		const filesExist = await this.localFilesRepository.existMediaFiles();
+		if (!filesExist) {
+			throw new Error(
+				'WARNING! Media files not found. Have you run downloaded the mediafiles?',
+			);
 		}
 		if (properties.headless) {
 			this.seleniumService.setHeadless();

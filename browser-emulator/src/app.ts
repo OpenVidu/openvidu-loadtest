@@ -72,7 +72,6 @@ export async function startServer() {
 	const container = await getContainer();
 	const configService = container.resolve('configService');
 	const serverPort = configService.getServerPort();
-	const applicationMode = configService.getApplicationMode();
 	await createServer();
 
 	server.listen(serverPort, () => {
@@ -97,7 +96,9 @@ export async function startServer() {
 				'---------------------------------------------------------',
 			);
 			console.log(' ');
-			console.log(`Service started in ${applicationMode} mode`);
+			console.log(
+				`Service started with communication module: ${configService.getComModule()}`,
+			);
 			console.log(`API REST is listening in port ${serverPort}`);
 			console.log(' ');
 			console.log(

@@ -1,13 +1,9 @@
-import { ApplicationMode } from '../types/config.type.js';
-
 export class ConfigService {
 	private readonly serverPort: number;
-	private readonly applicationMode: ApplicationMode;
 	private readonly comModule: string;
 
 	constructor() {
 		this.serverPort = this.parseServerPort();
-		this.applicationMode = this.parseApplicationMode();
 		this.comModule = this.parseComModule();
 
 		this.logConfiguration();
@@ -29,22 +25,6 @@ export class ConfigService {
 		return parsedPort;
 	}
 
-	private parseApplicationMode(): ApplicationMode {
-		const mode = process.env.APPLICATION_MODE;
-		if (!mode) {
-			return ApplicationMode.PROD; // Default to production
-		}
-
-		const validModes = Object.values(ApplicationMode);
-		if (!validModes.includes(mode as ApplicationMode)) {
-			throw new Error(
-				`Invalid APPLICATION_MODE: "${mode}". Must be one of: ${validModes.join(', ')}`,
-			);
-		}
-
-		return mode as ApplicationMode;
-	}
-
 	private parseComModule(): string {
 		return process.env.COM_MODULE ?? 'openvidu';
 	}
@@ -52,24 +32,11 @@ export class ConfigService {
 	private logConfiguration(): void {
 		console.log('Configuration loaded:');
 		console.log(`  SERVER_PORT: ${this.serverPort}`);
-		console.log(`  APPLICATION_MODE: ${this.applicationMode}`);
 		console.log(`  COM_MODULE: ${this.comModule}`);
 	}
 
 	public getServerPort(): number {
 		return this.serverPort;
-	}
-
-	public getApplicationMode(): ApplicationMode {
-		return this.applicationMode;
-	}
-
-	public isProdMode(): boolean {
-		return this.applicationMode === ApplicationMode.PROD;
-	}
-
-	public isDevMode(): boolean {
-		return this.applicationMode === ApplicationMode.DEV;
 	}
 
 	public getComModule(): string {
