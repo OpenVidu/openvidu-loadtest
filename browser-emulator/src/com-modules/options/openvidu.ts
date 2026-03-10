@@ -49,7 +49,7 @@ export default class OpenviduComModule extends BaseComModule {
 			? `recordingmode=${properties.recordingOutputMode}&`
 			: '';
 		const tokenParam = token ? `token=${token}` : '';
-		const qoeAnalysis = !!process.env.QOE_ANALYSIS;
+		const qoeAnalysis = request.properties.mediaRecorders;
 		return (
 			`https://localhost:${this.configService.getServerPort()}/?` +
 			publicUrl +

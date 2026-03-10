@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import fs from 'node:fs';
 import type { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
+import type { QoeAnalysisRequest } from '../types/qoe.type.ts';
 
 interface QoeRecordingRequest extends Request {
 	file: Express.Multer.File;
@@ -58,10 +59,19 @@ export class QoeController {
 		);
 	}
 
-	private async handleAnalysis(_: Request, res: Response): Promise<void> {
-		const status = await this.qoeAnalyzerService.runQoEAnalysis();
+	private async handleAnalysis(
+		req: QoeAnalysisRequest,
+		res: Response,
+	): Promise<void> {
+		const { fragmentDuration, paddingDuration } = req.body;
+		const status = await this.qoeAnalyzerService.runQoEAnalysis(
+			fragmentDuration,
+			paddingDuration,
+		);
 		res.status(200).send(status);
 	}
+
+	// TODO: Endpoint for getStatus of QoE Analysis as used by the loadtest controller
 
 	public getRouter(): express.Router {
 		return this.router;

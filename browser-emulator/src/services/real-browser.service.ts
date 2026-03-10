@@ -5,7 +5,6 @@ import type {
 	StorageNameObject,
 	StorageValueObject,
 } from '../types/storage-config.type.js';
-import type { ConfigService } from './config.service.js';
 import { SeleniumService } from './selenium.service.js';
 import { Mutex } from 'async-mutex';
 import type { ChildProcess } from 'node:child_process';
@@ -20,6 +19,16 @@ import {
 } from '../types/create-user.type.ts';
 
 declare let localStorage: Storage;
+
+interface DriverInfo {
+	driver: WebDriver;
+	sessionName: string;
+	userName: string;
+	connectionRole: Role;
+	browser: AvailableBrowsers;
+	mediaRecorders: boolean;
+}
+
 export class RealBrowserService {
 	private readonly connections = new Map<
 		string,
@@ -27,36 +36,23 @@ export class RealBrowserService {
 	>();
 
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
-	private readonly driverMap = new Map<
-		string,
-		{
-			driver: WebDriver;
-			sessionName: string;
-			userName: string;
-			connectionRole: Role;
-			browser: AvailableBrowsers;
-			mediaRecorders: boolean;
-		}
-	>();
+	private readonly driverMap = new Map<string, DriverInfo>();
 	private readonly keepAliveIntervals = new Map<string, NodeJS.Timeout>();
 	private totalPublishers = 0;
 	private recordingScript: ChildProcess | undefined;
 	private isRecordingFullScreen = false;
 	private readonly muteButtonMutex = new Mutex();
-	private readonly configService: ConfigService;
 	private readonly seleniumService: SeleniumService;
 	private readonly scriptRunnerService: ScriptRunnerService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly comModule: BaseComModule;
 
 	constructor(
-		configService: ConfigService,
 		seleniumService: SeleniumService,
 		comModule: BaseComModule,
 		scriptRunnerService: ScriptRunnerService,
 		localFilesRepository: LocalFilesRepository,
 	) {
-		this.configService = configService;
 		this.seleniumService = seleniumService;
 		this.comModule = comModule;
 		this.scriptRunnerService = scriptRunnerService;
@@ -72,7 +68,9 @@ export class RealBrowserService {
 			this.keepAliveIntervals.delete(driverId);
 		}
 		if (value) {
-			await this.saveQoERecordings(driverId);
+			if (value.mediaRecorders) {
+				await this.saveQoERecordings(driverId);
+			}
 			await value.driver.quit();
 			this.driverMap.delete(driverId);
 			this.deleteConnection(
@@ -90,19 +88,16 @@ export class RealBrowserService {
 		// find entry in driverMap
 		const driversToDelete: {
 			key: string;
-			value: {
-				driver: WebDriver;
-				sessionName: string;
-				userName: string;
-				connectionRole: Role;
-			};
+			value: DriverInfo;
 		}[] = [];
 		const promisesToResolve: Promise<void>[] = [];
 		const recordingPromises: Promise<void>[] = [];
 		this.driverMap.forEach((value, key) => {
 			if (value.sessionName === sessionId && value.userName === userId) {
 				driversToDelete.push({ key, value });
-				recordingPromises.push(this.saveQoERecordings(key));
+				if (value.mediaRecorders) {
+					recordingPromises.push(this.saveQoERecordings(key));
+				}
 				this.deleteConnection(sessionId, key, value.connectionRole);
 			}
 		});
@@ -132,11 +127,7 @@ export class RealBrowserService {
 		console.log('Deleting all ' + role.toString());
 		const driversToDelete: {
 			key: string;
-			value: {
-				driver: WebDriver;
-				sessionName: string;
-				connectionRole: Role;
-			};
+			value: DriverInfo;
 		}[] = [];
 		const promisesToResolve: Promise<void>[] = [];
 		const recordingPromises: Promise<void>[] = [];
@@ -149,8 +140,9 @@ export class RealBrowserService {
 						' with session: ' +
 						value.sessionName,
 				);
-
-				recordingPromises.push(this.saveQoERecordings(key));
+				if (value.mediaRecorders) {
+					recordingPromises.push(this.saveQoERecordings(key));
+				}
 				this.deleteConnection(
 					value.sessionName,
 					key,
@@ -160,9 +152,7 @@ export class RealBrowserService {
 		});
 		console.log('Number of users to delete: ' + driversToDelete.length);
 		if (recordingPromises.length > 0) {
-			console.log(
-				'Number of QoE recordings to save: ' + recordingPromises.length,
-			);
+			console.log('Saving QoE Recordings...');
 			await Promise.all(recordingPromises);
 			console.log('QoE recordings saved');
 		}
@@ -183,14 +173,7 @@ export class RealBrowserService {
 		}
 	}
 
-	private async quitDriver(
-		key: string,
-		value: {
-			driver: WebDriver;
-			sessionName: string;
-			connectionRole: Role;
-		},
-	) {
+	private async quitDriver(key: string, value: DriverInfo) {
 		console.log(
 			'Quitting driver: ' + key + ' with session: ' + value.sessionName,
 		);
@@ -547,50 +530,43 @@ export class RealBrowserService {
 	}
 
 	private async saveQoERecordings(driverId: string) {
-		if (!!process.env.QOE_ANALYSIS && !!driverId) {
-			console.log('Saving QoE Recordings for driver ' + driverId);
-			const driverInfo = this.driverMap.get(driverId);
-			if (driverInfo) {
-				const webDriver = driverInfo.driver;
-				if (webDriver) {
+		console.log('Saving QoE Recordings for driver ' + driverId);
+		const driverInfo = this.driverMap.get(driverId);
+		if (driverInfo) {
+			const webDriver = driverInfo.driver;
+			if (webDriver) {
+				console.log('Executing getRecordings for driver ' + driverId);
+				try {
+					await webDriver.executeAsyncScript(`
+						const callback = arguments[arguments.length - 1];
+						try {
+							recordingManager.getRecordings()
+							.catch(error => {
+								console.error(error)
+							}).finally(() => {
+								try {
+									leaveSession();
+								} catch (error) {
+									console.error("Can't disconnect from session")
+									console.error(error)
+								}
+								callback()
+							});
+						} catch (error) {
+							console.error(error)
+							callback()
+						}
+					`);
+					console.log('QoE Recordings saved for driver ' + driverId);
+					await this.printBrowserLogs(driverId);
+				} catch (error) {
 					console.log(
-						'Executing getRecordings for driver ' + driverId,
+						'Error saving QoE Recordings for driver ' + driverId,
 					);
-					try {
-						await webDriver.executeAsyncScript(`
-                            const callback = arguments[arguments.length - 1];
-                            try {
-                                recordingManager.getRecordings()
-                                .catch(error => {
-                                    console.error(error)
-                                }).finally(() => {
-                                    try {
-                                        leaveSession();
-                                    } catch (error) {
-                                        console.error("Can't disconnect from session")
-                                        console.error(error)
-                                    }
-                                    callback()
-                                });
-                            } catch (error) {
-                                console.error(error)
-                                callback()
-                            }
-                        `);
-						console.log(
-							'QoE Recordings saved for driver ' + driverId,
-						);
-						await this.printBrowserLogs(driverId);
-					} catch (error) {
-						console.log(
-							'Error saving QoE Recordings for driver ' +
-								driverId,
-						);
-						console.log(error);
-						await this.printBrowserLogs(driverId);
-					}
-					this.driverMap.delete(driverId);
+					console.log(error);
+					await this.printBrowserLogs(driverId);
 				}
+				this.driverMap.delete(driverId);
 			}
 		}
 	}

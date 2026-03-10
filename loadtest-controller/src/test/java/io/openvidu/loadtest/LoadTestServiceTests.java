@@ -26,7 +26,7 @@ import org.mockito.MockitoAnnotations;
 
 import software.amazon.awssdk.services.ec2.model.Instance;
 
-import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.config.modules.OVLoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
@@ -51,7 +51,7 @@ class LoadTestServiceTests {
     private BrowserEmulatorClient browserEmulatorClient;
 
     @Mock
-    private LoadTestConfig loadTestConfig;
+    private OVLoadTestConfig loadTestConfig;
 
     @Mock
     private KibanaClient kibanaClient;

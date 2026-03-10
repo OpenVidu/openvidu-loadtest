@@ -1,6 +1,6 @@
 package io.openvidu.loadtest.models.testcase;
 
-public enum OpenViduRole {
+public enum Role {
 
     PUBLISHER("PUBLISHER", "PUBLISHER"),
 
@@ -9,7 +9,7 @@ public enum OpenViduRole {
     private String label;
     private String value;
 
-    OpenViduRole(String label, String string) {
+    Role(String label, String string) {
         this.label = label;
         this.value = string;
     }

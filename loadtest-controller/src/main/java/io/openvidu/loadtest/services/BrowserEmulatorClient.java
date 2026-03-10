@@ -30,11 +30,13 @@ import com.google.gson.JsonObject;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
-import io.openvidu.loadtest.models.testcase.OpenViduRole;
+import io.openvidu.loadtest.models.testcase.Role;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.request.InitializeRequestBody;
+import io.openvidu.loadtest.models.testcase.request.QoeAnalysisBody;
 import io.openvidu.loadtest.models.testcase.request.modules.LKCreateUserRequestBody;
 import io.openvidu.loadtest.models.testcase.request.CreateUserRequestBody;
+import io.openvidu.loadtest.models.testcase.request.CreateUserRequestBodyFactory;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -59,7 +61,7 @@ public class BrowserEmulatorClient {
     private Sleeper sleeper;
 
     private ConcurrentHashMap<String, ConcurrentHashMap<String, AtomicInteger>> clientFailures = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<String, ConcurrentHashMap<String, OpenViduRole>> clientRoles = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, ConcurrentHashMap<String, Role>> clientRoles = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, AtomicBoolean> participantConnecting = new ConcurrentHashMap<>();
     private Set<String> participantReconnecting = new CopyOnWriteArraySet<>();
@@ -217,7 +219,7 @@ public class BrowserEmulatorClient {
     private void afterDisconnect(String workerUrl, String participant, String session) {
         log.debug("After disconnect user {} session {} in {}", participant, session, workerUrl);
         String user = participant + "-" + session;
-        ConcurrentHashMap<String, OpenViduRole> workerRoles = this.clientRoles.get(workerUrl);
+        ConcurrentHashMap<String, Role> workerRoles = this.clientRoles.get(workerUrl);
         if (workerRoles == null) {
             // The connect request hasn't finished yet, wait for it
             log.debug("Worker roles is null for {} in session {} in {}. Waiting ...", participant, session, workerUrl);
@@ -225,13 +227,13 @@ public class BrowserEmulatorClient {
             this.afterDisconnect(workerUrl, participant, session);
             return;
         }
-        OpenViduRole role = workerRoles.get(user);
+        Role role = workerRoles.get(user);
         // get user number from participant removing prefix
         int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
         // get session number from session removing prefix
         int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
         CreateParticipantResponse response = null;
-        if (role.equals(OpenViduRole.PUBLISHER)) {
+        if (role.equals(Role.PUBLISHER)) {
             response = this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
         } else {
             response = this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
@@ -266,8 +268,8 @@ public class BrowserEmulatorClient {
         }
     }
 
-    private void addClient(String workerUrl, int userNumber, int sessionNumber, OpenViduRole role, TestCase testCase) {
-        ConcurrentHashMap<String, OpenViduRole> roles = this.clientRoles.get(workerUrl);
+    private void addClient(String workerUrl, int userNumber, int sessionNumber, Role role, TestCase testCase) {
+        ConcurrentHashMap<String, Role> roles = this.clientRoles.get(workerUrl);
         if (roles == null) {
             roles = new ConcurrentHashMap<>();
             this.clientRoles.put(workerUrl, roles);
@@ -288,9 +290,8 @@ public class BrowserEmulatorClient {
             finalTestCase.setBrowserRecording(false);
         }
         CreateParticipantResponse success = this.createParticipant(worker, userNumber, sessionNumber,
-                finalTestCase,
-                OpenViduRole.PUBLISHER);
-        this.addClient(worker, userNumber, sessionNumber, OpenViduRole.PUBLISHER, testCase);
+                finalTestCase, Role.PUBLISHER);
+        this.addClient(worker, userNumber, sessionNumber, Role.PUBLISHER, testCase);
         return success;
     }
 
@@ -301,24 +302,24 @@ public class BrowserEmulatorClient {
             finalTestCase = new TestCase(testCase);
             finalTestCase.setBrowserRecording(false);
         }
-        OpenViduRole role = OpenViduRole.SUBSCRIBER;
+        Role role = Role.SUBSCRIBER;
         CreateParticipantResponse success = this.createParticipant(worker, userNumber, sessionNumber,
                 finalTestCase, role);
 
-        this.addClient(worker, userNumber, sessionNumber, OpenViduRole.SUBSCRIBER, testCase);
+        this.addClient(worker, userNumber, sessionNumber, Role.SUBSCRIBER, testCase);
         return success;
     }
 
     public CreateParticipantResponse createExternalRecordingPublisher(String worker, int userNumber, int sessionNumber,
             TestCase testCase, String recordingMetadata) {
         return this.createExternalRecordingParticipant(worker, userNumber, sessionNumber, testCase,
-                recordingMetadata, OpenViduRole.PUBLISHER);
+                recordingMetadata, Role.PUBLISHER);
     }
 
     public CreateParticipantResponse createExternalRecordingSubscriber(String worker, int userNumber, int sessionNumber,
             TestCase testCase, String recordingMetadata) {
         return this.createExternalRecordingParticipant(worker, userNumber, sessionNumber, testCase,
-                recordingMetadata, OpenViduRole.SUBSCRIBER);
+                recordingMetadata, Role.SUBSCRIBER);
     }
 
     public void disconnectAll(List<String> workerUrlList) {
@@ -370,7 +371,7 @@ public class BrowserEmulatorClient {
 
     private CreateParticipantResponse createParticipant(String workerUrl, int userNumber, int sessionNumber,
             TestCase testCase,
-            OpenViduRole role) {
+            Role role) {
         // Get current failures if registered
         String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
         String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
@@ -423,7 +424,7 @@ public class BrowserEmulatorClient {
                 return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
             } else {
                 this.participantConnecting.get(user).set(false);
-                this.saveParticipantData(workerUrl, testCase.isTeaching() ? OpenViduRole.PUBLISHER : role);
+                this.saveParticipantData(workerUrl, testCase.isTeaching() ? Role.PUBLISHER : role);
             }
             return processResponse(response);
         } catch (Exception e) {
@@ -447,11 +448,11 @@ public class BrowserEmulatorClient {
 
     }
 
-    private void saveParticipantData(String workerUrl, OpenViduRole role) {
+    private void saveParticipantData(String workerUrl, Role role) {
         int[] initialArray = { 0, 0 };
         BrowserEmulatorClient.publishersAndSubscribersInWorker.putIfAbsent(workerUrl, initialArray);
         int[] list = BrowserEmulatorClient.publishersAndSubscribersInWorker.get(workerUrl);
-        if (role.equals(OpenViduRole.PUBLISHER)) {
+        if (role.equals(Role.PUBLISHER)) {
             list[0] = list[0] + 1;
         } else {
             list[1] = list[1] + 1;
@@ -460,7 +461,7 @@ public class BrowserEmulatorClient {
 
     private CreateParticipantResponse createExternalRecordingParticipant(String worker, int userNumber,
             int sessionNumber,
-            TestCase testCase, String recordingMetadata, OpenViduRole role) {
+            TestCase testCase, String recordingMetadata, Role role) {
 
         TestCase testCaseAux = new TestCase(testCase);
         testCaseAux.setBrowserRecording(true);
@@ -500,18 +501,18 @@ public class BrowserEmulatorClient {
         return failures == loadTestConfig.getRetryTimes();
     }
 
-// @formatter:off
-	private LKCreateUserRequestBody generateRequestBody(int userNumber, String sessionNumber, OpenViduRole role, TestCase testCase) {
-		// TODO: make more generic
-		boolean video = (testCase.isTeaching() && role.equals(OpenViduRole.PUBLISHER)) || !testCase.isTeaching();
-		OpenViduRole actualRole = testCase.isTeaching() ? OpenViduRole.PUBLISHER : role;
-		boolean audio = true;
-		String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
-		String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
+    private CreateUserRequestBody generateRequestBody(int userNumber, String sessionNumber, Role role,
+            TestCase testCase) {
+        // TODO: make more generic
+        boolean video = (testCase.isTeaching() && role.equals(Role.PUBLISHER)) || !testCase.isTeaching();
+        Role actualRole = testCase.isTeaching() ? Role.PUBLISHER : role;
+        boolean audio = true;
+        String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
+        String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
 
-		return new LKCreateUserRequestBody((LKLoadTestConfig) loadTestConfig, testCase, video, audio, actualRole, userId, sessionId);
-	}
-// @formatter:on
+        return CreateUserRequestBodyFactory.create(loadTestConfig, testCase, video, audio, actualRole, userId,
+                sessionId);
+    }
 
     private Map<String, String> getHeaders() {
         Map<String, String> headers = new HashMap<String, String>();
@@ -519,8 +520,8 @@ public class BrowserEmulatorClient {
         return headers;
     }
 
-    public int getRoleInWorker(String workerUrl, OpenViduRole role) {
-        Integer idx = role.equals(OpenViduRole.PUBLISHER) ? 0 : 1;
+    public int getRoleInWorker(String workerUrl, Role role) {
+        Integer idx = role.equals(Role.PUBLISHER) ? 0 : 1;
         int[] initialArray = { 0, 0 };
         BrowserEmulatorClient.publishersAndSubscribersInWorker
                 .putIfAbsent(workerUrl, initialArray);
@@ -538,7 +539,8 @@ public class BrowserEmulatorClient {
                     @Override
                     public String call() throws Exception {
                         return httpClient.sendPost(
-                                "https://" + workerUrl + ":" + WORKER_PORT + "/qoe/analysis", null, null,
+                                "https://" + workerUrl + ":" + WORKER_PORT + "/qoe/analysis",
+                                new QoeAnalysisBody(loadTestConfig).toJson(), null,
                                 getHeaders()).body();
                     }
                 };

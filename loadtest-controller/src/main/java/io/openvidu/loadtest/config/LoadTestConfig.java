@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
-public class LoadTestConfig {
+public abstract class LoadTestConfig {
 
     private static final Logger log = LoggerFactory.getLogger(LoadTestConfig.class);
 
@@ -42,8 +42,6 @@ public class LoadTestConfig {
     private boolean terminateWorkers;
 
     private String openviduUrl;
-
-    private String openviduSecret;
 
     private String sessionNamePrefix;
 
@@ -141,10 +139,6 @@ public class LoadTestConfig {
 
     public String getAwsAccessKey() {
         return awsAccessKey;
-    }
-
-    public String getOpenViduSecret() {
-        return this.openviduSecret;
     }
 
     public String getSessionNamePrefix() {
@@ -344,7 +338,6 @@ public class LoadTestConfig {
         try {
             openviduUrl = asString("OPENVIDU_URL");
             openviduUrl = openviduUrl.replaceAll("/$", "");
-            openviduSecret = asOptionalString("OPENVIDU_SECRET");
             sessionNamePrefix = asString("SESSION_NAME_PREFIX");
             userNamePrefix = asString("USER_NAME_PREFIX");
             secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");
@@ -416,7 +409,6 @@ public class LoadTestConfig {
     private void printInfo() {
         log.info("-------- Load Test Parameters --------");
         log.info("OpenVidu URL: {}", openviduUrl);
-        log.info("OpenVidu SECRET: {}", openviduSecret);
         log.info("Session Name Prefix: {}", sessionNamePrefix);
         log.info("Username Prefix: {}", userNamePrefix);
         log.info("Seconds between users: {}", secondsToWaitBetweenParticipants);

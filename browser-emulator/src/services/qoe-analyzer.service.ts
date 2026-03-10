@@ -3,20 +3,16 @@ import { runQoEAnalysisNonBlocking } from '../utils/qoe-analysis-utils.js';
 import type { JSONQoeProcessing } from '../types/json.type.ts';
 
 export class QoeAnalyzerService {
-	private FRAGMENT_DURATION = 5;
-	private PADDING_DURATION = 1;
 	private readonly browserManagerService: BrowserManagerService;
 
 	constructor(browserManagerService: BrowserManagerService) {
 		this.browserManagerService = browserManagerService;
 	}
 
-	public setDurations(fragment_duration: number, padding_duration: number) {
-		this.FRAGMENT_DURATION = fragment_duration;
-		this.PADDING_DURATION = padding_duration;
-	}
-
-	public async runQoEAnalysis() {
+	public async runQoEAnalysis(
+		fragmentDuration: number,
+		paddingDuration: number,
+	) {
 		const lastRequest = this.browserManagerService.lastRequestInfo;
 		if (lastRequest) {
 			const properties = lastRequest.properties;
@@ -28,8 +24,8 @@ export class QoeAnalyzerService {
 				const PRESENTER_VIDEO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakevideo_${framerate}fps_${properties.resolution}.y4m`;
 				const PRESENTER_AUDIO_FILE_LOCATION = `${process.cwd()}/src/assets/mediafiles/fakeaudio.wav`;
 				const processingInfo: JSONQoeProcessing = {
-					fragment_duration: this.FRAGMENT_DURATION,
-					padding_duration: this.PADDING_DURATION,
+					fragment_duration: fragmentDuration,
+					padding_duration: paddingDuration,
 					framerate,
 					width,
 					height,

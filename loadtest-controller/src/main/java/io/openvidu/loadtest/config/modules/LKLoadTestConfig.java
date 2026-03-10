@@ -1,14 +1,11 @@
 package io.openvidu.loadtest.config.modules;
 
-import org.springframework.stereotype.Component;
-
 import jakarta.annotation.PostConstruct;
 
 import org.springframework.core.env.Environment;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 
-@Component
 public class LKLoadTestConfig extends LoadTestConfig {
 
     protected LKLoadTestConfig(Environment env) {

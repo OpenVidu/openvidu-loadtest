@@ -30,7 +30,7 @@ import software.amazon.awssdk.services.ec2.model.Instance;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
-import io.openvidu.loadtest.models.testcase.OpenViduRole;
+import io.openvidu.loadtest.models.testcase.Role;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.WorkerType;
@@ -207,9 +207,9 @@ public class LoadTestService {
         private TestCase testCase;
         private boolean recording;
         private String recordingMetadata;
-        private OpenViduRole role;
+        private Role role;
 
-        public ParticipantTask(String worker, int user, int session, TestCase testCase, OpenViduRole role,
+        public ParticipantTask(String worker, int user, int session, TestCase testCase, Role role,
                 boolean recording, String recordingMetadata) {
             this.worker = worker;
             this.session = session;
@@ -224,7 +224,7 @@ public class LoadTestService {
         public CreateParticipantResponse get() {
             CreateParticipantResponse response;
             if (recording) {
-                if (role.equals(OpenViduRole.PUBLISHER)) {
+                if (role.equals(Role.PUBLISHER)) {
                     response = browserEmulatorClient.createExternalRecordingPublisher(worker, user, session, testCase,
                             recordingMetadata);
                 } else {
@@ -232,7 +232,7 @@ public class LoadTestService {
                             recordingMetadata);
                 }
             } else {
-                if (role.equals(OpenViduRole.PUBLISHER)) {
+                if (role.equals(Role.PUBLISHER)) {
                     response = browserEmulatorClient.createPublisher(worker, user, session, testCase);
                 } else {
                     response = browserEmulatorClient.createSubscriber(worker, user, session, testCase);
@@ -621,12 +621,12 @@ public class LoadTestService {
                 String recordingMetadata = "N-N_ONE";
                 future = CompletableFuture.supplyAsync(
                         new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
-                                OpenViduRole.PUBLISHER, true, recordingMetadata),
+                                Role.PUBLISHER, true, recordingMetadata),
                         executorService);
             } else {
                 future = CompletableFuture.supplyAsync(
                         new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-                                testCase, OpenViduRole.PUBLISHER, false, null),
+                                testCase, Role.PUBLISHER, false, null),
                         executorService);
                 browsersInWorker++;
             }
@@ -709,12 +709,12 @@ public class LoadTestService {
                 String recordingMetadata = "X-M_" + publishers + "_ONE";
                 future = CompletableFuture.supplyAsync(
                         new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
-                                OpenViduRole.PUBLISHER, true, recordingMetadata),
+                                Role.PUBLISHER, true, recordingMetadata),
                         executorService);
             } else {
                 future = CompletableFuture.supplyAsync(
                         new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-                                testCase, OpenViduRole.PUBLISHER, false, null),
+                                testCase, Role.PUBLISHER, false, null),
                         executorService);
                 browsersInWorker++;
             }
@@ -771,12 +771,12 @@ public class LoadTestService {
                 String recordingMetadata = "X-M_" + publishers + "_ONE";
                 future = CompletableFuture.supplyAsync(
                         new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
-                                testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata),
+                                testCase, Role.SUBSCRIBER, true, recordingMetadata),
                         executorService);
             } else {
                 future = CompletableFuture.supplyAsync(
                         new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-                                testCase, OpenViduRole.SUBSCRIBER, false, null),
+                                testCase, Role.SUBSCRIBER, false, null),
                         executorService);
                 browsersInWorker++;
             }
@@ -875,7 +875,7 @@ public class LoadTestService {
                 } else {
                     future = CompletableFuture.supplyAsync(
                             new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
-                                    OpenViduRole.PUBLISHER, false, null),
+                                    Role.PUBLISHER, false, null),
                             executorService);
                     browsersInWorker++;
                 }
@@ -1000,12 +1000,12 @@ public class LoadTestService {
                             + subscribers + "PSes";
                     future = CompletableFuture.supplyAsync(
                             new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(), testCase,
-                                    OpenViduRole.PUBLISHER, true, recordingMetadata),
+                                    Role.PUBLISHER, true, recordingMetadata),
                             executorService);
                 } else {
                     future = CompletableFuture.supplyAsync(
                             new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-                                    testCase, OpenViduRole.PUBLISHER, false, null),
+                                    testCase, Role.PUBLISHER, false, null),
                             executorService);
                     browsersInWorker++;
                 }
@@ -1066,12 +1066,12 @@ public class LoadTestService {
                             + subscribers + "PSes";
                     future = CompletableFuture.supplyAsync(
                             new ParticipantTask(recWorker, userNumber.getAndIncrement(), sessionNumber.get(),
-                                    testCase, OpenViduRole.SUBSCRIBER, true, recordingMetadata),
+                                    testCase, Role.SUBSCRIBER, true, recordingMetadata),
                             executorService);
                 } else {
                     future = CompletableFuture.supplyAsync(
                             new ParticipantTask(worker, userNumber.getAndIncrement(), sessionNumber.get(),
-                                    testCase, OpenViduRole.SUBSCRIBER, false, null),
+                                    testCase, Role.SUBSCRIBER, false, null),
                             executorService);
                     browsersInWorker++;
                 }

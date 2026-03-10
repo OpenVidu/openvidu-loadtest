@@ -17,9 +17,6 @@ public class InitializeRequestBody {
     private String s3Host = "";
     private String s3HostAccessKey = "";
     private String s3HostSecretKey = "";
-    private boolean qoeAnalysisEnabled = false;
-    private int paddingDuration = 1;
-    private int fragmentDuration = 5;
     private String videoType = "bunny";
     private int videoWidth = 640;
     private int videoHeight = 480;
@@ -39,9 +36,6 @@ public class InitializeRequestBody {
         this.s3Region = config.getS3Region();
         this.s3Host = config.getS3Host();
         this.s3HostAccessKey = config.getS3HostAccessKey();
-        this.qoeAnalysisEnabled = config.isQoeAnalysisRecordings();
-        this.paddingDuration = config.getPaddingDuration();
-        this.fragmentDuration = config.getFragmentDuration();
         this.videoType = config.getVideoType().toLowerCase();
         this.videoWidth = config.getVideoWidth();
         this.videoHeight = config.getVideoHeight();
@@ -97,13 +91,6 @@ public class InitializeRequestBody {
             browserVideo.add("videoInfo", videoInfo);
         }
         jsonBody.add("browserVideo", browserVideo);
-        if (this.qoeAnalysisEnabled) {
-            JsonObject qoe = new JsonObject();
-            qoe.addProperty("enabled", this.qoeAnalysisEnabled);
-            qoe.addProperty("paddingDuration", this.paddingDuration);
-            qoe.addProperty("fragmentDuration", this.fragmentDuration);
-            jsonBody.add("qoeAnalysis", qoe);
-        }
 
         return jsonBody;
 

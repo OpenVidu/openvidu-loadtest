@@ -97,15 +97,6 @@ export class InstanceController {
 			}
 			await Promise.all(promises);
 
-			// TODO: this QOE_ANALYSIS should not be an env variable, there should be two separate properties: one to enable MediaRecorders in browser creation request and another one to actually do the QoE Analysis in situ
-			if (request.qoeAnalysis?.enabled) {
-				process.env.QOE_ANALYSIS =
-					request.qoeAnalysis.enabled.toString();
-				this.qoeAnalyzerService.setDurations(
-					request.qoeAnalysis.fragment_duration,
-					request.qoeAnalysis.padding_duration,
-				);
-			}
 			res.status(200).send(
 				`Instance ${req.headers.host} has been initialized`,
 			);

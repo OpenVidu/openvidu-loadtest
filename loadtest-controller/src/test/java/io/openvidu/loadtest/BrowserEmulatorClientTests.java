@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.net.http.HttpResponse;
 import com.google.gson.JsonObject;
 
-import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
+import io.openvidu.loadtest.config.modules.OVLoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
@@ -33,14 +33,14 @@ class BrowserEmulatorClientTests {
     private BrowserEmulatorClient browserEmulatorClient;
 
     private CustomHttpClient httpClientMock;
-    private LKLoadTestConfig loadTestConfigMock;
+    private OVLoadTestConfig loadTestConfigMock;
     private JsonUtils jsonUtilsMock;
     private Sleeper sleeper;
 
     @BeforeEach
     void setUp() {
         this.httpClientMock = mock(CustomHttpClient.class);
-        this.loadTestConfigMock = mock(LKLoadTestConfig.class);
+        this.loadTestConfigMock = mock(OVLoadTestConfig.class);
         this.jsonUtilsMock = mock(JsonUtils.class);
         this.sleeper = mock(Sleeper.class);
 
@@ -129,6 +129,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
         properties.addProperty("browser", "chrome");
+        properties.addProperty("mediaRecorders", false);
         expectedBody.add("properties", properties);
         @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);
@@ -191,6 +192,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
         properties.addProperty("browser", "chrome");
+        properties.addProperty("mediaRecorders", false);
         expectedBody.add("properties", properties);
 
         @SuppressWarnings("unchecked")
@@ -243,6 +245,7 @@ class BrowserEmulatorClientTests {
         properties.addProperty("showVideoElements", true);
         properties.addProperty("headless", false);
         properties.addProperty("browser", "firefox");
+        properties.addProperty("mediaRecorders", false);
         expectedBody.add("properties", properties);
         @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);
