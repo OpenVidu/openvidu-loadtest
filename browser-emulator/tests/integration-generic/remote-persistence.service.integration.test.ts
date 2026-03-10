@@ -22,10 +22,10 @@ import {
 	StartedS3MockContainer,
 } from '@testcontainers/s3mock';
 import * as fs from 'node:fs';
-import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
 import { Readable } from 'node:stream';
 import { S3Repository } from '../../src/repositories/files/s3.repository.ts';
+import { removeAllFilesFromDir } from '../utils/files.ts';
 
 /**
  * Helper function to convert a stream to string
@@ -98,28 +98,6 @@ async function listBucketObjects(
 	}
 
 	return keys;
-}
-
-async function removeDir(dirPath: string) {
-	try {
-		const files = await fsPromises.readdir(dirPath, {
-			withFileTypes: true,
-		});
-		for (const file of files) {
-			if (file.name !== '.gitkeep') {
-				const fullPath = path.join(dirPath, file.name);
-				await fsPromises.rm(fullPath, {
-					recursive: true,
-					force: true,
-				});
-			}
-		}
-	} catch (error) {
-		// Directory doesn't exist, ignore
-		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-			throw error;
-		}
-	}
 }
 
 describe('RemotePersistenceService Integration Tests', () => {
@@ -226,9 +204,11 @@ describe('RemotePersistenceService Integration Tests', () => {
 		}
 
 		await Promise.all([
-			removeDir(LocalFilesRepository.FULLSCREEN_RECORDING_DIR),
-			removeDir(LocalFilesRepository.QOE_RECORDING_DIR),
-			removeDir(LocalFilesRepository.STATS_DIR),
+			removeAllFilesFromDir(
+				LocalFilesRepository.FULLSCREEN_RECORDING_DIR,
+			),
+			removeAllFilesFromDir(LocalFilesRepository.QOE_RECORDING_DIR),
+			removeAllFilesFromDir(LocalFilesRepository.STATS_DIR),
 		]);
 	}, 120000);
 
