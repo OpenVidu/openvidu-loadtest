@@ -7,14 +7,10 @@ import {
 } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import firefox from 'selenium-webdriver/firefox.js';
-import type { AvailableBrowsers } from '../types/api-rest.type.ts';
-import type { ScriptRunnerService } from './script-runner.service.ts';
-import type { FakeMediaDevicesService } from './fake-media/fake-media-devices.service.ts';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
-import fsPromises from 'node:fs/promises';
+import type { AvailableBrowsers } from '../types/create-user.type.ts';
 
 export class SeleniumService {
-	private isInitialized = false;
 	// TODO: Add this as config
 	// private static readonly BROWSER_HOSTPORT = 4444;
 
@@ -23,18 +19,10 @@ export class SeleniumService {
 	private readonly firefoxOptions = new firefox.Options();
 	private readonly firefoxCapabilities = Capabilities.firefox();
 
-	private readonly scriptRunnerService: ScriptRunnerService;
-	private readonly fakeMediaDevicesService: FakeMediaDevicesService;
-
-	public constructor(
-		scriptRunnerService: ScriptRunnerService,
-		fakeMediaDevicesService: FakeMediaDevicesService,
-	) {
-		this.scriptRunnerService = scriptRunnerService;
-		this.fakeMediaDevicesService = fakeMediaDevicesService;
+	public constructor() {
 		const prefs = new logging.Preferences();
 		logging.getLogger('webdriver');
-		const logLevel = logging.Level.INFO;
+		const logLevel = logging.Level.OFF;
 		prefs.setLevel(logging.Type.BROWSER, logLevel);
 		prefs.setLevel(logging.Type.DRIVER, logLevel);
 		prefs.setLevel(logging.Type.CLIENT, logLevel);
@@ -57,46 +45,6 @@ export class SeleniumService {
 			'--disable-gpu',
 			'--start-maximized',
 		);
-	}
-
-	public async initialize(
-		videoPath: string,
-		audioPath: string,
-	): Promise<void> {
-		if (!this.isInitialized) {
-			// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
-			// TODO: launch vnc server, maybe in some debug mode
-			// TODO: choose display number in config
-			process.env.DISPLAY = ':10';
-			if (
-				!(await this.scriptRunnerService.isRunning(
-					`Xvfb ${process.env.DISPLAY}`,
-				))
-			) {
-				const xvfbLogFd = await fsPromises.open(
-					`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/xvfb.log`,
-					'a',
-				);
-				// TODO: Maybe screen res should be parametrized somehow
-				await this.scriptRunnerService.run(
-					`Xvfb ${process.env.DISPLAY} -screen 0 1920x1080x24 -ac`,
-					{
-						detached: true,
-						stdio: ['ignore', xvfbLogFd.fd, xvfbLogFd.fd],
-					},
-				);
-				await xvfbLogFd.close();
-			}
-			// Start fake webcam for media capture
-			await this.fakeMediaDevicesService.startFakeMediaDevices(
-				videoPath,
-				audioPath,
-				() => {
-					this.isInitialized = false;
-				},
-			);
-			this.isInitialized = true;
-		}
 	}
 
 	public async getDriver(
@@ -125,9 +73,10 @@ export class SeleniumService {
 	}
 
 	private async getFirefoxDriver(verboseLogging = false): Promise<WebDriver> {
-		const sb = new firefox.ServiceBuilder()
-			.enableVerboseLogging(verboseLogging)
-			.setStdio('inherit');
+		const sb = new firefox.ServiceBuilder();
+		if (verboseLogging) {
+			sb.enableVerboseLogging(verboseLogging).setStdio('inherit');
+		}
 		return await new Builder()
 			.forBrowser(Browser.FIREFOX)
 			.withCapabilities(this.firefoxCapabilities)

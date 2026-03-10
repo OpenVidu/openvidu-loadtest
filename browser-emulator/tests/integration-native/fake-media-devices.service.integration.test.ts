@@ -37,14 +37,7 @@ describe('FakeMediaDevicesService', () => {
 	});
 
 	it('should start readable fake media devices without errors', async () => {
-		let fakeMediaStopped = false;
-		await fakeMediaService.startFakeMediaDevices(
-			videoPath,
-			audioPath,
-			() => {
-				fakeMediaStopped = true;
-			},
-		);
+		await fakeMediaService.startFakeMediaDevices(videoPath, audioPath);
 		// Check if the devices are readable by another process
 		// Read from the devices using another ffmpeg process.
 		const duration = 5; // seconds
@@ -127,6 +120,8 @@ describe('FakeMediaDevicesService', () => {
 			expect(median).toBeGreaterThan(0.7);
 			expect(median).toBeLessThan(1.3);
 		}
-		expect(fakeMediaStopped).toBe(false);
+		// Check Xvfb has started
+		expect(scriptRunnerService.isRunning('Xvfb :10'));
+		expect(process.env.DISPLAY).toBe(':10');
 	});
 });

@@ -19,12 +19,12 @@ async function cleanup() {
 		'remotePersistenceService',
 	);
 	remotePersistenceService.clean();
-	const scriptRunnerService = container.resolve('scriptRunnerService');
-	await scriptRunnerService.killAllDetached();
 	const fakeMediaDevicesService = container.resolve(
 		'fakeMediaDevicesService',
 	);
 	await fakeMediaDevicesService.cleanupFakeMediaDevices();
+	const scriptRunnerService = container.resolve('scriptRunnerService');
+	await scriptRunnerService.killAllDetached();
 }
 
 async function createServer() {

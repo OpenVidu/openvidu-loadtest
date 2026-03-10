@@ -2,10 +2,13 @@ import fsPromises from 'node:fs/promises';
 import type { ScriptRunnerService } from '../script-runner.service.ts';
 import os from 'node:os';
 import { LocalFilesRepository } from '../../repositories/files/local-files.repository.ts';
+import type { ChildProcess } from 'node:child_process';
 
 export class FakeMediaDevicesService {
 	private readonly scriptRunnerService: ScriptRunnerService;
 	private readonly PULSEAUDIO_CONF_PATH = `${os.homedir()}/.config/pulse/client.conf`;
+	private ffmpegProcess: ChildProcess | undefined;
+	private xvfbProcess: ChildProcess | undefined;
 
 	public constructor(scriptRunnerService: ScriptRunnerService) {
 		this.scriptRunnerService = scriptRunnerService;
@@ -26,25 +29,18 @@ export class FakeMediaDevicesService {
 		console.log('Fake microphone created.');
 	}
 
-	public async startFakeMediaDevices(
-		videoPath: string,
-		audioPath: string,
-		subprocessStopsCallback: () => void,
-	) {
+	public async startFakeMediaDevices(videoPath: string, audioPath: string) {
 		// Assumes ffmpeg installed, v4l2loopback installed and enabled, and pulseaudio installed,
 		// check install scripts for guidance
 
-		if (
-			await this.scriptRunnerService.isRunning(
-				'ffmpeg /dev/video0 /tmp/virtmic',
-			)
-		) {
+		if (this.ffmpegProcess) {
 			console.log(
 				'Fake webcam & microphone already running, skipping start.',
 			);
 			return;
 		}
 		await Promise.all([
+			this.startXvfb(),
 			this.waitForV4L2Device(),
 			this.createFakeMicrophone(),
 		]);
@@ -53,43 +49,61 @@ export class FakeMediaDevicesService {
 			`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/fake_media_devices_ffmpeg.log`,
 			'a',
 		);
-		const child = await this.startFfmpegDeviceProcess(
-			videoPath,
-			audioPath,
-			fakeMediaLogFd,
-			subprocessStopsCallback,
-		);
-		await fakeMediaLogFd.close();
-		console.log(
-			`Started ffmpeg process for fake media devices with PID ${child.pid}, checking if it's ready...`,
-		);
-		await this.isFfmpegDeviceProcessReadable();
-		console.log('Fake media devices are ready and readable.');
+		try {
+			this.ffmpegProcess = await this.startFfmpegDeviceProcess(
+				videoPath,
+				audioPath,
+				fakeMediaLogFd,
+			);
+			await fakeMediaLogFd.close();
+			console.log(
+				`Started ffmpeg process for fake media devices with PID ${this.ffmpegProcess?.pid}, checking if it's ready...`,
+			);
+			await this.isFfmpegDeviceProcessReadable();
+			console.log('Fake media devices are ready and readable.');
+		} catch (err) {
+			this.ffmpegProcess = undefined;
+			this.xvfbProcess = undefined;
+			throw err;
+		}
+	}
+
+	private async startXvfb() {
+		// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
+		// TODO: launch vnc server, maybe in some debug mode
+		// TODO: choose display number in config
+		process.env.DISPLAY = ':10';
+		if (
+			!(await this.scriptRunnerService.isRunning(
+				`Xvfb ${process.env.DISPLAY}`,
+			))
+		) {
+			const xvfbLogFd = await fsPromises.open(
+				`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/xvfb.log`,
+				'a',
+			);
+			// TODO: Maybe screen res should be parametrized somehow
+			this.xvfbProcess = await this.scriptRunnerService.run(
+				`Xvfb ${process.env.DISPLAY} -screen 0 1920x1080x24 -ac`,
+				{
+					detached: true,
+					stdio: ['ignore', xvfbLogFd.fd, xvfbLogFd.fd],
+				},
+			);
+			await xvfbLogFd.close();
+		}
 	}
 
 	private async startFfmpegDeviceProcess(
 		videoPath: string,
 		audioPath: string,
 		fakeMediaLogFd: fsPromises.FileHandle,
-		subprocessStopsCallback: () => void,
 	) {
 		return this.scriptRunnerService.run(
 			`ffmpeg -loglevel info -y -stream_loop -1 -re -i ${videoPath} -stream_loop -1 -re -i ${audioPath} -map 0 -vcodec rawvideo -pix_fmt yuv420p -threads 0 -f v4l2 /dev/video0 -map 1 -f s16le -ar 48000 -ac 2 -threads 0 /tmp/virtmic`,
 			{
 				detached: true,
 				stdio: ['ignore', fakeMediaLogFd.fd, fakeMediaLogFd.fd],
-				onErrorCallback: err => {
-					console.error(
-						`Error in ffmpeg process for fake media devices: ${err}`,
-					);
-					subprocessStopsCallback();
-				},
-				onCloseCallback: code => {
-					console.log(
-						`ffmpeg process for fake media devices exited with code ${code}`,
-					);
-					subprocessStopsCallback();
-				},
 			},
 		);
 	}
@@ -192,6 +206,25 @@ export class FakeMediaDevicesService {
 	}
 
 	public async cleanupFakeMediaDevices() {
+		const promises = [this.cleanFakeMicrophone()];
+		if (this.xvfbProcess) {
+			promises.push(
+				this.scriptRunnerService
+					.killDetached(this.xvfbProcess)
+					.then(() => (this.xvfbProcess = undefined)),
+			);
+		}
+		if (this.ffmpegProcess) {
+			promises.push(
+				this.scriptRunnerService
+					.killDetached(this.ffmpegProcess)
+					.then(() => (this.ffmpegProcess = undefined)),
+			);
+		}
+		return Promise.all(promises);
+	}
+
+	private async cleanFakeMicrophone() {
 		// Check if module is loaded before trying to unload
 		let loadedModules = '';
 		try {
