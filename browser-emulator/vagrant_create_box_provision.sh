@@ -87,6 +87,7 @@ ${PREPARE_SCRIPT_PATH}/install_base.sh >/var/log/install.log 2>&1
 start_bg "install_qoe" run_install_qoe
 start_bg "install_livekit" bash -c "curl -sSL https://get.livekit.io | bash"
 start_bg "install_openvidu" run_openvidu_install
+start_bg "download_mediafiles" bash -c "cd /opt/openvidu-loadtest/browser-emulator && ./prepare_scripts/download_mediafiles.sh"
 
 set +o xtrace
 (
