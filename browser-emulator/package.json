@@ -16,7 +16,7 @@
 		"lint": "eslint src tests dev_scripts --ext .ts",
 		"lint:fix": "eslint src tests dev_scripts --ext .ts --fix",
 		"format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"*.ts\" \"*.js\" \"*.json\"",
-		"test": "vitest run --project=unit --project=integration-generic",
+		"test": "vitest run --project=unit",
 		"test:unit": "vitest run --project=unit",
 		"test:integration": "vitest run --project=integration-generic",
 		"test:coverage": "vitest run --project=unit --project=integration-generic --coverage",
