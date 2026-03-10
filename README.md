@@ -293,7 +293,24 @@ RETRY_TIMES=5
 #### For selecting the video to use
 
 These properties allow you to select the video to use.
-There are 3 default options, and you can also use a custom video, check the description of the [browser-emulator Initialize instance API](https://github.com/OpenVidu/openvidu-loadtest/tree/master/browser-emulator#initialize-instance) for more information about these options:
+There are 3 default options provided by the OpenVidu team that you can use for your tests:
+
+- BUNNY: [Blender animated demo video](https://peach.blender.org/)
+  - Available resolutions and frame rates:
+    - Width: 640, height: 480, fps: 30
+    - Width: 640, height: 480, fps: 60
+    - Width: 1280, height: 720, fps: 30
+    - Width: 1280, height: 720, fps: 60
+    - Width: 1920, height: 1080, fps: 30
+    - Width: 1920, height: 1080, fps: 60
+- INTERVIEW: interview video
+  - Available resolutions and frame rates:
+    - Width: 640, height: 480, fps: 30
+- GAME: gameplay video with commentary
+  - Available resolutions and frame rates:
+    - Width: 640, height: 480, fps: 30
+
+You can also use a custom video. For that, you will have to provide the video and audio URLs and set `VIDEO_TYPE=CUSTOM`. The video and audio files must be downloadable by the workers via HTTP(S) request.
 
 ```properties
 # Video type options: BUNNY, INTERVIEW, GAME, CUSTOM
