@@ -5,7 +5,7 @@ import type { Application } from 'express';
 import { createServer } from 'node:http';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
-import { Resolution } from '../../src/types/openvidu.type.js';
+import { Resolution } from '../../src/types/create-user.type.js';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
 
 let app: Application;
