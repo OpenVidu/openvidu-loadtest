@@ -16,6 +16,8 @@ interface RunOptions {
 	nodeName: string;
 	timeoutSeconds: number;
 	project: string | null;
+	testFile: string | null;
+	testName: string | null;
 	halt: boolean;
 	destroy: boolean;
 	coverage: boolean;
@@ -29,6 +31,8 @@ const DEFAULT_OPTIONS: RunOptions = {
 	nodeName: 'node1',
 	timeoutSeconds: 600,
 	project: null,
+	testFile: null,
+	testName: null,
 	halt: false,
 	destroy: false,
 	coverage: false,
@@ -64,6 +68,8 @@ Options:
   --node=<name>       Vagrant machine name (default: node1)
   --timeout=<secs>    Readiness timeout in seconds (default: 600, 10 minutes)
   --project=<name>    Run only one Vitest project (for example: unit, e2e)
+  --file=<path>       Run only tests from a specific file
+  --testName=<name>   Run only tests whose name matches this pattern
   --coverage          Run tests with coverage
   --debug             Enable Node debugger (port 9230 forwarded to host)
   --halt              Halt VM after successful execution (vagrant halt)
@@ -74,9 +80,13 @@ Examples:
   # Run all tests on OpenVidu 2
   pnpm run test:all
   # Run only e2e tests on LiveKit with coverage
-  pnpm run test:all -- --livekit --project=e2e --coverage
+  pnpm run test:all --livekit --project=e2e --coverage
+  # Run one specific test file
+  pnpm run test:all --file=tests/integration-native/my-test.test.ts
+  # Run one specific test by name
+  pnpm run test:all --testName="should connect and publish"
   # Run integration-native tests with debugger enabled (Recommended: Use the VSCode launch configuration instead for easier use)
-  pnpm run test:all -- --project=integration-native --debug
+  pnpm run test:all --project=integration-native --debug
 `);
 }
 
@@ -104,6 +114,18 @@ function parseArgs(argv: string[]): RunOptions {
 				throw new Error('Project name cannot be empty.');
 			}
 			options.project = project;
+		} else if (arg.startsWith('--file=')) {
+			const testFile = arg.slice('--file='.length).trim();
+			if (!testFile) {
+				throw new Error('Test file cannot be empty.');
+			}
+			options.testFile = testFile;
+		} else if (arg.startsWith('--testName=')) {
+			const testName = arg.slice('--testName='.length).trim();
+			if (!testName) {
+				throw new Error('Test name cannot be empty.');
+			}
+			options.testName = testName;
 		} else {
 			throw new Error(`Unknown option: ${arg}`);
 		}
@@ -189,6 +211,11 @@ function nowStamp(): string {
 
 function sleep(milliseconds: number): void {
 	Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function bashSingleQuote(value: string): string {
+	const escaped = String.raw`'\\''`;
+	return `'${value.replaceAll("'", escaped)}'`;
 }
 
 function getVagrantStatus(machine: string): 'up' | 'down' | 'unknown' {
@@ -393,18 +420,31 @@ function runTestsInsideGuest(
 	coverage: boolean,
 	debug: boolean,
 	project: string | null,
+	testFile: string | null,
+	testName: string | null,
 ): number {
-	let testCommand = 'pnpm exec vitest run';
+	const testCommandArgs = ['exec', 'vitest', 'run'];
 	if (coverage) {
-		testCommand += ' --coverage';
+		testCommandArgs.push('--coverage');
 	}
 	if (debug) {
-		testCommand +=
-			' --inspect-brk=0.0.0.0:9230 --no-file-parallelism --test-timeout=0';
+		testCommandArgs.push(
+			'--inspect-brk=0.0.0.0:9230',
+			'--no-file-parallelism',
+			'--test-timeout=0',
+		);
 	}
 	if (project) {
-		testCommand += ` --project=${project}`;
+		testCommandArgs.push(`--project=${project}`);
 	}
+	if (testName) {
+		testCommandArgs.push('--testNamePattern', testName);
+	}
+	if (testFile) {
+		testCommandArgs.push(testFile);
+	}
+
+	const testCommand = `pnpm ${testCommandArgs.map(arg => bashSingleQuote(arg)).join(' ')}`;
 	console.log(`Running test command inside guest: ${testCommand}`);
 
 	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && ${testCommand} 2>&1 | tee /var/log/tests.log"`;
@@ -436,6 +476,8 @@ function main(): void {
 		options.coverage,
 		options.debug,
 		options.project,
+		options.testFile,
+		options.testName,
 	);
 
 	const artifactsDir = join(
@@ -474,6 +516,8 @@ function printOptions(options: RunOptions) {
 		`  Platform: ${options.livekit ? 'LiveKit' : 'OpenVidu'}`,
 		`  Timeout: ${options.timeoutSeconds} seconds`,
 		`  Vitest project: ${options.project ?? 'all projects'}`,
+		`  Test file filter: ${options.testFile ?? 'none'}`,
+		`  Test name filter: ${options.testName ?? 'none'}`,
 		`  Coverage: ${options.coverage ? 'enabled' : 'disabled'}`,
 		`  Debug: ${options.debug ? 'enabled' : 'disabled'}`,
 		`  Halt after tests: ${options.halt ? 'yes' : 'no'}`,
