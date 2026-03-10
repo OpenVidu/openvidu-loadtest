@@ -132,9 +132,13 @@ describe('RemotePersistenceService Integration Tests', () => {
 		// Start S3Mock container
 		try {
 			console.log('Starting S3Mock container...');
-			s3MockContainer = await new S3MockContainer(
-				'adobe/s3mock:4.11.0',
-			).start();
+			s3MockContainer = await new S3MockContainer('adobe/s3mock:4.11.0')
+				.withLogConsumer(stream => {
+					stream.on('data', line => console.log(line));
+					stream.on('err', line => console.error(line));
+					stream.on('end', () => console.log('Stream closed'));
+				})
+				.start();
 
 			console.log(`S3Mock container started`);
 
@@ -151,7 +155,7 @@ describe('RemotePersistenceService Integration Tests', () => {
 			console.error('Failed to start S3Mock container:', error);
 			throw error;
 		}
-	}, 120000);
+	}, 180000);
 
 	afterAll(async () => {
 		if (s3MockContainer) {
