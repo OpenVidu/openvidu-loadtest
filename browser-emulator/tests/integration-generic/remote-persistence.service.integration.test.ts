@@ -9,7 +9,6 @@ import {
 } from 'vitest';
 import {
 	S3Client,
-	ListObjectsV2Command,
 	GetObjectCommand,
 	DeleteBucketCommand,
 	DeleteObjectCommand,
@@ -17,19 +16,17 @@ import {
 } from '@aws-sdk/client-s3';
 import { RemotePersistenceService } from '../../src/services/files/remote-persistence.service.ts';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
-import {
-	S3MockContainer,
-	StartedS3MockContainer,
-} from '@testcontainers/s3mock';
+import { StartedS3MockContainer } from '@testcontainers/s3mock';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Readable } from 'node:stream';
 import { S3Repository } from '../../src/repositories/files/s3.repository.ts';
 import { removeAllFilesFromDir } from '../utils/files.ts';
 import {
+	listBucketObjects,
 	startS3MockTestContainer,
 	stopS3MockTestContainer,
-} from '../utils/s3mock.ts';
+} from '../utils/s3utils.ts';
 
 /**
  * Helper function to convert a stream to string
@@ -66,42 +63,6 @@ async function getFileFromS3(
 
 	// Body is a stream-like object, convert it to string
 	return streamToString(response.Body as Readable);
-}
-
-/**
- * Helper function to list all objects in a bucket
- */
-async function listBucketObjects(
-	s3Client: S3Client,
-	bucket: string,
-): Promise<string[]> {
-	const keys: string[] = [];
-	let continuationToken: string | undefined;
-
-	try {
-		do {
-			const response = await s3Client.send(
-				new ListObjectsV2Command({
-					Bucket: bucket,
-					ContinuationToken: continuationToken,
-				}),
-			);
-
-			if (response.Contents) {
-				keys.push(...response.Contents.map(obj => obj.Key ?? ''));
-			}
-
-			continuationToken = response.NextContinuationToken;
-		} while (continuationToken);
-	} catch (error: unknown) {
-		// If bucket doesn't exist, return empty array
-		if (error instanceof NoSuchBucket) {
-			return [];
-		}
-		throw error;
-	}
-
-	return keys;
 }
 
 describe('RemotePersistenceService Integration Tests', () => {

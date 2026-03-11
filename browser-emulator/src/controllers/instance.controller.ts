@@ -26,7 +26,6 @@ export class InstanceController {
 		localFilesService: LocalFilesService,
 		fakeMediaDevicesService: FakeMediaDevicesService,
 		remotePersistenceService: RemotePersistenceService,
-		qoeAnalyzerService: QoeAnalyzerService,
 	) {
 		this.elasticSearchService = elasticSearchService;
 		this.instanceService = instanceService;
@@ -50,7 +49,6 @@ export class InstanceController {
 		}
 	}
 
-	// TODO: this should be divided into multiple endpoints, as it is doing multiple things (initializing different services, downloading media files, etc)
 	// TODO: study if browser could have its own video and audio, it would probably require multiple ffmpeg instances with multiple fake devices
 	private async initialize(
 		req: InitializePostRequest,

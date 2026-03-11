@@ -20,11 +20,16 @@ import {
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
 import { InitializePost } from '../../src/types/initialize.type.js';
 import {
+	listBucketObjects,
 	startS3MockTestContainer,
 	stopS3MockTestContainer,
-} from '../utils/s3mock.js';
+} from '../utils/s3utils.js';
 import { StartedS3MockContainer } from '@testcontainers/s3mock';
-import { DeleteBucketCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+	DeleteBucketCommand,
+	DeleteObjectCommand,
+	S3Client,
+} from '@aws-sdk/client-s3';
 
 let app: Application;
 const EXPECTED_STATS_FILES = [
@@ -34,12 +39,12 @@ const EXPECTED_STATS_FILES = [
 	'errors.json',
 ];
 
-type S3AccessInfo = {
+interface S3AccessInfo {
 	s3BucketName: string;
 	s3Host: string;
 	s3AccessKey: string;
 	s3SecretAccessKey: string;
-};
+}
 
 async function getAvailablePort(): Promise<number> {
 	return new Promise(resolve => {
@@ -244,6 +249,18 @@ describe('Browser-emulator', () => {
 		});
 
 		afterEach(async () => {
+			const uploadedKeys = await listBucketObjects(
+				s3Client,
+				testBucketName,
+			);
+			for (const key of uploadedKeys) {
+				await s3Client.send(
+					new DeleteObjectCommand({
+						Bucket: testBucketName,
+						Key: key,
+					}),
+				);
+			}
 			// Clean up bucket after each test
 			await s3Client.send(
 				new DeleteBucketCommand({
