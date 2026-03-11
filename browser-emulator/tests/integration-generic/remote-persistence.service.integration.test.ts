@@ -26,6 +26,10 @@ import * as path from 'node:path';
 import { Readable } from 'node:stream';
 import { S3Repository } from '../../src/repositories/files/s3.repository.ts';
 import { removeAllFilesFromDir } from '../utils/files.ts';
+import {
+	startS3MockTestContainer,
+	stopS3MockTestContainer,
+} from '../utils/s3mock.ts';
 
 /**
  * Helper function to convert a stream to string
@@ -109,17 +113,7 @@ describe('RemotePersistenceService Integration Tests', () => {
 	beforeAll(async () => {
 		// Start S3Mock container
 		try {
-			console.log('Starting S3Mock container...');
-			s3MockContainer = await new S3MockContainer('adobe/s3mock:4.11.0')
-				.withLogConsumer(stream => {
-					stream.on('data', line => console.log(line));
-					stream.on('err', line => console.error(line));
-					stream.on('end', () => console.log('Stream closed'));
-				})
-				.start();
-
-			console.log(`S3Mock container started`);
-
+			s3MockContainer = await startS3MockTestContainer();
 			s3Client = new S3Client({
 				region: 'us-east-1',
 				endpoint: s3MockContainer.getHttpConnectionUrl(),
@@ -137,31 +131,7 @@ describe('RemotePersistenceService Integration Tests', () => {
 
 	afterAll(async () => {
 		if (s3MockContainer) {
-			try {
-				const maxRetries = 3;
-				let lastError: unknown;
-				for (let attempt = 1; attempt <= maxRetries; attempt++) {
-					try {
-						await s3MockContainer.stop();
-						console.log(`S3Mock container stopped`);
-						return;
-					} catch (error) {
-						lastError = error;
-						if (attempt < maxRetries) {
-							console.log(
-								`Retry ${attempt}/${maxRetries - 1} stopping S3Mock container...`,
-							);
-							await new Promise(resolve =>
-								setTimeout(resolve, 1000),
-							);
-						}
-					}
-				}
-
-				console.error('Error stopping S3Mock container:', lastError);
-			} catch (error) {
-				console.error('Error stopping S3Mock container:', error);
-			}
+			await stopS3MockTestContainer(s3MockContainer);
 		}
 	}, 120000);
 
