@@ -51,6 +51,7 @@ const GUEST_LOG_DIRS = [
 	'/opt/openvidu-loadtest/browser-emulator/logs/',
 	'/var/log/',
 ];
+const GUEST_COVERAGE_DIR = '/opt/openvidu-loadtest/browser-emulator/coverage';
 
 function vagrantSshArgs(machine: string, command: string): string[] {
 	return ['ssh', machine, '-c', command];
@@ -90,45 +91,71 @@ Examples:
 `);
 }
 
+function applyValueOption(arg: string, options: RunOptions): boolean {
+	if (arg.startsWith('--node=')) {
+		options.nodeName = arg.slice('--node='.length);
+		return true;
+	}
+
+	if (arg.startsWith('--timeout=')) {
+		const parsed = Number(arg.slice('--timeout='.length));
+		if (!Number.isFinite(parsed) || parsed <= 0) {
+			throw new Error(`Invalid timeout value: ${arg}`);
+		}
+		options.timeoutSeconds = parsed;
+		return true;
+	}
+
+	if (arg.startsWith('--project=')) {
+		const project = arg.slice('--project='.length).trim();
+		if (!project) {
+			throw new Error('Project name cannot be empty.');
+		}
+		options.project = project;
+		return true;
+	}
+
+	if (arg.startsWith('--file=')) {
+		const testFile = arg.slice('--file='.length).trim();
+		if (!testFile) {
+			throw new Error('Test file cannot be empty.');
+		}
+		options.testFile = testFile;
+		return true;
+	}
+
+	if (arg.startsWith('--testName=')) {
+		const testName = arg.slice('--testName='.length).trim();
+		if (!testName) {
+			throw new Error('Test name cannot be empty.');
+		}
+		options.testName = testName;
+		return true;
+	}
+
+	return false;
+}
+
 function parseArgs(argv: string[]): RunOptions {
 	const options: RunOptions = { ...DEFAULT_OPTIONS };
 
 	for (const arg of argv) {
+		if (arg === '--help' || arg === '-h') {
+			printUsage();
+			process.exit(0);
+		}
+
 		const booleanFlag = BOOLEAN_FLAGS[arg];
 		if (booleanFlag) {
 			options[booleanFlag] = true;
-		} else if (arg === '--help' || arg === '-h') {
-			printUsage();
-			process.exit(0);
-		} else if (arg.startsWith('--node=')) {
-			options.nodeName = arg.slice('--node='.length);
-		} else if (arg.startsWith('--timeout=')) {
-			const parsed = Number(arg.slice('--timeout='.length));
-			if (!Number.isFinite(parsed) || parsed <= 0) {
-				throw new Error(`Invalid timeout value: ${arg}`);
-			}
-			options.timeoutSeconds = parsed;
-		} else if (arg.startsWith('--project=')) {
-			const project = arg.slice('--project='.length).trim();
-			if (!project) {
-				throw new Error('Project name cannot be empty.');
-			}
-			options.project = project;
-		} else if (arg.startsWith('--file=')) {
-			const testFile = arg.slice('--file='.length).trim();
-			if (!testFile) {
-				throw new Error('Test file cannot be empty.');
-			}
-			options.testFile = testFile;
-		} else if (arg.startsWith('--testName=')) {
-			const testName = arg.slice('--testName='.length).trim();
-			if (!testName) {
-				throw new Error('Test name cannot be empty.');
-			}
-			options.testName = testName;
-		} else {
-			throw new Error(`Unknown option: ${arg}`);
+			continue;
 		}
+
+		if (applyValueOption(arg, options)) {
+			continue;
+		}
+
+		throw new Error(`Unknown option: ${arg}`);
 	}
 
 	return options;
@@ -379,27 +406,46 @@ function waitForPlatform(
 	);
 }
 
-function collectGuestLogs(nodeName: string, outputDir: string): void {
+function collectGuestLogs(
+	nodeName: string,
+	outputDir: string,
+	collectCoverageFiles: boolean,
+): void {
 	mkdirSync(outputDir, { recursive: true });
 
 	const escapedSingleQuote = String.raw`'\''`;
 	const quotedDirs = GUEST_LOG_DIRS.map(dir => `"${dir}"`).join(' ');
-	const listCommand = `bash -lc 'for dir in ${quotedDirs}; do if [ -d "$dir" ]; then find "$dir" -type f -name "*.log" -readable; fi; done | sort -u'`;
-	const listResult = runVagrantCapture(nodeName, listCommand);
+	const listCommands = [
+		`bash -lc 'for dir in ${quotedDirs}; do if [ -d "$dir" ]; then find "$dir" -type f -name "*.log" -readable 2>/dev/null || true; fi; done'`,
+	];
 
-	if ((listResult.status ?? 1) !== 0) {
-		console.warn(
-			'Could not list guest log files. Log collection will be skipped.',
+	if (collectCoverageFiles) {
+		listCommands.push(
+			`bash -lc 'if [ -d "${GUEST_COVERAGE_DIR}" ]; then find "${GUEST_COVERAGE_DIR}" -type f -readable 2>/dev/null || true; fi'`,
 		);
-		return;
 	}
 
-	const guestLogPaths = (listResult.stdout ?? '')
-		.split('\n')
-		.map(path => path.trim())
-		.filter(Boolean);
+	const guestLogPaths = new Set<string>();
+	for (const listCommand of listCommands) {
+		const listResult = runVagrantCapture(nodeName, listCommand);
+		if ((listResult.status ?? 1) !== 0) {
+			console.warn(
+				`Could not list guest files with command: ${listCommand}`,
+			);
+			continue;
+		}
 
-	for (const guestLogPath of guestLogPaths) {
+		for (const path of (listResult.stdout ?? '').split('\n')) {
+			const trimmedPath = path.trim();
+			if (trimmedPath) {
+				guestLogPaths.add(trimmedPath);
+			}
+		}
+	}
+
+	for (const guestLogPath of Array.from(guestLogPaths).sort((a, b) =>
+		a.localeCompare(b),
+	)) {
 		const relativePath = guestLogPath.replace(/^\/+/, '');
 		const localPath = join(outputDir, relativePath);
 		ensureParentDir(localPath);
@@ -487,7 +533,7 @@ function main(): void {
 		nowStamp(),
 	);
 	console.log(`Collecting guest logs to ${artifactsDir}`);
-	collectGuestLogs(nodeName, artifactsDir);
+	collectGuestLogs(nodeName, artifactsDir, options.coverage);
 
 	if (options.halt) {
 		console.log(`Halting VM ${nodeName}...`);
