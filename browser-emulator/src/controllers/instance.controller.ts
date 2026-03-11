@@ -19,7 +19,6 @@ export class InstanceController {
 	private readonly localFilesService: LocalFilesService;
 	private readonly fakeMediaDevicesService: FakeMediaDevicesService;
 	private readonly remotePersistenceService: RemotePersistenceService;
-	private readonly qoeAnalyzerService: QoeAnalyzerService;
 
 	constructor(
 		elasticSearchService: ElasticSearchService,
@@ -34,7 +33,6 @@ export class InstanceController {
 		this.localFilesService = localFilesService;
 		this.fakeMediaDevicesService = fakeMediaDevicesService;
 		this.remotePersistenceService = remotePersistenceService;
-		this.qoeAnalyzerService = qoeAnalyzerService;
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
 	}
