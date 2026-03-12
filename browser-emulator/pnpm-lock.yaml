@@ -57,6 +57,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.3
         version: 9.39.3
+      '@testcontainers/elasticsearch':
+        specifier: ^11.12.0
+        version: 11.12.0
       '@testcontainers/s3mock':
         specifier: ^11.12.0
         version: 11.12.0
@@ -1173,6 +1176,9 @@ packages:
 
   '@swc/helpers@0.5.19':
     resolution: {integrity: sha512-QamiFeIK3txNjgUTNppE6MiG3p7TdninpZu0E0PbqVh1a9FNLT2FRhisaa4NcaX52XVhA5l7Pk58Ft7Sqi/2sA==}
+
+  '@testcontainers/elasticsearch@11.12.0':
+    resolution: {integrity: sha512-piCdtqOf9VK1PVQ7xLqcDHdElCXDu6cpRuxro5QZxjsjMU8FOs99ct+o17vJaXSon2yTwxI3zRUa0KmflXfNWw==}
 
   '@testcontainers/s3mock@11.12.0':
     resolution: {integrity: sha512-jUqOKDmmqWraNZ+uarBugLpUoklJIErb9W7VeX4W9LTH60tHhzjN04n85aEodglWUFPcnAkf3NeUsMya7C3B6w==}
@@ -4888,6 +4894,15 @@ snapshots:
   '@swc/helpers@0.5.19':
     dependencies:
       tslib: 2.8.1
+
+  '@testcontainers/elasticsearch@11.12.0':
+    dependencies:
+      testcontainers: 11.12.0
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
+      - supports-color
 
   '@testcontainers/s3mock@11.12.0':
     dependencies:

@@ -26,7 +26,7 @@ import {
 	listBucketObjects,
 	startS3MockTestContainer,
 	stopS3MockTestContainer,
-} from '../utils/s3utils.ts';
+} from '../utils/s3-utils.ts';
 
 /**
  * Helper function to convert a stream to string
