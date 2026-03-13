@@ -1,16 +1,17 @@
-from numpy import Infinity
-from qoe_scripts.get_ffmpeg_path import get_valid_ffmpeg_path
 import logging as logger
 import cv2
 import os
 import json
-import qoe_scripts.video_processing_tasks as vpt
-import qoe_scripts.analysis_tasks as at
-from qoe_scripts.padding_matcher import match_image
-from qoe_scripts.ocr_aligner import align_ocr
-import ray
 import time
 import argparse
+import debugpy
+
+from .get_ffmpeg_path import get_valid_ffmpeg_path
+from . import video_processing_tasks as vpt
+from . import analysis_tasks as at
+from .padding_matcher import match_image
+from .ocr_aligner import align_ocr
+import ray
 
 start_time = time.time()
 parser = argparse.ArgumentParser(description="QoE analyzer")
@@ -55,6 +56,13 @@ max_cpus = args.max_cpus
 all_analysis = args.all_analysis
 
 logger.basicConfig(level=logger.DEBUG if debug else logger.INFO)
+
+if debug:
+    # Listen on all interfaces so the host can connect via the forwarded port
+    debugpy.listen(("0.0.0.0", 5678))
+    logger.info("Debugpy listening on 0.0.0.0:5678 - waiting for debugger to attach...")
+    debugpy.wait_for_client()
+    debugpy.breakpoint()
 
 at.validate_install(all_analysis)
 
