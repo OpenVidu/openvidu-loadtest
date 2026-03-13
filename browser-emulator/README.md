@@ -136,8 +136,8 @@ When [Delete all participant](#delete-participants) is run, all individual recor
 - Running the analysis on another machine, for that pull this repository in that machine, cd to browser-emulator and follow the next steps:
     - Install all the needed dependencies on the machine. You can run both install scripts in the `prepare_scripts` directory, or install the dependencies manually. The dependencies are:
         - Python3 and pip3
-        - [VMAF](https://github.com/Netflix/vmaf), set a VMAF_PATH environment variable with the path to the vmaf binary and move the `vmaf_v0.6.1.json` file found in the model directory to `/usr/local/share/vmaf/models/vmaf_v0.6.1.json`
-        - [ViSQOL](https://github.com/google/visqol), set a VISQOL_PATH environment variable with the path to the directory that contains banzel-bin/visqol
+        - [VMAF](https://github.com/Netflix/vmaf), the binary should be on PATH. Move the `vmaf_v0.6.1.json` file found in the model directory to `/usr/local/share/vmaf/models/vmaf_v0.6.1.json`
+        - [ViSQOL](https://github.com/google/visqol), the binary should be on PATH. You will need the model file found in `model/libsvm_nu_svr_model.txt` directory when cloning the repository and move it to `/usr/local/share/visqol/libsvm_nu_svr_model.txt`.
         - [Tesseract OCR](https://github.com/tesseract-ocr/tesseract), it is highly recommended to build it disabling multithreading as explained [here](https://tesseract-ocr.github.io/tessdoc/Compiling-%E2%80%93-GitInstallation.html#release-builds-for-mass-production) to improve performance.
             - You will probably need to save the necessary model found [here](https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata) in `/usr/local/share/tessdata/eng.traineddata`
         - npm dependencies
@@ -148,8 +148,8 @@ When [Delete all participant](#delete-participants) is run, all individual recor
             ```bash
             pip3 install -r qoe_scripts/requirements.txt
             ```
-        - (Optional) [VQMT](https://github.com/Rolinh/VQMT), set a VQMT_PATH environment variable with the path to the vqmt binary
-        - (Optional) [PESQ](https://github.com/dennisguse/ITU-T_pesq), set a PESQ_PATH environment variable with the path to the pesq binary
+        - (Optional) [VQMT](https://github.com/Rolinh/VQMT), the binary should be on PATH.
+        - (Optional) [PESQ](https://github.com/dennisguse/ITU-T_pesq), the binary should be on PATH.
     - Save the individual recordings you want to analyze in `./recordings/qoe` directory.
     - Create a `qoe-results-processing-config.json` file (there is an example file with the same name in this repo), with the following structure:
         - elasticsearch_hostname: ELK hostname
