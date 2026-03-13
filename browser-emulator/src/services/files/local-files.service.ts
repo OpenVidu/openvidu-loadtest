@@ -3,6 +3,10 @@ import type { BrowserVideo } from '../../types/initialize.type.ts';
 
 export class LocalFilesService {
 	private readonly localFilesRepository: LocalFilesRepository;
+	private fakeVideoFps: number | undefined;
+	private fakeVideoWidth: number | undefined;
+	private fakeVideoHeight: number | undefined;
+
 	constructor(localFilesRepository: LocalFilesRepository) {
 		this.localFilesRepository = localFilesRepository;
 	}
@@ -22,6 +26,9 @@ export class LocalFilesService {
 			videoUrl = `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${videoInfo.height}p_${videoInfo.fps}fps.y4m`;
 			audioFile = `fakeaudio_${videoType.videoType}.wav`;
 			audioUrl = `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`;
+			this.fakeVideoFps = videoInfo.fps;
+			this.fakeVideoWidth = videoInfo.width;
+			this.fakeVideoHeight = videoInfo.height;
 		}
 		return this.localFilesRepository.downloadMediaFiles(
 			videoFile,
@@ -29,5 +36,26 @@ export class LocalFilesService {
 			audioFile,
 			audioUrl,
 		);
+	}
+
+	public get fakeVideoProperties():
+		| {
+				fps: number;
+				width: number;
+				height: number;
+		  }
+		| undefined {
+		if (
+			this.fakeVideoFps !== undefined &&
+			this.fakeVideoWidth !== undefined &&
+			this.fakeVideoHeight !== undefined
+		) {
+			return {
+				fps: this.fakeVideoFps,
+				width: this.fakeVideoWidth,
+				height: this.fakeVideoHeight,
+			};
+		}
+		return undefined;
 	}
 }

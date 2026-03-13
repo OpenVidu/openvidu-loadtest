@@ -4,7 +4,6 @@ import type { RemotePersistenceService } from '../services/files/remote-persiste
 import type { ElasticSearchService } from '../services/elasticsearch.service.ts';
 import type { InstanceService } from '../services/instance.service.ts';
 import type { LocalFilesService } from '../services/files/local-files.service.ts';
-import type { QoeAnalyzerService } from '../services/qoe-analyzer.service.ts';
 import type { FakeMediaDevicesService } from '../services/fake-media/fake-media-devices.service.ts';
 import type {
 	InitializePost,

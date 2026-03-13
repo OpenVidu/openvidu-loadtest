@@ -29,6 +29,10 @@ export class QoeController {
 			this.handleQoeRecordingsUpload.bind(this) as express.RequestHandler,
 		);
 		this.router.post('/analysis', this.handleAnalysis.bind(this));
+		this.router.get(
+			'/analysis/status',
+			this.handleAnalysisStatus.bind(this),
+		);
 	}
 
 	/*
@@ -71,7 +75,11 @@ export class QoeController {
 		res.status(200).send(status);
 	}
 
-	// TODO: Endpoint for getStatus of QoE Analysis as used by the loadtest controller
+	private handleAnalysisStatus(_req: Request, res: Response): void {
+		res.status(200).json({
+			remainingFiles: this.qoeAnalyzerService.getRemainingFiles(),
+		});
+	}
 
 	public getRouter(): express.Router {
 		return this.router;

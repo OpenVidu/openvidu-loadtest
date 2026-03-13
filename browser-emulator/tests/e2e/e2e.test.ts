@@ -18,20 +18,30 @@ import {
 	Resolution,
 } from '../../src/types/create-user.type.js';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
-import { InitializePost } from '../../src/types/initialize.type.js';
+import {
+	BrowserVideo,
+	InitializePost,
+} from '../../src/types/initialize.type.js';
 import {
 	listBucketObjects,
 	startS3MockTestContainer,
 	stopS3MockTestContainer,
-} from '../utils/s3utils.js';
+} from '../utils/s3-utils.js';
 import { StartedS3MockContainer } from '@testcontainers/s3mock';
 import {
 	DeleteBucketCommand,
 	DeleteObjectCommand,
 	S3Client,
 } from '@aws-sdk/client-s3';
+import { QoeAnalysisStatus } from '../../src/types/qoe.type.js';
+import { StartedElasticsearchContainer } from '@testcontainers/elasticsearch';
+import {
+	startElasticSearchTestContainer,
+	stopElasticSearchTestContainer,
+} from '../utils/elasticsearch-testcontainer-utils.js';
 
-let app: Application;
+const QOE_ANALYSIS_TIMEOUT_MS = 10 * 60 * 1000;
+const QOE_ANALYSIS_POLL_INTERVAL_MS = 2000;
 const EXPECTED_STATS_FILES = [
 	'connections.json',
 	'events.json',
@@ -39,12 +49,32 @@ const EXPECTED_STATS_FILES = [
 	'errors.json',
 ];
 
-interface S3AccessInfo {
-	s3BucketName: string;
-	s3Host: string;
-	s3AccessKey: string;
-	s3SecretAccessKey: string;
-}
+let app: Application;
+
+let s3MockContainer: StartedS3MockContainer;
+let testBucketName = 'test-bucket';
+let s3Client: S3Client;
+
+let elasticsearchContainer: StartedElasticsearchContainer;
+let elkIndex = 'test-index';
+
+beforeAll(async () => {
+	const [s3Setup, startedElasticsearchContainer] = await Promise.all([
+		setupS3MockContainer(),
+		startElasticSearchTestContainer(),
+	]);
+
+	s3MockContainer = s3Setup.s3MockContainer;
+	s3Client = s3Setup.s3Client;
+	elasticsearchContainer = startedElasticsearchContainer;
+}, 180000);
+
+afterAll(async () => {
+	await Promise.all([
+		stopS3MockTestContainer(s3MockContainer),
+		stopElasticSearchTestContainer(elasticsearchContainer),
+	]);
+}, 180000);
 
 async function getAvailablePort(): Promise<number> {
 	return new Promise(resolve => {
@@ -78,6 +108,7 @@ async function createPublisherUser(
 	expectedParticipants: number,
 	expectedStreams: number,
 	browser: AvailableBrowsers = 'chrome',
+	mediaRecorders = false,
 ) {
 	const createUserResponse = await request(app)
 		.post('/openvidu-browser/streamManager')
@@ -94,6 +125,7 @@ async function createPublisherUser(
 				framerate: 30,
 				showVideoElements: true,
 				browser,
+				mediaRecorders,
 			},
 		});
 
@@ -131,23 +163,40 @@ async function pingInstance() {
 	expect(pingResponse.status).toBe(200);
 }
 
-async function initializeInstance(s3Info?: S3AccessInfo) {
-	const initializeRequest: InitializePost = {
-		browserVideo: {
-			videoType: 'bunny',
-			videoInfo: {
-				width: 640,
-				height: 480,
-				fps: 30,
-			},
+async function initializeInstance(
+	enableS3 = false,
+	enableElasticsearch = false,
+) {
+	const browserVideo: BrowserVideo = {
+		videoType: 'bunny',
+		videoInfo: {
+			width: 640,
+			height: 480,
+			fps: 30,
 		},
 	};
-	if (s3Info) {
-		initializeRequest.s3HostAccessKey = s3Info.s3AccessKey;
-		initializeRequest.s3HostSecretAccessKey = s3Info.s3SecretAccessKey;
-		initializeRequest.s3BucketName = s3Info.s3BucketName;
-		initializeRequest.s3Host = s3Info.s3Host;
+	let initializeRequest: InitializePost;
+	if (enableElasticsearch) {
+		initializeRequest = {
+			browserVideo,
+			elasticSearchHost: elasticsearchContainer.getHttpUrl(),
+			elasticSearchUserName: elasticsearchContainer.getUsername(),
+			elasticSearchPassword: elasticsearchContainer.getPassword(),
+			elasticSearchIndex: elkIndex,
+		};
+	} else {
+		initializeRequest = {
+			browserVideo,
+		};
 	}
+	if (enableS3) {
+		initializeRequest.s3HostAccessKey = s3MockContainer.getAccessKeyId();
+		initializeRequest.s3HostSecretAccessKey =
+			s3MockContainer.getSecretAccessKey();
+		initializeRequest.s3BucketName = testBucketName;
+		initializeRequest.s3Host = s3MockContainer.getHttpConnectionUrl();
+	}
+
 	const initializeResponse = await request(app)
 		.post('/instance/initialize')
 		.send(initializeRequest);
@@ -160,9 +209,42 @@ async function initializeInstance(s3Info?: S3AccessInfo) {
 async function createTwoPublisherUsers(
 	sessionName: string,
 	browser: AvailableBrowsers,
+	mediaRecorders = false,
 ) {
-	await createPublisherUser(sessionName, 'User1', 1, 1, browser);
-	await createPublisherUser(sessionName, 'User2', 2, 4, browser);
+	await createPublisherUser(
+		sessionName,
+		'User1',
+		1,
+		1,
+		browser,
+		mediaRecorders,
+	);
+	await createPublisherUser(
+		sessionName,
+		'User2',
+		2,
+		4,
+		browser,
+		mediaRecorders,
+	);
+}
+
+async function cleanBucket(s3Client: S3Client, testBucketName: string) {
+	const uploadedKeys = await listBucketObjects(s3Client, testBucketName);
+	for (const key of uploadedKeys) {
+		await s3Client.send(
+			new DeleteObjectCommand({
+				Bucket: testBucketName,
+				Key: key,
+			}),
+		);
+	}
+	// Clean up bucket after each test
+	await s3Client.send(
+		new DeleteBucketCommand({
+			Bucket: testBucketName,
+		}),
+	);
 }
 
 async function waitForBrowsersToSendStats() {
@@ -179,6 +261,51 @@ async function cleanUsers() {
 	expect(deleteAllUsersResponse.text).toContain('is clean');
 }
 
+async function runQoeAnalysisAndWaitUntilFinished() {
+	const startResponse = await request(app).post('/qoe/analysis').send({
+		fragmentDuration: 5,
+		paddingDuration: 1,
+	});
+	expect(startResponse.status).toBe(200);
+
+	const startTime = Date.now();
+	while (Date.now() - startTime < QOE_ANALYSIS_TIMEOUT_MS) {
+		const statusResponse = await request(app).get('/qoe/analysis/status');
+		expect(statusResponse.status).toBe(200);
+
+		const statusBody: unknown = statusResponse.body;
+		expect(isQoeAnalysisStatusResponse(statusBody)).toBe(true);
+		if (!isQoeAnalysisStatusResponse(statusBody)) {
+			throw new Error('Invalid QoE analysis status response');
+		}
+
+		const remainingFiles = statusBody.remainingFiles;
+		if (remainingFiles === 0) {
+			return;
+		}
+
+		await new Promise(resolve =>
+			setTimeout(resolve, QOE_ANALYSIS_POLL_INTERVAL_MS),
+		);
+	}
+
+	throw new Error(
+		`QoE analysis did not finish within ${QOE_ANALYSIS_TIMEOUT_MS} ms`,
+	);
+}
+
+function isQoeAnalysisStatusResponse(
+	value: unknown,
+): value is QoeAnalysisStatus {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'remainingFiles' in value &&
+		typeof (value as { remainingFiles: unknown }).remainingFiles ===
+			'number'
+	);
+}
+
 async function assertSessionStats(sessionName: string) {
 	const statsDir = path.join(LocalFilesRepository.STATS_DIR, sessionName);
 	const statsDirExists = await pathExists(statsDir);
@@ -187,18 +314,81 @@ async function assertSessionStats(sessionName: string) {
 	await assertUserStats(statsDir, 'User2');
 }
 
+async function assertS3SessionStats(
+	s3Client: S3Client,
+	bucketName: string,
+	sessionName: string,
+) {
+	const uploadedKeys = await listBucketObjects(s3Client, bucketName);
+	for (const userId of ['User1', 'User2']) {
+		for (const expectedFile of EXPECTED_STATS_FILES) {
+			const expectedKey = `stats/${sessionName}/${userId}/${expectedFile}`;
+			expect(uploadedKeys).toContain(expectedKey);
+		}
+	}
+}
+
+async function assertS3QoeRecordings(
+	s3Client: S3Client,
+	bucketName: string,
+	sessionName: string,
+) {
+	const uploadedKeys = await listBucketObjects(s3Client, bucketName);
+	for (const [from, to] of [
+		['User1', 'User2'],
+		['User2', 'User1'],
+	]) {
+		const expectedKey = `QOE_${sessionName}_${from}_${to}.webm`;
+		expect(uploadedKeys).toContain(expectedKey);
+	}
+}
+
 async function run2BrowserTest(
 	browser: AvailableBrowsers,
-	s3Info?: S3AccessInfo,
+	enableS3 = false,
+	enableElasticsearch = false,
+	mediaRecorders = false,
+	s3Client?: S3Client,
 ) {
 	await pingInstance();
-	await initializeInstance(s3Info);
+	await initializeInstance(enableS3, enableElasticsearch);
 	// Platforms might have some delay in cleaning sessions, so we avoid reusing the same session between tests
 	const sessionName = 'LoadTestSession' + Date.now();
-	await createTwoPublisherUsers(sessionName, browser);
+	await createTwoPublisherUsers(sessionName, browser, mediaRecorders);
 	await waitForBrowsersToSendStats();
 	await cleanUsers();
+	if (mediaRecorders) {
+		await runQoeAnalysisAndWaitUntilFinished();
+	}
 	await assertSessionStats(sessionName);
+	if (enableS3 && s3Client) {
+		await assertS3SessionStats(s3Client, testBucketName, sessionName);
+		if (mediaRecorders) {
+			await assertS3QoeRecordings(s3Client, testBucketName, sessionName);
+		}
+	}
+}
+
+async function setupS3MockContainer() {
+	const s3MockContainer = await startS3MockTestContainer();
+	const s3Client = new S3Client({
+		endpoint: s3MockContainer.getHttpConnectionUrl(),
+		forcePathStyle: true,
+		region: 'us-east-1',
+		credentials: {
+			accessKeyId: s3MockContainer.getAccessKeyId(),
+			secretAccessKey: s3MockContainer.getSecretAccessKey(),
+		},
+	});
+	return { s3MockContainer, s3Client };
+}
+
+function generateBucketName() {
+	return `test-bucket-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+}
+
+function generateIndexName() {
+	return `test-index-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 beforeEach(async () => {
@@ -222,94 +412,48 @@ afterEach(async () => {
 // Using the vagrant box available in this project should suffice.
 describe('Browser-emulator', () => {
 	describe('OpenVidu 2', () => {
-		it(
-			'should test basic workflow with Chrome and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)',
-			{ repeats: 0 },
-			async () => {
-				await run2BrowserTest('chrome');
-			},
-		);
+		it('basic workflow (Chrome)', { repeats: 0 }, async () => {
+			await run2BrowserTest('chrome');
+		});
 
-		it(
-			'should test basic workflow with Firefox and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them)',
-			{ repeats: 0 },
-			async () => {
-				await run2BrowserTest('firefox');
-			},
-		);
+		it('basic workflow (Firefox)', { repeats: 0 }, async () => {
+			await run2BrowserTest('firefox');
+		});
 	});
 
 	describe('OpenVidu 2 + S3', () => {
-		let s3MockContainer: StartedS3MockContainer;
-		let testBucketName: string;
-		let s3Client: S3Client;
-
 		beforeEach(() => {
-			testBucketName = `test-bucket-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+			testBucketName = generateBucketName();
 		});
 
 		afterEach(async () => {
-			const uploadedKeys = await listBucketObjects(
-				s3Client,
-				testBucketName,
-			);
-			for (const key of uploadedKeys) {
-				await s3Client.send(
-					new DeleteObjectCommand({
-						Bucket: testBucketName,
-						Key: key,
-					}),
-				);
-			}
-			// Clean up bucket after each test
-			await s3Client.send(
-				new DeleteBucketCommand({
-					Bucket: testBucketName,
-				}),
-			);
+			await cleanBucket(s3Client, testBucketName);
 		});
 
-		beforeAll(async () => {
-			s3MockContainer = await startS3MockTestContainer();
-			s3Client = new S3Client({
-				endpoint: s3MockContainer.getHttpConnectionUrl(),
-				forcePathStyle: true,
-				region: 'us-east-1',
-				credentials: {
-					accessKeyId: s3MockContainer.getAccessKeyId(),
-					secretAccessKey: s3MockContainer.getSecretAccessKey(),
-				},
-			});
-		}, 180000);
+		it('basic workflow + S3 (Chrome)', { repeats: 0 }, async () => {
+			await run2BrowserTest('chrome', true, false, false, s3Client);
+		});
 
-		afterAll(async () => {
-			await stopS3MockTestContainer(s3MockContainer);
-		}, 180000);
+		it('basic workflow + S3 (Firefox)', { repeats: 0 }, async () => {
+			await run2BrowserTest('firefox', true, false, false, s3Client);
+		});
+	});
 
-		it(
-			'should test basic workflow with Chrome and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them), uploading the files to S3',
-			{ repeats: 0 },
-			async () => {
-				await run2BrowserTest('chrome', {
-					s3Host: s3MockContainer.getHttpConnectionUrl(),
-					s3AccessKey: s3MockContainer.getAccessKeyId(),
-					s3SecretAccessKey: s3MockContainer.getSecretAccessKey(),
-					s3BucketName: testBucketName,
-				});
-			},
-		);
+	describe('OpenVidu 2 + S3 + ELK + MediaRecorders + QoE Analysis', () => {
+		beforeEach(() => {
+			testBucketName = generateBucketName();
+			elkIndex = generateIndexName();
+		});
 
-		it(
-			'should test basic workflow with Firefox and OpenVidu 2 (ping, initialize instance, start 2 publisher browsers, connect to platform and delete them), uploading the files to S3',
-			{ repeats: 0 },
-			async () => {
-				await run2BrowserTest('firefox', {
-					s3Host: s3MockContainer.getHttpConnectionUrl(),
-					s3AccessKey: s3MockContainer.getAccessKeyId(),
-					s3SecretAccessKey: s3MockContainer.getSecretAccessKey(),
-					s3BucketName: testBucketName,
-				});
-			},
-		);
+		afterEach(async () => {
+			await cleanBucket(s3Client, testBucketName);
+		});
+		it('basic workflow + S3+ELK+QoE (Chrome, media recorders)', async () => {
+			await run2BrowserTest('chrome', true, true, true, s3Client);
+		});
+
+		it('basic workflow + S3+ELK+QoE (Firefox, media recorders)', async () => {
+			await run2BrowserTest('firefox', true, true, true, s3Client);
+		});
 	});
 });

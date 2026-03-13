@@ -9,6 +9,7 @@ import type {
 	JSONQoeProcessing,
 	JSONUserInfo,
 } from '../types/json.type.ts';
+import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 
 const limit = pLimit(1); // Scripts are already multithreaded
 
@@ -17,16 +18,39 @@ async function getElasticSearchService() {
 	return container.resolve('elasticSearchService');
 }
 
+interface QoEAnalysisProgressCallbacks {
+	onFileProcessed?: () => void;
+	onCompleted?: () => void;
+}
+
+let nonBlockingCallbacks: QoEAnalysisProgressCallbacks | undefined;
+
 export async function runQoEAnalysisNonBlocking(
 	processingInfo: JSONQoeProcessing,
+	callbacks?: QoEAnalysisProgressCallbacks,
 ) {
-	const dir = `${process.cwd()}/recordings/qoe`;
 	const files = await fsPromises
-		.access(dir, fs.constants.R_OK | fs.constants.W_OK)
-		.then(() => fsPromises.readdir(dir));
-	void runQoEAnalysis(processingInfo, dir, files).then(() => {
-		console.log('Finished running QoE analysis');
-	});
+		.access(
+			LocalFilesRepository.QOE_RECORDING_DIR,
+			fs.constants.R_OK | fs.constants.W_OK,
+		)
+		.then(() => fsPromises.readdir(LocalFilesRepository.QOE_RECORDING_DIR));
+	nonBlockingCallbacks = callbacks;
+	void runQoEAnalysis(
+		processingInfo,
+		LocalFilesRepository.QOE_RECORDING_DIR,
+		files,
+	)
+		.then(() => {
+			console.log('Finished running QoE analysis');
+			nonBlockingCallbacks?.onCompleted?.();
+			nonBlockingCallbacks = undefined;
+		})
+		.catch(err => {
+			console.error('QoE analysis failed', err);
+			nonBlockingCallbacks?.onCompleted?.();
+			nonBlockingCallbacks = undefined;
+		});
 	return files;
 }
 
@@ -37,13 +61,15 @@ export async function runQoEAnalysisBlocking(
 	allAnalysis = false,
 	debug = false,
 ) {
-	const dir = `${process.cwd()}/recordings/qoe`;
 	const files = await fsPromises
-		.access(dir, fs.constants.R_OK | fs.constants.W_OK)
-		.then(() => fsPromises.readdir(dir));
+		.access(
+			LocalFilesRepository.QOE_RECORDING_DIR,
+			fs.constants.R_OK | fs.constants.W_OK,
+		)
+		.then(() => fsPromises.readdir(LocalFilesRepository.QOE_RECORDING_DIR));
 	await runQoEAnalysis(
 		processingInfo,
-		dir,
+		LocalFilesRepository.QOE_RECORDING_DIR,
 		files,
 		maxCpus,
 		onlyFiles,
@@ -96,6 +122,7 @@ async function runQoEAnalysis(
 					debug,
 				)
 					.then(() => {
+						nonBlockingCallbacks?.onFileProcessed?.();
 						if (!onlyFiles) {
 							return readJSONFile(prefix);
 						}
@@ -103,6 +130,7 @@ async function runQoEAnalysis(
 					})
 					.catch(err => {
 						console.error(err);
+						nonBlockingCallbacks?.onFileProcessed?.();
 						return [];
 					}),
 			),
@@ -149,7 +177,7 @@ async function runSingleAnalysis(
 	const container = await getContainer();
 	const scriptRunnerService = container.resolve('scriptRunnerService');
 	return scriptRunnerService.run(
-		`python3 ${process.cwd()}/qoe_scripts/qoe_analyzer.py --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` +
+		`python3 -m qoe_scripts.qoe_analyzer --presenter ${processingInfo.presenter_video_file_location} --presenter_audio ${processingInfo.presenter_audio_file_location} --viewer ${filePath} --prefix ${prefix} --fragment_duration_secs ${processingInfo.fragment_duration} --padding_duration_secs ${processingInfo.padding_duration} --width ${processingInfo.width} --height ${processingInfo.height} --fps ${processingInfo.framerate}` +
 			maxCpusString +
 			debugString +
 			allAnalysisString,

@@ -1,5 +1,4 @@
 import { Client } from '@elastic/elasticsearch';
-import type { ConfigService } from './config.service.js';
 import fs from 'node:fs';
 import type { ClientOptions } from '@elastic/elasticsearch/lib/client';
 import type {
@@ -15,10 +14,8 @@ export class ElasticSearchService {
 	private pingSuccess = false;
 	private readonly LOADTEST_INDEX = 'loadtest-webrtc-stats';
 	private readonly mappings: Record<string, unknown>;
-	private readonly configService: ConfigService;
 
-	constructor(configService: ConfigService) {
-		this.configService = configService;
+	constructor() {
 		this.mappings = JSON.parse(
 			fs.readFileSync(
 				`${process.cwd()}/src/services/index-mappings.json`,
@@ -27,7 +24,7 @@ export class ElasticSearchService {
 		) as Record<string, unknown>;
 	}
 
-	async initialize(
+	public async initialize(
 		hostname: string,
 		username?: string,
 		password?: string,
@@ -61,11 +58,11 @@ export class ElasticSearchService {
 		username?: string,
 		password?: string,
 	): ClientOptions {
-		const clientOptions = {
+		const clientOptions: ClientOptions = {
 			node: hostname,
 			maxRetries: 5,
 			requestTimeout: 10000,
-			ssl: {
+			tls: {
 				rejectUnauthorized: false,
 			},
 			...(username && password
@@ -78,7 +75,7 @@ export class ElasticSearchService {
 				: {}),
 		};
 
-		return clientOptions as ClientOptions;
+		return clientOptions;
 	}
 
 	private async ensureIndexExists(): Promise<void> {
@@ -97,7 +94,9 @@ export class ElasticSearchService {
 		}
 	}
 
-	async sendJson(json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo) {
+	public async sendJson(
+		json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo,
+	) {
 		if (this.isElasticSearchRunning()) {
 			if (Object.keys(json).length) {
 				try {
@@ -112,7 +111,7 @@ export class ElasticSearchService {
 		}
 	}
 
-	async sendBulkJsons(
+	public async sendBulkJsons(
 		jsons: JSONStatsResponse[] | JSONStreamsInfo[] | JSONQoEInfo[],
 	) {
 		if (this.isElasticSearchRunning()) {
@@ -139,11 +138,11 @@ export class ElasticSearchService {
 		}
 	}
 
-	isElasticSearchRunning(): boolean {
+	public isElasticSearchRunning(): boolean {
 		return !!this.client && this.pingSuccess;
 	}
 
-	needsToBeConfigured(): boolean {
+	private needsToBeConfigured(): boolean {
 		return !this.client;
 	}
 
@@ -167,7 +166,7 @@ export class ElasticSearchService {
 		return this.indexName;
 	}
 
-	async getStartTimes(): Promise<JSONStreamsInfo[]> {
+	public async getStartTimes(): Promise<JSONStreamsInfo[]> {
 		if (this.isElasticSearchRunning()) {
 			const result = await this.client!.search<JSONStreamsInfo>({
 				index: this.indexName,
