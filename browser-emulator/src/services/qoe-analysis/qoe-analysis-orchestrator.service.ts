@@ -1,9 +1,10 @@
-import { runQoEAnalysisNonBlocking } from '../utils/qoe-analysis-utils.js';
-import type { JSONQoeProcessing } from '../types/json.type.ts';
-import type { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
-import type { LocalFilesService } from './files/local-files.service.ts';
+import { runQoEAnalysisNonBlocking } from './qoe-analysis-runner.ts';
+import type { JSONQoeProcessing } from '../../types/json.type.ts';
+import type { LocalFilesRepository } from '../../repositories/files/local-files.repository.ts';
+import type { LocalFilesService } from '../files/local-files.service.ts';
+import type { QoeConfig } from '../../types/qoe-analysis/qoe-analysis.types.ts';
 
-export class QoeAnalyzerService {
+export class QoeAnalysisOrchestratorService {
 	private readonly localFilesService: LocalFilesService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private remainingFiles = 0;
@@ -27,6 +28,7 @@ export class QoeAnalyzerService {
 		width?: number,
 		height?: number,
 		framerate?: number,
+		qoeConfig?: QoeConfig,
 	) {
 		const presenterVideoFile = this.localFilesRepository.fakevideo;
 		const presenterAudioFile = this.localFilesRepository.fakeaudio;
@@ -38,23 +40,42 @@ export class QoeAnalyzerService {
 					'Presenter video properties (width, height, framerate) are required when using a custom video file',
 				);
 			}
+			const resolvedFps = framerate ?? fakeVideoProperties?.fps;
+			const resolvedWidth = width ?? fakeVideoProperties?.width;
+			const resolvedHeight = height ?? fakeVideoProperties?.height;
+			if (
+				resolvedFps === undefined ||
+				resolvedWidth === undefined ||
+				resolvedHeight === undefined
+			) {
+				throw new TypeError(
+					'Unable to resolve presenter video properties',
+				);
+			}
 			const processingInfo: JSONQoeProcessing = {
 				fragment_duration: fragmentDuration,
 				padding_duration: paddingDuration,
-				framerate: framerate ?? fakeVideoProperties!.fps,
-				width: width ?? fakeVideoProperties!.width,
-				height: height ?? fakeVideoProperties!.height,
+				framerate: resolvedFps,
+				width: resolvedWidth,
+				height: resolvedHeight,
 				presenter_audio_file_location: presenterAudioFile,
 				presenter_video_file_location: presenterVideoFile,
 			};
-			const files = await runQoEAnalysisNonBlocking(processingInfo, {
-				onFileProcessed: () => {
-					this.remainingFiles = Math.max(0, this.remainingFiles - 1);
+			const files = await runQoEAnalysisNonBlocking(
+				processingInfo,
+				qoeConfig,
+				{
+					onFileProcessed: () => {
+						this.remainingFiles = Math.max(
+							0,
+							this.remainingFiles - 1,
+						);
+					},
+					onCompleted: () => {
+						this.remainingFiles = 0;
+					},
 				},
-				onCompleted: () => {
-					this.remainingFiles = 0;
-				},
-			});
+			);
 			this.remainingFiles = files.length;
 			return 'QoE analysis started';
 		}

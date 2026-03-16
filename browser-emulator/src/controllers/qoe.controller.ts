@@ -2,7 +2,7 @@ import * as express from 'express';
 import multer from 'multer';
 import type { Request, Response } from 'express';
 import fs from 'node:fs';
-import type { QoeAnalyzerService } from '../services/qoe-analyzer.service.js';
+import type { QoeAnalysisOrchestratorService } from '../services/qoe-analysis/qoe-analysis-orchestrator.service.ts';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 import type { QoeAnalysisRequest } from '../types/qoe.type.ts';
 
@@ -12,11 +12,13 @@ interface QoeRecordingRequest extends Request {
 
 export class QoeController {
 	private readonly router: express.Router;
-	private readonly qoeAnalyzerService: QoeAnalyzerService;
+	private readonly qoeAnalysisOrchestratorService: QoeAnalysisOrchestratorService;
 	private readonly upload = multer({ storage: multer.memoryStorage() });
 
-	constructor(qoeAnalyzerService: QoeAnalyzerService) {
-		this.qoeAnalyzerService = qoeAnalyzerService;
+	constructor(
+		qoeAnalysisOrchestratorService: QoeAnalysisOrchestratorService,
+	) {
+		this.qoeAnalysisOrchestratorService = qoeAnalysisOrchestratorService;
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
 	}
@@ -67,17 +69,21 @@ export class QoeController {
 		req: QoeAnalysisRequest,
 		res: Response,
 	): Promise<void> {
-		const { fragmentDuration, paddingDuration } = req.body;
-		const status = await this.qoeAnalyzerService.runQoEAnalysis(
-			fragmentDuration,
-			paddingDuration,
+		const status = await this.qoeAnalysisOrchestratorService.runQoEAnalysis(
+			req.body.fragmentDuration,
+			req.body.paddingDuration,
+			req.body.presenterVideoProperties?.width,
+			req.body.presenterVideoProperties?.height,
+			req.body.presenterVideoProperties?.frameRate,
+			req.body.qoeConfig,
 		);
 		res.status(200).send(status);
 	}
 
 	private handleAnalysisStatus(_req: Request, res: Response): void {
 		res.status(200).json({
-			remainingFiles: this.qoeAnalyzerService.getRemainingFiles(),
+			remainingFiles:
+				this.qoeAnalysisOrchestratorService.getRemainingFiles(),
 		});
 	}
 

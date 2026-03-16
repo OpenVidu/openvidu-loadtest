@@ -11,7 +11,7 @@ import { WsService } from './services/ws.service.js';
 import { SeleniumService } from './services/selenium.service.js';
 import { DockerService } from './services/docker.service.js';
 import { LocalStorageService } from './services/local-storage.service.js';
-import { QoeAnalyzerService } from './services/qoe-analyzer.service.js';
+import { QoeAnalysisOrchestratorService } from './services/qoe-analysis/qoe-analysis-orchestrator.service.ts';
 import { RemotePersistenceService } from './services/files/remote-persistence.service.ts';
 import type BaseComModule from './com-modules/base.js';
 import { LocalFilesRepository } from './repositories/files/local-files.repository.ts';
@@ -24,6 +24,8 @@ import { discoverComModules } from './com-modules/discoverComModules.ts';
 import { LocalFilesService } from './services/files/local-files.service.ts';
 import { ScriptRunnerService } from './services/script-runner.service.ts';
 import { FakeMediaDevicesService } from './services/fake-media/fake-media-devices.service.ts';
+import { QoeAnalyzerService } from './services/qoe-analysis/qoe-analyzer.service.ts';
+import { QoeCommandRunner } from './services/qoe-analysis/qoe-command-runner.ts';
 
 // Define the container interface for type safety
 export interface DIContainer {
@@ -36,7 +38,9 @@ export interface DIContainer {
 	seleniumService: SeleniumService;
 	dockerService: DockerService;
 	localStorageService: LocalStorageService;
+	qoeAnalysisOrchestratorService: QoeAnalysisOrchestratorService;
 	qoeAnalyzerService: QoeAnalyzerService;
+	qoeCommandRunner: QoeCommandRunner;
 	scriptRunnerService: ScriptRunnerService;
 	fakeMediaDevicesService: FakeMediaDevicesService;
 	s3Repository: S3Repository;
@@ -72,7 +76,11 @@ export async function configureContainer(): Promise<
 		elasticSearchService: asClass(ElasticSearchService).singleton(),
 		wsService: asClass(WsService).singleton(),
 		localStorageService: asClass(LocalStorageService).singleton(),
+		qoeAnalysisOrchestratorService: asClass(
+			QoeAnalysisOrchestratorService,
+		).singleton(),
 		qoeAnalyzerService: asClass(QoeAnalyzerService).singleton(),
+		qoeCommandRunner: asClass(QoeCommandRunner).singleton(),
 		localFilesService: asClass(LocalFilesService).singleton(),
 		remotePersistenceService: asClass(RemotePersistenceService).singleton(),
 		scriptRunnerService: asClass(ScriptRunnerService).singleton(),

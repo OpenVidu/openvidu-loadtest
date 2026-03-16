@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import type { QoeConfig } from './qoe-analysis/qoe-analysis.types.ts';
 
 export interface QoeAnalysisRequest extends Request {
 	body: QoeAnalysis;
@@ -12,6 +13,7 @@ export interface QoeAnalysis {
 		width: number;
 		height: number;
 	};
+	qoeConfig: QoeConfig;
 }
 
 export interface QoeAnalysisStatusResponse extends Response {

@@ -23,6 +23,8 @@ export interface ScriptRunOptions {
 	stdio?: StdioOptions;
 	stdoutCallback?: (chunk: string) => void;
 	stderrCallback?: (chunk: string) => void;
+	stdoutBufferCallback?: (chunk: Buffer) => void;
+	stderrBufferCallback?: (chunk: Buffer) => void;
 	onCloseCallback?: (code: number | null) => void;
 	onErrorCallback?: (err: Error) => void;
 }
@@ -203,6 +205,7 @@ export class ScriptRunnerService {
 	) {
 		this.handleStream(
 			execProcess.stdout,
+			options?.stdoutBufferCallback,
 			options?.stdoutCallback,
 			console.log,
 		);
@@ -214,6 +217,7 @@ export class ScriptRunnerService {
 	) {
 		this.handleStream(
 			execProcess.stderr,
+			options?.stderrBufferCallback,
 			options?.stderrCallback,
 			console.error,
 		);
@@ -221,11 +225,13 @@ export class ScriptRunnerService {
 
 	private handleStream(
 		stream: NodeJS.ReadableStream | null,
+		bufferCallback?: (chunk: Buffer) => void,
 		callback?: (chunk: string) => void,
 		defaultHandler?: (message: string) => void,
 	) {
 		if (stream) {
 			stream.on('data', (data: Buffer) => {
+				bufferCallback?.(data);
 				const output = data.toString();
 				if (callback) {
 					callback(output);

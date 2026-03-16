@@ -21,7 +21,7 @@
 		"test:integration": "vitest run --project=integration-generic",
 		"test:coverage": "vitest run --project=unit --project=integration-generic --coverage",
 		"test:all": "tsx ./dev_scripts/run-tests-vagrant.ts",
-		"qoe": "tsx ./src/utils/run-qoe-analysis.ts"
+		"qoe": "tsx ./src/qoe-cli.ts"
 	},
 	"author": "Carlos Santos & Iván Chicano",
 	"license": "Apache 2.0",

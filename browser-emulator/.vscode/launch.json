@@ -19,22 +19,6 @@
 			"localRoot": "${workspaceFolder}",
 			"remoteRoot": "/opt/openvidu-loadtest/browser-emulator",
 			"skipFiles": ["<node_internals>/**", "**/node_modules/**"]
-		},
-		{
-			"name": "Attach: Debug QoE scripts",
-			"type": "debugpy",
-			"request": "attach",
-			"connect": {
-				"host": "localhost",
-				"port": 5678
-			},
-			"pathMappings": [
-				{
-					"localRoot": "${workspaceFolder}",
-					"remoteRoot": "/opt/openvidu-loadtest/browser-emulator"
-				}
-			],
-			"justMyCode": false
 		}
 	]
 }

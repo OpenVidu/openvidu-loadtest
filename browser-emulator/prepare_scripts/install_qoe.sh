@@ -22,15 +22,9 @@ SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)" # Ab
 
 ## Install necessary packages
 apt-get update
-apt-get install -yq --no-install-recommends build-essential bc make cmake libopencv-dev python3-opencv libnetpbm10-dev xxd \
+apt-get install -yq --no-install-recommends build-essential bc make cmake libnetpbm10-dev xxd \
     libjpeg-turbo-progs imagemagick-6.q16 jq automake g++ libtool libleptonica-dev pkg-config nasm ninja-build \
-    meson doxygen libx264-dev libx265-dev libnuma-dev python3-venv python3-numpy
-pkg-config --cflags --libs opencv4
-# Create a python virtual environment usable by any user
-# Add venv activation to /etc/profile.d so it's loaded for all users by default
-python3 -m venv /opt/venv --system-site-packages
-chmod -R 755 /opt/venv
-echo 'export PATH=/opt/venv/bin:$PATH' | tee -a /etc/profile.d/venv.sh
+    meson doxygen libx264-dev libx265-dev libnuma-dev python3-numpy
 export PATH=/opt/venv/bin:$PATH
 
 install_vmaf() {
@@ -119,14 +113,14 @@ install_visqol() {
 
 install_tesseract() {
     ## Install tesseract
-    ## Building tesseract ST for better performance, check https://tesseract-ocr.github.io/tessdoc/Compiling-%E2%80%93-GitInstallation.html#release-builds-for-mass-production
+    ## Building tesseract single threaded for better performance, check https://tesseract-ocr.github.io/tessdoc/Compiling-%E2%80%93-GitInstallation.html#release-builds-for-mass-production
     curl --output "/tmp/tesseract.tar.gz" \
         --continue-at - \
-        --location "https://github.com/tesseract-ocr/tesseract/archive/refs/tags/4.1.3.tar.gz"
+        --location "https://github.com/tesseract-ocr/tesseract/archive/refs/tags/5.5.2.tar.gz"
     cd /tmp
     tar -xvf tesseract.tar.gz
     rm tesseract.tar.gz
-    cd tesseract-4.1.3
+    cd tesseract-5.5.2
     ./autogen.sh
     mkdir -p bin/release
     cd bin/release
@@ -134,16 +128,11 @@ install_tesseract() {
     make
     make install
     cd ../../..
-    rm -rf tesseract-4.1.3
+    rm -rf tesseract-5.5.2
     cd $SELF_PATH
     curl --output "/usr/local/share/tessdata/eng.traineddata" \
         --continue-at - \
-        --location "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
-}
-
-install_python_dependencies() {
-    ## Install python dependencies
-    pip3 install -r /opt/openvidu-loadtest/browser-emulator/qoe_scripts/requirements.txt
+        --location "https://github.com/tesseract-ocr/tessdata_best/raw/refs/heads/main/eng.traineddata"
 }
 
 install_vqmt &
@@ -151,7 +140,6 @@ install_pesq &
 install_visqol &
 install_vmaf &
 install_tesseract &
-install_python_dependencies &
 wait
 
 # Add user ubuntu to docker, video and syslog groups

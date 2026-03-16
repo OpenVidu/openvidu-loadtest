@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import {
 	runQoEAnalysisBlocking,
 	processFilesAndUploadResults,
-} from '../utils/qoe-analysis-utils.js';
+} from './services/qoe-analysis/qoe-analysis-runner.ts';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import type { JSONQoeProcessing } from '../types/json.type.ts';
+import type { JSONQoeProcessing } from './types/json.type.ts';
 const argv = yargs(hideBin(process.argv))
 	.options({
 		cpus: { type: 'number', default: undefined },
@@ -36,5 +36,10 @@ const info = parsedInfo as JSONQoeProcessing;
 if (argv.process) {
 	await processFilesAndUploadResults(info, argv.processPath);
 } else {
-	await runQoEAnalysisBlocking(info, maxCpus, onlyFiles, allAnalysis, debug);
+	await runQoEAnalysisBlocking(info, {
+		maxCpus,
+		onlyFiles,
+		allAnalysis,
+		debug,
+	});
 }
