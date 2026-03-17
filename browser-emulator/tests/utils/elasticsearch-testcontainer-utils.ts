@@ -6,6 +6,15 @@ import {
 export async function startElasticSearchTestContainer(): Promise<StartedElasticsearchContainer> {
 	console.log('Starting ElasticSearch container...');
 	const container = await new ElasticsearchContainer('elasticsearch:9.3.1')
+		.withEnvironment({
+			'discovery.type': 'single-node',
+			'xpack.security.enabled': 'false',
+			'http.cors.enabled': 'true',
+			'http.cors.allow-origin': String.raw`\*`,
+			'http.cors.allow-headers':
+				'X-Requested-With, Content-Type, Content-Length, Authorization',
+			'http.cors.allow-credentials': 'true',
+		})
 		.withLogConsumer(stream => {
 			stream.on('data', line => console.log(line));
 			stream.on('err', line => console.error(line));

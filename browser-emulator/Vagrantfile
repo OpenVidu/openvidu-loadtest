@@ -1,12 +1,18 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+require 'etc'
+
 box = ENV['BOX'] || 'ivchicano/browseremulator'
 livekit = ENV['LIVEKIT'] || 'false'
 start_server = ENV['START_SERVER'] || 'true'
 start_platform = ENV['START_PLATFORM'] || 'true'
 provider = ENV['VAGRANT_PROVIDER'] || 'virtualbox'
-memory = ENV['MEMORY'] || 4092
-cpus = ENV['CPUS'] || 12
+memory = ENV['MEMORY'] || 8192
+cpus = if ENV['CPUS'] && ENV['CPUS'].to_i > 0
+         ENV['CPUS'].to_i
+       else
+         Etc.nprocessors - 1
+       end
 disk = ENV['DISK'] || 30
 nodes = (ENV['NODES'] || 1).to_i
 
@@ -56,7 +62,18 @@ Vagrant.configure("2") do |config|
       node.vm.provider provider do |vb|
         vb.memory = memory
         vb.cpus = cpus
-        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on", "--usb", "off", "--usbehci", "off", "--usb-xhci", "off"]
+        vb.customize [
+          "modifyvm", :id,
+          "--natdnshostresolver1", "on",
+          "--usb", "off",
+          "--usbehci", "off",
+          "--usb-xhci", "off",
+          "--nested-hw-virt", "on",
+          "--paravirtprovider", "kvm",
+          "--ioapic", "on",
+          "--hpet", "on",
+          "--cpuexecutioncap", "100"
+        ]
       end
 
       node.vm.provision "shell", :path => "vagrant_setup_start.sh", :args => [livekit, start_server, start_platform]

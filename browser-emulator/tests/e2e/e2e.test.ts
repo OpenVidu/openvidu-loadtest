@@ -39,8 +39,9 @@ import {
 	startElasticSearchTestContainer,
 	stopElasticSearchTestContainer,
 } from '../utils/elasticsearch-testcontainer-utils.js';
+import { Client } from '@elastic/elasticsearch';
 
-const QOE_ANALYSIS_TIMEOUT_MS = 10 * 60 * 1000;
+const QOE_ANALYSIS_TIMEOUT_MS = 30 * 60 * 1000;
 const QOE_ANALYSIS_POLL_INTERVAL_MS = 2000;
 const EXPECTED_STATS_FILES = [
 	'connections.json',
@@ -67,7 +68,7 @@ beforeAll(async () => {
 	s3MockContainer = s3Setup.s3MockContainer;
 	s3Client = s3Setup.s3Client;
 	elasticsearchContainer = startedElasticsearchContainer;
-}, 180000);
+}, 600000);
 
 afterAll(async () => {
 	await Promise.all([
@@ -179,6 +180,7 @@ async function initializeInstance(
 	if (enableElasticsearch) {
 		initializeRequest = {
 			browserVideo,
+			vnc: true,
 			elasticSearchHost: elasticsearchContainer.getHttpUrl(),
 			elasticSearchUserName: elasticsearchContainer.getUsername(),
 			elasticSearchPassword: elasticsearchContainer.getPassword(),
@@ -187,6 +189,7 @@ async function initializeInstance(
 	} else {
 		initializeRequest = {
 			browserVideo,
+			vnc: true,
 		};
 	}
 	if (enableS3) {
@@ -247,9 +250,11 @@ async function cleanBucket(s3Client: S3Client, testBucketName: string) {
 	);
 }
 
-async function waitForBrowsersToSendStats() {
-	console.log('Wait 10 seconds to let the browsers connect and send stats');
-	await new Promise(resolve => setTimeout(resolve, 10000));
+async function waitForBrowsersToSendStats(emulationDuration: number) {
+	console.log(
+		`Wait ${emulationDuration} seconds to let the browsers connect and send stats`,
+	);
+	await new Promise(resolve => setTimeout(resolve, emulationDuration * 1000));
 }
 
 async function cleanUsers() {
@@ -344,7 +349,8 @@ async function assertS3QoeRecordings(
 }
 
 async function run2BrowserTest(
-	browser: AvailableBrowsers,
+	browser: AvailableBrowsers = 'chrome',
+	emulationDuration = 10,
 	enableS3 = false,
 	enableElasticsearch = false,
 	mediaRecorders = false,
@@ -355,7 +361,7 @@ async function run2BrowserTest(
 	// Platforms might have some delay in cleaning sessions, so we avoid reusing the same session between tests
 	const sessionName = 'LoadTestSession' + Date.now();
 	await createTwoPublisherUsers(sessionName, browser, mediaRecorders);
-	await waitForBrowsersToSendStats();
+	await waitForBrowsersToSendStats(emulationDuration);
 	await cleanUsers();
 	if (mediaRecorders) {
 		await runQoeAnalysisAndWaitUntilFinished();
@@ -391,6 +397,68 @@ function generateIndexName() {
 	return `test-index-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
+async function expectCorrectElasticSearchDocuments() {
+	const client = new Client({
+		node: elasticsearchContainer.getHttpUrl(),
+		auth: {
+			username: elasticsearchContainer.getUsername(),
+			password: elasticsearchContainer.getPassword(),
+		},
+	});
+	const { hits } = await client.search({
+		index: elkIndex,
+		query: {
+			match_all: {},
+		},
+		size: 1000,
+	});
+
+	expect(
+		hits.hits.some(hit => {
+			const src = hit._source as Record<string, unknown> | undefined;
+			return (
+				typeof src === 'object' &&
+				src !== null &&
+				src.user === 'User1' &&
+				Array.isArray(src.webrtcStats) &&
+				src.webrtcStats.length > 0
+			);
+		}),
+	).toBe(true);
+	expect(
+		hits.hits.some(hit => {
+			const src = hit._source as Record<string, unknown> | undefined;
+			return (
+				typeof src === 'object' &&
+				src !== null &&
+				src.user === 'User2' &&
+				Array.isArray(src.webrtcStats) &&
+				src.webrtcStats.length > 0
+			);
+		}),
+	).toBe(true);
+	expect(
+		hits.hits.some(hit => {
+			const src = hit._source as Record<string, unknown> | undefined;
+			return (
+				typeof src === 'object' &&
+				src !== null &&
+				src.new_participant_id === 'User1'
+			);
+		}),
+	).toBe(true);
+	expect(
+		hits.hits.some(hit => {
+			const src = hit._source as Record<string, unknown> | undefined;
+			return (
+				typeof src === 'object' &&
+				src !== null &&
+				src.new_participant_id === 'User2'
+			);
+		}),
+	).toBe(true);
+}
+
 beforeEach(async () => {
 	const serverPort = await getAvailablePort();
 	process.env.SERVER_PORT = String(serverPort);
@@ -412,11 +480,12 @@ afterEach(async () => {
 // Using the vagrant box available in this project should suffice.
 describe('Browser-emulator', () => {
 	describe('OpenVidu 2', () => {
-		it('basic workflow (Chrome)', { repeats: 0 }, async () => {
+		// Added repeats to these tests to increase confidence in stability, as browsers can be flaky
+		it('basic workflow (Chrome only)', { repeats: 10 }, async () => {
 			await run2BrowserTest('chrome');
 		});
 
-		it('basic workflow (Firefox)', { repeats: 0 }, async () => {
+		it('basic workflow (Firefox only)', { repeats: 10 }, async () => {
 			await run2BrowserTest('firefox');
 		});
 	});
@@ -430,12 +499,43 @@ describe('Browser-emulator', () => {
 			await cleanBucket(s3Client, testBucketName);
 		});
 
-		it('basic workflow + S3 (Chrome)', { repeats: 0 }, async () => {
-			await run2BrowserTest('chrome', true, false, false, s3Client);
+		it('basic workflow + S3 (Chrome with S3)', { repeats: 0 }, async () => {
+			await run2BrowserTest('chrome', 10, true, false, false, s3Client);
 		});
 
-		it('basic workflow + S3 (Firefox)', { repeats: 0 }, async () => {
-			await run2BrowserTest('firefox', true, false, false, s3Client);
+		it(
+			'basic workflow + S3 (Firefox with S3)',
+			{ repeats: 0 },
+			async () => {
+				await run2BrowserTest(
+					'firefox',
+					10,
+					true,
+					false,
+					false,
+					s3Client,
+				);
+			},
+		);
+	});
+
+	describe('OpenVidu 2 + S3 + ELK', () => {
+		beforeEach(() => {
+			testBucketName = generateBucketName();
+			elkIndex = generateIndexName();
+		});
+
+		afterEach(async () => {
+			await cleanBucket(s3Client, testBucketName);
+		});
+		it('basic workflow + S3+ELK (Chrome with ELK)', async () => {
+			await run2BrowserTest('chrome', 10, true, true, false, s3Client);
+			await expectCorrectElasticSearchDocuments();
+		});
+
+		it('basic workflow + S3+ELK (Firefox with ELK)', async () => {
+			await run2BrowserTest('firefox', 10, true, true, false, s3Client);
+			await expectCorrectElasticSearchDocuments();
 		});
 	});
 
@@ -448,12 +548,14 @@ describe('Browser-emulator', () => {
 		afterEach(async () => {
 			await cleanBucket(s3Client, testBucketName);
 		});
-		it('basic workflow + S3+ELK+QoE (Chrome, media recorders)', async () => {
-			await run2BrowserTest('chrome', true, true, true, s3Client);
+		it('basic workflow + S3+ELK+QoE (Chrome with media recorders)', async () => {
+			await run2BrowserTest('chrome', 30, true, true, true, s3Client);
+			await expectCorrectElasticSearchDocuments();
 		});
 
-		it('basic workflow + S3+ELK+QoE (Firefox, media recorders)', async () => {
-			await run2BrowserTest('firefox', true, true, true, s3Client);
+		it('basic workflow + S3+ELK+QoE (Firefox with media recorders)', async () => {
+			await run2BrowserTest('firefox', 30, true, true, true, s3Client);
+			await expectCorrectElasticSearchDocuments();
 		});
 	});
 });

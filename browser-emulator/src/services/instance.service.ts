@@ -28,7 +28,7 @@ export class InstanceService {
 		this.instanceReady = true;
 	}
 
-	async getCpuUsage(): Promise<number> {
+	public async getCpuUsage(): Promise<number> {
 		const usage = await this.osutils.cpu.usage();
 		if (usage.success) {
 			return usage.data;
@@ -36,7 +36,7 @@ export class InstanceService {
 		return 0;
 	}
 
-	async launchMetricBeat(
+	public async launchMetricBeat(
 		elasticsearchHost: string,
 		elasticsearchUsername?: string,
 		elasticsearchPassword?: string,
@@ -86,11 +86,15 @@ export class InstanceService {
 		}
 	}
 
-	async removeContainer(containerNameOrId: string) {
+	public async removeMetricBeat() {
+		await this.removeContainer(ContainerName.METRICBEAT);
+	}
+
+	private async removeContainer(containerNameOrId: string) {
 		await this.dockerService.removeContainer(containerNameOrId);
 	}
 
-	async pullImagesNeeded(): Promise<void> {
+	private async pullImagesNeeded(): Promise<void> {
 		try {
 			if (
 				!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))

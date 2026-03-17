@@ -1,339 +1,1971 @@
 {
-    "properties": {
-        "@timestamp": {
-            "type": "date"
-        },
-        "node_role": {
-            "type": "text",
-            "fields": {
-                "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                }
-            }
-        },
-        "participant_id": {
-            "type": "text",
-            "fields": {
-                "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                }
-            }
-        },
-        "platform": {
-            "type": "text",
-            "fields": {
-                "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                }
-            }
-        },
-        "platform_description": {
-            "type": "text",
-            "fields": {
-                "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                }
-            }
-        },
-        "session_id": {
-            "type": "text",
-            "fields": {
-                "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                }
-            }
-        },
-        "stream": {
-            "type": "text",
-            "fields": {
-                "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                }
-            }
-        },
-        "streams": {
-            "type": "long"
-        },
-        "webrtc_stats": {
-            "properties": {
-                "candidatepair": {
-                    "properties": {
-                        "availableOutgoingBitrate": {
-                            "type": "double"
-                        },
-                        "currentRoundTripTime": {
-                            "type": "double"
-                        }
-                    }
-                },
-                "inbound": {
-                    "properties": {
-                        "audio": {
-                            "properties": {
-                                "bytesReceived": {
-                                    "type": "long"
-                                },
-                                "concealedSamples": {
-                                    "type": "long"
-                                },
-                                "concealedEvents": {
-                                    "type": "long"
-                                },
-                                "jitter": {
-                                    "type": "double"
-                                },
-                                "silentConcealedSamples": {
-                                    "type": "long"
-                                },
-                                "silentConcealmentEvents": {
-                                    "type": "long"
-                                },
-                                "timestamp": {
-                                    "type": "long"
-                                },
-                                "totalAudioEnergy": {
-                                    "type": "double"
-                                },
-                                "totalSamplesDuration": {
-                                    "type": "long"
-                                },
-                                "type": {
-                                    "type": "text"
-                                },
-                                "audioLevel": {
-                                    "type": "double"
-                                },
-                                "fecPacketsDiscarded": {
-                                    "type": "long"
-                                },
-                                "fecPacketsReceived": {
-                                    "type": "long"
-                                },
-                                "insertedSamplesForDeceleration": {
-                                    "type": "long"
-                                },
-                                "jitterBufferDelay": {
-                                    "type": "double"
-                                },
-                                "jitterBufferEmittedCount": {
-                                    "type": "long"
-                                },
-                                "lastPacketReceivedTimestamp": {
-                                    "type": "long"
-                                },
-                                "packetsDiscarded": {
-                                    "type": "long"
-                                },
-                                "packetsLost": {
-                                    "type": "long"
-                                },
-                                "packetsReceived": {
-                                    "type": "long"
-                                },
-                                "removedSamplesForAcceleration": {
-                                    "type": "long"
-                                },
-                                "ssrc": {
-                                    "type": "long"
-                                },
-                                "totalSamplesReceived": {
-                                    "type": "long"
-                                }
-                            }
-                        },
-                        "video": {
-                            "properties": {
-                                "bytesReceived": {
-                                    "type": "long"
-                                },
-                                "firCount": {
-                                    "type": "long"
-                                },
-                                "frameHeight": {
-                                    "type": "long"
-                                },
-                                "frameWidth": {
-                                    "type": "long"
-                                },
-                                "framesDecoded": {
-                                    "type": "long"
-                                },
-                                "framesDropped": {
-                                    "type": "long"
-                                },
-                                "framesReceived": {
-                                    "type": "long"
-                                },
-                                "jitter": {
-                                    "type": "double"
-                                },
-                                "mimeType": {
-                                    "type": "text"
-                                },
-                                "jitterBufferDelay": {
-                                    "type": "double"
-                                },
-                                "nackCount": {
-                                    "type": "long"
-                                },
-                                "packetsLost": {
-                                    "type": "long"
-                                },
-                                "packetsReceived": {
-                                    "type": "long"
-                                },
-                                "pliCount": {
-                                    "type": "long"
-                                },
-                                "timestamp": {
-                                    "type": "long"
-                                },
-                                "type": {
-                                    "type": "text"
-                                },
-                                "ssrc": {
-                                    "type": "long"
-                                },
-                                "packetsDiscarded": {
-                                    "type": "long"
-                                },
-                                "discardedPackets": {
-                                    "type": "long"
-                                },
-                                "framesPerSecond": {
-                                    "type": "double"
-                                },
-                                "jitterBufferEmittedCount": {
-                                    "type": "long"
-                                },
-                                "lastPacketReceivedTimestamp": {
-                                    "type": "long"
-                                },
-                                "totalDecodeTime": {
-                                    "type": "long"
-                                },
-                                "totalInterFrameDelay": {
-                                    "type": "double"
-                                },
-                                "totalProcessingDelay": {
-                                    "type": "double"
-                                },
-                                "totalSquaredInterFrameDelay": {
-                                    "type": "double"
-                                }
-                            }
-                        }
-                    }
-                },
-                "outbound": {
-                    "properties": {
-                        "audio": {
-                            "properties": {
-                                "bytesSent": {
-                                    "type": "long"
-                                },
-                                "nackCount": {
-                                    "type": "long"
-                                },
-                                "packetsSent": {
-                                    "type": "long"
-                                },
-                                "packetsLost": {
-                                    "type": "long"
-                                },
-                                "jitter": {
-                                    "type": "double"
-                                },
-                                "timestamp": {
-                                    "type": "long"
-                                },
-                                "roundTripTime": {
-                                    "type": "double"
-                                },
-                                "type": {
-                                    "type": "text"
-                                },
-                                "streamId": {
-                                    "type": "text"
-                                }
-                            }
-                        },
-                        "video": {
-                            "properties": {
-                                "bytesSent": {
-                                    "type": "long"
-                                },
-                                "firCount": {
-                                    "type": "long"
-                                },
-                                "frameHeight": {
-                                    "type": "long"
-                                },
-                                "frameWidth": {
-                                    "type": "long"
-                                },
-                                "framesEncoded": {
-                                    "type": "long"
-                                },
-                                "framesSent": {
-                                    "type": "long"
-                                },
-                                "jitter": {
-                                    "type": "double"
-                                },
-                                "nackCount": {
-                                    "type": "long"
-                                },
-                                "packetsLost": {
-                                    "type": "long"
-                                },
-                                "packetsSent": {
-                                    "type": "long"
-                                },
-                                "pliCount": {
-                                    "type": "long"
-                                },
-                                "qpSum": {
-                                    "type": "long"
-                                },
-                                "qualityLimitationReason": {
-                                    "type": "text"
-                                },
-                                "qualityLimitationResolutionChanges": {
-                                    "type": "long"
-                                },
-                                "timestamp": {
-                                    "type": "long"
-                                },
-                                "retransmittedPacketsSent": {
-                                    "type": "long"
-                                },
-                                "rid": {
-                                    "type": "text"
-                                },
-                                "roundTripTime": {
-                                    "type": "double"
-                                },
-                                "streamId": {
-                                    "type": "text"
-                                },
-                                "framesPerSecond": {
-                                    "type": "double"
-                                },
-                                "hugeFramesSent": {
-                                    "type": "long"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+	"mappings": {
+		"properties": {
+			"@timestamp": {
+				"type": "date"
+			},
+			"new_participant_id": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"new_participant_session": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"node_role": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"session": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"streams": {
+				"type": "long"
+			},
+			"timestamp": {
+				"type": "date"
+			},
+			"user": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			},
+			"webrtcStats": {
+				"properties": {
+					"connectionId": {
+						"type": "text",
+						"fields": {
+							"keyword": {
+								"type": "keyword",
+								"ignore_above": 256
+							}
+						}
+					},
+					"data": {
+						"properties": {
+							"details": {
+								"properties": {
+									"audio": {
+										"properties": {
+											"capabilities": {
+												"properties": {
+													"echoCancellation": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									}
+								}
+							},
+							"audio": {
+								"properties": {
+									"inbound": {
+										"properties": {
+											"audioLevel": {
+												"type": "long"
+											},
+											"bitrate": {
+												"type": "float"
+											},
+											"bytesReceived": {
+												"type": "long"
+											},
+											"clockRate": {
+												"type": "long"
+											},
+											"codecId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"concealedSamples": {
+												"type": "long"
+											},
+											"concealmentEvents": {
+												"type": "long"
+											},
+											"estimatedPlayoutTimestamp": {
+												"type": "long"
+											},
+											"fecPacketsDiscarded": {
+												"type": "long"
+											},
+											"fecPacketsReceived": {
+												"type": "long"
+											},
+											"headerBytesReceived": {
+												"type": "long"
+											},
+											"id": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"insertedSamplesForDeceleration": {
+												"type": "long"
+											},
+											"jitter": {
+												"type": "float"
+											},
+											"jitterBufferDelay": {
+												"type": "float"
+											},
+											"jitterBufferEmittedCount": {
+												"type": "long"
+											},
+											"jitterBufferMinimumDelay": {
+												"type": "long"
+											},
+											"jitterBufferTargetDelay": {
+												"type": "long"
+											},
+											"kind": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"lastPacketReceivedTimestamp": {
+												"type": "float"
+											},
+											"mediaType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mid": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mimeType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"packetRate": {
+												"type": "float"
+											},
+											"packetsDiscarded": {
+												"type": "long"
+											},
+											"packetsLost": {
+												"type": "long"
+											},
+											"packetsReceived": {
+												"type": "long"
+											},
+											"packetsReceivedWithCe": {
+												"type": "long"
+											},
+											"packetsReceivedWithEct1": {
+												"type": "long"
+											},
+											"payloadType": {
+												"type": "long"
+											},
+											"playoutId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"remoteId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"removedSamplesForAcceleration": {
+												"type": "long"
+											},
+											"silentConcealedSamples": {
+												"type": "long"
+											},
+											"ssrc": {
+												"type": "long"
+											},
+											"timestamp": {
+												"type": "float"
+											},
+											"totalAudioEnergy": {
+												"type": "float"
+											},
+											"totalProcessingDelay": {
+												"type": "float"
+											},
+											"totalSamplesDuration": {
+												"type": "float"
+											},
+											"totalSamplesReceived": {
+												"type": "long"
+											},
+											"track": {
+												"type": "object"
+											},
+											"trackIdentifier": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"transportId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"type": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									},
+									"outbound": {
+										"properties": {
+											"active": {
+												"type": "boolean"
+											},
+											"bitrate": {
+												"type": "float"
+											},
+											"bytesSent": {
+												"type": "long"
+											},
+											"clockRate": {
+												"type": "long"
+											},
+											"codecId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"headerBytesSent": {
+												"type": "long"
+											},
+											"id": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"kind": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mediaSourceId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mediaType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mid": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mimeType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"nackCount": {
+												"type": "long"
+											},
+											"packetRate": {
+												"type": "float"
+											},
+											"packetsSent": {
+												"type": "long"
+											},
+											"packetsSentWithEct1": {
+												"type": "long"
+											},
+											"payloadType": {
+												"type": "long"
+											},
+											"remoteId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"retransmittedBytesSent": {
+												"type": "long"
+											},
+											"retransmittedPacketsSent": {
+												"type": "long"
+											},
+											"ssrc": {
+												"type": "long"
+											},
+											"targetBitrate": {
+												"type": "long"
+											},
+											"timestamp": {
+												"type": "float"
+											},
+											"totalPacketSendDelay": {
+												"type": "long"
+											},
+											"track": {
+												"properties": {
+													"audioLevel": {
+														"type": "float"
+													},
+													"echoReturnLoss": {
+														"type": "long"
+													},
+													"echoReturnLossEnhancement": {
+														"type": "float"
+													},
+													"id": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"kind": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"timestamp": {
+														"type": "float"
+													},
+													"totalAudioEnergy": {
+														"type": "float"
+													},
+													"totalSamplesDuration": {
+														"type": "float"
+													},
+													"trackIdentifier": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"type": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													}
+												}
+											},
+											"transportId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"type": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									}
+								}
+							},
+							"connection": {
+								"properties": {
+									"availableIncomingBitrate": {
+										"type": "long"
+									},
+									"availableOutgoingBitrate": {
+										"type": "long"
+									},
+									"bytesDiscardedOnSend": {
+										"type": "long"
+									},
+									"bytesReceived": {
+										"type": "long"
+									},
+									"bytesSent": {
+										"type": "long"
+									},
+									"consentRequestsSent": {
+										"type": "long"
+									},
+									"currentRoundTripTime": {
+										"type": "float"
+									},
+									"dataChannelsClosed": {
+										"type": "long"
+									},
+									"dataChannelsOpened": {
+										"type": "long"
+									},
+									"id": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"lastPacketReceivedTimestamp": {
+										"type": "long"
+									},
+									"lastPacketSentTimestamp": {
+										"type": "long"
+									},
+									"local": {
+										"properties": {
+											"address": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"candidateType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"foundation": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"id": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"ip": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"isRemote": {
+												"type": "boolean"
+											},
+											"networkType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"port": {
+												"type": "long"
+											},
+											"priority": {
+												"type": "long"
+											},
+											"protocol": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"timestamp": {
+												"type": "float"
+											},
+											"transportId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"type": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"usernameFragment": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									},
+									"localCandidateId": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"nominated": {
+										"type": "boolean"
+									},
+									"packetsDiscardedOnSend": {
+										"type": "long"
+									},
+									"packetsReceived": {
+										"type": "long"
+									},
+									"packetsSent": {
+										"type": "long"
+									},
+									"priority": {
+										"type": "long"
+									},
+									"remote": {
+										"properties": {
+											"address": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"candidateType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"foundation": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"id": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"ip": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"isRemote": {
+												"type": "boolean"
+											},
+											"port": {
+												"type": "long"
+											},
+											"priority": {
+												"type": "long"
+											},
+											"protocol": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"timestamp": {
+												"type": "float"
+											},
+											"transportId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"type": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"usernameFragment": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									},
+									"remoteCandidateId": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"requestsReceived": {
+										"type": "long"
+									},
+									"requestsSent": {
+										"type": "long"
+									},
+									"responsesReceived": {
+										"type": "long"
+									},
+									"responsesSent": {
+										"type": "long"
+									},
+									"state": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"timestamp": {
+										"type": "float"
+									},
+									"totalRoundTripTime": {
+										"type": "float"
+									},
+									"transportId": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"type": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"writable": {
+										"type": "boolean"
+									}
+								}
+							},
+							"options": {
+								"properties": {
+									"connectionId": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"pc": {
+										"type": "object"
+									},
+									"peerId": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									}
+								}
+							},
+							"peerConfiguration": {
+								"properties": {
+									"bundlePolicy": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"encodedInsertableStreams": {
+										"type": "boolean"
+									},
+									"iceCandidatePoolSize": {
+										"type": "long"
+									},
+									"iceServers": {
+										"properties": {
+											"urls": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"username": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									},
+									"iceTransportPolicy": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									},
+									"rtcpMuxPolicy": {
+										"type": "text",
+										"fields": {
+											"keyword": {
+												"type": "keyword",
+												"ignore_above": 256
+											}
+										}
+									}
+								}
+							},
+							"remote": {
+								"properties": {
+									"audio": {
+										"properties": {
+											"inbound": {
+												"properties": {
+													"clockRate": {
+														"type": "long"
+													},
+													"codecId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"fractionLost": {
+														"type": "long"
+													},
+													"id": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"jitter": {
+														"type": "float"
+													},
+													"kind": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"localId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mediaType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mimeType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"packetsLost": {
+														"type": "long"
+													},
+													"payloadType": {
+														"type": "long"
+													},
+													"roundTripTime": {
+														"type": "float"
+													},
+													"roundTripTimeMeasurements": {
+														"type": "long"
+													},
+													"ssrc": {
+														"type": "long"
+													},
+													"timestamp": {
+														"type": "float"
+													},
+													"totalRoundTripTime": {
+														"type": "long"
+													},
+													"transportId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"type": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													}
+												}
+											},
+											"outbound": {
+												"properties": {
+													"bytesSent": {
+														"type": "long"
+													},
+													"clockRate": {
+														"type": "long"
+													},
+													"codecId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"id": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"kind": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"localId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mediaType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mimeType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"packetsSent": {
+														"type": "long"
+													},
+													"payloadType": {
+														"type": "long"
+													},
+													"remoteTimestamp": {
+														"type": "float"
+													},
+													"reportsSent": {
+														"type": "long"
+													},
+													"roundTripTimeMeasurements": {
+														"type": "long"
+													},
+													"ssrc": {
+														"type": "long"
+													},
+													"timestamp": {
+														"type": "float"
+													},
+													"totalRoundTripTime": {
+														"type": "long"
+													},
+													"transportId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"type": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													}
+												}
+											}
+										}
+									},
+									"video": {
+										"properties": {
+											"inbound": {
+												"properties": {
+													"clockRate": {
+														"type": "long"
+													},
+													"codecId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"fractionLost": {
+														"type": "long"
+													},
+													"id": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"jitter": {
+														"type": "float"
+													},
+													"kind": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"localId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mediaType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mimeType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"packetsLost": {
+														"type": "long"
+													},
+													"payloadType": {
+														"type": "long"
+													},
+													"roundTripTime": {
+														"type": "float"
+													},
+													"roundTripTimeMeasurements": {
+														"type": "long"
+													},
+													"ssrc": {
+														"type": "long"
+													},
+													"timestamp": {
+														"type": "float"
+													},
+													"totalRoundTripTime": {
+														"type": "float"
+													},
+													"transportId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"type": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													}
+												}
+											},
+											"outbound": {
+												"properties": {
+													"bytesSent": {
+														"type": "long"
+													},
+													"clockRate": {
+														"type": "long"
+													},
+													"codecId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"id": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"kind": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"localId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mediaType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"mimeType": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"packetsSent": {
+														"type": "long"
+													},
+													"payloadType": {
+														"type": "long"
+													},
+													"remoteTimestamp": {
+														"type": "float"
+													},
+													"reportsSent": {
+														"type": "long"
+													},
+													"roundTripTimeMeasurements": {
+														"type": "long"
+													},
+													"ssrc": {
+														"type": "long"
+													},
+													"timestamp": {
+														"type": "float"
+													},
+													"totalRoundTripTime": {
+														"type": "long"
+													},
+													"transportId": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"type": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							},
+							"video": {
+								"properties": {
+									"inbound": {
+										"properties": {
+											"bitrate": {
+												"type": "float"
+											},
+											"bytesReceived": {
+												"type": "long"
+											},
+											"clockRate": {
+												"type": "long"
+											},
+											"codecId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"decoderImplementation": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"estimatedPlayoutTimestamp": {
+												"type": "long"
+											},
+											"firCount": {
+												"type": "long"
+											},
+											"frameHeight": {
+												"type": "long"
+											},
+											"frameWidth": {
+												"type": "long"
+											},
+											"framesAssembledFromMultiplePackets": {
+												"type": "long"
+											},
+											"framesDecoded": {
+												"type": "long"
+											},
+											"framesDropped": {
+												"type": "long"
+											},
+											"framesPerSecond": {
+												"type": "long"
+											},
+											"framesReceived": {
+												"type": "long"
+											},
+											"freezeCount": {
+												"type": "long"
+											},
+											"headerBytesReceived": {
+												"type": "long"
+											},
+											"id": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"jitter": {
+												"type": "float"
+											},
+											"jitterBufferDelay": {
+												"type": "float"
+											},
+											"jitterBufferEmittedCount": {
+												"type": "long"
+											},
+											"jitterBufferMinimumDelay": {
+												"type": "float"
+											},
+											"jitterBufferTargetDelay": {
+												"type": "float"
+											},
+											"keyFramesDecoded": {
+												"type": "long"
+											},
+											"kind": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"lastPacketReceivedTimestamp": {
+												"type": "float"
+											},
+											"mediaType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mid": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mimeType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"nackCount": {
+												"type": "long"
+											},
+											"packetRate": {
+												"type": "float"
+											},
+											"packetsLost": {
+												"type": "long"
+											},
+											"packetsReceived": {
+												"type": "long"
+											},
+											"packetsReceivedWithCe": {
+												"type": "long"
+											},
+											"packetsReceivedWithEct1": {
+												"type": "long"
+											},
+											"pauseCount": {
+												"type": "long"
+											},
+											"payloadType": {
+												"type": "long"
+											},
+											"pliCount": {
+												"type": "long"
+											},
+											"powerEfficientDecoder": {
+												"type": "boolean"
+											},
+											"qpSum": {
+												"type": "long"
+											},
+											"remoteId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"ssrc": {
+												"type": "long"
+											},
+											"timestamp": {
+												"type": "float"
+											},
+											"totalAssemblyTime": {
+												"type": "float"
+											},
+											"totalDecodeTime": {
+												"type": "float"
+											},
+											"totalFreezesDuration": {
+												"type": "float"
+											},
+											"totalInterFrameDelay": {
+												"type": "float"
+											},
+											"totalPausesDuration": {
+												"type": "long"
+											},
+											"totalProcessingDelay": {
+												"type": "float"
+											},
+											"totalSquaredInterFrameDelay": {
+												"type": "float"
+											},
+											"track": {
+												"type": "object"
+											},
+											"trackIdentifier": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"transportId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"type": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									},
+									"outbound": {
+										"properties": {
+											"active": {
+												"type": "boolean"
+											},
+											"bitrate": {
+												"type": "float"
+											},
+											"bytesSent": {
+												"type": "long"
+											},
+											"clockRate": {
+												"type": "long"
+											},
+											"codecId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"encoderImplementation": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"encodingIndex": {
+												"type": "long"
+											},
+											"firCount": {
+												"type": "long"
+											},
+											"frameHeight": {
+												"type": "long"
+											},
+											"frameWidth": {
+												"type": "long"
+											},
+											"framesEncoded": {
+												"type": "long"
+											},
+											"framesPerSecond": {
+												"type": "long"
+											},
+											"framesSent": {
+												"type": "long"
+											},
+											"headerBytesSent": {
+												"type": "long"
+											},
+											"hugeFramesSent": {
+												"type": "long"
+											},
+											"id": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"keyFramesEncoded": {
+												"type": "long"
+											},
+											"kind": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mediaSourceId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mediaType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mid": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"mimeType": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"nackCount": {
+												"type": "long"
+											},
+											"packetRate": {
+												"type": "float"
+											},
+											"packetsSent": {
+												"type": "long"
+											},
+											"packetsSentWithEct1": {
+												"type": "long"
+											},
+											"payloadType": {
+												"type": "long"
+											},
+											"pliCount": {
+												"type": "long"
+											},
+											"powerEfficientEncoder": {
+												"type": "boolean"
+											},
+											"psnrMeasurements": {
+												"type": "long"
+											},
+											"psnrSum": {
+												"properties": {
+													"u": {
+														"type": "float"
+													},
+													"v": {
+														"type": "float"
+													},
+													"y": {
+														"type": "float"
+													}
+												}
+											},
+											"qpSum": {
+												"type": "long"
+											},
+											"qualityLimitationDurations": {
+												"properties": {
+													"bandwidth": {
+														"type": "long"
+													},
+													"cpu": {
+														"type": "long"
+													},
+													"none": {
+														"type": "float"
+													},
+													"other": {
+														"type": "long"
+													}
+												}
+											},
+											"qualityLimitationReason": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"qualityLimitationResolutionChanges": {
+												"type": "long"
+											},
+											"remoteId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"retransmittedBytesSent": {
+												"type": "long"
+											},
+											"retransmittedPacketsSent": {
+												"type": "long"
+											},
+											"rtxSsrc": {
+												"type": "long"
+											},
+											"scalabilityMode": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"ssrc": {
+												"type": "long"
+											},
+											"targetBitrate": {
+												"type": "long"
+											},
+											"timestamp": {
+												"type": "float"
+											},
+											"totalEncodeTime": {
+												"type": "float"
+											},
+											"totalEncodedBytesTarget": {
+												"type": "long"
+											},
+											"totalPacketSendDelay": {
+												"type": "float"
+											},
+											"track": {
+												"properties": {
+													"frames": {
+														"type": "long"
+													},
+													"framesPerSecond": {
+														"type": "long"
+													},
+													"height": {
+														"type": "long"
+													},
+													"id": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"kind": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"timestamp": {
+														"type": "float"
+													},
+													"trackIdentifier": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"type": {
+														"type": "text",
+														"fields": {
+															"keyword": {
+																"type": "keyword",
+																"ignore_above": 256
+															}
+														}
+													},
+													"width": {
+														"type": "long"
+													}
+												}
+											},
+											"transportId": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											},
+											"type": {
+												"type": "text",
+												"fields": {
+													"keyword": {
+														"type": "keyword",
+														"ignore_above": 256
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"error": {
+						"properties": {
+							"errorCode": {
+								"type": "long"
+							}
+						}
+					},
+					"event": {
+						"type": "text",
+						"fields": {
+							"keyword": {
+								"type": "keyword",
+								"ignore_above": 256
+							}
+						}
+					},
+					"inbound": {
+						"type": "float"
+					},
+					"outbound": {
+						"type": "float"
+					},
+					"peerId": {
+						"type": "text",
+						"fields": {
+							"keyword": {
+								"type": "keyword",
+								"ignore_above": 256
+							}
+						}
+					},
+					"statsSamples": {
+						"properties": {
+							"inboundStatsSample": {
+								"properties": {
+									"avgJitter": {
+										"type": "float"
+									},
+									"packetsLoss": {
+										"type": "long"
+									},
+									"rtt": {
+										"type": "long"
+									}
+								}
+							},
+							"outboundStatsSample": {
+								"properties": {
+									"avgJitter": {
+										"type": "float"
+									},
+									"packetsLoss": {
+										"type": "long"
+									},
+									"rtt": {
+										"type": "long"
+									}
+								}
+							}
+						}
+					},
+					"tag": {
+						"type": "text",
+						"fields": {
+							"keyword": {
+								"type": "keyword",
+								"ignore_above": 256
+							}
+						}
+					},
+					"timeTaken": {
+						"type": "long"
+					},
+					"timestamp": {
+						"type": "date"
+					}
+				}
+			},
+			"worker_name": {
+				"type": "text",
+				"fields": {
+					"keyword": {
+						"type": "keyword",
+						"ignore_above": 256
+					}
+				}
+			}
+		}
+	}
 }

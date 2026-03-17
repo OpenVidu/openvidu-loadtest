@@ -120,7 +120,7 @@ describe('QoeAnalysisOrchestratorService integration', () => {
 				}
 				return Promise.resolve(fs.existsSync(OUTPUT_CUTS_JSON));
 			},
-			Infinity,
+			300000,
 			500,
 		);
 

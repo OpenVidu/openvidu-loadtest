@@ -41,8 +41,11 @@ export class ElasticSearchService {
 			try {
 				console.log('Connecting with ElasticSearch ...');
 				this.client = new Client(clientOptions);
-				const pingSuccess = await this.client.ping();
-				this.pingSuccess = !!pingSuccess;
+				this.pingSuccess = await this.client.ping();
+				console.log(
+					'ElasticSearch connection success: ',
+					this.pingSuccess,
+				);
 				if (this.pingSuccess) {
 					await this.ensureIndexExists();
 				}
@@ -83,11 +86,17 @@ export class ElasticSearchService {
 			const exists = await this.client!.indices.exists({
 				index: this.indexName,
 			});
-			if (!exists) {
+			if (exists) {
+				console.log(`Index ${this.indexName} already exists.`);
+			} else {
+				console.log(
+					`Index ${this.indexName} does not exist. Creating it...`,
+				);
 				await this.client!.indices.create({
 					index: this.indexName,
-					mappings: this.mappings,
+					body: this.mappings,
 				});
+				console.log(`Index ${this.indexName} created successfully.`);
 			}
 		} else {
 			await this.createElasticSearchIndex();
@@ -99,16 +108,43 @@ export class ElasticSearchService {
 	) {
 		if (this.isElasticSearchRunning()) {
 			if (Object.keys(json).length) {
+				const finalData = this.normalizeWeirdValues(json);
 				try {
 					await this.client!.index({
 						index: this.indexName,
-						document: json,
+						document: finalData,
 					});
 				} catch (error) {
 					console.error(error);
 				}
 			}
+		} else {
+			console.warn(
+				'ElasticSearch is not running. Cannot send JSON data.',
+			);
 		}
+	}
+
+	private normalizeWeirdValues(
+		json: JSONStatsResponse | JSONStreamsInfo | JSONQoEInfo,
+	): Record<string, unknown> {
+		const normalizedJson = { ...json } as Record<string, unknown>;
+		const maybeStats = normalizedJson.webrtcStats;
+		if (Array.isArray(maybeStats)) {
+			const stats = maybeStats as unknown[];
+			for (const element of stats) {
+				if (element && typeof element === 'object') {
+					const el = element as Record<string, unknown>;
+					const data = el.data;
+					if (typeof data === 'string') {
+						el.data = {
+							stringValue: data,
+						};
+					}
+				}
+			}
+		}
+		return normalizedJson;
 	}
 
 	public async sendBulkJsons(
@@ -118,7 +154,7 @@ export class ElasticSearchService {
 			try {
 				const operations = jsons.flatMap(json => [
 					{ index: { _index: this.indexName } },
-					json,
+					this.normalizeWeirdValues(json),
 				]);
 				const bulkResponse = await this.client!.bulk({
 					refresh: true,
@@ -135,6 +171,10 @@ export class ElasticSearchService {
 			} catch (error) {
 				console.error(error);
 			}
+		} else {
+			console.warn(
+				'ElasticSearch is not running. Cannot send JSON data.',
+			);
 		}
 	}
 
@@ -151,8 +191,10 @@ export class ElasticSearchService {
 			const index = this.generateNewIndexName();
 			await this.client!.indices.create({
 				index,
-				mappings: this.mappings,
+				body: this.mappings,
 			});
+		} else {
+			console.warn('ElasticSearch is not running. Cannot create index.');
 		}
 	}
 
@@ -195,6 +237,9 @@ export class ElasticSearchService {
 				}) ?? []
 			);
 		} else {
+			console.warn(
+				'ElasticSearch is not running. Cannot retrieve start times.',
+			);
 			return [];
 		}
 	}

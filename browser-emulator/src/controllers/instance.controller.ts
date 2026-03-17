@@ -77,17 +77,20 @@ export class InstanceController {
 				!this.elasticSearchService.isElasticSearchRunning()
 			) {
 				promises.push(
-					this.elasticSearchService.initialize(
-						request.elasticSearchHost,
-						request.elasticSearchUserName,
-						request.elasticSearchPassword,
-						request.elasticSearchIndex,
-					),
-					this.instanceService.launchMetricBeat(
-						request.elasticSearchHost,
-						request.elasticSearchUserName,
-						request.elasticSearchPassword,
-					),
+					this.elasticSearchService
+						.initialize(
+							request.elasticSearchHost,
+							request.elasticSearchUserName,
+							request.elasticSearchPassword,
+							request.elasticSearchIndex,
+						)
+						.then(() =>
+							this.instanceService.launchMetricBeat(
+								request.elasticSearchHost,
+								request.elasticSearchUserName,
+								request.elasticSearchPassword,
+							),
+						),
 				);
 			}
 			await Promise.all(promises);

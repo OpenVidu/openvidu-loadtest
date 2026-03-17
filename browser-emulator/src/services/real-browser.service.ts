@@ -423,11 +423,8 @@ export class RealBrowserService {
 			const driver = driverObj.driver;
 			// Add mutex here to ensure only one browser is clicking buttons at a time
 			await this.muteButtonMutex.runExclusive(async () => {
-				try {
-					await this.clickButtonsWithRetry(driver);
-				} catch (error) {
-					console.error('Error clicking buttons', error);
-				}
+				// FIXME: in chrome this may crash the browser
+				await this.clickButtonsWithRetry(driver);
 			});
 		}
 	}

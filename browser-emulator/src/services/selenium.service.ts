@@ -22,7 +22,7 @@ export class SeleniumService {
 	public constructor() {
 		const prefs = new logging.Preferences();
 		logging.getLogger('webdriver');
-		const logLevel = logging.Level.OFF;
+		const logLevel = logging.Level.ALL;
 		prefs.setLevel(logging.Type.BROWSER, logLevel);
 		prefs.setLevel(logging.Type.DRIVER, logLevel);
 		prefs.setLevel(logging.Type.CLIENT, logLevel);
@@ -39,11 +39,11 @@ export class SeleniumService {
 		this.chromeCapabilities.setAcceptInsecureCerts(true);
 		// Unlike firefox, chrome is maximized this way here because of this bug: https://issuetracker.google.com/issues/394760806?pli=1
 		this.chromeOptions.addArguments(
-			'--disable-dev-shm-usage',
 			'--use-fake-ui-for-media-stream',
 			'--no-sandbox',
-			'--disable-gpu',
 			'--start-maximized',
+			'--single-process',
+			'--no-proxy-server',
 		);
 	}
 

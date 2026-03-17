@@ -25,6 +25,8 @@ async function cleanup() {
 	await fakeMediaDevicesService.cleanupFakeMediaDevices();
 	const scriptRunnerService = container.resolve('scriptRunnerService');
 	await scriptRunnerService.killAllDetached();
+	const instanceService = container.resolve('instanceService');
+	await instanceService.removeMetricBeat();
 }
 
 async function createServer() {
