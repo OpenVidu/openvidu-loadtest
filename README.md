@@ -290,7 +290,7 @@ RETRY_MODE=false
 RETRY_TIMES=5
 ```
 
-#### For selecting the video to use
+#### For selecting the video to use (only if using Chrome browsers)
 
 These properties allow you to select the video to use.
 There are 3 default options provided by the OpenVidu team that you can use for your tests:
@@ -322,6 +322,8 @@ VIDEO_FPS=30
 VIDEO_URL=
 AUDIO_URL=
 ```
+
+Note: If using Firefox as a browser it will use its own video
 
 ### Miscellaneous configuration
 

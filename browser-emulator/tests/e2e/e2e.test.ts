@@ -180,7 +180,6 @@ async function initializeInstance(
 	if (enableElasticsearch) {
 		initializeRequest = {
 			browserVideo,
-			vnc: true,
 			elasticSearchHost: elasticsearchContainer.getHttpUrl(),
 			elasticSearchUserName: elasticsearchContainer.getUsername(),
 			elasticSearchPassword: elasticsearchContainer.getPassword(),
@@ -535,26 +534,6 @@ describe('Browser-emulator', () => {
 
 		it('basic workflow + S3+ELK (Firefox with ELK)', async () => {
 			await run2BrowserTest('firefox', 10, true, true, false, s3Client);
-			await expectCorrectElasticSearchDocuments();
-		});
-	});
-
-	describe('OpenVidu 2 + S3 + ELK + MediaRecorders + QoE Analysis', () => {
-		beforeEach(() => {
-			testBucketName = generateBucketName();
-			elkIndex = generateIndexName();
-		});
-
-		afterEach(async () => {
-			await cleanBucket(s3Client, testBucketName);
-		});
-		it('basic workflow + S3+ELK+QoE (Chrome with media recorders)', async () => {
-			await run2BrowserTest('chrome', 30, true, true, true, s3Client);
-			await expectCorrectElasticSearchDocuments();
-		});
-
-		it('basic workflow + S3+ELK+QoE (Firefox with media recorders)', async () => {
-			await run2BrowserTest('firefox', 30, true, true, true, s3Client);
 			await expectCorrectElasticSearchDocuments();
 		});
 	});

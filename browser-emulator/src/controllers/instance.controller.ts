@@ -10,6 +10,7 @@ import type {
 	InitializePostRequest,
 } from '../types/initialize.type.ts';
 import type { ConfigService } from '../services/config.service.ts';
+import type { SeleniumService } from '../services/selenium.service.ts';
 
 export class InstanceController {
 	private readonly router: express.Router;
@@ -19,6 +20,7 @@ export class InstanceController {
 	private readonly localFilesService: LocalFilesService;
 	private readonly fakeMediaDevicesService: FakeMediaDevicesService;
 	private readonly remotePersistenceService: RemotePersistenceService;
+	private readonly seleniumService: SeleniumService;
 	private readonly config: ConfigService;
 
 	constructor(
@@ -28,6 +30,7 @@ export class InstanceController {
 		fakeMediaDevicesService: FakeMediaDevicesService,
 		remotePersistenceService: RemotePersistenceService,
 		configService: ConfigService,
+		seleniumService: SeleniumService,
 	) {
 		this.elasticSearchService = elasticSearchService;
 		this.instanceService = instanceService;
@@ -35,6 +38,7 @@ export class InstanceController {
 		this.fakeMediaDevicesService = fakeMediaDevicesService;
 		this.remotePersistenceService = remotePersistenceService;
 		this.config = configService;
+		this.seleniumService = seleniumService;
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
 	}
@@ -78,6 +82,7 @@ export class InstanceController {
 								request.vnc,
 							);
 						}
+						this.seleniumService.initialize();
 					}),
 			);
 			if (

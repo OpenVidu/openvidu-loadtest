@@ -31,6 +31,41 @@ Then you can run:
 
 `pnpm install`
 
+### Run with Docker
+
+This repository now includes Docker artifacts to run browser-emulator in a container.
+
+Quick start:
+
+```bash
+docker compose up --build
+```
+
+Or with npm scripts:
+
+```bash
+pnpm run docker:up
+```
+
+The service will be available at `https://localhost:5000` and writes runtime data to mounted folders:
+
+- `./recordings/chrome`
+- `./recordings/qoe`
+- `./stats`
+- `./logs`
+- `./mediafiles`
+
+Environment variables supported by the container:
+
+- `SERVER_PORT` (default `5000`)
+- `COM_MODULE` (default `openvidu`, valid values include `openvidu` and `livekit`)
+
+Notes:
+
+- The compose file mounts `/var/run/docker.sock` so features that launch helper containers (for example metricbeat) can work.
+- `legacyMode` fake camera support depends on host kernel modules (`v4l2loopback`) and is not expected to work in a standard containerized setup unless you provide extra host configuration.
+- If you need to pull or process large media files, keep enough free space in your host mounted directories.
+
 The browser-emulator has several **Linux-specific dependencies** that are required. These components **cannot be easily replicated on Windows or macOS** due to kernel-level dependencies and availability. As a result, you can use one of these options:
 
 - **Recommended**: Use the provided Vagrant + VirtualBox setup (works on Windows, macOS, Linux)
@@ -117,7 +152,7 @@ BrowserEmulator can run analysis on the Quality of Experience on your video and 
     - -a: Audio location URL, the script will try to download the audio from this URL using wget.
     - -w: Video width.
     - -h: Video height.
-    - -f: Video frame rate. The video and audio have to be saved in `src/assets/mediafiles` in y4m and wav format respectively so browser-emulator can see them.
+    - -f: Video frame rate. The video and audio have to be saved in `mediafiles` in y4m and wav format respectively so browser-emulator can see them.
         - The video file has to have the following name: `fakevideo_[framerate]fps_[width]x[height].y4m`, for example: `fakevideo_30fps_640x480.y4m`.
         - The audio file has to have the following name: `fakeaudio.wav`.
           Alternatively you can use our already preprocessed videos that can be downloaded using the _download_mediafiles.sh_ script. These have 1 second of padding and 5 seconds of cut video.
@@ -161,8 +196,8 @@ When [Delete all participant](#delete-participants) is run, all individual recor
         - width: Video width
         - height: Video height
         - framerate: Video frame rate
-        - presenter_video_file_location: Location of the original video, usually located in `src/assets/mediafiles/fakevideo*[framerate]fps\_[width]x[height].y4m`
-        - presenter_audio_file_location: Location of the original audio, usually located in `src/assets/mediafiles/fakeaudio.wav`
+        - presenter_video_file_location: Location of the original video, usually located in `mediafiles/fakevideo*[framerate]fps\_[width]x[height].y4m`
+        - presenter_audio_file_location: Location of the original audio, usually located in `mediafiles/fakeaudio.wav`
         - timestamps: Optional. An array of objects with info about when a user has been added to a session, used to make a timeline. If not added, this info will be searched in the index indicated in ELK. The objects have the following structure:
             - new_participant_id: username of the user
             - new_participant_session: session

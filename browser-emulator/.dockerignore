@@ -1,0 +1,13 @@
+node_modules
+dist
+.vagrant
+artifacts
+coverage
+outputs
+.git
+.gitignore
+*.log
+recordings
+stats
+logs
+**/.DS_Store

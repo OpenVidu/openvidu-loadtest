@@ -29,6 +29,9 @@ export class SeleniumService {
 	) {
 		this.configService = configService;
 		this.localFilesRepository = localFilesRepository;
+	}
+
+	public initialize() {
 		const prefs = new logging.Preferences();
 		logging.getLogger('webdriver');
 		const logLevel = logging.Level.ALL;
@@ -51,10 +54,13 @@ export class SeleniumService {
 			'--use-fake-ui-for-media-stream',
 			'--no-sandbox',
 			'--start-maximized',
-			'--single-process',
-			'--no-proxy-server',
 		);
-		if (!this.configService.isLegacyMode()) {
+		if (this.configService.isLegacyMode()) {
+			this.chromeOptions.addArguments(
+				'--single-process',
+				'--no-proxy-server',
+			);
+		} else {
 			this.firefoxOptions.setPreference(
 				'media.navigator.streams.fake',
 				true,

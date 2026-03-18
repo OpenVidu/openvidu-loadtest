@@ -44,6 +44,18 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
+					name: 'e2e-legacy',
+					include: ['tests/e2e/**/*.test.ts'],
+					testTimeout: 600000, // 10 minutes
+					sequence: {
+						concurrent: false,
+					},
+					fileParallelism: false,
+				},
+			},
+			{
+				extends: true,
+				test: {
 					name: 'e2e',
 					include: ['tests/e2e/**/*.test.ts'],
 					testTimeout: 600000, // 10 minutes
