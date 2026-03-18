@@ -78,12 +78,6 @@ export async function startServer() {
 
 	server.listen(serverPort, () => {
 		try {
-			const pythonpath = process.env.PYTHONPATH;
-			if (pythonpath) {
-				process.env.PYTHONPATH = pythonpath + ':' + process.cwd();
-			} else {
-				process.env.PYTHONPATH = process.cwd();
-			}
 
 			asyncExitHook(
 				async () => {

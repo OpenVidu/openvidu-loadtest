@@ -21,12 +21,6 @@ const maxCpus = argv.cpus;
 const onlyFiles = argv.onlyfiles;
 const debug = argv.debug;
 const allAnalysis = argv['all-analysis'];
-const pythonpath = process.env.PYTHONPATH;
-if (pythonpath) {
-	process.env.PYTHONPATH = process.cwd();
-} else {
-	process.env.PYTHONPATH = pythonpath + ':' + process.cwd();
-}
 const jsonText: string = readFileSync(
 	`${process.cwd()}/qoe-results-processing-config.json`,
 	'utf-8',
