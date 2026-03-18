@@ -9,7 +9,7 @@ export class LocalFilesRepository {
 	public static readonly FULLSCREEN_RECORDING_DIR = `${process.cwd()}/recordings/chrome`;
 	public static readonly QOE_RECORDING_DIR = `${process.cwd()}/recordings/qoe`;
 	public static readonly STATS_DIR = `${process.cwd()}/stats`;
-	public static readonly MEDIAFILES_DIR = `${process.cwd()}/src/assets/mediafiles`;
+	public static readonly MEDIAFILES_DIR = `${process.cwd()}/mediafiles`;
 	public static readonly SCRIPTS_LOGS_DIR = `${process.cwd()}/logs`;
 
 	private _fakevideo: string | undefined;

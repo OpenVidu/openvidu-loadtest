@@ -17,10 +17,7 @@ export class ElasticSearchService {
 
 	constructor() {
 		this.mappings = JSON.parse(
-			fs.readFileSync(
-				`${process.cwd()}/src/services/index-mappings.json`,
-				'utf8',
-			),
+			fs.readFileSync(`${process.cwd()}/index-mappings.json`, 'utf8'),
 		) as Record<string, unknown>;
 	}
 
