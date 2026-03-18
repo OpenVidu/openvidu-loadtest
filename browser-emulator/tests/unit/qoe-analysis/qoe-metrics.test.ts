@@ -60,8 +60,6 @@ describe('qoe-metrics', () => {
 				width: 640,
 				height: 480,
 				fps: 30,
-				allAnalysis: false,
-				debug: false,
 			},
 			{
 				presenterYuv: '/tmp/presenter.yuv',
@@ -110,8 +108,7 @@ describe('qoe-metrics', () => {
 				width: 640,
 				height: 480,
 				fps: 30,
-				allAnalysis: true,
-				debug: false,
+				qoeConfig: { allAnalysis: true, debug: false },
 			},
 			{
 				presenterYuv: '/tmp/presenter.yuv',
