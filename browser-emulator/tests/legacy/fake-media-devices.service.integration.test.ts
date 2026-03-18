@@ -3,12 +3,14 @@ import { FakeMediaDevicesService } from '../../src/services/fake-media/fake-medi
 import { ScriptRunnerService } from '../../src/services/script-runner.service.js';
 import { LocalFilesService } from '../../src/services/files/local-files.service.js';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
+import { ConfigService } from '../../src/services/config.service.js';
 
 // IMPORTANT: This test assumes it is running in a Linux machine that has installed the base dependencies (see install scripts).
 // Using the vagrant box available in this project should suffice.
 describe('FakeMediaDevicesService', () => {
 	let fakeMediaService: FakeMediaDevicesService;
 	let scriptRunnerService: ScriptRunnerService;
+	let configService: ConfigService;
 	let videoPath: string;
 	let audioPath: string;
 
@@ -28,7 +30,12 @@ describe('FakeMediaDevicesService', () => {
 
 	beforeEach(() => {
 		scriptRunnerService = new ScriptRunnerService();
-		fakeMediaService = new FakeMediaDevicesService(scriptRunnerService);
+		configService = new ConfigService();
+		configService.setLegacyMode(true); // Enable legacy mode for fake media devices
+		fakeMediaService = new FakeMediaDevicesService(
+			scriptRunnerService,
+			configService,
+		);
 	});
 
 	afterEach(async () => {

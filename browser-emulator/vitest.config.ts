@@ -22,8 +22,8 @@ export default defineConfig({
 				// just docker
 				extends: true,
 				test: {
-					name: 'integration-generic',
-					include: ['tests/integration-generic/**/**.test.ts'],
+					name: 'integration',
+					include: ['tests/integration/**/**.test.ts'],
 					testTimeout: 600000, // 10 minutes for container startup and file operations
 				},
 			},
@@ -32,8 +32,8 @@ export default defineConfig({
 				// with software package dependencies from install scripts installed
 				extends: true,
 				test: {
-					name: 'integration-native',
-					include: ['tests/integration-native/**/**.test.ts'],
+					name: 'qoe',
+					include: ['tests/qoe/**/**.test.ts'],
 					testTimeout: 600000, // 10 minutes for container startup and file operations
 					sequence: {
 						concurrent: false,
@@ -44,8 +44,8 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
-					name: 'e2e-legacy',
-					include: ['tests/e2e/**/*.test.ts'],
+					name: 'legacy',
+					include: ['tests/legacy/**/*.test.ts'],
 					testTimeout: 600000, // 10 minutes
 					sequence: {
 						concurrent: false,

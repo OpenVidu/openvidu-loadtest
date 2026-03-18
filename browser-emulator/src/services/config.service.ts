@@ -1,7 +1,7 @@
 export class ConfigService {
 	private readonly serverPort: number;
 	private readonly comModule: string;
-	private legacyMode: boolean = false;
+	private legacyMode = false;
 
 	constructor() {
 		this.serverPort = this.parseServerPort();
