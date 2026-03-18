@@ -27,6 +27,7 @@ import {
 	startS3MockTestContainer,
 	stopS3MockTestContainer,
 } from '../utils/s3-utils.js';
+import { getOpenViduConfig } from '../utils/test-config.js';
 import { StartedS3MockContainer } from '@testcontainers/s3mock';
 import {
 	DeleteBucketCommand,
@@ -111,11 +112,12 @@ async function createPublisherUser(
 	browser: AvailableBrowsers = 'chrome',
 	mediaRecorders = false,
 ) {
+	const openViduConfig = getOpenViduConfig();
 	const createUserResponse = await request(app)
 		.post('/openvidu-browser/streamManager')
 		.send({
-			openviduUrl: 'https://localhost',
-			openviduSecret: 'vagrant',
+			openviduUrl: openViduConfig.openviduUrl,
+			openviduSecret: openViduConfig.openviduSecret,
 			properties: {
 				userId,
 				sessionName: sessionName,
