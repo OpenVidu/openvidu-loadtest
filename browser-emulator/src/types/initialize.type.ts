@@ -14,6 +14,7 @@ export type InitializePost = {
 	s3Host?: string;
 	s3HostAccessKey?: string;
 	s3HostSecretAccessKey?: string;
+	legacyMode?: boolean;
 } & (
 	| ElasticsearchCredentials
 	| Partial<Record<keyof ElasticsearchCredentials, never>>

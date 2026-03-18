@@ -9,6 +9,7 @@ import type {
 	InitializePost,
 	InitializePostRequest,
 } from '../types/initialize.type.ts';
+import type { ConfigService } from '../services/config.service.ts';
 
 export class InstanceController {
 	private readonly router: express.Router;
@@ -18,6 +19,7 @@ export class InstanceController {
 	private readonly localFilesService: LocalFilesService;
 	private readonly fakeMediaDevicesService: FakeMediaDevicesService;
 	private readonly remotePersistenceService: RemotePersistenceService;
+	private readonly config: ConfigService;
 
 	constructor(
 		elasticSearchService: ElasticSearchService,
@@ -25,12 +27,14 @@ export class InstanceController {
 		localFilesService: LocalFilesService,
 		fakeMediaDevicesService: FakeMediaDevicesService,
 		remotePersistenceService: RemotePersistenceService,
+		configService: ConfigService,
 	) {
 		this.elasticSearchService = elasticSearchService;
 		this.instanceService = instanceService;
 		this.localFilesService = localFilesService;
 		this.fakeMediaDevicesService = fakeMediaDevicesService;
 		this.remotePersistenceService = remotePersistenceService;
+		this.config = configService;
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
 	}
@@ -56,6 +60,8 @@ export class InstanceController {
 		try {
 			const request = req.body;
 
+			this.config.setLegacyMode(!!request.legacyMode);
+
 			console.log('Initialize browser-emulator');
 
 			const promises = [];
@@ -64,13 +70,15 @@ export class InstanceController {
 			promises.push(
 				this.localFilesService
 					.downloadBrowserMediaFiles(request.browserVideo)
-					.then((fileNames: string[]) =>
-						this.fakeMediaDevicesService.startFakeMediaDevices(
-							fileNames[0],
-							fileNames[1],
-							request.vnc,
-						),
-					),
+					.then((fileNames: string[]) => {
+						if (request.legacyMode) {
+							return this.fakeMediaDevicesService.startFakeMediaDevices(
+								fileNames[0],
+								fileNames[1],
+								request.vnc,
+							);
+						}
+					}),
 			);
 			if (
 				request.elasticSearchHost &&

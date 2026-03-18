@@ -19,10 +19,13 @@ async function cleanup() {
 		'remotePersistenceService',
 	);
 	remotePersistenceService.clean();
-	const fakeMediaDevicesService = container.resolve(
-		'fakeMediaDevicesService',
-	);
-	await fakeMediaDevicesService.cleanupFakeMediaDevices();
+	const configService = container.resolve('configService');
+	if (configService.isLegacyMode()) {
+		const fakeMediaDevicesService = container.resolve(
+			'fakeMediaDevicesService',
+		);
+		await fakeMediaDevicesService.cleanupFakeMediaDevices();
+	}
 	const scriptRunnerService = container.resolve('scriptRunnerService');
 	await scriptRunnerService.killAllDetached();
 	const instanceService = container.resolve('instanceService');
@@ -78,7 +81,6 @@ export async function startServer() {
 
 	server.listen(serverPort, () => {
 		try {
-
 			asyncExitHook(
 				async () => {
 					console.log('Cleaning up before exit...');

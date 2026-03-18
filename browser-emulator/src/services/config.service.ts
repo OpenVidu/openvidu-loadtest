@@ -1,10 +1,12 @@
 export class ConfigService {
 	private readonly serverPort: number;
 	private readonly comModule: string;
+	private legacyMode: boolean = false;
 
 	constructor() {
 		this.serverPort = this.parseServerPort();
 		this.comModule = this.parseComModule();
+		this.legacyMode = false;
 
 		this.logConfiguration();
 	}
@@ -33,6 +35,9 @@ export class ConfigService {
 		console.log('Configuration loaded:');
 		console.log(`  SERVER_PORT: ${this.serverPort}`);
 		console.log(`  COM_MODULE: ${this.comModule}`);
+		if (this.legacyMode) {
+			console.log('  LEGACY_MODE: enabled');
+		}
 	}
 
 	public getServerPort(): number {
@@ -41,5 +46,13 @@ export class ConfigService {
 
 	public getComModule(): string {
 		return this.comModule;
+	}
+
+	public isLegacyMode(): boolean {
+		return this.legacyMode;
+	}
+
+	public setLegacyMode(legacyMode: boolean): void {
+		this.legacyMode = legacyMode;
 	}
 }

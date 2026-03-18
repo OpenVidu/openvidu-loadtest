@@ -3,17 +3,23 @@ import type { ScriptRunnerService } from '../script-runner.service.ts';
 import os from 'node:os';
 import { LocalFilesRepository } from '../../repositories/files/local-files.repository.ts';
 import type { ChildProcess } from 'node:child_process';
+import type { ConfigService } from '../config.service.ts';
 
 export class FakeMediaDevicesService {
 	private readonly scriptRunnerService: ScriptRunnerService;
+	private readonly configService: ConfigService;
 	private readonly PULSEAUDIO_CONF_PATH = `${os.homedir()}/.config/pulse/client.conf`;
 	private ffmpegProcess: ChildProcess | undefined;
 	private xvfbProcess: ChildProcess | undefined;
 	private x11vncProcess: ChildProcess | undefined;
 	private fvwmProcess: ChildProcess | undefined;
 
-	public constructor(scriptRunnerService: ScriptRunnerService) {
+	public constructor(
+		scriptRunnerService: ScriptRunnerService,
+		configService: ConfigService,
+	) {
 		this.scriptRunnerService = scriptRunnerService;
+		this.configService = configService;
 	}
 
 	private async createPulseaudioDevice() {
@@ -36,6 +42,12 @@ export class FakeMediaDevicesService {
 		audioPath: string,
 		vnc = false,
 	) {
+		if (!this.configService.isLegacyMode()) {
+			console.log(
+				'Legacy mode disabled, skipping fake media devices setup.',
+			);
+			return;
+		}
 		// Assumes ffmpeg installed, v4l2loopback installed and enabled, and pulseaudio installed,
 		// check install scripts for guidance
 
@@ -234,6 +246,12 @@ export class FakeMediaDevicesService {
 	}
 
 	public async cleanupFakeMediaDevices() {
+		if (!this.configService.isLegacyMode()) {
+			console.log(
+				'Legacy mode disabled, skipping fake media devices cleanup.',
+			);
+			return;
+		}
 		const promises = [this.cleanFakeMicrophone()];
 		if (this.xvfbProcess) {
 			promises.push(

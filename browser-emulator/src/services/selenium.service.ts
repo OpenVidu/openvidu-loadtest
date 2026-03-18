@@ -9,6 +9,7 @@ import chrome from 'selenium-webdriver/chrome.js';
 import firefox from 'selenium-webdriver/firefox.js';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 import type { AvailableBrowsers } from '../types/create-user.type.ts';
+import type { ConfigService } from './config.service.ts';
 
 export class SeleniumService {
 	// TODO: Add this as config
@@ -19,7 +20,15 @@ export class SeleniumService {
 	private readonly firefoxOptions = new firefox.Options();
 	private readonly firefoxCapabilities = Capabilities.firefox();
 
-	public constructor() {
+	private readonly configService: ConfigService;
+	private readonly localFilesRepository: LocalFilesRepository;
+
+	public constructor(
+		configService: ConfigService,
+		localFilesRepository: LocalFilesRepository,
+	) {
+		this.configService = configService;
+		this.localFilesRepository = localFilesRepository;
 		const prefs = new logging.Preferences();
 		logging.getLogger('webdriver');
 		const logLevel = logging.Level.ALL;
@@ -45,6 +54,28 @@ export class SeleniumService {
 			'--single-process',
 			'--no-proxy-server',
 		);
+		if (!this.configService.isLegacyMode()) {
+			this.firefoxOptions.setPreference(
+				'media.navigator.streams.fake',
+				true,
+			);
+			if (
+				this.localFilesRepository.fakevideo &&
+				this.localFilesRepository.fakeaudio
+			) {
+				this.chromeOptions.addArguments(
+					'--use-fake-device-for-media-stream',
+					'--use-file-for-fake-video-capture=' +
+						this.localFilesRepository.fakevideo,
+					'--use-file-for-fake-audio-capture=' +
+						this.localFilesRepository.fakeaudio,
+				);
+			} else {
+				console.warn(
+					'Fake media files not found, Chrome will not work correctly.',
+				);
+			}
+		}
 	}
 
 	public async getDriver(
