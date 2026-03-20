@@ -1,0 +1,24 @@
+# ============================================
+# Basic Local Load Test Configuration
+# ============================================
+# Quick start configuration for testing with a local worker. See the first quick start example in the README for more details.
+
+platform:
+  url: http://livekit-server:7880
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: chrome
+    description: "Basic N:N topology test"
+workers:
+  urls: browser-emulator
+  disableHttps: true
+
+distribution:
+  manual: true
+  usersPerWorker: 2

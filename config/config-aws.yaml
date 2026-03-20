@@ -1,0 +1,60 @@
+# ============================================
+# AWS Production Load Test Configuration
+# ============================================
+# Configuration for running load tests on AWS EC2 instances.
+
+platform:
+  url: https://your-openvidu-url.io
+  apiKey: your_api_key
+  apiSecret: your_api_secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "8"
+    sessions: infinite
+    browser: chrome
+    description: "Large scale N:N topology"
+
+  - topology: N:M
+    participants:
+      - "3:10"
+    sessions: infinite
+    browser: chrome
+    description: "One-to-many N:M topology"
+
+aws:
+  accessKey: your_access_key
+  secretAccessKey: your_secret_key
+  amiId: ami-xxxxxxxxxxxxx
+  instanceType: c5.xlarge
+  keyPairName: your-key-pair
+  securityGroupId: sg-xxxxxxxxxxxxx
+  region: us-east-1
+  availabilityZone: us-east-1a
+  workersAtStart: 2
+  rampUpWorkers: 5
+  forceContinue: false
+
+distribution:
+  manual: false
+  maxLoadPercent: 70
+
+video:
+  type: BUNNY
+  width: 1280
+  height: 720
+  fps: 30
+
+storage:
+  bucket: your-bucket-name
+  region: us-east-1
+
+advanced:
+  retry:
+    enabled: true
+    times: 3
+  batches:
+    enabled: true
+    maxConcurrentRequests: 10
+  waitForCompletion: true

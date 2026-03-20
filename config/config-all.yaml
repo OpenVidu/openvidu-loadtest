@@ -1,0 +1,119 @@
+# ============================================
+# OpenVidu Load Test Configuration
+# ============================================
+# See README.md for full documentation.
+# See docs/advanced-options.md for rarely-used settings.
+
+# ---------- Platform ----------
+platform:
+  # URL of the platform to test
+  url: http://your-openvidu-url.io
+  # API credentials for authentication
+  apiKey: devkey
+  apiSecret: secret
+
+# ---------- Session ----------
+session:
+  namePrefix: LoadTestSession
+  usersNamePrefix: User
+  secondsBetweenParticipants: 5
+  secondsBetweenSessions: 0
+  secondsBeforeTestFinished: 0
+  secondsBetweenTestCases: 0
+
+# ---------- Test Cases ----------
+# Each test case defines a load test scenario to run sequentially.
+# After all test cases complete, the load test ends (or TERMINATE terminates workers).
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    startingParticipants: 0
+    resolution: 640x480
+    frameRate: 30
+    browser: chrome
+    recordingMode: COMPOSED
+    browserRecording: false
+    headlessBrowser: false
+    showBrowserVideoElements: true
+    description: "Basic 2-user test"
+
+# ---------- Workers ----------
+workers:
+  # Comma-separated list of worker IP addresses, or empty for AWS
+  urls: 127.0.0.1
+  # Set to true if workers don't have HTTPS configured (local testing)
+  disableHttps: false
+
+# ---------- AWS ----------
+aws:
+  accessKey:
+  secretAccessKey:
+  amiId:
+  instanceType: c5.xlarge
+  keyPairName:
+  securityGroupId:
+  region: us-east-1
+  availabilityZone: us-east-1f
+  workersAtStart: 0
+  rampUpWorkers: 0
+  forceContinue: false
+
+# ---------- Participant Distribution ----------
+distribution:
+  # Set to false for automatic distribution based on CPU load
+  manual: true
+  usersPerWorker: 10
+  maxLoadPercent: 70
+
+# ---------- Video ----------
+video:
+  type: BUNNY
+  width: 1280
+  height: 720
+  fps: 30
+  # For CUSTOM video type:
+  customVideoUrl:
+  customAudioUrl:
+
+# ---------- Monitoring ----------
+monitoring:
+  elasticsearch:
+    host:
+    username:
+    password:
+  kibana:
+    host:
+
+# ---------- Recording & QoE ----------
+# See docs/advanced-options.md for detailed documentation
+recording:
+  mediaNodeLoadThreshold: 0
+  sessionsGroupSize: 0
+  workersAtStart: 0
+
+qoe:
+  recordStreams: false
+  analyzeInSitu: false
+  paddingDuration: 1
+  fragmentDuration: 15
+
+# ---------- Storage ----------
+storage:
+  bucket:
+  region: us-east-1
+  endpoint:
+  accessKey:
+  secretKey:
+
+# ---------- Advanced ----------
+# See docs/advanced-options.md for detailed documentation
+advanced:
+  retry:
+    enabled: true
+    times: 5
+  batches:
+    enabled: true
+    maxConcurrentRequests:
+  waitForCompletion: true

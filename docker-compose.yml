@@ -46,11 +46,7 @@ services:
     container_name: loadtest-controller
     restart: no
     environment:
-      LIVEKIT_API_KEY: devkey
-      LIVEKIT_API_SECRET: secret
-      OPENVIDU_URL: http://livekit-server:7880
-      WORKER_URL_LIST: browser-emulator
-      DISABLE_HTTPS: ${DISABLE_HTTPS:-true}
+      LOADTEST_CONFIG: /config/config.yaml
       RESULTS_DIR: /results
     networks:
       - browseremulator
@@ -58,7 +54,8 @@ services:
       - livekit-server
       - browser-emulator
     volumes:
-      - ./loadtest-controller/results:/results
+      - ./config:/config
+      - ./results:/results
 
 networks:
   browseremulator:

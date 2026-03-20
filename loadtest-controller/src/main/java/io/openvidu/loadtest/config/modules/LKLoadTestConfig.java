@@ -12,23 +12,23 @@ public class LKLoadTestConfig extends LoadTestConfig {
         super(env);
     }
 
-    private String livekitApiKey;
+    private String apiKey;
 
-    private String livekitApiSecret;
+    private String apiSecret;
 
-    public String getLivekitApiKey() {
-        return livekitApiKey;
+    public String getApiKey() {
+        return apiKey;
     }
 
-    public String getLivekitApiSecret() {
-        return livekitApiSecret;
+    public String getApiSecret() {
+        return apiSecret;
     }
 
     @Override
     @PostConstruct
     protected void checkConfigurationProperties() {
-        this.livekitApiKey = asOptionalString("LIVEKIT_API_KEY");
-        this.livekitApiSecret = asOptionalString("LIVEKIT_API_SECRET");
+        this.apiKey = asOptionalString("platform.apiKey");
+        this.apiSecret = asOptionalString("platform.apiSecret");
         super.checkConfigurationProperties();
     }
 

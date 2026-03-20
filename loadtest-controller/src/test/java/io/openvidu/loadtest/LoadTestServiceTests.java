@@ -26,7 +26,7 @@ import org.mockito.MockitoAnnotations;
 
 import software.amazon.awssdk.services.ec2.model.Instance;
 
-import io.openvidu.loadtest.config.modules.OVLoadTestConfig;
+import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
@@ -51,7 +51,7 @@ class LoadTestServiceTests {
     private BrowserEmulatorClient browserEmulatorClient;
 
     @Mock
-    private OVLoadTestConfig loadTestConfig;
+    private LKLoadTestConfig loadTestConfig;
 
     @Mock
     private KibanaClient kibanaClient;
@@ -79,7 +79,7 @@ class LoadTestServiceTests {
     void init() {
         MockitoAnnotations.openMocks(this);
         when(this.loadTestConfig.getOpenViduUrl()).thenReturn("https://url.com");
-        when(this.loadTestConfig.getOpenViduSecret()).thenReturn("MY_SECRET");
+
         when(this.loadTestConfig.getUserNamePrefix()).thenReturn("User");
         when(this.loadTestConfig.getSessionNamePrefix()).thenReturn("LoadTestSession");
         when(this.loadTestConfig.isTerminateWorkers()).thenReturn(false);

@@ -6,26 +6,23 @@ import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.config.YamlConfigLoader;
 
 @Configuration
 public class LoadTestConfigSelector {
 
     @Bean
     LoadTestConfig loadTestConfig(Environment env) {
-        boolean hasLivekitApiKey = StringUtils.hasText(env.getProperty("LIVEKIT_API_KEY"));
-        boolean hasLivekitApiSecret = StringUtils.hasText(env.getProperty("LIVEKIT_API_SECRET"));
-        boolean hasOpenViduSecret = StringUtils.hasText(env.getProperty("OPENVIDU_SECRET"));
-
-        if (hasLivekitApiKey && hasLivekitApiSecret) {
+        YamlConfigLoader yamlConfig = new YamlConfigLoader(env);
+        
+        String apiKey = yamlConfig.getString("platform.apiKey");
+        String apiSecret = yamlConfig.getString("platform.apiSecret");
+        
+        if (StringUtils.hasText(apiKey) && StringUtils.hasText(apiSecret)) {
             return new LKLoadTestConfig(env);
         }
 
-        if (hasOpenViduSecret) {
-            return new OVLoadTestConfig(env);
-        }
-
         throw new IllegalStateException(
-                "Unable to create LoadTestConfig. Define LIVEKIT_API_KEY and LIVEKIT_API_SECRET for LiveKit, "
-                        + "or OPENVIDU_SECRET for OpenVidu.");
+                "Unable to create LoadTestConfig. Define platform.apiKey and platform.apiSecret in config.yaml.");
     }
 }

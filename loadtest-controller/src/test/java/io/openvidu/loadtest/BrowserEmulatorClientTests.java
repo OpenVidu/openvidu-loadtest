@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.net.http.HttpResponse;
 import com.google.gson.JsonObject;
 
-import io.openvidu.loadtest.config.modules.OVLoadTestConfig;
+import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
@@ -33,14 +33,14 @@ class BrowserEmulatorClientTests {
     private BrowserEmulatorClient browserEmulatorClient;
 
     private CustomHttpClient httpClientMock;
-    private OVLoadTestConfig loadTestConfigMock;
+    private LKLoadTestConfig loadTestConfigMock;
     private JsonUtils jsonUtilsMock;
     private Sleeper sleeper;
 
     @BeforeEach
     void setUp() {
         this.httpClientMock = mock(CustomHttpClient.class);
-        this.loadTestConfigMock = mock(OVLoadTestConfig.class);
+        this.loadTestConfigMock = mock(LKLoadTestConfig.class);
         this.jsonUtilsMock = mock(JsonUtils.class);
         this.sleeper = mock(Sleeper.class);
 
@@ -68,10 +68,11 @@ class BrowserEmulatorClientTests {
         when(this.loadTestConfigMock.getRetryTimes()).thenReturn(5);
 
         when(this.loadTestConfigMock.getOpenViduUrl()).thenReturn("https://localhost:8080");
-        when(this.loadTestConfigMock.getOpenViduSecret()).thenReturn("MYSECRET");
+        when(this.loadTestConfigMock.getApiKey()).thenReturn("devkey");
+        when(this.loadTestConfigMock.getApiSecret()).thenReturn("secret");
+
         when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
         when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
-        when(this.loadTestConfigMock.isDebugVnc()).thenReturn(true);
         when(this.loadTestConfigMock.isHttpsDisabled()).thenReturn(false);
 
         this.browserEmulatorClient = new BrowserEmulatorClient(this.loadTestConfigMock, this.httpClientMock,
@@ -86,7 +87,6 @@ class BrowserEmulatorClientTests {
         this.browserEmulatorClient.initializeInstance("localhost");
 
         JsonObject expectedBody = new JsonObject();
-        expectedBody.addProperty("vnc", true);
         expectedBody.addProperty("elasticSearchHost", "https://localhost:9200");
         expectedBody.addProperty("elasticSearchUserName", "elasticadmin");
         expectedBody.addProperty("elasticSearchPassword", "passwordtest");
@@ -117,7 +117,8 @@ class BrowserEmulatorClientTests {
                 true, Browser.CHROME);
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
-        expectedBody.addProperty("openviduSecret", "MYSECRET");
+        expectedBody.addProperty("livekitApiKey", "devkey");
+        expectedBody.addProperty("livekitApiSecret", "secret");
         JsonObject properties = new JsonObject();
         properties.addProperty("userId", "User0");
         properties.addProperty("sessionName", "LoadTestSession0");
@@ -180,7 +181,8 @@ class BrowserEmulatorClientTests {
 
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
-        expectedBody.addProperty("openviduSecret", "MYSECRET");
+        expectedBody.addProperty("livekitApiKey", "devkey");
+        expectedBody.addProperty("livekitApiSecret", "secret");
         JsonObject properties = new JsonObject();
         properties.addProperty("userId", participant);
         properties.addProperty("sessionName", session);
@@ -233,7 +235,8 @@ class BrowserEmulatorClientTests {
                 true, Browser.FIREFOX);
         JsonObject expectedBody = new JsonObject();
         expectedBody.addProperty("openviduUrl", "https://localhost:8080");
-        expectedBody.addProperty("openviduSecret", "MYSECRET");
+        expectedBody.addProperty("livekitApiKey", "devkey");
+        expectedBody.addProperty("livekitApiSecret", "secret");
         JsonObject properties = new JsonObject();
         properties.addProperty("userId", "User0");
         properties.addProperty("sessionName", "LoadTestSession0");

@@ -7,18 +7,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.stream.JsonReader;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
@@ -31,32 +33,60 @@ import io.openvidu.loadtest.models.testcase.Topology;
 public class DataIO {
 
     private static final Logger log = LoggerFactory.getLogger(DataIO.class);
-    private static ClassLoader classLoader = DataIO.class.getClassLoader();
-    private static final String TEST_CASES_JSON_FILE = "test_cases.json";
+    private static final String DEFAULT_CONFIG = "config/config.yaml";
+    private static final String CONFIG_ENV_VAR = "LOADTEST_CONFIG";
     private static final String REPORT_FILE_RESULT = "results.txt";
+
+    private final Environment environment;
+
+    @Autowired
+    public DataIO(Environment environment) {
+        this.environment = environment;
+    }
 
     @Autowired
     private JsonUtils jsonUtils;
 
+    @SuppressWarnings("unchecked")
     public List<TestCase> getTestCasesFromJSON() {
-        JsonArray testCasesList = new JsonArray();
+        String configPathStr = environment.getProperty(CONFIG_ENV_VAR, DEFAULT_CONFIG);
+        Path configPath = Path.of(configPathStr);
+        File configFile = configPath.toFile();
 
-        InputStream is = classLoader.getResourceAsStream(TEST_CASES_JSON_FILE);
-        if (is == null) {
-            log.error(
-                    "Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
-            return this.convertJsonArrayToTestCasesList(testCasesList);
+        Map<String, Object> config;
+        List<Map<String, Object>> testCasesList;
+
+        if (configFile.exists()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+                config = mapper.readValue(configFile, Map.class);
+                log.info("Loading test cases from: {}", configPath);
+            } catch (IOException e) {
+                log.error("Failed to parse config file: {}", configPath, e);
+                return new ArrayList<>();
+            }
+        } else {
+            try (InputStream is = getClass().getClassLoader().getResourceAsStream(configPath.toString())) {
+                if (is == null) {
+                    log.error("Config file not found at {} or in classpath", configPath);
+                    return new ArrayList<>();
+                }
+                ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+                config = mapper.readValue(is, Map.class);
+                log.info("Loading test cases from classpath: {}", configPath);
+            } catch (IOException e) {
+                log.error("Failed to parse config file from classpath: {}", configPath, e);
+                return new ArrayList<>();
+            }
         }
 
-        try (InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
-                JsonReader reader = new JsonReader(isr)) {
-            JsonObject jsonObject = jsonUtils.getJson(reader);
-            testCasesList = (JsonArray) jsonObject.get("testcases");
-        } catch (Exception e) {
-            e.printStackTrace();
+        testCasesList = (List<Map<String, Object>>) config.get("testcases");
+        if (testCasesList == null || testCasesList.isEmpty()) {
+            log.error("No test cases found in config file");
+            return new ArrayList<>();
         }
 
-        return this.convertJsonArrayToTestCasesList(testCasesList);
+        return convertMapListToTestCasesList(testCasesList);
     }
 
     public void exportResults(ResultReport result) {
@@ -86,52 +116,67 @@ public class DataIO {
         }
     }
 
-    private List<TestCase> convertJsonArrayToTestCasesList(JsonArray array) {
+    @SuppressWarnings("unchecked")
+    private List<TestCase> convertMapListToTestCasesList(List<Map<String, Object>> testCasesList) {
+        List<TestCase> testCaseList = new ArrayList<>();
 
-        List<TestCase> testCaseList = new ArrayList<TestCase>();
-
-        for (int i = 0; i < array.size(); i++) {
-            JsonObject element = array.get(i).getAsJsonObject();
+        for (Map<String, Object> element : testCasesList) {
             boolean headlessBrowser = false;
             boolean browserRecording = false;
-            boolean showBrowserVideoElements = false;
+            boolean showBrowserVideoElements = true;
             String openviduRecordingModeStr = "";
             int frameRate = 30;
             Resolution resolution = Resolution.MEDIUM;
-            List<String> participants = new ArrayList<String>();
+            List<String> participants = new ArrayList<>();
             int sessions = 0;
             OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
             Browser browser = Browser.CHROME;
-            // DEPRECATED: Typology was a typo in the initial versions of the code, so we
-            // need to check both "topology" and "typology" to avoid breaking existing test
-            // cases files.
-            String topology = element.has("topology") ? element.get("topology").getAsString()
-                    : element.get("typology").getAsString();
+
+            Object topologyObj = element.get("topology");
+            if (topologyObj == null) {
+                topologyObj = element.get("typology");
+            }
+            String topology = topologyObj != null ? topologyObj.toString() : "";
+
             int startingParticipants = 0;
+
             if (!topology.equalsIgnoreCase(Topology.TERMINATE.getValue())) {
-                String sessionsStr = element.get("sessions").getAsString();
-                JsonArray participantsArray = (JsonArray) element.get("participants");
-                participants = jsonUtils.getStringList(participantsArray);
+                Object sessionsObj = element.get("sessions");
+                String sessionsStr = sessionsObj != null ? sessionsObj.toString() : "1";
 
-                if (element.get("frameRate") != null && !element.get("frameRate").getAsString().isBlank()) {
-                    frameRate = element.get("frameRate").getAsInt();
+                Object participantsObj = element.get("participants");
+                if (participantsObj instanceof List) {
+                    participants = new ArrayList<>();
+                    for (Object p : (List<?>) participantsObj) {
+                        participants.add(p.toString());
+                    }
                 }
 
-                if (element.get("resolution") != null && !element.get("resolution").getAsString().isBlank()) {
-                    resolution = element.get("resolution").getAsString().equalsIgnoreCase(Resolution.HIGH.getValue())
-                            ? Resolution.HIGH
-                            : Resolution.MEDIUM;
+                Object frameRateObj = element.get("frameRate");
+                if (frameRateObj != null) {
+                    frameRate = parseInt(frameRateObj.toString());
                 }
 
-                if (element.get("openviduRecordingMode") != null
-                        && !element.get("openviduRecordingMode").getAsString().isBlank()) {
-
-                    openviduRecordingModeStr = element.get("openviduRecordingMode").getAsString();
+                Object resolutionObj = element.get("resolution");
+                if (resolutionObj != null) {
+                    String resStr = resolutionObj.toString();
+                    if (resStr.equalsIgnoreCase(Resolution.HIGH.getValue()) || resStr.equals("1280x720")) {
+                        resolution = Resolution.HIGH;
+                    } else if (resStr.equalsIgnoreCase("1920x1080") || resStr.equalsIgnoreCase(Resolution.FULLHIGH.getValue())) {
+                        resolution = Resolution.FULLHIGH;
+                    } else {
+                        resolution = Resolution.MEDIUM;
+                    }
                 }
 
-                if (element.get("startingParticipants") != null
-                        && !element.get("startingParticipants").getAsString().isBlank()) {
-                    startingParticipants = element.get("startingParticipants").getAsInt();
+                Object openviduRecordingModeObj = element.get("openviduRecordingMode");
+                if (openviduRecordingModeObj != null) {
+                    openviduRecordingModeStr = openviduRecordingModeObj.toString();
+                }
+
+                Object startingParticipantsObj = element.get("startingParticipants");
+                if (startingParticipantsObj != null) {
+                    startingParticipants = parseInt(startingParticipantsObj.toString());
                 }
 
                 if (!openviduRecordingModeStr.isBlank()) {
@@ -142,16 +187,20 @@ public class DataIO {
                     }
                 }
 
-                sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr);
+                sessions = sessionsStr.equalsIgnoreCase("infinite") ? -1 : parseInt(sessionsStr);
 
-                browserRecording = element.has("recording") ? element.get("recording").getAsBoolean() : false;
-                headlessBrowser = element.has("headless") ? element.get("headless").getAsBoolean() : false;
-                showBrowserVideoElements = element.has("showBrowserVideoElements")
-                        ? element.get("showBrowserVideoElements").getAsBoolean()
-                        : false;
+                Object recordingObj = element.get("recording");
+                browserRecording = recordingObj instanceof Boolean ? (Boolean) recordingObj : false;
 
-                if (element.has("browser") && !element.get("browser").getAsString().isBlank()) {
-                    String browserStr = element.get("browser").getAsString();
+                Object headlessObj = element.get("headless");
+                headlessBrowser = headlessObj instanceof Boolean ? (Boolean) headlessObj : false;
+
+                Object showBrowserObj = element.get("showBrowserVideoElements");
+                showBrowserVideoElements = showBrowserObj instanceof Boolean ? (Boolean) showBrowserObj : true;
+
+                Object browserObj = element.get("browser");
+                if (browserObj != null && !browserObj.toString().isBlank()) {
+                    String browserStr = browserObj.toString();
                     if (browserStr.equalsIgnoreCase(Browser.CHROME.getValue())) {
                         browser = Browser.CHROME;
                     } else if (browserStr.equalsIgnoreCase(Browser.FIREFOX.getValue())) {
@@ -170,14 +219,22 @@ public class DataIO {
         }
 
         return testCaseList;
+    }
 
+    private int parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     public boolean askForConfirmation(String message) {
         log.warn(message);
         String confirmation;
+        java.util.Scanner scanner = new java.util.Scanner(System.in);
         do {
-            confirmation = System.console().readLine();
+            confirmation = scanner.nextLine();
             if (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N")) {
                 log.warn("Please answer with Y or N.");
             }

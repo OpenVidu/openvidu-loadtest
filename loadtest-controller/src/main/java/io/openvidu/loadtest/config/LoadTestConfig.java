@@ -3,6 +3,7 @@ package io.openvidu.loadtest.config;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -13,10 +14,12 @@ public abstract class LoadTestConfig {
 
     private static final Logger log = LoggerFactory.getLogger(LoadTestConfig.class);
 
-    private Environment env;
+    protected final YamlConfigLoader yamlConfig;
+    protected final Environment env;
 
     protected LoadTestConfig(Environment env) {
         this.env = env;
+        this.yamlConfig = new YamlConfigLoader(env);
     }
 
     private List<String> workerUrlList;
@@ -108,8 +111,6 @@ public abstract class LoadTestConfig {
     private String videoUrl;
 
     private String audioUrl;
-
-    private boolean debugVnc;
 
     private int batchMaxRequests;
 
@@ -320,10 +321,6 @@ public abstract class LoadTestConfig {
         return s3HostSecretKey;
     }
 
-    public boolean isDebugVnc() {
-        return this.debugVnc;
-    }
-
     public int getBatchMaxRequests() {
         return this.batchMaxRequests;
     }
@@ -342,68 +339,102 @@ public abstract class LoadTestConfig {
 
     protected void checkConfigurationProperties() {
         try {
-            openviduUrl = asString("OPENVIDU_URL");
+            openviduUrl = asString("platform.url");
             openviduUrl = openviduUrl.replaceAll("/$", "");
-            sessionNamePrefix = asString("SESSION_NAME_PREFIX");
-            userNamePrefix = asString("USER_NAME_PREFIX");
-            secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");
-            secondsToWaitBetweenSession = asInt("SECONDS_TO_WAIT_BETWEEN_SESSIONS");
-            secondsToWaitBeforeTestFinished = asInt("SECONDS_TO_WAIT_BEFORE_TEST_FINISHED");
-            secondsToWaitBetweenTestCases = asInt("SECONDS_TO_WAIT_BETWEEN_TEST_CASES");
-            manualParticipantsAllocation = asBoolean("MANUAL_PARTICIPANTS_ALLOCATION");
-            usersPerWorker = asInt("USERS_PER_WORKER");
+            sessionNamePrefix = asOptionalString("session.namePrefix");
+            if (sessionNamePrefix.isEmpty()) {
+                sessionNamePrefix = "LoadTestSession";
+            }
+            userNamePrefix = asOptionalString("session.usersNamePrefix");
+            if (userNamePrefix.isEmpty()) {
+                userNamePrefix = "User";
+            }
+            secondsToWaitBetweenParticipants = asInt("session.secondsBetweenParticipants");
+            secondsToWaitBetweenSession = asInt("session.secondsBetweenSessions");
+            if (secondsToWaitBetweenSession == -1) {
+                secondsToWaitBetweenSession = 0;
+            }
+            secondsToWaitBeforeTestFinished = asInt("session.secondsBeforeTestFinished");
+            if (secondsToWaitBeforeTestFinished == -1) {
+                secondsToWaitBeforeTestFinished = 0;
+            }
+            secondsToWaitBetweenTestCases = asInt("session.secondsBetweenTestCases");
+            if (secondsToWaitBetweenTestCases == -1) {
+                secondsToWaitBetweenTestCases = 0;
+            }
+            Boolean manualAllocation = yamlConfig.getBooleanOrNull("distribution.manual");
+            manualParticipantsAllocation = manualAllocation != null ? manualAllocation : false;
+            usersPerWorker = asInt("distribution.usersPerWorker");
             if (usersPerWorker == -1) {
-                usersPerWorker = asInt("SESSIONS_PER_WORKER");
+                usersPerWorker = asInt("distribution.sessionsPerWorker");
             }
-            elasticsearchHost = asOptionalString("ELASTICSEARCH_HOST");
-            elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
-            elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
-            kibanaHost = asOptionalURL("KIBANA_HOST");
-            workerUrlList = asOptionalStringList("WORKER_URL_LIST");
-            workerAmiId = asOptionalString("WORKER_AMI_ID");
-            workerInstanceKeyPair = asOptionalString("WORKER_INSTANCE_KEY_PAIR_NAME");
-            workerInstanceType = asOptionalString("WORKER_INSTANCE_TYPE");
-            workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
-            workerInstanceRegion = asOptionalString("WORKER_INSTANCE_REGION");
-            workerAvailabilityZone = asOptionalString("WORKER_AVAILABILITY_ZONE");
-            workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
-            recordingWorkersNumberAtTheBeginning = asInt("RECORDING_WORKERS_AT_THE_BEGINNING");
-            workerMaxLoad = asInt("WORKER_MAX_LOAD");
-            workersRumpUp = asInt("WORKERS_RAMP_UP");
-            if (workersRumpUp == -1) {
-                workersRumpUp = asInt("WORKERS_RUMP_UP");
+            if (manualParticipantsAllocation && usersPerWorker <= 0) {
+                log.error("distribution.manual is true but distribution.usersPerWorker is not defined");
+                System.exit(1);
             }
-            medianodeLoadForStartRecording = asDouble("MEDIANODE_LOAD_FOR_START_RECORDING");
-            recordingSessionGroup = asInt("RECORDING_SESSION_GRUPED_BY");
-            terminateWorkers = asBoolean("TERMINATE_WORKERS");
-            awsSecretAccessKey = asOptionalString("AWS_SECRET_ACCESS_KEY");
-            awsAccessKey = asOptionalString("AWS_ACCESS_KEY");
-            s3bucketName = asOptionalString("S3_BUCKET_NAME");
-            retryMode = asBoolean("RETRY_MODE");
-            retryTimes = asInt("RETRY_TIMES");
-            qoeAnalysisRecordings = asBoolean("QOE_ANALYSIS_RECORDINGS");
-            qoeAnalysisInSitu = asBoolean("QOE_ANALYSIS_IN_SITU");
-            paddingDuration = asInt("VIDEO_PADDING_DURATION");
-            fragmentDuration = asInt("VIDEO_FRAGMENT_DURATION");
-            videoType = asString("VIDEO_TYPE");
-            videoHeight = asInt("VIDEO_HEIGHT");
-            videoWidth = asInt("VIDEO_WIDTH");
-            videoFps = asInt("VIDEO_FPS");
-            videoUrl = asOptionalString("VIDEO_URL");
-            audioUrl = asOptionalString("AUDIO_URL");
-            s3Region = asOptionalString("S3_REGION");
-            s3Host = asOptionalString("S3_HOST");
-            s3HostAccessKey = asOptionalString("S3_HOST_ACCESS_KEY");
-            s3HostSecretKey = asOptionalString("S3_HOST_SECRET_KEY");
-            debugVnc = asBoolean("DEBUG_VNC");
-            batchMaxRequests = asInt("BATCHES_MAX_REQUESTS");
+            elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
+            elasticsearchUserName = asOptionalString("monitoring.elasticsearch.username");
+            elasticsearchPassword = asOptionalString("monitoring.elasticsearch.password");
+            kibanaHost = asOptionalURL("monitoring.kibana.host");
+            workerUrlList = asOptionalStringList("workers.urls");
+            workerAmiId = asOptionalString("aws.amiId");
+            workerInstanceKeyPair = asOptionalString("aws.keyPairName");
+            workerInstanceType = asOptionalString("aws.instanceType");
+            workerSecurityGroupId = asOptionalString("aws.securityGroupId");
+            workerInstanceRegion = asOptionalString("aws.region");
+            workerAvailabilityZone = asOptionalString("aws.availabilityZone");
+            workersNumberAtTheBeginning = asInt("aws.workersAtStart");
+            recordingWorkersNumberAtTheBeginning = asInt("recording.workersAtStart");
+            workerMaxLoad = asInt("distribution.maxLoadPercent");
+            workersRumpUp = asInt("aws.rampUpWorkers");
+            medianodeLoadForStartRecording = asDouble("recording.mediaNodeLoadThreshold");
+            recordingSessionGroup = asInt("recording.sessionsGroupSize");
+            terminateWorkers = asBoolean("terminateWorkers");
+            awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
+            awsAccessKey = asOptionalString("aws.accessKey");
+            s3bucketName = asOptionalString("storage.bucket");
+            Boolean retryEnabled = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
+            retryMode = retryEnabled != null ? retryEnabled : true;
+            retryTimes = asInt("advanced.retry.times");
+            if (retryTimes == -1) {
+                retryTimes = 5;
+            }
+            qoeAnalysisRecordings = asBoolean("qoe.recordStreams");
+            qoeAnalysisInSitu = asBoolean("qoe.analyzeInSitu");
+            paddingDuration = asInt("qoe.paddingDuration");
+            fragmentDuration = asInt("qoe.fragmentDuration");
+            videoType = asOptionalString("video.type");
+            if (videoType.isEmpty()) {
+                videoType = "BUNNY";
+            }
+            videoHeight = asInt("video.height");
+            if (videoHeight == -1) {
+                videoHeight = 480;
+            }
+            videoWidth = asInt("video.width");
+            if (videoWidth == -1) {
+                videoWidth = 640;
+            }
+            videoFps = asInt("video.fps");
+            if (videoFps == -1) {
+                videoFps = 30;
+            }
+            videoUrl = asOptionalString("video.customVideoUrl");
+            audioUrl = asOptionalString("video.customAudioUrl");
+            s3Region = asOptionalString("storage.region");
+            s3Host = asOptionalString("storage.endpoint");
+            s3HostAccessKey = asOptionalString("storage.accessKey");
+            s3HostSecretKey = asOptionalString("storage.secretKey");
+            batchMaxRequests = asInt("advanced.batches.maxConcurrentRequests");
             if (batchMaxRequests == -1) {
                 batchMaxRequests = Runtime.getRuntime().availableProcessors() + 1;
             }
-            batches = asBoolean("BATCHES");
-            waitCompletion = asBoolean("WAIT_COMPLETE");
-            forceContinue = asBoolean("FORCE_CONTINUE");
-            disableHttps = asBoolean("DISABLE_HTTPS");
+            Boolean batchesEnabled = yamlConfig.getBooleanOrNull("advanced.batches.enabled");
+            batches = batchesEnabled != null ? batchesEnabled : true;
+            Boolean waitCompleteEnabled = yamlConfig.getBooleanOrNull("advanced.waitForCompletion");
+            waitCompletion = waitCompleteEnabled != null ? waitCompleteEnabled : true;
+            forceContinue = asBoolean("aws.forceContinue");
+            disableHttps = asBoolean("workers.disableHttps");
             this.printInfo();
 
         } catch (Exception e) {
@@ -502,17 +533,14 @@ public abstract class LoadTestConfig {
         log.info("Use batches for inserting users: {}", batches);
         log.info("Maximum number of in flight requests (batch): {}", batchMaxRequests);
         log.info("Wait for user or batch insertion completion: {}", waitCompletion);
-        if (isDebugVnc()) {
-            log.info("Debug VNC Enabled");
-        }
     }
 
     // -------------------------------------------------------
-    // Format Checkers
+    // Format Checkers (now using YamlConfigLoader)
     // -------------------------------------------------------
 
     protected String asOptionalURL(String property) throws Exception {
-        String url = env.getProperty(property);
+        String url = asOptionalString(property);
         try {
             if ((url != null) && (!url.isEmpty())) {
                 checkUrl(url);
@@ -526,7 +554,7 @@ public abstract class LoadTestConfig {
     }
 
     protected String asString(String property) throws Exception {
-        String value = env.getProperty(property);
+        String value = yamlConfig.getString(property);
         if (value == null || value.isEmpty()) {
             throw new Exception(property + " is required.");
         }
@@ -534,12 +562,11 @@ public abstract class LoadTestConfig {
     }
 
     protected List<String> asStringList(String property) throws Exception {
-        List<String> value = env.getProperty(property, List.class);
+        String value = yamlConfig.getString(property);
         if (value == null || value.isEmpty()) {
             throw new Exception(property + " is required.");
         }
-
-        return value;
+        return Arrays.asList(value.split(","));
     }
 
     protected List<String> asOptionalStringList(String property) {
@@ -551,45 +578,19 @@ public abstract class LoadTestConfig {
     }
 
     protected int asInt(String property) {
-        try {
-            Integer integerValue = Integer.parseInt(env.getProperty(property));
-            if (integerValue < 0) {
-                return 0;
-            }
-            return integerValue;
-        } catch (NumberFormatException e) {
-            return -1;
-        }
-
+        return yamlConfig.getInt(property);
     }
 
     protected double asDouble(String property) {
-        try {
-            Double doubleValue = Double.parseDouble(env.getProperty(property));
-            if (doubleValue < 0) {
-                return 0.0;
-            }
-            return doubleValue;
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
-
+        return yamlConfig.getDouble(property);
     }
 
     protected String asOptionalString(String property) {
-        String value = env.getProperty(property);
-        if (value == null || value.isEmpty()) {
-            return "";
-        }
-        return value;
+        return yamlConfig.getString(property);
     }
 
     protected boolean asBoolean(String property) {
-        try {
-            return Boolean.parseBoolean(env.getProperty(property));
-        } catch (Exception e) {
-            return false;
-        }
+        return yamlConfig.getBoolean(property);
     }
 
     protected void checkUrl(String url) throws Exception {
