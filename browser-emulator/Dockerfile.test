@@ -1,0 +1,22 @@
+FROM node:24-trixie AS test
+
+WORKDIR /app
+ENV NODE_ENV=test
+
+RUN apt-get update && apt-get install -y procps xvfb x11vnc ffmpeg && rm -rf /var/lib/apt/lists/*
+
+COPY index-mappings.json ./index-mappings.json
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+RUN corepack enable && corepack use pnpm@10 && pnpm install --frozen-lockfile
+
+COPY tsconfig.json tsconfig.test.json vitest.config.ts eslint.config.js ./
+COPY public ./public
+COPY public-lk ./public-lk
+COPY src ./src
+COPY tests ./tests
+
+RUN mkdir -p recordings/chrome recordings/qoe stats logs mediafiles
+
+CMD ["pnpm","run","test"]

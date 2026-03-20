@@ -8,13 +8,16 @@ import {
 import chrome from 'selenium-webdriver/chrome.js';
 import firefox from 'selenium-webdriver/firefox.js';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
+import path from 'node:path';
 import type { AvailableBrowsers } from '../types/create-user.type.ts';
-import type { ConfigService } from './config.service.ts';
+import type {
+	ConfigService,
+	DockerizedBrowsersConfig,
+} from './config.service.ts';
+import { DockerService } from './docker.service.ts';
+import type { ContainerCreateOptions } from 'dockerode';
 
 export class SeleniumService {
-	// TODO: Add this as config
-	// private static readonly BROWSER_HOSTPORT = 4444;
-
 	private readonly chromeOptions = new chrome.Options();
 	private readonly chromeCapabilities = Capabilities.chrome();
 	private readonly firefoxOptions = new firefox.Options();
@@ -22,13 +25,17 @@ export class SeleniumService {
 
 	private readonly configService: ConfigService;
 	private readonly localFilesRepository: LocalFilesRepository;
+	private readonly dockerService: DockerService;
+	private readonly dockerizedSessionContainers = new Map<string, string>();
 
 	public constructor(
 		configService: ConfigService,
 		localFilesRepository: LocalFilesRepository,
+		dockerService: DockerService,
 	) {
 		this.configService = configService;
 		this.localFilesRepository = localFilesRepository;
+		this.dockerService = dockerService;
 	}
 
 	public initialize() {
@@ -61,10 +68,11 @@ export class SeleniumService {
 				'--no-proxy-server',
 			);
 		} else {
-			this.firefoxOptions.setPreference(
-				'media.navigator.streams.fake',
-				true,
-			);
+			this.firefoxOptions
+				.setPreference('media.navigator.streams.fake', true)
+				.setPreference('media.devices.insecure.enabled', true)
+				.setPreference('media.getusermedia.insecure.enabled', true)
+				.setPreference('media.navigator.permission.disabled', true);
 			if (
 				this.localFilesRepository.fakevideo &&
 				this.localFilesRepository.fakeaudio
@@ -88,11 +96,255 @@ export class SeleniumService {
 		browser: AvailableBrowsers,
 		logName?: string,
 	): Promise<WebDriver> {
+		if (this.configService.shouldUseDockerizedBrowsers()) {
+			return await this.getDockerizedDriver(browser, logName);
+		}
 		if (browser === 'firefox') {
 			return await this.getFirefoxDriver();
 		} else {
 			return await this.getChromeDriver(logName);
 		}
+	}
+
+	public async quitDriver(driver: WebDriver): Promise<void> {
+		let sessionId: string | undefined;
+		try {
+			sessionId = (await driver.getSession()).getId();
+		} catch {
+			// Driver session may already be closed.
+		}
+
+		await driver.quit();
+
+		if (sessionId) {
+			await this.removeDockerizedBrowserContainer(sessionId);
+		}
+	}
+
+	private async getDockerizedDriver(
+		browser: AvailableBrowsers,
+		logName?: string,
+	): Promise<WebDriver> {
+		const dockerizedConfig =
+			this.configService.getDockerizedBrowsersConfig();
+		const image =
+			browser === 'firefox'
+				? dockerizedConfig.firefoxImage
+				: dockerizedConfig.chromeImage;
+		const containerName = this.generateSeleniumContainerName(
+			browser,
+			logName,
+		);
+
+		await this.ensureDockerImage(image);
+		// Build container create options
+		await this.createBrowserContainer(
+			image,
+			containerName,
+			dockerizedConfig,
+			logName,
+		);
+
+		const seleniumServerBaseUrl = `http://${containerName}:${dockerizedConfig.seleniumPort}`;
+		await this.waitForSeleniumServer(
+			seleniumServerBaseUrl,
+			dockerizedConfig.startupTimeoutMs,
+		);
+
+		return await this.buildDockerizedDriver(
+			browser,
+			seleniumServerBaseUrl,
+			containerName,
+		);
+	}
+
+	private async createBrowserContainer(
+		image: string,
+		containerName: string,
+		dockerizedConfig: DockerizedBrowsersConfig,
+		logName: string | undefined,
+	) {
+		const createOptions: ContainerCreateOptions = {
+			Image: image,
+			name: containerName,
+			HostConfig: {
+				NetworkMode: dockerizedConfig.networkName,
+				ShmSize: 2 * 1024 * 1024 * 1024,
+				PortBindings: {
+					'7900/tcp': [
+						{
+							HostPort: '',
+						},
+					],
+				},
+				Binds: [
+					`${this.configService.getMediaFilesHostDir()}:/app/mediafiles/:ro`,
+					`${this.configService.getScriptsLogsHostDir()}:/app/logs/:rw`,
+				],
+			},
+		};
+
+		await this.dockerService.startContainer(createOptions);
+
+		// Start streaming container logs to host ./logs directory
+		try {
+			const hostLogsDir = this.configService.getScriptsLogsHostDir();
+			const logsPath = `${hostLogsDir}/selenium-${logName ?? Date.now()}.log`;
+			void this.dockerService.streamContainerLogs(
+				containerName,
+				logsPath,
+			);
+		} catch (err) {
+			console.warn(
+				'Failed to start streaming dockerized browser logs:',
+				err,
+			);
+		}
+	}
+
+	private async buildDockerizedDriver(
+		browser: AvailableBrowsers,
+		seleniumServerBaseUrl: string,
+		containerName: string,
+	): Promise<WebDriver> {
+		try {
+			let builder = new Builder().usingServer(
+				`${seleniumServerBaseUrl}/wd/hub`,
+			);
+			if (browser === 'firefox') {
+				builder = this.createDockerizedFirefoxBuilder(builder);
+			} else {
+				builder = this.createDockerizedChromeBuilder(builder);
+			}
+
+			const driver = await builder.build();
+			const sessionId = (await driver.getSession()).getId();
+			this.dockerizedSessionContainers.set(sessionId, containerName);
+			return driver;
+		} catch (error) {
+			await this.dockerService.removeContainer(containerName);
+			throw error;
+		}
+	}
+	private createDockerizedChromeBuilder(builder: Builder) {
+		// For dockerized chrome, construct options that reference in-container
+		// media file paths (/app/mediafiles/*) so the browser inside the
+		// selenium container can access the fake media files.
+		let chromeOptionsForContainer = this.chromeOptions;
+		if (
+			this.localFilesRepository.fakevideo &&
+			this.localFilesRepository.fakeaudio
+		) {
+			chromeOptionsForContainer = new chrome.Options();
+			chromeOptionsForContainer.addArguments(
+				'--use-fake-ui-for-media-stream',
+				'--no-sandbox',
+				'--start-maximized',
+				'--use-fake-device-for-media-stream',
+				`--use-file-for-fake-video-capture=/app/mediafiles/${path.basename(
+					this.localFilesRepository.fakevideo,
+				)}`,
+				`--use-file-for-fake-audio-capture=/app/mediafiles/${path.basename(
+					this.localFilesRepository.fakeaudio,
+				)}`,
+			);
+
+			// Treat the emulator origin as secure so getUserMedia is available
+			// when serving over HTTP inside the docker network.
+			try {
+				const protocol = this.configService.isHttpsDisabled()
+					? 'http'
+					: 'https';
+				const host =
+					this.configService.getBrowserEmulatorHostForBrowsers();
+				const port = this.configService.getServerPort();
+				const origin = `${protocol}://${host}:${port}`;
+				chromeOptionsForContainer.addArguments(
+					`--unsafely-treat-insecure-origin-as-secure=${origin}`,
+					'--allow-insecure-localhost',
+				);
+			} catch (err) {
+				// Best-effort only; if config calls fail, continue without the flags.
+				console.warn(
+					'Failed to add insecure-origin flags for dockerized Chrome',
+					err,
+				);
+			}
+		}
+		builder = builder
+			.forBrowser(Browser.CHROME)
+			.withCapabilities(this.chromeCapabilities)
+			.setChromeOptions(chromeOptionsForContainer);
+		return builder;
+	}
+
+	private createDockerizedFirefoxBuilder(builder: Builder) {
+		builder = builder
+			.forBrowser(Browser.FIREFOX)
+			.withCapabilities(this.firefoxCapabilities)
+			.setFirefoxOptions(this.firefoxOptions);
+		return builder;
+	}
+
+	private generateSeleniumContainerName(
+		browser: AvailableBrowsers,
+		logName?: string,
+	): string {
+		const suffix = Math.random().toString(36).slice(2, 8);
+		const baseName = (logName ?? 'session').replaceAll(
+			/[^a-zA-Z0-9_.-]/g,
+			'-',
+		);
+		return `selenium-${browser}-${baseName}-${suffix}`.slice(0, 63);
+	}
+
+	private async ensureDockerImage(image: string): Promise<void> {
+		if (!(await this.dockerService.imageExists(image))) {
+			await this.dockerService.pullImage(image);
+		}
+	}
+
+	private async waitForSeleniumServer(
+		seleniumServerBaseUrl: string,
+		timeoutMs: number,
+	): Promise<void> {
+		const deadline = Date.now() + timeoutMs;
+		while (Date.now() < deadline) {
+			try {
+				const response = await fetch(
+					`${seleniumServerBaseUrl}/status`,
+					{
+						signal: AbortSignal.timeout(3000),
+					},
+				);
+				if (response.ok) {
+					const body = (await response.json()) as {
+						value?: { ready?: boolean };
+					};
+					if (body.value?.ready === true) {
+						return;
+					}
+				}
+			} catch {
+				// Selenium is still booting, retry until timeout.
+			}
+			await new Promise(resolve => setTimeout(resolve, 1000));
+		}
+
+		throw new Error(
+			`Timed out waiting for dockerized Selenium at ${seleniumServerBaseUrl}`,
+		);
+	}
+
+	private async removeDockerizedBrowserContainer(
+		sessionId: string,
+	): Promise<void> {
+		const containerName = this.dockerizedSessionContainers.get(sessionId);
+		if (!containerName) {
+			return;
+		}
+		await this.dockerService.removeContainer(containerName);
+		this.dockerizedSessionContainers.delete(sessionId);
 	}
 
 	private async getChromeDriver(logName?: string): Promise<WebDriver> {

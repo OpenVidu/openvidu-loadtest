@@ -55,11 +55,16 @@ export default class LiveKitComModule extends BaseComModule {
 	generateWebappUrl(request: LKCreateUserBrowser): string {
 		const properties: UserJoinProperties = request.properties;
 		const token: string | undefined = request.token;
+		const browserEmulatorHost =
+			this.configService.getBrowserEmulatorHostForBrowsers();
 		const publicUrl = `publicurl=${request.openviduUrl}&`;
 		const tokenParam = token ? `token=${token}&` : '';
 		const qoeAnalysis = request.properties.mediaRecorders;
+		const protocol = this.configService.isHttpsDisabled()
+			? 'http'
+			: 'https';
 		return (
-			`https://localhost:${this.configService.getServerPort()}/?` +
+			`${protocol}://${browserEmulatorHost}:${this.configService.getServerPort()}/?` +
 			publicUrl +
 			tokenParam +
 			`role=${properties.role}&` +

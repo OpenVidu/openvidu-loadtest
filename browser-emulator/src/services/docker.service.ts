@@ -1,4 +1,6 @@
 import Docker from 'dockerode';
+import fs from 'node:fs';
+import path from 'node:path';
 
 interface PullProgressEvent {
 	status: string;
@@ -22,6 +24,62 @@ export class DockerService {
 		await container.start();
 		console.log(`${options.Image} started: ${container.id}`);
 		return container.id;
+	}
+
+	async streamContainerLogs(
+		nameOrId: string,
+		destPath: string,
+	): Promise<void> {
+		const container = await this.getContainerByIdOrName(nameOrId);
+		if (!container) {
+			console.error('Container ' + nameOrId + ' does not exist');
+			return;
+		}
+
+		try {
+			await fs.promises.mkdir(path.dirname(destPath), {
+				recursive: true,
+			});
+		} catch {
+			// ignore mkdir errors, will fail on write if needed
+		}
+
+		const writeStream = fs.createWriteStream(destPath, { flags: 'a' });
+
+		// Request the logs stream and pipe to file. follow=true keeps streaming until container stops.
+		const logStream: NodeJS.ReadableStream = (await container.logs({
+			stdout: true,
+			stderr: true,
+			follow: true,
+			since: 0,
+			timestamps: true,
+		})) as unknown as NodeJS.ReadableStream;
+
+		// Some dockerode streams are multiplexed and need demuxing; attempt to demux if available.
+		const maybeModem = (
+			container as unknown as {
+				modem?: {
+					demuxStream?: (
+						stream: NodeJS.ReadableStream,
+						stdout: NodeJS.WritableStream,
+						stderr: NodeJS.WritableStream,
+					) => void;
+				};
+			}
+		).modem;
+		if (maybeModem && typeof maybeModem.demuxStream === 'function') {
+			try {
+				maybeModem.demuxStream(logStream, writeStream, writeStream);
+			} catch {
+				logStream.pipe(writeStream);
+			}
+		} else {
+			logStream.pipe(writeStream);
+		}
+
+		// When the stream ends, close the file
+		logStream.on('end', () => writeStream.end());
+		logStream.on('error', () => writeStream.end());
 	}
 
 	public async stopContainer(nameOrId: string): Promise<void> {

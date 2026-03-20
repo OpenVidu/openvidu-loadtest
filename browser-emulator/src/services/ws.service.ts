@@ -1,12 +1,13 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import type { Server } from 'node:https';
+import https from 'node:https';
+import http from 'node:http';
 
 export class WsService {
 	private readonly OPEN = 1;
 	private ws: WebSocket | undefined;
 	private server: WebSocketServer | undefined;
 
-	initializeServer(httpServer: Server): void {
+	initializeServer(httpServer: http.Server | https.Server): void {
 		console.log('Starting WebSocket server...');
 		this.server = new WebSocketServer({
 			server: httpServer,

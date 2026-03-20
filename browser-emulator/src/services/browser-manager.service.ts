@@ -56,7 +56,12 @@ export class BrowserManagerService {
 		this.printRequestInfo(request);
 
 		try {
-			const hostname = `https://localhost:${this.configService.getServerPort()}`;
+			const browserEmulatorHost =
+				this.configService.getBrowserEmulatorHostForBrowsers();
+			const protocol = this.configService.isHttpsDisabled()
+				? 'http'
+				: 'https';
+			const hostname = `${protocol}://${browserEmulatorHost}:${this.configService.getServerPort()}`;
 			const webrtcStorageService = new WebrtcStatsLocalStorage(hostname);
 			const ovEventsService = new OpenViduEventsLocalStorage(hostname);
 			const qoeService = new QoERecordingsLocalStorage(hostname);
@@ -73,7 +78,6 @@ export class BrowserManagerService {
 				qoeStorageValue: qoeService.getConfig(),
 				errorStorageValue: errorService.getConfig(),
 			};
-			console.log(storageNameObject, storageValueObject);
 			connectionId = await this.realBrowserService.launchBrowser(
 				request,
 				storageNameObject,

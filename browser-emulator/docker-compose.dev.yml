@@ -3,7 +3,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
-        image: browser-emulator:local
+        image: browser-emulator:dev
         container_name: browser-emulator
         restart: unless-stopped
         environment:
@@ -12,11 +12,15 @@ services:
             RUNNING_IN_DOCKER: true
             DOCKER_NETWORK_NAME: browseremulator
             DOCKER_BROWSER_EMULATOR_HOST: browser-emulator
+            DISABLE_HTTPS: ${DISABLE_HTTPS:-true}
             MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/mediafiles}
             SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/logs}
-            DISABLE_HTTPS: ${DISABLE_HTTPS:-false}
+            # Set DOCKER_DEBUG=true to enable Node inspector on port 9229
+            DOCKER_DEBUG: ${DOCKER_DEBUG:-false}
         ports:
             - '${SERVER_PORT:-5000}:${SERVER_PORT:-5000}'
+            # Node inspector port (optional when DOCKER_DEBUG=true)
+            - '9229:9229'
         networks:
             - browseremulator
         volumes:
@@ -26,7 +30,23 @@ services:
             - ./logs:/app/logs
             - ./mediafiles:/app/mediafiles
             - /var/run/docker.sock:/var/run/docker.sock
+        depends_on:
+            - livekit-server
+        # Override the container command to enable optional debugging
+        # When DOCKER_DEBUG=true the app starts with the Node inspector
+        command: sh -lc "if [ \"${DOCKER_DEBUG:-false}\" = \"true\" ]; then node --inspect=0.0.0.0:9229 dist/server.js; else node dist/server.js; fi"
 
+    livekit-server:
+        image: livekit/livekit-server:latest
+        container_name: livekit-server
+        restart: unless-stopped
+        environment:
+            LIVEKIT_KEYS: 'devkey: secret'
+        ports:
+            - '7880:7880'
+            - '7881:7881'
+        networks:
+            - browseremulator
 networks:
     browseremulator:
         name: browseremulator

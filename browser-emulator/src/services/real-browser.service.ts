@@ -71,7 +71,7 @@ export class RealBrowserService {
 			if (value.mediaRecorders) {
 				await this.saveQoERecordings(driverId);
 			}
-			await value.driver.quit();
+			await this.seleniumService.quitDriver(value.driver);
 			this.driverMap.delete(driverId);
 			this.deleteConnection(
 				value.sessionName,
@@ -178,7 +178,7 @@ export class RealBrowserService {
 			'Quitting driver: ' + key + ' with session: ' + value.sessionName,
 		);
 		try {
-			await value.driver.quit();
+			await this.seleniumService.quitDriver(value.driver);
 			console.log(
 				'Driver quit: ' +
 					key +
@@ -423,7 +423,6 @@ export class RealBrowserService {
 			const driver = driverObj.driver;
 			// Add mutex here to ensure only one browser is clicking buttons at a time
 			await this.muteButtonMutex.runExclusive(async () => {
-				// FIXME: in chrome this may crash the browser
 				await this.clickButtonsWithRetry(driver);
 			});
 		}

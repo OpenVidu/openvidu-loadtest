@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import https from 'node:https';
+import http from 'node:http';
 import express from 'express';
 import { getContainer, resetContainer } from './container.js';
 import { asyncExitHook } from 'exit-hook';
 
 let app: express.Application;
-let server: https.Server;
+let server: http.Server | https.Server;
 
 async function cleanup() {
 	const container = await getContainer();
@@ -66,11 +67,18 @@ async function createServer() {
 	app.use('/instance', container.resolve('instanceController').getRouter());
 	app.use('/qoe', container.resolve('qoeController').getRouter());
 
-	const options = {
-		key: fs.readFileSync(publicDir + '/key.pem', 'utf8'),
-		cert: fs.readFileSync(publicDir + '/cert.pem', 'utf8'),
-	};
-	server = https.createServer(options, app);
+	const configService = container.resolve('configService');
+	if (configService.isHttpsDisabled()) {
+		// In development we may prefer plain HTTP to avoid mixed-content
+		// issues when other services (like LiveKit) aren't using TLS.
+		server = http.createServer(app);
+	} else {
+		const options = {
+			key: fs.readFileSync(publicDir + '/key.pem', 'utf8'),
+			cert: fs.readFileSync(publicDir + '/cert.pem', 'utf8'),
+		};
+		server = https.createServer(options, app);
+	}
 }
 
 export async function startServer() {

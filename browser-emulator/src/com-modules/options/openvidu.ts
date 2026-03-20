@@ -41,6 +41,8 @@ export default class OpenviduComModule extends BaseComModule {
 	generateWebappUrl(request: OVCreateUserBrowser): string {
 		const properties: OVUserJoinProperties = request.properties;
 		const token: string | undefined = request.token;
+		const browserEmulatorHost =
+			this.configService.getBrowserEmulatorHostForBrowsers();
 		const publicUrl = `publicurl=${request.openviduUrl}&`;
 		const secret = request.openviduSecret
 			? `secret=${request.openviduSecret}&`
@@ -50,8 +52,11 @@ export default class OpenviduComModule extends BaseComModule {
 			: '';
 		const tokenParam = token ? `token=${token}` : '';
 		const qoeAnalysis = request.properties.mediaRecorders;
+		const protocol = this.configService.isHttpsDisabled()
+			? 'http'
+			: 'https';
 		return (
-			`https://localhost:${this.configService.getServerPort()}/?` +
+			`${protocol}://${browserEmulatorHost}:${this.configService.getServerPort()}/?` +
 			publicUrl +
 			secret +
 			recordingMode +
