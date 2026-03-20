@@ -129,7 +129,7 @@ for res in 480 720 1080; do
             done
 
             if [[ -n "$matching_file" ]]; then
-                filename="fakevideo_${fps}fps_${dim}.y4m"
+                filename="fakevideo_${MEDIA_TYPE}_${fps}fps_${dim}.y4m"
                 if [[ ! -f "$MEDIAFILES_DIR/$filename" ]]; then
                     echo "Downloading $matching_file as $filename..."
                     curl --output "$MEDIAFILES_DIR/$filename" \
@@ -152,9 +152,9 @@ for file in "${AVAILABLE_FILES[@]}"; do
 done
 
 if [[ -n "$matching_audio" ]]; then
-    if [[ ! -f "$MEDIAFILES_DIR/fakeaudio.wav" ]]; then
-        echo "Downloading $matching_audio as fakeaudio.wav..."
-        curl --output "$MEDIAFILES_DIR/fakeaudio.wav" \
+    if [[ ! -f "$MEDIAFILES_DIR/fakeaudio_${MEDIA_TYPE}.wav" ]]; then
+        echo "Downloading $matching_audio as fakeaudio_${MEDIA_TYPE}.wav..."
+        curl --output "$MEDIAFILES_DIR/fakeaudio_${MEDIA_TYPE}.wav" \
             --continue-at - \
             --location "$S3_BUCKET_URL/$matching_audio"
     fi
