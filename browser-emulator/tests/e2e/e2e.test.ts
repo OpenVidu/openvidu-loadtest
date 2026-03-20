@@ -27,7 +27,7 @@ import {
 	startS3MockTestContainer,
 	stopS3MockTestContainer,
 } from '../utils/s3-utils.js';
-import { getOpenViduConfig } from '../utils/test-config.js';
+import { getConfig } from '../utils/test-config.js';
 import { StartedS3MockContainer } from '@testcontainers/s3mock';
 import {
 	DeleteBucketCommand,
@@ -105,6 +105,7 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 async function createPublisherUser(
+	platform: 'openvidu' | 'livekit',
 	sessionName: string,
 	userId: string,
 	expectedParticipants: number,
@@ -112,25 +113,36 @@ async function createPublisherUser(
 	browser: AvailableBrowsers = 'chrome',
 	mediaRecorders = false,
 ) {
-	const openViduConfig = getOpenViduConfig();
-	const createUserResponse = await request(app)
-		.post('/openvidu-browser/streamManager')
-		.send({
+	const openViduConfig = getConfig();
+	const requestBody = {
+		properties: {
+			userId,
+			sessionName: sessionName,
+			role: 'PUBLISHER',
+			audio: true,
+			video: true,
+			resolution: Resolution.DEFAULT,
+			framerate: 30,
+			showVideoElements: true,
+			browser,
+			mediaRecorders,
+		},
+	};
+	if (platform === 'livekit') {
+		Object.assign(requestBody, {
+			openviduUrl: openViduConfig.livekitUrl,
+			livekitApiKey: openViduConfig.livekitApiKey,
+			livekitApiSecret: openViduConfig.livekitApiSecret,
+		});
+	} else {
+		Object.assign(requestBody, {
 			openviduUrl: openViduConfig.openviduUrl,
 			openviduSecret: openViduConfig.openviduSecret,
-			properties: {
-				userId,
-				sessionName: sessionName,
-				role: 'PUBLISHER',
-				audio: true,
-				video: true,
-				resolution: Resolution.DEFAULT,
-				framerate: 30,
-				showVideoElements: true,
-				browser,
-				mediaRecorders,
-			},
 		});
+	}
+	const createUserResponse = await request(app)
+		.post('/openvidu-browser/streamManager')
+		.send(requestBody);
 
 	expect(createUserResponse.status).toBe(200);
 	expect(createUserResponse.body).toStrictEqual({
@@ -211,11 +223,13 @@ async function initializeInstance(
 }
 
 async function createTwoPublisherUsers(
+	platform: 'openvidu' | 'livekit',
 	sessionName: string,
 	browser: AvailableBrowsers,
 	mediaRecorders = false,
 ) {
 	await createPublisherUser(
+		platform,
 		sessionName,
 		'User1',
 		1,
@@ -224,6 +238,7 @@ async function createTwoPublisherUsers(
 		mediaRecorders,
 	);
 	await createPublisherUser(
+		platform,
 		sessionName,
 		'User2',
 		2,
@@ -350,6 +365,7 @@ async function assertS3QoeRecordings(
 }
 
 async function run2BrowserTest(
+	platform: 'openvidu' | 'livekit',
 	browser: AvailableBrowsers = 'chrome',
 	emulationDuration = 10,
 	enableS3 = false,
@@ -361,7 +377,12 @@ async function run2BrowserTest(
 	await initializeInstance(enableS3, enableElasticsearch);
 	// Platforms might have some delay in cleaning sessions, so we avoid reusing the same session between tests
 	const sessionName = 'LoadTestSession' + Date.now();
-	await createTwoPublisherUsers(sessionName, browser, mediaRecorders);
+	await createTwoPublisherUsers(
+		platform,
+		sessionName,
+		browser,
+		mediaRecorders,
+	);
 	await waitForBrowsersToSendStats(emulationDuration);
 	await cleanUsers();
 	if (mediaRecorders) {
@@ -463,7 +484,6 @@ async function expectCorrectElasticSearchDocuments() {
 beforeEach(async () => {
 	const serverPort = await getAvailablePort();
 	process.env.SERVER_PORT = String(serverPort);
-	({ app } = await startServer());
 }, 30000);
 
 afterEach(async () => {
@@ -476,39 +496,64 @@ afterEach(async () => {
 	]);
 }, 30000);
 
-// IMPORTANT: This test assumes it is running in a machine with every dependency installed (using all install scripts),
-// alongside a local OpenVidu 2 deployment with secret "vagrant".
-// Using the vagrant box available in this project should suffice.
+// IMPORTANT: This test assumes there is a LiveKit server running and accessible with the credentials specified in test configs
 describe('Browser-emulator', () => {
-	describe('OpenVidu 2', () => {
+	describe('LiveKit', () => {
+		beforeEach(async () => {
+			process.env.COM_MODULE = 'livekit';
+			({ app } = await startServer());
+		});
 		// Added repeats to these tests to increase confidence in stability, as browsers can be flaky
-		it('basic workflow (Chrome only)', { repeats: 10 }, async () => {
-			await run2BrowserTest('chrome');
-		});
+		it(
+			'LiveKit basic workflow (Chrome only)',
+			{ repeats: 10 },
+			async () => {
+				await run2BrowserTest('livekit', 'chrome');
+			},
+		);
 
-		it('basic workflow (Firefox only)', { repeats: 10 }, async () => {
-			await run2BrowserTest('firefox');
-		});
+		it(
+			'LiveKit basic workflow (Firefox only)',
+			{ repeats: 10 },
+			async () => {
+				await run2BrowserTest('livekit', 'firefox');
+			},
+		);
 	});
 
-	describe('OpenVidu 2 + S3', () => {
-		beforeEach(() => {
+	describe('LiveKit + S3', () => {
+		beforeEach(async () => {
 			testBucketName = generateBucketName();
+			process.env.COM_MODULE = 'livekit';
+			({ app } = await startServer());
 		});
 
 		afterEach(async () => {
 			await cleanBucket(s3Client, testBucketName);
 		});
 
-		it('basic workflow + S3 (Chrome with S3)', { repeats: 0 }, async () => {
-			await run2BrowserTest('chrome', 10, true, false, false, s3Client);
-		});
-
 		it(
-			'basic workflow + S3 (Firefox with S3)',
+			'LiveKit basic workflow + S3 (Chrome with S3)',
 			{ repeats: 0 },
 			async () => {
 				await run2BrowserTest(
+					'livekit',
+					'chrome',
+					10,
+					true,
+					false,
+					false,
+					s3Client,
+				);
+			},
+		);
+
+		it(
+			'LiveKit basic workflow + S3 (Firefox with S3)',
+			{ repeats: 0 },
+			async () => {
+				await run2BrowserTest(
+					'livekit',
 					'firefox',
 					10,
 					true,
@@ -520,22 +565,40 @@ describe('Browser-emulator', () => {
 		);
 	});
 
-	describe('OpenVidu 2 + S3 + ELK', () => {
-		beforeEach(() => {
+	describe('LiveKit + S3 + ELK', () => {
+		beforeEach(async () => {
 			testBucketName = generateBucketName();
 			elkIndex = generateIndexName();
+			process.env.COM_MODULE = 'livekit';
+			({ app } = await startServer());
 		});
 
 		afterEach(async () => {
 			await cleanBucket(s3Client, testBucketName);
 		});
-		it('basic workflow + S3+ELK (Chrome with ELK)', async () => {
-			await run2BrowserTest('chrome', 10, true, true, false, s3Client);
+		it('LiveKit basic workflow + S3+ELK (Chrome with ELK)', async () => {
+			await run2BrowserTest(
+				'livekit',
+				'chrome',
+				10,
+				true,
+				true,
+				false,
+				s3Client,
+			);
 			await expectCorrectElasticSearchDocuments();
 		});
 
-		it('basic workflow + S3+ELK (Firefox with ELK)', async () => {
-			await run2BrowserTest('firefox', 10, true, true, false, s3Client);
+		it('LiveKit basic workflow + S3+ELK (Firefox with ELK)', async () => {
+			await run2BrowserTest(
+				'livekit',
+				'firefox',
+				10,
+				true,
+				true,
+				false,
+				s3Client,
+			);
 			await expectCorrectElasticSearchDocuments();
 		});
 	});
