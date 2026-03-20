@@ -20,8 +20,8 @@ OPTIONS:
 
   --git-ref <GIT_REF>
       Git reference (branch or tag) to checkout from the OpenVidu LoadTest
-      repository. Can be a tag (e.g., v3.0.0) or a branch (e.g., master).
-      Default: v3.0.0
+      repository. Can be a tag (e.g., v4.0.0) or a branch (e.g., master).
+      Default: v4.0.0
 
   --version <TEMPLATE_PATH>
       Path to the CloudFormation template file (EC2-browser-emulator.yml).
@@ -56,16 +56,16 @@ OPTIONS:
 
 DEFAULTS:
   Region: us-east-1
-  Git Reference: v3.0.0
+  Git Reference: v4.0.0
   Template: EC2-browser-emulator.yml (in the same directory as this script)
   Cache media files: disabled
 
 EXAMPLES:
-  # Create AMI with defaults (tag v3.0.0 in us-east-1)
+  # Create AMI with defaults (tag v4.0.0 in us-east-1)
   $0
 
   # Create AMI with a specific tag
-  $0 --git-ref 3.1.0
+  $0 --git-ref 3.0.1
 
   # Create AMI from a branch in a different region
   $0 --region eu-west-1 --git-ref develop

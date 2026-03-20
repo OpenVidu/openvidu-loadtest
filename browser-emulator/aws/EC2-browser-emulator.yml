@@ -8,8 +8,8 @@ Parameters:
         Default: ami-0b6c6ebed2801a5cb
     GitRef:
         Type: String
-        Description: Git tag or branch to checkout (e.g., 'v3.0.0', 'main', 'develop')
-        Default: 'v3.0.0'
+        Description: Git tag or branch to checkout (e.g., 'v4.0.0', 'main', 'develop')
+        Default: 'v4.0.0'
     CacheMediaFilesArgs:
         Type: String
         Description: Cache media files by resolution and fps if you are going to create multiple instances and want to save time and bandwidth. Use '__enabled__' to cache all media files or specify resolutions and fps (e.g., '1080x60 720x30') to cache only specific combinations. If not set or set to '__disabled__', media files will not be cached.
