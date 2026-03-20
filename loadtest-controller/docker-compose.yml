@@ -3,4 +3,7 @@ services:
     build: .
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - RESULTS_DIR=/results
     restart: unless-stopped
+    volumes:
+      - ./results:/results

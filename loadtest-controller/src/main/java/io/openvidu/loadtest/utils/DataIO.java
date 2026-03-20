@@ -60,22 +60,30 @@ public class DataIO {
     }
 
     public void exportResults(ResultReport result) {
-
-        String RESULT_PATH = new FileSystemResource(REPORT_FILE_RESULT).getFile().getAbsolutePath();
-
-        FileWriter fw;
+        String resultsDir = System.getenv("RESULTS_DIR");
+        String resultPath = null;
         try {
-            fw = new FileWriter(RESULT_PATH, true);
+            if (resultsDir != null && !resultsDir.isBlank()) {
+                File dir = new File(resultsDir);
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+                resultPath = new File(dir, REPORT_FILE_RESULT).getAbsolutePath();
+            } else {
+                resultPath = new FileSystemResource(REPORT_FILE_RESULT).getFile().getAbsolutePath();
+            }
+
+            FileWriter fw = new FileWriter(resultPath, true);
             BufferedWriter bw = new BufferedWriter(fw);
             bw.write(result.toString());
             bw.newLine();
             bw.newLine();
             bw.close();
+            log.info("Saved result in " + resultPath);
         } catch (IOException e) {
             e.printStackTrace();
+            log.error("Could not save results to {}", resultPath);
         }
-
-        log.info("Saved result in a " + RESULT_PATH);
     }
 
     private List<TestCase> convertJsonArrayToTestCasesList(JsonArray array) {
