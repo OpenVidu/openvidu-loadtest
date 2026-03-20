@@ -173,7 +173,7 @@ class LoadTestServiceTests {
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("wss://" + instanceUrl + ":5000/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -267,7 +267,7 @@ class LoadTestServiceTests {
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("wss://" + instanceUrl + ":5000/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -383,7 +383,7 @@ class LoadTestServiceTests {
         for (Instance instance : allInstances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("wss://" + instanceUrl + ":5000/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -475,7 +475,7 @@ class LoadTestServiceTests {
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("wss://" + instanceUrl + ":5000/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -622,7 +622,7 @@ class LoadTestServiceTests {
         verify(this.kibanaClient, times(0)).importDashboards();
         for (String instanceUrl : devWorkers) {
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("wss://" + instanceUrl + ":5000/events");
             verify(webSocketMocks.get(instanceUrl), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -710,7 +710,7 @@ class LoadTestServiceTests {
         verify(this.kibanaClient, times(0)).importDashboards();
         for (String instanceUrl : devWorkers) {
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection("wss://" + instanceUrl + ":5000/events");
             verify(webSocketMocks.get(instanceUrl), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -790,7 +790,7 @@ class LoadTestServiceTests {
 
     private WebSocketClient mockWebSocket(String url) {
         WebSocketClient session = mock(WebSocketClient.class);
-        when(this.webSocketConnectionFactory.createConnection("ws://" + url + ":5001/events")).thenReturn(session);
+        when(this.webSocketConnectionFactory.createConnection("wss://" + url + ":5000/events")).thenReturn(session);
         return session;
     }
 }

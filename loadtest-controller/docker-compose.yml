@@ -1,0 +1,6 @@
+services:
+  loadtest-controller:
+    build: .
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    restart: unless-stopped

@@ -1,0 +1,62 @@
+services:
+  livekit-server:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: 'devkey: secret'
+    networks:
+      - browseremulator
+
+  browser-emulator:
+    build:
+      context: ./browser-emulator
+      dockerfile: Dockerfile
+    image: browser-emulator:local
+    container_name: browser-emulator
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: ${SERVER_PORT:-5000}
+      COM_MODULE: ${COM_MODULE:-livekit}
+      RUNNING_IN_DOCKER: true
+      DOCKER_NETWORK_NAME: browseremulator
+      DOCKER_BROWSER_EMULATOR_HOST: browser-emulator
+      MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/browser-emulator/mediafiles}
+      SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/browser-emulator/logs}
+      DISABLE_HTTPS: ${DISABLE_HTTPS:-true}
+    ports:
+      - '${SERVER_PORT:-5000}:${SERVER_PORT:-5000}'
+    networks:
+      - browseremulator
+    volumes:
+      - ./browser-emulator/recordings/chrome:/app/recordings/chrome
+      - ./browser-emulator/recordings/qoe:/app/recordings/qoe
+      - ./browser-emulator/stats:/app/stats
+      - ./browser-emulator/logs:/app/logs
+      - ./browser-emulator/mediafiles:/app/mediafiles
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - livekit-server
+
+  loadtest-controller:
+    build:
+      context: ./loadtest-controller
+      dockerfile: Dockerfile
+    image: loadtest-controller:local
+    container_name: loadtest-controller
+    restart: unless-stopped
+    environment:
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+      OPENVIDU_URL: http://livekit-server:7880
+      WORKER_URL_LIST: browser-emulator
+      DISABLE_HTTPS: ${DISABLE_HTTPS:-true}
+    networks:
+      - browseremulator
+    depends_on:
+      - livekit-server
+      - browser-emulator
+
+networks:
+  browseremulator:
+    name: browseremulator

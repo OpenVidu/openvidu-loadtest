@@ -2,9 +2,11 @@ package io.openvidu.loadtest.utils;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,14 +39,19 @@ public class DataIO {
     private JsonUtils jsonUtils;
 
     public List<TestCase> getTestCasesFromJSON() {
-        File file = new File(classLoader.getResource(TEST_CASES_JSON_FILE).getFile());
         JsonArray testCasesList = new JsonArray();
 
-        try {
-            JsonReader reader = new JsonReader(new FileReader(file.getAbsolutePath()));
+        InputStream is = classLoader.getResourceAsStream(TEST_CASES_JSON_FILE);
+        if (is == null) {
+            log.error(
+                    "Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
+            return this.convertJsonArrayToTestCasesList(testCasesList);
+        }
+
+        try (InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
+                JsonReader reader = new JsonReader(isr)) {
             JsonObject jsonObject = jsonUtils.getJson(reader);
             testCasesList = (JsonArray) jsonObject.get("testcases");
-
         } catch (Exception e) {
             e.printStackTrace();
         }
