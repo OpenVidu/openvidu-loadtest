@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-yaml",
+        "vmware.vscode-boot-dev-pack"
+    ]
+}

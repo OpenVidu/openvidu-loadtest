@@ -1,0 +1,14 @@
+{
+    "folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "./browser-emulator"
+		},
+		{
+			"path": "./loadtest-controller"
+		}
+	],
+    "settings": {}
+}
