@@ -6,6 +6,7 @@ import java.math.BigInteger;
 import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
@@ -45,7 +46,7 @@ public class CustomHttpClient {
             this.client = this.createClientAllowingInsecureCert();
         } catch (KeyManagementException | NoSuchAlgorithmException e) {
             log.error("Error creating httpClient allowing insecure cert. Creating a secured one");
-            this.client = HttpClient.newBuilder().build();
+            this.client = HttpClient.newBuilder().version(Version.HTTP_1_1).build();
         }
     }
 
@@ -146,7 +147,7 @@ public class CustomHttpClient {
         SSLContext sc = SSLContext.getInstance("SSL");
         sc.init(null, trustAllCerts, new java.security.SecureRandom());
         HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-        return HttpClient.newBuilder().sslContext(sc).build();
+        return HttpClient.newBuilder().sslContext(sc).version(Version.HTTP_1_1).build();
     }
 
 }
