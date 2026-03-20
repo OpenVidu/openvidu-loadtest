@@ -72,6 +72,7 @@ class BrowserEmulatorClientTests {
         when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
         when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
         when(this.loadTestConfigMock.isDebugVnc()).thenReturn(true);
+        when(this.loadTestConfigMock.isHttpsDisabled()).thenReturn(false);
 
         this.browserEmulatorClient = new BrowserEmulatorClient(this.loadTestConfigMock, this.httpClientMock,
                 this.jsonUtilsMock, this.sleeper);

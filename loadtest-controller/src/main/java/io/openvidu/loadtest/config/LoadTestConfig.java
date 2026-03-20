@@ -121,6 +121,8 @@ public abstract class LoadTestConfig {
 
     private boolean forceContinue;
 
+    private boolean disableHttps;
+
     public boolean isWaitCompletion() {
         return waitCompletion;
     }
@@ -334,6 +336,10 @@ public abstract class LoadTestConfig {
         return forceContinue;
     }
 
+    public boolean isHttpsDisabled() {
+        return disableHttps;
+    }
+
     protected void checkConfigurationProperties() {
         try {
             openviduUrl = asString("OPENVIDU_URL");
@@ -397,6 +403,7 @@ public abstract class LoadTestConfig {
             batches = asBoolean("BATCHES");
             waitCompletion = asBoolean("WAIT_COMPLETE");
             forceContinue = asBoolean("FORCE_CONTINUE");
+            disableHttps = asBoolean("DISABLE_HTTPS");
             this.printInfo();
 
         } catch (Exception e) {
@@ -434,7 +441,9 @@ public abstract class LoadTestConfig {
         log.info("");
         log.info("--- WORKER PARAMETERS ---");
         log.info("");
-
+        if (this.disableHttps) {
+            log.info("HTTPS is disabled for worker URLs.");
+        }
         if (!workerUrlList.isEmpty()) {
             log.info("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
             log.info("");

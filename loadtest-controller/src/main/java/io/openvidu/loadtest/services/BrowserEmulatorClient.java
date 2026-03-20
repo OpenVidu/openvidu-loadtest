@@ -72,12 +72,15 @@ public class BrowserEmulatorClient {
 
     private AtomicBoolean isClean = new AtomicBoolean(false);
 
+    private String httpProtocolPrefix;
+
     public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils,
             Sleeper sleeper) {
         this.loadTestConfig = loadTestConfig;
         this.httpClient = httpClient;
         this.jsonUtils = jsonUtils;
         this.sleeper = sleeper;
+        this.httpProtocolPrefix = loadTestConfig.isHttpsDisabled() ? "http://" : "https://";
     }
 
     public void clean() {
@@ -99,11 +102,13 @@ public class BrowserEmulatorClient {
 
     public void ping(String workerUrl) {
         try {
-            log.info("Pinging to {} ...", workerUrl);
-            HttpResponse<String> response = this.httpClient
-                    .sendGet("https://" + workerUrl + ":" + WORKER_PORT + "/instance/ping", getHeaders());
+            String pingUrl = this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/ping";
+            log.info("Pinging to {} ...", pingUrl);
+            HttpResponse<String> response = this.httpClient.sendGet(pingUrl, getHeaders());
             if (response.statusCode() != HTTP_STATUS_OK) {
                 log.error("Error doing ping. Retry...");
+                log.info("Ping response status code: {}", response.statusCode());
+                log.info("Ping response body: {}", response.body());
                 sleeper.sleep(WAIT_S, null);
                 ping(workerUrl);
             } else {
@@ -120,7 +125,8 @@ public class BrowserEmulatorClient {
         JsonObject body = new InitializeRequestBody(this.loadTestConfig, LOADTEST_INDEX).toJson();
         try {
             log.info("Initialize worker {}", workerUrl);
-            return this.httpClient.sendPost("https://" + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
+            return this.httpClient.sendPost(
+                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
                     null, getHeaders());
         } catch (IOException | InterruptedException e) {
             log.error(e.getMessage());
@@ -252,7 +258,8 @@ public class BrowserEmulatorClient {
             Map<String, String> headers = new HashMap<String, String>();
             headers.put("Content-Type", "application/json");
             HttpResponse<String> response = this.httpClient.sendDelete(
-                    "https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session/" + session
+                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session/"
+                            + session
                             + "/user/" + participant,
                     headers);
             log.info("Participant {} in worker {} deleted", participant, workerUrl);
@@ -361,7 +368,8 @@ public class BrowserEmulatorClient {
             Map<String, String> headers = new HashMap<String, String>();
             headers.put("Content-Type", "application/json");
             HttpResponse<String> response = this.httpClient.sendDelete(
-                    "https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", headers);
+                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager",
+                    headers);
             log.info("Participants in worker {} deleted", workerUrl);
             return response.body();
         } catch (Exception e) {
@@ -388,7 +396,8 @@ public class BrowserEmulatorClient {
             log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
             log.debug(body.toJson().toString());
             HttpResponse<String> response = this.httpClient.sendPost(
-                    "https://" + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager", body.toJson(), null,
+                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager",
+                    body.toJson(), null,
                     getHeaders());
             log.debug("Response received: {}", response.body());
             if (isClean.get()) {
@@ -539,7 +548,7 @@ public class BrowserEmulatorClient {
                     @Override
                     public String call() throws Exception {
                         return httpClient.sendPost(
-                                "https://" + workerUrl + ":" + WORKER_PORT + "/qoe/analysis",
+                                httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/qoe/analysis",
                                 new QoeAnalysisBody(loadTestConfig).toJson(), null,
                                 getHeaders()).body();
                     }
@@ -565,7 +574,8 @@ public class BrowserEmulatorClient {
                         @Override
                         public String call() throws Exception {
                             return httpClient.sendGet(
-                                    "https://" + workerUrl + ":" + WORKER_PORT + "/qoe/analysis/status", getHeaders())
+                                    httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/qoe/analysis/status",
+                                    getHeaders())
                                     .body();
                         }
                     };
