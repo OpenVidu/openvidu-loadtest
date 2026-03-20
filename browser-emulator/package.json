@@ -10,7 +10,7 @@
 	"scripts": {
 		"start": "node ./dist/server.js",
 		"start:prod": "node ./dist/server.js",
-		"start:prod-livekit": "COM_MODULE=livekit node ./dist/server.js",
+		"start:prod-openvidu2": "COM_MODULE=openvidu node ./dist/server.js",
 		"docker:build": "docker build -t browser-emulator:local .",
 		"docker:up": "docker compose up --build",
 		"docker:down": "docker compose down",
@@ -25,7 +25,8 @@
 		"test:e2e": "vitest run --project=e2e",
 		"test:qoe": "vitest run --project=qoe",
 		"test:coverage": "vitest run --project=unit --project=integration --project=e2e --coverage",
-		"test:all": "tsx ./dev_scripts/run-tests-vagrant.ts",
+		"test:legacy": "tsx ./dev_scripts/run-tests-vagrant.ts",
+		"test:docker": "docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from browser-emulator-tests",
 		"qoe": "tsx ./src/qoe-cli.ts"
 	},
 	"author": "Carlos Santos & Iván Chicano",
