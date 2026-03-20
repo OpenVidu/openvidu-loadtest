@@ -121,41 +121,48 @@ export class ScriptRunnerService {
 	}
 
 	private sendSignal(pid: number, signal: NodeJS.Signals): boolean {
+		// First, try to check the process group. If that check errors, fall back
+		// to checking the individual PID before assuming it's gone. This avoids
+		// false positives where the group check fails but the single PID still
+		// exists (causing the caller to believe the process was already dead).
+		let groupExists = true;
 		try {
 			process.kill(-pid, 0);
+		} catch {
+			groupExists = false;
+		}
+
+		if (groupExists) {
+			try {
+				console.log(`Sending ${signal} to PID: ${pid} (process group)`);
+				process.kill(-pid, signal);
+				return true;
+			} catch (err) {
+				console.warn(
+					`Process group kill failed, will try PID-only: ${String(err)}`,
+				);
+			}
+		}
+
+		// Try PID-only checks and signals
+		try {
+			process.kill(pid, 0);
 		} catch {
 			console.log(
 				`Process ${pid} does not exist, no need to send ${signal}`,
 			);
 			return true; // Process already dead, consider it a success
 		}
+
 		try {
-			console.log(`Sending ${signal} to PID: ${pid} (process group)`);
-			process.kill(-pid, signal);
+			process.kill(pid, signal);
 			return true;
-		} catch (err) {
-			// If process group fails, try without it
-			try {
-				process.kill(pid, 0);
-			} catch {
-				console.log(
-					`Process ${pid} does not exist, no need to send ${signal}`,
-				);
-				return true; // Process already dead, consider it a success
-			}
-			try {
-				console.warn(
-					`Process group kill failed, retrying without group: ${String(err)}`,
-				);
-				process.kill(pid, signal);
-				return true;
-			} catch (retryError) {
-				console.error(
-					`Failed to send ${signal} to PID ${pid}:`,
-					retryError,
-				);
-				return false;
-			}
+		} catch (retryError) {
+			console.error(
+				`Failed to send ${signal} to PID ${pid}:`,
+				retryError,
+			);
+			return false;
 		}
 	}
 
