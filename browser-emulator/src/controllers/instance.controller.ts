@@ -56,7 +56,6 @@ export class InstanceController {
 		}
 	}
 
-	// TODO: study if browser could have its own video and audio, it would probably require multiple ffmpeg instances with multiple fake devices
 	private async initialize(
 		req: InitializePostRequest,
 		res: Response,

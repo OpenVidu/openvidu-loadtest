@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { URL } from 'node:url';
 
 export class LocalFilesRepository {
+	// TODO: These directories could be moved to the config service
 	public static readonly FULLSCREEN_RECORDING_DIR = `${process.cwd()}/recordings/chrome`;
 	public static readonly QOE_RECORDING_DIR = `${process.cwd()}/recordings/qoe`;
 	public static readonly STATS_DIR = `${process.cwd()}/stats`;

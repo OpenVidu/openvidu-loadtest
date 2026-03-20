@@ -88,7 +88,6 @@ export class FakeMediaDevicesService {
 
 	private async startXvfb(vnc = false) {
 		// Start X server for browsers, assumes Xvfb installed and DISPLAY :10 free
-		// TODO: launch vnc server, maybe in some debug mode
 		// TODO: choose display number in config
 		process.env.DISPLAY = ':10';
 		if (
