@@ -58,7 +58,6 @@ aws:
   availabilityZone: us-east-1f
   workersAtStart: 0
   rampUpWorkers: 0
-  forceContinue: false
 
 # ---------- Participant Distribution ----------
 distribution:

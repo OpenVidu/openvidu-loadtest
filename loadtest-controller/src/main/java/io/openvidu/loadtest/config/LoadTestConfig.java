@@ -120,8 +120,6 @@ public abstract class LoadTestConfig {
 
     private String workerAvailabilityZone;
 
-    private boolean forceContinue;
-
     private boolean disableHttps;
 
     public boolean isWaitCompletion() {
@@ -329,10 +327,6 @@ public abstract class LoadTestConfig {
         return workerAvailabilityZone;
     }
 
-    public boolean isForceContinue() {
-        return forceContinue;
-    }
-
     public boolean isHttpsDisabled() {
         return disableHttps;
     }
@@ -433,7 +427,6 @@ public abstract class LoadTestConfig {
             batches = batchesEnabled != null ? batchesEnabled : true;
             Boolean waitCompleteEnabled = yamlConfig.getBooleanOrNull("advanced.waitForCompletion");
             waitCompletion = waitCompleteEnabled != null ? waitCompleteEnabled : true;
-            forceContinue = asBoolean("aws.forceContinue");
             disableHttps = asBoolean("workers.disableHttps");
             this.printInfo();
 
@@ -489,9 +482,6 @@ public abstract class LoadTestConfig {
             log.info("Workers at the beginning: {}", workersNumberAtTheBeginning);
             log.info("Recording Workers at the beginning: {}", recordingWorkersNumberAtTheBeginning);
             log.info("Worker ramp up: {}", workersRumpUp);
-            if (workersRumpUp == 0) {
-                log.info("Continue test if there aren't enough workers: {}", forceContinue);
-            }
             log.info("AWS instance region: {}", workerInstanceRegion);
             log.info("AWS instance availability zone: {}", workerAvailabilityZone);
 

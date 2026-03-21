@@ -34,27 +34,7 @@ aws:
   availabilityZone: us-east-1a
   workersAtStart: 2
   rampUpWorkers: 5
-  forceContinue: false
 
 distribution:
   manual: false
   maxLoadPercent: 70
-
-video:
-  type: BUNNY
-  width: 1280
-  height: 720
-  fps: 30
-
-storage:
-  bucket: your-bucket-name
-  region: us-east-1
-
-advanced:
-  retry:
-    enabled: true
-    times: 3
-  batches:
-    enabled: true
-    maxConcurrentRequests: 10
-  waitForCompletion: true
