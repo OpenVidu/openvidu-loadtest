@@ -69,6 +69,13 @@ else
 
     # If specific combinations weren't provided but resolutions and fps were,
     # generate all combinations
+    # If the user passed only a media type (no resolutions or fps),
+    # default to all supported resolutions and framerates.
+    if [[ "$HAS_SPECIFIC_COMBINATIONS" == false ]] && [[ ${#RESOLUTIONS[@]} -eq 0 ]] && [[ ${#FPS_VALUES[@]} -eq 0 ]]; then
+        RESOLUTIONS=(480 720 1080)
+        FPS_VALUES=(30 60)
+    fi
+
     if [[ "$HAS_SPECIFIC_COMBINATIONS" == false ]] && [[ ${#RESOLUTIONS[@]} -gt 0 ]] && [[ ${#FPS_VALUES[@]} -gt 0 ]]; then
         for res in "${RESOLUTIONS[@]}"; do
             for fps in "${FPS_VALUES[@]}"; do
