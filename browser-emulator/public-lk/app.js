@@ -141,8 +141,10 @@ async function joinSession() {
 			isLocal: false
 		}
 		try {
-			statsManager.addConnectionToStats(room.engine.pcManager?.publisher['_pc'], participant.sid, "outbound");
-			statsManager.addConnectionToStats(room.engine.pcManager?.subscriber['_pc'], participant.sid, "inbound");
+			statsManager.addConnectionToStats(room.engine.pcManager.publisher['_pc'], participant.sid, "outbound");
+			if (room.engine.pcManager.subscriber) {
+				statsManager.addConnectionToStats(room.engine.pcManager.subscriber['_pc'], participant.sid, "inbound");
+			}
 		} catch (error) {
 			if (error.contains("already managing")) {
 				console.warn(error);
@@ -242,8 +244,10 @@ async function joinSession() {
 		}
 		appendElement('local-stream-created');
 		try {
-			statsManager.addConnectionToStats(room.engine.pcManager?.publisher['_pc'], localParticipant.sid, "outbound");
-			statsManager.addConnectionToStats(room.engine.pcManager?.subscriber['_pc'], localParticipant.sid, "inbound");
+			statsManager.addConnectionToStats(room.engine.pcManager.publisher['_pc'], localParticipant.sid, "outbound");
+			if (room.engine.pcManager.subscriber) {
+				statsManager.addConnectionToStats(room.engine.pcManager.subscriber['_pc'], localParticipant.sid, "inbound");
+			}
 		} catch (error) {
 			if (error.contains("already managing")) {
 				console.warn(error);
