@@ -8,10 +8,11 @@ VIDEO_SAMPLE_URL=https://archive.org/download/e-dv548_lwe08_christa_casebeer_003
 WIDTH=640
 HEIGHT=480
 VIDEO_DURATION=00:00:30
-PADDING_DURATION_SEC=5
+PADDING_DURATION_SEC=1
 AUDIO_SAMPLE_RATE_HZ=48000
 TONE_FREQUENCY_HZ=1000
 AUDIO_CHANNELS_NUMBER=2
+FPS=30
 FFMPEG_LOG="-loglevel error"
 TARGET_VIDEO=./test.y4m
 TARGET_AUDIO=./test.wav
@@ -29,7 +30,85 @@ USAGE="Usage: `basename $0` [-d=duration] [-p=padding_duration_sec] [--game] [--
 
 cleanup() {
    echo "Deleting temporal files"
-   rm -rf test-no-frame-number.mp4 test-no-padding.mp4 padding.mp4 test.mp4 test-mixed.mp4
+   rm -rf test-no-frame-number.mp4 test-no-padding-raw.mp4 test-no-padding.mp4 test-no-padding-numbered.mp4 test-content-audio.wav test-padding-audio.wav test-audio-raw.wav padding.mp4 test.mp4 test-mixed.mp4 concat-list.txt concat-list-audio.txt bound* diag*
+}
+
+get_video_frame_count() {
+   file="$1"
+   frames=""
+
+   frames=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 "$file")
+   if [ -z "$frames" ] || [ "$frames" = "N/A" ]; then
+      frames=$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 "$file")
+   fi
+
+   echo "$frames"
+}
+
+compute_audio_samples_for_video() {
+   frames="$1"
+   frame_rate="$2"
+   sample_rate="$3"
+
+   awk -v frames="$frames" -v frame_rate="$frame_rate" -v sample_rate="$sample_rate" '
+      BEGIN {
+         split(frame_rate, fps_parts, "/")
+         if (fps_parts[2] > 0) {
+            fps = fps_parts[1] / fps_parts[2]
+         } else {
+            fps = frame_rate + 0
+         }
+
+         if (fps <= 0 || frames <= 0 || sample_rate <= 0) {
+            print 0
+            exit
+         }
+
+         target_samples = int(((frames * sample_rate) / fps) + 0.5)
+         print target_samples
+      }
+   '
+}
+
+duration_to_seconds() {
+   duration="$1"
+
+   awk -v duration="$duration" '
+      BEGIN {
+         split(duration, parts, ":")
+         if (length(parts) == 3) {
+            print (parts[1] * 3600) + (parts[2] * 60) + parts[3]
+         } else if (length(parts) == 2) {
+            print (parts[1] * 60) + parts[2]
+         } else {
+            print duration + 0
+         }
+      }
+   '
+}
+
+compute_video_frames_for_duration() {
+   duration_sec="$1"
+   frame_rate="$2"
+
+   awk -v duration_sec="$duration_sec" -v frame_rate="$frame_rate" '
+      BEGIN {
+         split(frame_rate, fps_parts, "/")
+         if (fps_parts[2] > 0) {
+            fps = fps_parts[1] / fps_parts[2]
+         } else {
+            fps = frame_rate + 0
+         }
+
+         if (fps <= 0 || duration_sec <= 0) {
+            print 0
+            exit
+         }
+
+         target_frames = int((duration_sec * fps) + 0.000001)
+         print target_frames
+      }
+   '
 }
 
 
@@ -41,8 +120,6 @@ for i in "$@"; do
    case $i in
       --game)
       VIDEO_SAMPLE_URL=https://ia802808.us.archive.org/6/items/ForniteBattle8/fornite%20battle%202.mp4
-      WIDTH=1280
-      HEIGHT=720
       shift
       ;;
       --generate_default_ref)
@@ -109,7 +186,7 @@ VIDEO_SAMPLE_NAME=$(echo ${VIDEO_SAMPLE_URL##*/} | sed -e 's/%20/ /g')
 
 if [ ! -f "$VIDEO_SAMPLE_NAME" ]; then
     echo "Content video ($VIDEO_SAMPLE_NAME) not exits ... downloading"
-    curl -O $VIDEO_SAMPLE_URL
+    wget $VIDEO_SAMPLE_URL
 else
     echo "Content video ($VIDEO_SAMPLE_NAME) already exits"
 fi
@@ -156,17 +233,31 @@ else
 fi
 
 #########################
-# 3. Overlay frame number
+# 3. Prepare content stream
 #########################
-echo "Overlaying frame number in the video content"
-ffmpeg $FFMPEG_LOG -y -i $FINAL_OUTPUT -vf drawtext="fontfile=$FONT:text='\   %{frame_num}  \ ':start_number=1:x=(w-tw)/2:y=h-(2*lh)+15:fontcolor=black:fontsize=40:box=1:boxcolor=white:boxborderw=10" -c:a aac -ac 2 test-no-padding.mp4
+echo "Preparing content stream"
+ffmpeg $FFMPEG_LOG -y -i $FINAL_OUTPUT -c:v copy -c:a aac -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER test-no-padding-raw.mp4
+
+#########################
+# 3.1 Trim content to exact duration
+#########################
+echo "Trimming content to exact duration"
+CONTENT_DURATION=$(duration_to_seconds "$VIDEO_DURATION")
+CONTENT_FRAME_COUNT=$(awk -v duration="$CONTENT_DURATION" -v fps="$FPS" 'BEGIN { print int((duration * fps) + 0.000001) }')
+ffmpeg $FFMPEG_LOG -y -i test-no-padding-raw.mp4 -frames:v "$CONTENT_FRAME_COUNT" -t "$CONTENT_DURATION" -c:v libx264 -preset veryfast -pix_fmt yuv420p -c:a aac -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER test-no-padding.mp4
+
+#########################
+# 3.2 Overlay frame number on content
+#########################
+echo "Overlaying frame number in content"
+ffmpeg $FFMPEG_LOG -y -vsync 0 -i test-no-padding.mp4 -vf "drawbox=x=(iw-135)/2:y=ih-57:w=130:h=55:color=white:t=fill,drawtext=fontfile=$FONT:text='%{eif\:n+1\:d}':x=(w-tw)/2:y=h-(2*lh)+15:fontcolor=black:fontsize=40:box=0" -c:a aac -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER test-no-padding-numbered.mp4
 
 #################################################
 # 4. Create padding video based on a test pattern
 #################################################
 if [ "$PADDING_DURATION_SEC" -gt 0 ]; then
    echo "Creating padding video ($PADDING_DURATION_SEC seconds)"
-   ffmpeg $FFMPEG_LOG -y -f lavfi -i testsrc=duration=$PADDING_DURATION_SEC:size="$WIDTH"x"$HEIGHT":rate=$FPS -f lavfi -i sine=frequency=$TONE_FREQUENCY_HZ:duration=$PADDING_DURATION_SEC padding.mp4
+   ffmpeg $FFMPEG_LOG -y -f lavfi -i testsrc=duration=$PADDING_DURATION_SEC:size="$WIDTH"x"$HEIGHT":rate=$FPS -f lavfi -i sine=frequency=$TONE_FREQUENCY_HZ:sample_rate=$AUDIO_SAMPLE_RATE_HZ:duration=$PADDING_DURATION_SEC -c:v libx264 -preset veryfast -pix_fmt yuv420p -c:a aac -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER padding.mp4
 else
    echo "Skipping padding video creation as duration is 0"
 fi
@@ -176,33 +267,85 @@ fi
 ############################
 if [ "$PADDING_DURATION_SEC" -gt 0 ]; then
    echo "Concatenating padding and content videos"
-   ffmpeg $FFMPEG_LOG -y -i padding.mp4 -i test-no-padding.mp4 -i padding.mp4 -filter_complex concat=n=3:v=1:a=1 test.mp4
+   printf "file 'padding.mp4'\nfile 'test-no-padding-numbered.mp4'\nfile 'padding.mp4'\n" > concat-list.txt
+   ffmpeg $FFMPEG_LOG -y -f concat -safe 0 -i concat-list.txt -c copy test.mp4
 else
    echo "Skipping concatenation as padding duration is 0"
-   cp test-no-padding.mp4 test.mp4
+   cp test-no-padding-numbered.mp4 test.mp4
 fi
+
+##########################################
+# 5.1 Compute exact shared media timeline
+##########################################
+SYNC_FRAME_RATE=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 test.mp4)
+TARGET_CONTENT_DURATION_SEC=$(duration_to_seconds "$VIDEO_DURATION")
+TARGET_TOTAL_DURATION_SEC=$(awk -v content="$TARGET_CONTENT_DURATION_SEC" -v padding="$PADDING_DURATION_SEC" 'BEGIN { print content + (2 * padding) }')
+SYNC_FRAME_COUNT=$(compute_video_frames_for_duration "$TARGET_TOTAL_DURATION_SEC" "$SYNC_FRAME_RATE")
+SYNC_AUDIO_SAMPLES=$(awk -v duration="$TARGET_TOTAL_DURATION_SEC" -v sample_rate="$AUDIO_SAMPLE_RATE_HZ" 'BEGIN { print int((duration * sample_rate) + 0.5) }')
+
+if [ -z "$SYNC_FRAME_RATE" ] || [ "$SYNC_FRAME_RATE" = "N/A" ]; then
+   echo "Unable to determine final video frame rate"
+   exit 1
+fi
+
+if [ -z "$TARGET_TOTAL_DURATION_SEC" ] || [ "$TARGET_TOTAL_DURATION_SEC" -le 0 ]; then
+   echo "Unable to compute target total duration"
+   exit 1
+fi
+
+if [ -z "$SYNC_FRAME_COUNT" ] || [ "$SYNC_FRAME_COUNT" -le 0 ]; then
+   echo "Unable to compute target video frame count"
+   exit 1
+fi
+
+if [ -z "$SYNC_AUDIO_SAMPLES" ] || [ "$SYNC_AUDIO_SAMPLES" -le 0 ]; then
+   echo "Unable to compute target audio sample count"
+   exit 1
+fi
+
+echo "Shared sync target: ${TARGET_TOTAL_DURATION_SEC}s, $SYNC_FRAME_COUNT frames at $SYNC_FRAME_RATE, $SYNC_AUDIO_SAMPLES audio samples @ ${AUDIO_SAMPLE_RATE_HZ} Hz"
 
 #########################
 # 6. Convert video to Y4M
 #########################
 echo "Converting resulting video to Y4M ($TARGET_VIDEO)"
-ffmpeg $FFMPEG_LOG -y -i test.mp4 -pix_fmt yuv420p $TARGET_VIDEO
+ffmpeg $FFMPEG_LOG -y -vsync 0 -i test.mp4 -map 0:v:0 -frames:v "$SYNC_FRAME_COUNT" -pix_fmt yuv420p $TARGET_VIDEO
 
 #########################
 # 7. Convert audio to WAV
 #########################
 echo "Converting resulting audio to WAV ($TARGET_AUDIO)"
-ffmpeg $FFMPEG_LOG -y -i test.mp4 -vn -acodec pcm_s16le -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER $TARGET_AUDIO
+TARGET_CONTENT_AUDIO_SAMPLES=$(awk -v duration="$TARGET_CONTENT_DURATION_SEC" -v sample_rate="$AUDIO_SAMPLE_RATE_HZ" 'BEGIN { print int((duration * sample_rate) + 0.5) }')
+
+if [ -z "$TARGET_CONTENT_AUDIO_SAMPLES" ] || [ "$TARGET_CONTENT_AUDIO_SAMPLES" -le 0 ]; then
+   echo "Unable to compute target content audio sample count"
+   exit 1
+fi
+
+ffmpeg $FFMPEG_LOG -y -i test-no-padding-numbered.mp4 -map 0:a:0 -vn -acodec pcm_s16le -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER -af "apad=whole_len=$TARGET_CONTENT_AUDIO_SAMPLES,atrim=end_sample=$TARGET_CONTENT_AUDIO_SAMPLES" test-content-audio.wav
+
+if [ "$PADDING_DURATION_SEC" -gt 0 ]; then
+   ffmpeg $FFMPEG_LOG -y -f lavfi -i sine=frequency=$TONE_FREQUENCY_HZ:sample_rate=$AUDIO_SAMPLE_RATE_HZ:duration=$PADDING_DURATION_SEC -ac $AUDIO_CHANNELS_NUMBER -acodec pcm_s16le test-padding-audio.wav
+   printf "file 'test-padding-audio.wav'\nfile 'test-content-audio.wav'\nfile 'test-padding-audio.wav'\n" > concat-list-audio.txt
+   ffmpeg $FFMPEG_LOG -y -f concat -safe 0 -i concat-list-audio.txt -acodec pcm_s16le test-audio-raw.wav
+else
+   cp test-content-audio.wav test-audio-raw.wav
+fi
+
+ffmpeg $FFMPEG_LOG -y -i test-audio-raw.wav -af "apad=whole_len=$SYNC_AUDIO_SAMPLES,atrim=end_sample=$SYNC_AUDIO_SAMPLES" $TARGET_AUDIO
 
 ###############################
 # 8. Generate default reference
 ###############################
 if $GENERATE_DEFAULT_REF; then
+   echo "Overlaying frame number in default reference source"
+   ffmpeg $FFMPEG_LOG -y -i test-no-padding.mp4 -vf drawtext="fontfile=$FONT:text='\\   %{frame_num}  \\ ':start_number=1:x=(w-tw)/2:y=h-(2*lh)+15:fontcolor=black:fontsize=40:box=1:boxcolor=white:boxborderw=10" -c:a aac -ac 2 test-no-padding-numbered.mp4
+
    echo "Generating default video reference ($DEFAULT_VIDEO_REF)"
-   ffmpeg $FFMPEG_LOG -y -i test-no-padding.mp4 -pix_fmt yuv420p -c:v rawvideo -an $DEFAULT_VIDEO_REF
+   ffmpeg $FFMPEG_LOG -y -i test-no-padding-numbered.mp4 -pix_fmt yuv420p -c:v rawvideo -an $DEFAULT_VIDEO_REF
 
    echo "Generating default audio reference ($DEFAULT_AUDIO_REF)"
-   ffmpeg $FFMPEG_LOG -y -i test-no-padding.mp4 -vn -acodec pcm_s16le -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER $DEFAULT_AUDIO_REF
+   ffmpeg $FFMPEG_LOG -y -i test-no-padding-numbered.mp4 -vn -acodec pcm_s16le -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER $DEFAULT_AUDIO_REF
 fi
 
 ################################
