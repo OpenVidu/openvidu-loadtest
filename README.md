@@ -1,10 +1,12 @@
 # OpenVidu Load Test
 
-A distributed load testing tool for performing stress tests against OpenVidu 3 deployments. Simulates realistic video conferencing scenarios with browser-emulated users.
+A distributed testing tool for performing load, stress and other performance tests against OpenVidu 3 deployments. Simulates realistic video conferencing scenarios with browser-emulated users.
 
 # **Table of Contents**
 
 1. [Quick Start](#quick-start)
+   - [Run your first test with Docker Compose](#run-your-first-test-with-docker-compose)
+   - [Large scale testing on AWS](#large-scale-testing-on-aws)
 2. [Project Architecture](#project-architecture)
 3. [Configuration](#configuration)
 4. [Advanced Options](#advanced-options)
@@ -13,17 +15,15 @@ A distributed load testing tool for performing stress tests against OpenVidu 3 d
 
 ### Run your first test with Docker Compose
 
-Docker Compose starts three services:
+We are going to launch a simple smoke test with 2 participants in a single session using Docker Compose. This is ideal for trying this tool, as well as verifying that the environment is set up correctly before running larger scale tests.
 
-- **LiveKit server**: Acts as the media server used by OpenVidu 3
-- **Browser-emulator**: The worker that launches Chrome browsers to connect to rooms
-- **Loadtest-controller**: Orchestrates the test by coordinating the browser-emulator
+To start, you will need an OpenVidu deployment. You can use your own deployment, [or quickly start a local development installation](https://openvidu.io/latest/docs/self-hosting/local/).
 
-The configuration file `config/config.yaml` defines the test:
+Here's the configuration we will be using for this test. You can find it in `config/config.yaml`. Next, we will walk through the configuration file to understand each option.
 
 ```yaml
 platform:
-  url: http://livekit-server:7880
+  url: https://your-openvidu-url.io:7443
   apiKey: devkey
   apiSecret: secret
 
@@ -36,7 +36,6 @@ testcases:
 
 workers:
   urls: browser-emulator
-  disableHttps: true
 
 distribution:
   manual: true
@@ -45,40 +44,44 @@ distribution:
 
 #### Configuration explanation
 
-**platform**: Defines connection to the platform under test
+**platform**: Defines connection to the platform under test. You will have to set these options according to your OpenVidu deployment.
 
-- `url`: Points to the deployment, in this case the LiveKit server running in Docker. The hostname `livekit-server` is resolved by Docker Compose networking
-- `apiKey` / `apiSecret`: Credentials for authentication with the platform
+- `url`: Required. Points to the OpenVidu deployment. Note: If using a local OpenVidu deployment, make sure to set the platform URL in the next configuration file to the HTTPS endpoint indicated in `LiveKit Server API -> Access from other devices in your LAN:`.
+- `apiKey` / `apiSecret`: Required. Credentials for authentication with the platform
 
-**testcases**: Defines a list of the tests that will be done. One test will be performed with the following configuration:
+**testcases**: Defines a list of the tests that will be done. It is required to add at least one test case. Our test will be performed with the following configuration:
 
 - `topology: N:N`: All participants publish video/audio and subscribe to all other participants
-- `participants: ["2"]`: Test with 2 participants per session. If more elements are added to the list, the test will be repeated with each of those values (e.g. 2, 8, 100 participants)
+- `participants: ["2"]`: Test with 2 participants per session. If more elements are added to the list, the test will be repeated with each of those values (e.g. 2, 8, 100... participants)
 - `sessions: 1`: Create a single session with the number of participants established above. To create sessions until the platform fails, set this to `infinite`
 - `browser: chrome`: Use Chrome as the browser for the test
 
 **workers**: Where the browsers run
 
 - `urls: browser-emulator`: URL(s) of the workers to be used. Connect to the browser-emulator service running in Docker
-- `disableHttps: true`: Disable HTTPS verification if your deployed platform does not use HTTPS. We enable it here since we're using HTTP locally
 
 **distribution**: How participants are distributed across workers
 
 - `manual: true`: Manually assign participants to workers
 - `usersPerWorker: 2`: Each browser-emulator worker handles 2 participants maximum
 
-This configuration tests a basic 2-user video call. The minimal setup makes it ideal for verifying the environment works correctly before running larger scale tests.
+### Run the test
 
-To run the test:
+To run the test, use the following command:
 
 ```bash
 # Start all services with Docker Compose
 docker compose up --build
 ```
 
-The controller will execute the test cases and output results at `results/results.txt`.
+The docker compose file will start two services:
 
-For more detailed instructions on how to configure the tests, see [Configuration](#configuration).
+- **Browser-emulator**: The worker that launches Chrome browsers to connect to rooms
+- **Loadtest-controller**: Orchestrates the test by coordinating the browser-emulator
+
+OpenVidu loadtest will execute the test cases and output results at `results/results.txt`.
+
+For more detailed instructions on how to configure tests, see [Configuration](#configuration).
 
 ### Large scale testing on AWS:
 
@@ -207,7 +210,6 @@ Configuration for where browsers run. Workers can be manually provided and manag
 | `availabilityZone` | No       | `us-east-1f` | AWS availability zone                                            |
 | `workersAtStart`   | No       | `0`          | Number of instances to start the test with                       |
 | `rampUpWorkers`    | No       | `0`          | Workers instances to add when the test runs out of existing ones |
-| `forceContinue`    | No       | `false`      | Continue the test if there are not enough workers                |
 
 ### Distribution
 

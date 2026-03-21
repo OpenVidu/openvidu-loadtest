@@ -4,7 +4,7 @@
 # Quick start configuration for testing with a local worker. See the first quick start example in the README for more details.
 
 platform:
-  url: http://livekit-server:7880
+  url: https://your-openvidu-url.io:7443
   apiKey: devkey
   apiSecret: secret
 
@@ -15,9 +15,9 @@ testcases:
     sessions: 1
     browser: chrome
     description: "Basic N:N topology test"
+
 workers:
   urls: browser-emulator
-  disableHttps: true
 
 distribution:
   manual: true
