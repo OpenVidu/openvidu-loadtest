@@ -57,9 +57,80 @@ The command `pnpm test` will only run tests that don't need any installed softwa
 
 There are more options available in the `package.json` file, such as adding coverage or destroying the VM after running the tests, so check it out for more information.
 
+## Legacy mode
+
+On the initialization endpoint, `legacyMode` fake camera support depends on host kernel modules (`v4l2loopback`) and is not expected to work in a standard containerized setup unless you provide extra host configuration.
+
+In this mode, the browser-emulator has several **Linux-specific dependencies** that are required. These components **cannot be easily replicated on Windows or macOS** due to kernel-level dependencies and availability. As a result, you can use one of these options:
+
+- **Recommended**: Use the provided Vagrant + VirtualBox setup (works on Windows, macOS, Linux)
+- **Alternative**: Use native Ubuntu 24.04 (or you can try WSL2, although it is mostly untested). If you want to use this option, either run `prepare_scripts/install_legacy.sh` (it may conflict with already installed dependencies if not installing on a fresh Ubuntu machine) or manually install all dependencies listed in that script.
+
+### Host System Requirements
+
+#### For Vagrant-based development (Recommended)
+
+**Required:**
+
+- [Vagrant](https://developer.hashicorp.com/vagrant/install) (>= 2.4.9)
+- [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (>= 7.2.6)
+- ~20 GB free disk space for VM
+- 4 GB RAM available (8 GB recommended)
+
+#### For Native Linux Development
+
+**Required:**
+
+- All Linux-specific packages necesary (see `prepare_scripts/install_legacy.sh` for full list)
+
+## Using Vagrant (Recommended Cross-Platform)
+
+You can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator with every dependency installed. Ensure you have Vagrant and VirtualBox installed on your system.
+
+You can either choose an already made box or make a personalized one yourself.
+
+- **Already made box**
+
+You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters. This box includes all the necessary dependencies to run the browser-emulator, along with both OpenVidu 2 CE and LiveKit installed and ready to use.
+
+- **Customizable Parameters in Vagrantfile**
+    - **BOX**: Box to use as base. You can choose our already made box or choose the path to a box made by yourself. Defaults to our default box with everything installed.
+    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096.
+    - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
+    - **DISK**: Disk size in GB for the virtual machine. Default: 20.
+    - **START_SERVER**: Set to 'true' to start the browser-emulator server during provisioning and on each reboot. Default is 'true'.
+    - **LIVEKIT**: Set to 'true' to set browser-emulator to use LiveKit client, as well as run LiveKit as the plaform instead of OpenVidu 2 when START_PLATFORM is set to 'true'. Default is 'false'.
+    - **START_PLATFORM**: Set to 'true' to start the OpenVidu 2 CE or LiveKit server during provisioning and on each reboot. Default is 'true'.
+      _OpenVidu note_: with this deployment, the OpenVidu URL is _https://localhost_ and the OpenVidu secret is _vagrant_.
+      _LiveKit note_: With this deployment, LiveKit is deployed in dev mode, so the URL is _https://localhost_, API Key is _devkey_ and the API Secret is _secret_.
+    - **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i \_ 10) for the BrowserEmulator server and 5900 + (i \* 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000 and 5900, node2 will have 5010 and 5911 and so on. Defaults to 1.
+
+- **Start vagrant**
+
+To customize these parameters, you can set environment variables before running `vagrant up`. For example:
+
+```bash
+export BOX=ivchicano/browseremulator
+vagrant up
+```
+
+- **Personalized box**
+
+You can also construct your base personalized box with the parameters you choose. To start it, run `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
+
+- **Customizable Parameters in Vagrantfile**
+    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096.
+    - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 12.
+    - **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'true'.
+    - **VAGRANT_PROVIDER**: Provider to use to create the virtual machine. Default is 'virtualbox'.
+
+With this box, you can now set the **BOX** environment variable to the path of the box you just created and run `vagrant up` to start the virtual machine with the personalized box. Refer to the customizable parameters in the Vagrantfile section to customize the machine.
+
 ## Running QoE Analysis
 
 BrowserEmulator can run analysis on the Quality of Experience on your video and audio.
+
+Note: At the moment there is a historic bug on Chrome were the video and audio will get desynced, so audio QoE analysis will not work properly when using Chrome as the browser. It is recommended to use Firefox for accurate QoE results until this bug is fixed. This implies that you will need to have the `legacyMode` enabled and the necessary dependencies installed to run Firefox with a fake camera, either by using the Vagrant box or installing them in your machine. For more information about this bug, check [here](https://bugs.chromium.org/p/chromium/issues/detail?id=1414764).
 
 For this, the following requisites have to be met:
 
@@ -131,72 +202,3 @@ When [Delete all participant](#delete-participants) is run, all individual recor
 
 After the analysis is done, the results will be uploaded to the selected index in ELK. A dashboard can be imported to Kibana importing the [loadtest.ndjson](load-test/src/main/resources/loadtest.ndjson) file. For more information about the imported data, check their respective pages: [VMAF](https://github.com/Netflix/vmaf), [VQMT](https://github.com/Rolinh/VQMT), [PESQ](https://github.com/dennisguse/ITU-T_pesq), [ViSQOL](https://github.com/google/visqol).
 Note: VMAF, ViSQOL and PESQ QoE results are normalized in the range 0-1 before importing them to ELK.
-
-## Legacy mode
-
-On the initialization endpoint, `legacyMode` fake camera support depends on host kernel modules (`v4l2loopback`) and is not expected to work in a standard containerized setup unless you provide extra host configuration.
-
-In this mode, the browser-emulator has several **Linux-specific dependencies** that are required. These components **cannot be easily replicated on Windows or macOS** due to kernel-level dependencies and availability. As a result, you can use one of these options:
-
-- **Recommended**: Use the provided Vagrant + VirtualBox setup (works on Windows, macOS, Linux)
-- **Alternative**: Use native Ubuntu 24.04 (or you can try WSL2, although it is mostly untested). If you want to use this option, either run `prepare_scripts/install_legacy.sh` (it may conflict with already installed dependencies if not installing on a fresh Ubuntu machine) or manually install all dependencies listed in that script.
-
-### Host System Requirements
-
-#### For Vagrant-based development (Recommended)
-
-**Required:**
-
-- [Vagrant](https://developer.hashicorp.com/vagrant/install) (>= 2.4.9)
-- [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (>= 7.2.6)
-- ~20 GB free disk space for VM
-- 4 GB RAM available (8 GB recommended)
-
-#### For Native Linux Development
-
-**Required:**
-
-- All Linux-specific packages necesary (see `prepare_scripts/install_legacy.sh` for full list)
-
-## Using Vagrant (Recommended Cross-Platform)
-
-You can use [Vagrant](https://developer.hashicorp.com/vagrant/install) to create a virtual machine running the browser-emulator with every dependency installed. Ensure you have Vagrant and VirtualBox installed on your system.
-
-You can either choose an already made box or make a personalized one yourself.
-
-- **Already made box**
-
-You can use the default Vagrantfile to create a preconfigured browser-emulator VM. You can start it with `vagrant up` to launch it with the default parameters. This box includes all the necessary dependencies to run the browser-emulator, along with both OpenVidu 2 CE and LiveKit installed and ready to use.
-
-- **Customizable Parameters in Vagrantfile**
-    - **BOX**: Box to use as base. You can choose our already made box or choose the path to a box made by yourself. Defaults to our default box with everything installed.
-    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096.
-    - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 4. (Note: if START_MEDIASERVER is true, OpenVidu requires at least 2 CPUs).
-    - **DISK**: Disk size in GB for the virtual machine. Default: 20.
-    - **START_SERVER**: Set to 'true' to start the browser-emulator server during provisioning and on each reboot. Default is 'true'.
-    - **LIVEKIT**: Set to 'true' to set browser-emulator to use LiveKit client, as well as run LiveKit as the plaform instead of OpenVidu 2 when START_PLATFORM is set to 'true'. Default is 'false'.
-    - **START_PLATFORM**: Set to 'true' to start the OpenVidu 2 CE or LiveKit server during provisioning and on each reboot. Default is 'true'.
-      _OpenVidu note_: with this deployment, the OpenVidu URL is _https://localhost_ and the OpenVidu secret is _vagrant_.
-      _LiveKit note_: With this deployment, LiveKit is deployed in dev mode, so the URL is _https://localhost_, API Key is _devkey_ and the API Secret is _secret_.
-    - **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i \_ 10) for the BrowserEmulator server and 5900 + (i \* 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000 and 5900, node2 will have 5010 and 5911 and so on. Defaults to 1.
-
-- **Start vagrant**
-
-To customize these parameters, you can set environment variables before running `vagrant up`. For example:
-
-```bash
-export BOX=ivchicano/browseremulator
-vagrant up
-```
-
-- **Personalized box**
-
-You can also construct your base personalized box with the parameters you choose. To start it, run `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant up` to launch it with the default parameters. You can then package it with `VAGRANT_VAGRANTFILE=./Vagrantfile_create_box vagrant package` to create a box file.
-
-- **Customizable Parameters in Vagrantfile**
-    - **MEMORY**: Amount of memory (in MB) to allocate for the virtual machine. Default: 4096.
-    - **CPUS**: Number of CPUs to allocate for the virtual machine. Default: 12.
-    - **QOE**: Set to 'true' to install all necessary dependencies to run the quality of experience (QoE) analysis scripts in the browser-emulator. Slower installation. Default is 'true'.
-    - **VAGRANT_PROVIDER**: Provider to use to create the virtual machine. Default is 'virtualbox'.
-
-With this box, you can now set the **BOX** environment variable to the path of the box you just created and run `vagrant up` to start the virtual machine with the personalized box. Refer to the customizable parameters in the Vagrantfile section to customize the machine.
