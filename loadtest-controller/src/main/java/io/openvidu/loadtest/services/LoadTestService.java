@@ -73,7 +73,7 @@ public class LoadTestService {
     private Calendar startTime;
     private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    private static final int WEBSOCKET_PORT = 5000;
+    private static final int WEBSOCKET_PORT = 5001;
 
     private boolean prodMode = false;
     private AtomicInteger sessionNumber = new AtomicInteger(0);
@@ -110,9 +110,8 @@ public class LoadTestService {
 
     private void initializeInstance(String url) {
         browserEmulatorClient.ping(url);
-        String protocol = this.loadTestConfig.isHttpsDisabled() ? "ws://" : "wss://";
         WebSocketClient ws = webSocketConnectionFactory
-                .createConnection(protocol + url + ":" + LoadTestService.WEBSOCKET_PORT + "/events");
+                .createConnection("ws://" + url + ":" + LoadTestService.WEBSOCKET_PORT + "/events");
         wsSessions.add(ws);
         browserEmulatorClient.initializeInstance(url);
     }

@@ -78,7 +78,7 @@ afterAll(async () => {
 	]);
 }, 180000);
 
-async function getAvailablePort(): Promise<number> {
+async function findSingleAvailablePort(): Promise<number> {
 	return new Promise(resolve => {
 		const server = createServer();
 		server.listen(0, () => {
@@ -86,6 +86,17 @@ async function getAvailablePort(): Promise<number> {
 			server.close(() => resolve(port));
 		});
 	});
+}
+
+async function getAvailablePorts(): Promise<[number, number]> {
+	const firstPort = await findSingleAvailablePort();
+	let secondPort = await findSingleAvailablePort();
+
+	while (secondPort === firstPort) {
+		secondPort = await findSingleAvailablePort();
+	}
+
+	return [firstPort, secondPort];
 }
 
 async function deleteAllFilesFromDir(dir: string) {
@@ -482,13 +493,15 @@ async function expectCorrectElasticSearchDocuments() {
 }
 
 beforeEach(async () => {
-	const serverPort = await getAvailablePort();
-	process.env.SERVER_PORT = String(serverPort);
+	const ports = await getAvailablePorts();
+	process.env.SERVER_PORT = String(ports[0]);
+	process.env.WEBSOCKET_SERVER_PORT = String(ports[1]);
 }, 30000);
 
 afterEach(async () => {
 	await stopServer();
 	delete process.env.SERVER_PORT;
+	delete process.env.WEBSOCKET_SERVER_PORT;
 	await Promise.all([
 		deleteAllFilesFromDir(LocalFilesRepository.FULLSCREEN_RECORDING_DIR),
 		deleteAllFilesFromDir(LocalFilesRepository.QOE_RECORDING_DIR),

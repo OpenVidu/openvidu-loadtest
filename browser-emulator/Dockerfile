@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y procps xvfb x11vnc ffmpeg && rm -rf /va
 
 ENV NODE_ENV=production
 ENV SERVER_PORT=5000
+ENV WEBSOCKET_PORT=5001
 
 COPY package.json ./package.json
 
@@ -32,6 +33,6 @@ COPY index-mappings.json ./index-mappings.json
 
 RUN mkdir -p recordings/chrome recordings/qoe stats logs mediafiles
 
-EXPOSE 5000
+EXPOSE 5000 5001
 
 CMD ["node", "dist/server.js"]

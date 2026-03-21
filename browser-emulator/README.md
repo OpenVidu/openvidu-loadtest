@@ -6,7 +6,7 @@ It is able to start and launch **Chrome/Firefox browsers** using Selenium, emula
 
 This app provides a simple **REST API** that will be used by **loadtest-controller** and it allows:
 
-This services also is listening for a **WebSocket communication** on `ws://browser-emulator-address:5000/events`. It will send information from the clients to the loadtest-controller.
+This services also is listening for a **WebSocket communication**. It will send information from the clients to the loadtest-controller.
 
 # Browser Emulator development
 
@@ -41,7 +41,7 @@ Or with npm scripts:
 pnpm run docker:up
 ```
 
-The service will be available at `http://localhost:5000`.
+The service will be available at `http://localhost:5000` and `ws://browser-emulator-address:5001/events`.
 
 Notes:
 
@@ -103,7 +103,7 @@ You can use the default Vagrantfile to create a preconfigured browser-emulator V
     - **START_PLATFORM**: Set to 'true' to start the OpenVidu 2 CE or LiveKit server during provisioning and on each reboot. Default is 'true'.
       _OpenVidu note_: with this deployment, the OpenVidu URL is _https://localhost_ and the OpenVidu secret is _vagrant_.
       _LiveKit note_: With this deployment, LiveKit is deployed in dev mode, so the URL is _https://localhost_, API Key is _devkey_ and the API Secret is _secret_.
-    - **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i \_ 10) for the BrowserEmulator server and 5900 + (i \* 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000 and 5900, node2 will have 5010 and 5911 and so on. Defaults to 1.
+    - **NODES**: How many virtual machines will be created. Each machine will be created with the name node[i], where i is the node number. For each node, the ports open will be 5000 + (i \_ 10) and 5001 + (i \_ 10) for the BrowserEmulator server and 5900 + (i \* 10) for the VNC connection, where i is the node number. For example, the first node (node1) will have open ports 5000, 5001 and 5900, node2 will have 5010, 5011 and 5911 and so on. Defaults to 1.
 
 - **Start vagrant**
 

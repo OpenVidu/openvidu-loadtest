@@ -1,16 +1,19 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import https from 'node:https';
-import http from 'node:http';
-
+import type { ConfigService } from './config.service.ts';
 export class WsService {
 	private readonly OPEN = 1;
 	private ws: WebSocket | undefined;
 	private server: WebSocketServer | undefined;
+	private readonly configService: ConfigService;
 
-	initializeServer(httpServer: http.Server | https.Server): void {
+	constructor(configService: ConfigService) {
+		this.configService = configService;
+	}
+
+	initializeServer(): void {
 		console.log('Starting WebSocket server...');
 		this.server = new WebSocketServer({
-			server: httpServer,
+			port: this.configService.getWebsocketServerPort(),
 			path: '/events',
 		});
 
@@ -24,7 +27,10 @@ export class WsService {
 			console.log('WebSocket connection established');
 		});
 
-		console.log('WebSocket server attached to HTTPS server');
+		console.log(
+			'WebSocket server started on port ' +
+				this.configService.getWebsocketServerPort(),
+		);
 	}
 
 	async close(): Promise<void> {

@@ -12,6 +12,7 @@ export interface DockerizedBrowsersConfig {
 
 export class ConfigService {
 	private readonly serverPort: number;
+	private readonly websocketServerPort: number;
 	private readonly comModule: string;
 	private readonly runningInDocker: boolean;
 	private readonly dockerizedBrowsersConfig: DockerizedBrowsersConfig;
@@ -23,6 +24,7 @@ export class ConfigService {
 
 	constructor() {
 		this.serverPort = this.parseServerPort();
+		this.websocketServerPort = this.parseWebsocketServerPort();
 		this.comModule = this.parseComModule();
 		this.runningInDocker = this.parseRunningInDocker();
 		this.dockerizedBrowsersConfig = this.parseDockerizedBrowsersConfig();
@@ -60,6 +62,22 @@ export class ConfigService {
 		if (Number.isNaN(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
 			throw new Error(
 				`Invalid SERVER_PORT: "${port}". Must be a number between 1 and 65535.`,
+			);
+		}
+
+		return parsedPort;
+	}
+
+	private parseWebsocketServerPort(): number {
+		const port = process.env.WEBSOCKET_SERVER_PORT;
+		if (!port) {
+			return 5001; // Default WebSocket server port
+		}
+
+		const parsedPort = Number(port);
+		if (Number.isNaN(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
+			throw new Error(
+				`Invalid WEBSOCKET_SERVER_PORT: "${port}". Must be a number between 1 and 65535.`,
 			);
 		}
 
@@ -174,6 +192,10 @@ export class ConfigService {
 
 	public getServerPort(): number {
 		return this.serverPort;
+	}
+
+	public getWebsocketServerPort(): number {
+		return this.websocketServerPort;
 	}
 
 	public getComModule(): string {

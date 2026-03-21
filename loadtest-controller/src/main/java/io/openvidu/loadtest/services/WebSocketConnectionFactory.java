@@ -60,7 +60,7 @@ public class WebSocketConnectionFactory {
     private WebSocketClient retryOnError(Exception e, String endpointURI) {
         log.error(e.getMessage());
         log.info("Retrying ...");
-        sleeper.sleep(RETRY_TIME_S, "error con websocket connection, retrying");
+        sleeper.sleep(RETRY_TIME_S, "error on websocket connection, retrying");
         if (attempts.getAndIncrement() < MAX_ATTEMPT) {
             return createConnection(endpointURI);
         } else {

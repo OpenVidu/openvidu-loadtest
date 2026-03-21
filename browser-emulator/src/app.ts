@@ -118,7 +118,7 @@ export async function startServer() {
 	});
 
 	const wsService = container.resolve('wsService');
-	wsService.initializeServer(server);
+	wsService.initializeServer();
 	return { app, server };
 }
 
