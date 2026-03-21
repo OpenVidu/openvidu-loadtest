@@ -91,7 +91,7 @@ class LoadTestServiceTests {
             this.capturedResultReport = resultReport;
             return null;
         }).when(this.dataIO).exportResults(any());
-
+        when(this.webSocketConnectionFactory.createConnection(anyString())).thenReturn(mock(WebSocketClient.class));
     }
 
     private Instance generateRandomInstance() {
