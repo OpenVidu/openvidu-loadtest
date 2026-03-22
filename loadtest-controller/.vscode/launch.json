@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Debug Load Test Controller",
+            "request": "launch",
+            "mainClass": "com.example.loadtestcontroller.LoadtestControllerApplication",
+            "projectName": "loadtest-controller",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+        },
+        {
+            "type": "java",
+            "name": "Remote Debug Load Test Controller (attach)",
+            "request": "attach",
+            "hostName": "localhost",
+            "port": 8081
+        }
+    ]
+}
