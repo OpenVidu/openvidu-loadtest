@@ -74,9 +74,10 @@ export class LocalFilesRepository {
 			}
 		}
 
+		// Check if file exists remotely and locally, and if the SHA-256 matches before downloading
+		const remoteSha256 = await this.getRemoteSha256Header(fileUrl);
 		const fileExistsLocally = await this.fileExists(filePath);
 		if (fileExistsLocally) {
-			const remoteSha256 = await this.getRemoteSha256Header(fileUrl);
 			if (remoteSha256) {
 				const localSha256 = await this.calculateFileSha256(filePath);
 				if (localSha256.toLowerCase() === remoteSha256.toLowerCase()) {
