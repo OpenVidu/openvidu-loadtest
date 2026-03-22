@@ -13,7 +13,8 @@ services:
     networks:
       - browseremulator
     depends_on:
-      - browser-emulator
+      browser-emulator:
+        condition: service_healthy
     volumes:
       - ./config:/config
       - ./results:/results

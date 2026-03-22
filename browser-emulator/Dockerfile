@@ -12,11 +12,13 @@ COPY src ./src
 
 RUN pnpm run build
 
+RUN pnpm prune --prod
+
 FROM node:24-trixie-slim AS runtime
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y procps xvfb x11vnc ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y procps xvfb x11vnc ffmpeg curl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV SERVER_PORT=5000
@@ -34,5 +36,8 @@ COPY index-mappings.json ./index-mappings.json
 RUN mkdir -p recordings/chrome recordings/qoe stats logs mediafiles
 
 EXPOSE 5000 5001
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=30s \
+    CMD sh -c 'curl -f -k --max-time 4 -X GET https://localhost:5000/instance/ping || curl -f --max-time 4 -X GET http://localhost:5000/instance/ping || exit 1'
 
 CMD ["node", "dist/server.js"]
