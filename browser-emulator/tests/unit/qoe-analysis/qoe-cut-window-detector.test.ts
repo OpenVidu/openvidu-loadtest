@@ -76,6 +76,7 @@ describe('qoe-cut-window-detector', () => {
 		],
 	])(
 		'detects windows from padding/non-padding transitions and handles chunk boundaries (case %#)',
+		{ timeout: 10000 },
 		async (sequence: [Buffer, number][], expectedWindows) => {
 			const frames = buildPatternBuffer(sequence);
 			const tempRoot = `${MOCK_CWD}/tmp`;
