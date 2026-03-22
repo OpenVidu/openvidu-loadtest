@@ -5,7 +5,9 @@ import {
 
 export async function startElasticSearchTestContainer(): Promise<StartedElasticsearchContainer> {
 	console.log('Starting ElasticSearch container...');
-	const container = await new ElasticsearchContainer('elasticsearch:9.3.1')
+	const container = await new ElasticsearchContainer(
+		'docker.elastic.co/elasticsearch/elasticsearch:9.3.2',
+	)
 		.withEnvironment({
 			'discovery.type': 'single-node',
 			'xpack.security.enabled': 'false',
