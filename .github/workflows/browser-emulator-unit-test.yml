@@ -1,0 +1,36 @@
+name: Browser Emulator Unit Test
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  unit-test:
+    runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install project dependencies
+        run: |
+          cd browser-emulator
+          pnpm install
+
+      - name: Run tests
+        run: |
+          cd browser-emulator
+          pnpm run test:unit
+
+      - name: Clean up
+        if: always()
+        uses: OpenVidu/actions/cleanup@main

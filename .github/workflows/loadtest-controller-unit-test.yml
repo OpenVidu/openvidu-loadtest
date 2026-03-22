@@ -1,0 +1,27 @@
+name: Loadtest Controller Unit Test
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+    unit-test:
+        runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+        steps:
+            - name: Setup JDK
+              uses: actions/setup-java@v5
+              with:
+                distribution: 'temurin'
+                java-version: '21'
+
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Build and test
+              run: |
+                cd loadtest-controller
+                mvn clean test
+
+            - name: Clean up
+              if: always()
+              uses: OpenVidu/actions/cleanup@main
