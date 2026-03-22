@@ -1,25 +1,103 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
-import { LocalFilesService } from '../../src/services/files/local-files.service.ts';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { Readable } from 'node:stream';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { removeAllFilesFromDir } from '../utils/files.ts';
+
+function createFakeDownloadStream(fakeContent = 'FAKE_FILE_DATA') {
+	const stream = new Readable();
+	stream.push(fakeContent);
+	stream.push(null); // end
+	return stream;
+}
+
+function createMockResponseForGet(fakeContent = 'FAKE_FILE_DATA') {
+	return {
+		statusCode: 200,
+		statusMessage: 'OK',
+		headers: {},
+		pipe: (destination: NodeJS.WritableStream) => {
+			createFakeDownloadStream(fakeContent).pipe(destination);
+			return destination;
+		},
+	};
+}
+
+function createMockResponseForHead() {
+	return {
+		statusCode: 200,
+		statusMessage: 'OK',
+		headers: {},
+	};
+}
+
+function createMockRequestObject(callback: (response: unknown) => void) {
+	return {
+		on: vi.fn().mockReturnThis(),
+		end: vi.fn(() => {
+			callback(createMockResponseForHead());
+		}),
+	};
+}
+
+vi.mock('node:http', async importOriginal => {
+	const actual = await importOriginal<typeof import('node:http')>();
+	const mockedModule = {
+		...actual,
+		request: vi.fn(
+			(_url, _options, callback: (response: unknown) => void) => {
+				return createMockRequestObject(callback);
+			},
+		),
+		get: vi.fn((_url, callback: (response: unknown) => void) => {
+			callback(createMockResponseForGet());
+			return { on: vi.fn().mockReturnThis() };
+		}),
+	};
+	return {
+		...mockedModule,
+		default: mockedModule,
+	};
+});
+
+vi.mock('node:https', async importOriginal => {
+	const actual = await importOriginal<typeof import('node:https')>();
+	const mockedModule = {
+		...actual,
+		request: vi.fn(
+			(_url, _options, callback: (response: unknown) => void) => {
+				return createMockRequestObject(callback);
+			},
+		),
+		get: vi.fn((_url, callback: (response: unknown) => void) => {
+			callback(createMockResponseForGet());
+			return { on: vi.fn().mockReturnThis() };
+		}),
+	};
+	return {
+		...mockedModule,
+		default: mockedModule,
+	};
+});
+
+import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
+import { LocalFilesService } from '../../src/services/files/local-files.service.ts';
 import { BrowserVideo } from '../../src/types/initialize.type.ts';
 
 const VIDEO_PRESETS: BrowserVideo[] = [
 	{
 		videoType: 'bunny',
 		videoInfo: {
-			width: 1280,
-			height: 720,
+			width: 640,
+			height: 480,
 			fps: 30,
 		},
 	},
 	{
 		videoType: 'bunny',
 		videoInfo: {
-			width: 640,
-			height: 480,
+			width: 1280,
+			height: 720,
 			fps: 30,
 		},
 	},
@@ -115,7 +193,6 @@ describe('Local Files Service + Repository Integration Tests', () => {
 
 	it.each(VIDEO_PRESETS)(
 		'downloads local media files for preset %s',
-		{ timeout: 240000 },
 		async videoPreset => {
 			const downloadedFiles =
 				await fileService.downloadBrowserMediaFiles(videoPreset);
