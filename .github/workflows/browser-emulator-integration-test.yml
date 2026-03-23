@@ -1,4 +1,4 @@
-name: Browser Emulator Unit Test
+name: Browser Emulator Integration Test
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  unit-test:
+  integration-test:
     runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
     steps:
       - name: Setup Node.js
@@ -22,7 +22,6 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
       - name: Install project dependencies
         run: |
           cd browser-emulator
@@ -31,7 +30,7 @@ jobs:
       - name: Run tests
         run: |
           cd browser-emulator
-          pnpm run test:unit
+          pnpm run test:integration
 
       - name: Clean up
         if: always()

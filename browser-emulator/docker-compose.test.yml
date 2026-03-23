@@ -7,13 +7,14 @@ services:
         container_name: browser-emulator-tests
         restart: no
         environment:
+            # TEST_LIVEKIT_URL should be passed as an environment variable when running the tests, using either openvidu local deployment or a compatible deployment
+            TEST_LIVEKIT_URL: ${TEST_LIVEKIT_URL}
             SERVER_PORT: ${SERVER_PORT:-5000}
             WEBSOCKET_PORT: ${WEBSOCKET_PORT:-5001}
             COM_MODULE: ${COM_MODULE:-livekit}
             RUNNING_IN_DOCKER: true
             DOCKER_NETWORK_NAME: browseremulator
             DOCKER_BROWSER_EMULATOR_HOST: browser-emulator-tests
-            DISABLE_HTTPS: true
             MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/mediafiles}
             SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/logs}
         ports:
@@ -28,14 +29,6 @@ services:
             - ./logs:/app/logs
             - ./mediafiles:/app/mediafiles
             - /var/run/docker.sock:/var/run/docker.sock
-    livekit-server:
-        image: livekit/livekit-server:latest
-        container_name: livekit-server
-        restart: unless-stopped
-        environment:
-            LIVEKIT_KEYS: 'devkey: secret'
-        networks:
-            - browseremulator
 networks:
     browseremulator:
         name: browseremulator

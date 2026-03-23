@@ -1,10 +1,6 @@
 export const RUNNING_IN_DOCKER = process.env.RUNNING_IN_DOCKER === 'true';
-let openviduUrl = process.env.TEST_OPENVIDU_URL ?? 'http://localhost:4443';
-let livekitUrl = process.env.TEST_LIVEKIT_URL ?? 'http://localhost:7880';
-if (RUNNING_IN_DOCKER) {
-	openviduUrl = 'https://openvidu-server:4443';
-	livekitUrl = 'http://livekit-server:7880';
-}
+const openviduUrl = process.env.TEST_OPENVIDU_URL ?? 'http://localhost:4443';
+const livekitUrl = process.env.TEST_LIVEKIT_URL ?? 'http://localhost:7880';
 export const OPENVIDU_URL = openviduUrl;
 export const OPENVIDU_SECRET = process.env.TEST_OPENVIDU_SECRET ?? 'MY_SECRET';
 export const LIVEKIT_URL = livekitUrl;
