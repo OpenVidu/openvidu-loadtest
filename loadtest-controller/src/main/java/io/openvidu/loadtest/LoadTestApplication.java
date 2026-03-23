@@ -10,7 +10,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.services.LoadTestService;
+import io.openvidu.loadtest.services.core.LoadTestService;
 import io.openvidu.loadtest.utils.DataIO;
 
 /**
@@ -35,7 +35,7 @@ public class LoadTestApplication {
         SpringApplication.run(LoadTestApplication.class, args);
     }
 
-    public void start() throws Exception {
+    public void start() {
         List<TestCase> testCasesList = io.getTestCasesFromJSON();
         if (!testCasesList.isEmpty()) {
             loadTestService.startLoadTests(testCasesList);
@@ -47,7 +47,7 @@ public class LoadTestApplication {
     }
 
     @EventListener(ApplicationReadyEvent.class)
-    public void whenReady() throws Exception {
+    public void whenReady() {
         this.start();
     }
 

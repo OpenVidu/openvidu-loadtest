@@ -1,14 +1,8 @@
 package io.openvidu.loadtest.services;
 
-import static org.mockito.Mockito.when;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -37,12 +30,7 @@ import io.openvidu.loadtest.models.testcase.Topology;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
-import io.openvidu.loadtest.services.BrowserEmulatorClient;
-import io.openvidu.loadtest.services.Ec2Client;
-import io.openvidu.loadtest.services.LoadTestService;
-import io.openvidu.loadtest.services.Sleeper;
-import io.openvidu.loadtest.services.WebSocketClient;
-import io.openvidu.loadtest.services.WebSocketConnectionFactory;
+import io.openvidu.loadtest.services.core.LoadTestService;
 import io.openvidu.loadtest.utils.DataIO;
 
 class LoadTestServiceTests {
@@ -168,7 +156,7 @@ class LoadTestServiceTests {
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).toList();
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
@@ -197,8 +185,10 @@ class LoadTestServiceTests {
 
         verify(this.sleeper, times(2)).sleep(eq(5), anyString());
 
-        // TODO: Check result report
+        // Check result report
         verify(this.dataIO, times(1)).exportResults(any());
+        assertNotNull(this.capturedResultReport);
+        assertEquals("Any reason", this.capturedResultReport.getStopReason());
     }
 
     @Test
@@ -262,7 +252,7 @@ class LoadTestServiceTests {
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).toList();
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
@@ -296,8 +286,10 @@ class LoadTestServiceTests {
 
         verify(this.sleeper, times(3)).sleep(eq(5), anyString());
 
-        // TODO: Check result report
+        // Check result report
         verify(this.dataIO, times(1)).exportResults(any());
+        assertNotNull(this.capturedResultReport);
+        assertEquals("Any reason", this.capturedResultReport.getStopReason());
     }
 
     @Test
@@ -327,7 +319,7 @@ class LoadTestServiceTests {
         }
 
         List<Instance> allInstances = Stream.concat(instances.stream(), rampUpInstances.stream())
-                .collect(Collectors.toList());
+                .toList();
 
         when(this.ec2Client.launchAndCleanInitialInstances()).thenReturn(instances);
         when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
@@ -378,7 +370,7 @@ class LoadTestServiceTests {
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = allInstances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = allInstances.stream().map(Instance::publicDnsName).toList();
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : allInstances) {
             String instanceUrl = instance.publicDnsName();
@@ -410,8 +402,10 @@ class LoadTestServiceTests {
         verify(this.browserEmulatorClient, times(1)).disconnectAll(instanceUrls);
         verify(this.ec2Client, times(1)).stopInstance(allInstances);
 
-        // TODO: Check result report
+        // Check result report
         verify(this.dataIO, times(1)).exportResults(any());
+        assertNotNull(this.capturedResultReport);
+        assertEquals("Any reason", this.capturedResultReport.getStopReason());
     }
 
     @Test
@@ -470,7 +464,7 @@ class LoadTestServiceTests {
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).collect(Collectors.toList());
+        List<String> instanceUrls = instances.stream().map(Instance::publicDnsName).toList();
         verify(this.kibanaClient, times(1)).importDashboards();
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
@@ -496,8 +490,10 @@ class LoadTestServiceTests {
 
         verify(this.sleeper, times(3)).sleep(eq(5), anyString());
 
-        // TODO: Check result report
+        // Check result report
         verify(this.dataIO, times(1)).exportResults(any());
+        assertNotNull(this.capturedResultReport);
+        assertEquals("Any reason", this.capturedResultReport.getStopReason());
     }
 
     @Test
@@ -530,7 +526,7 @@ class LoadTestServiceTests {
         List<TestCase> testCases = List.of(testCase);
         this.loadTestController.startLoadTests(testCases);
         verify(this.dataIO, times(1)).exportResults(any());
-        assertEquals(this.capturedResultReport.getStopReason(), "No more workers available");
+        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
     }
 
     @Test
@@ -560,7 +556,7 @@ class LoadTestServiceTests {
         List<TestCase> testCases = List.of(testCase);
         this.loadTestController.startLoadTests(testCases);
         verify(this.dataIO, times(1)).exportResults(any());
-        assertEquals(this.capturedResultReport.getStopReason(), "No more workers available");
+        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
     }
 
     @Test
@@ -587,7 +583,6 @@ class LoadTestServiceTests {
 
         TestCase testCase = new TestCase("N:N", participants, -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
-        // testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
 
         Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
@@ -647,8 +642,10 @@ class LoadTestServiceTests {
 
         verify(this.sleeper, times(4)).sleep(eq(5), anyString());
 
-        // TODO: Check result report
+        // Check result report
         verify(this.dataIO, times(1)).exportResults(any());
+        assertNotNull(this.capturedResultReport);
+        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
     }
 
     @Test
@@ -675,7 +672,6 @@ class LoadTestServiceTests {
 
         TestCase testCase = new TestCase("N:N", participants, -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
-        // testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
 
         Map<String, WebSocketClient> webSocketMocks = new HashMap<>();
@@ -735,8 +731,11 @@ class LoadTestServiceTests {
 
         verify(this.sleeper, times(5)).sleep(eq(5), anyString());
 
-        // TODO: Check result report
+        // Check result report
         verify(this.dataIO, times(1)).exportResults(any());
+        assertNotNull(this.capturedResultReport);
+        // Successful flows set an empty stopReason in CreateParticipantResponse
+        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
     }
 
     private void createEstimationResponseMock(String instance1Url, TestCase testCase) {
@@ -766,7 +765,6 @@ class LoadTestServiceTests {
             CreateParticipantResponse response = new CreateParticipantResponse(
                     true, "", "connectionId" + i, streamsInWorker, i, "User" + user,
                     "LoadTestSession" + currentSession, 0);
-            // log.info(instanceUrl + ": " + response.toString());
             if (testCase.getTopology().equals(Topology.NxN)) {
                 when(this.browserEmulatorClient.createPublisher(instanceUrl, user, currentSession, testCase))
                         .thenReturn(

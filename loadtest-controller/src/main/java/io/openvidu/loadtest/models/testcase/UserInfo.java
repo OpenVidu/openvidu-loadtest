@@ -17,6 +17,10 @@ public class UserInfo {
         this.sessionId = sessionId;
     }
 
+    public UserInfo(String workerUrl, int userNumber, int sessionNumber, Role role) {
+        this(workerUrl, userNumber, sessionNumber, role, null, null);
+    }
+
     public String getWorkerUrl() {
         return workerUrl;
     }
