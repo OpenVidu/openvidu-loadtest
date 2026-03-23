@@ -765,7 +765,7 @@ class LoadTestServiceTests {
             CreateParticipantResponse response = new CreateParticipantResponse(
                     true, "", "connectionId" + i, streamsInWorker, i, "User" + user,
                     "LoadTestSession" + currentSession, 0);
-            if (testCase.getTopology().equals(Topology.NxN)) {
+            if (testCase.getTopology().equals(Topology.N_X_N)) {
                 when(this.browserEmulatorClient.createPublisher(instanceUrl, user, currentSession, testCase))
                         .thenReturn(
                                 response);

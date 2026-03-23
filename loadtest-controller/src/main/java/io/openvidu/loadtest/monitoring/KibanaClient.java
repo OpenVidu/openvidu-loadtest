@@ -9,7 +9,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -28,28 +27,29 @@ import io.openvidu.loadtest.utils.JsonUtils;
 @Service
 public class KibanaClient {
 
-    private final String API_IMPORT_OBJECTS = "/api/saved_objects/_import?overwrite=true";
-    private final String API_FIND_DASHBOARD = "/api/saved_objects/_find?type=dashboard&search_fields=title&search=";
-    private final String KIBANA_DASHBOARD_URL = "/app/kibana#/dashboard/";
-    private final String LOAD_TEST_DASHBOARD = "Load Test";
+    private static final String API_IMPORT_OBJECTS = "/api/saved_objects/_import?overwrite=true";
+    private static final String API_FIND_DASHBOARD = "/api/saved_objects/_find?type=dashboard&search_fields=title&search=";
+    private static final String KIBANA_DASHBOARD_URL = "/app/kibana#/dashboard/";
+    private static final String LOAD_TEST_DASHBOARD = "Load Test";
 
     private static final int HTTP_STATUS_OK = 200;
 
     private static final Logger log = LoggerFactory.getLogger(KibanaClient.class);
 
-    @Autowired
     private LoadTestConfig loadTestConfig;
-
-    @Autowired
     private CustomHttpClient httpClient;
-
-    @Autowired
     private ResourceLoader resourceLoader;
-
-    @Autowired
     private JsonUtils jsonUtils;
 
     private String kibanaHost;
+
+    public KibanaClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, ResourceLoader resourceLoader,
+            JsonUtils jsonUtils) {
+        this.loadTestConfig = loadTestConfig;
+        this.httpClient = httpClient;
+        this.resourceLoader = resourceLoader;
+        this.jsonUtils = jsonUtils;
+    }
 
     public void importDashboards() {
         if (this.loadTestConfig.isKibanaEstablished()) {
@@ -73,7 +73,7 @@ public class KibanaClient {
 
             final String URL = this.loadTestConfig.getKibanaHost() + API_FIND_DASHBOARD
                     + LOAD_TEST_DASHBOARD.replaceAll("\\s+", "%20");
-            Map<String, String> headers = new HashMap<String, String>();
+            Map<String, String> headers = new HashMap<>();
 
             String esUserName = loadTestConfig.getElasticsearchUserName();
             String esPassword = loadTestConfig.getElasticsearchPassword();
@@ -94,7 +94,13 @@ public class KibanaClient {
                     return this.loadTestConfig.getKibanaHost() + KIBANA_DASHBOARD_URL + dashboardId
                             + "?_g=(time:(from:'" + startTime + "',to:'" + endTime + "'))";
                 }
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted while reaching Kibana REST API GET {}: {}", URL, e.getMessage());
+                e.printStackTrace();
+            } catch (IOException e) {
+                log.error("Error while reaching Kibana REST API GET {}: {}", URL, e.getMessage());
+                e.printStackTrace();
             }
         }
 
@@ -105,7 +111,7 @@ public class KibanaClient {
     private void importSavedObjects(File file) throws IOException {
         final String URL = this.kibanaHost + API_IMPORT_OBJECTS;
         HttpResponse<String> response = null;
-        Map<String, String> headers = new HashMap<String, String>();
+        Map<String, String> headers = new HashMap<>();
 
         // Basic auth header
         String esUserName = loadTestConfig.getElasticsearchUserName();
@@ -121,8 +127,8 @@ public class KibanaClient {
             this.processKibanaResponse(response);
 
         } catch (InterruptedException e) {
-            log.warn("InterruptedException when reaching Kibana REST API with method POST at path {}: {}", URL,
-                    e.getMessage());
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while reaching Kibana REST API POST {}: {}", URL, e.getMessage());
             e.printStackTrace();
         }
     }
@@ -134,7 +140,7 @@ public class KibanaClient {
     private void processKibanaResponse(HttpResponse<String> response) {
         if (response.statusCode() == HTTP_STATUS_OK) {
             log.info("Kibana dashboards successfully imported");
-        } else {
+        } else if (log.isErrorEnabled()) {
             log.error("Kibana response status {}. {}", response.statusCode(), response.body());
         }
     }

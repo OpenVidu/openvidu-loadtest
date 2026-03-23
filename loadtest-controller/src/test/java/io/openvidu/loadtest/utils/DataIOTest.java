@@ -63,7 +63,7 @@ class DataIOTest {
 
         assertEquals(1, cases.size(), "Should load one test case");
         TestCase tc = cases.get(0);
-        assertEquals(Topology.NxN.getValue(), tc.getTopology().getValue());
+        assertEquals(Topology.N_X_N.getValue(), tc.getTopology().getValue());
         assertEquals(2, tc.getParticipants().size());
         assertEquals(30, tc.getFrameRate());
     }

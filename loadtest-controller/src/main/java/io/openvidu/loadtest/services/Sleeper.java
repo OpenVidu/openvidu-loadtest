@@ -14,7 +14,7 @@ public class Sleeper {
                 if (reason != null) {
                     log.info("Waiting {} seconds because of {}", seconds, reason);
                 }
-                Thread.sleep(seconds * 1000);
+                Thread.sleep(seconds * 1000L);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("Sleep interrupted: {}", e.getMessage());

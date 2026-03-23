@@ -23,7 +23,6 @@ import org.elasticsearch.client.RestClient;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,7 +34,6 @@ public class ElasticSearchClient {
 
     private static final Logger log = LoggerFactory.getLogger(ElasticSearchClient.class);
 
-    @Autowired
     private LoadTestConfig loadTestConfig;
 
     private ElasticsearchClient client;
@@ -43,6 +41,10 @@ public class ElasticSearchClient {
     private static DecimalFormat df2 = new DecimalFormat("#.###");
 
     private boolean initialized = false;
+
+    public ElasticSearchClient(LoadTestConfig loadTestConfig) {
+        this.loadTestConfig = loadTestConfig;
+    }
 
     @PostConstruct
     public void init() {

@@ -47,11 +47,11 @@ public class TestCase {
     }
 
     public boolean isNxN() {
-        return this.topology.getValue().equals(Topology.NxN.getValue());
+        return this.topology.getValue().equals(Topology.N_X_N.getValue());
     }
 
     public boolean isNxM() {
-        return this.topology.getValue().equals(Topology.NxM.getValue());
+        return this.topology.getValue().equals(Topology.N_X_M.getValue());
     }
 
     public boolean isTeaching() {

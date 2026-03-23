@@ -2,9 +2,9 @@ package io.openvidu.loadtest.models.testcase;
 
 public enum Topology {
 
-    NxN("N:N", "All participants will be PUBLISHER"),
+    N_X_N("N:N", "All participants will be PUBLISHER"),
 
-    NxM("N:M", "N PUBLISHERS and M SUBSCRIBERS"),
+    N_X_M("N:M", "N PUBLISHERS and M SUBSCRIBERS"),
 
     TEACHING("TEACHING", "TEACHING"),
 
@@ -29,6 +29,7 @@ public enum Topology {
         return this.description;
     }
 
+    @Override
     public String toString() {
         return this.getValue() + ": " + this.description;
     }
