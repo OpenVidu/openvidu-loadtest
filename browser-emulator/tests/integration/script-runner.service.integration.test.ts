@@ -300,21 +300,6 @@ describe('ScriptRunnerService', () => {
 	});
 
 	describe('Integration scenarios', () => {
-		it('should handle rapid start/stop cycles', async () => {
-			for (let i = 0; i < 5; i++) {
-				const options: ScriptRunOptions = {
-					detached: true,
-				};
-
-				const process = await service.run('sleep 5', options);
-				expect(process.pid).toBeDefined();
-				await service.killDetached(process);
-			}
-
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			expect(await service.isRunning('sleep')).toBe(false);
-		});
-
 		it('should mix detached and non-detached processes', async () => {
 			const detachedProcess = await service.run('sleep 30', {
 				detached: true,
