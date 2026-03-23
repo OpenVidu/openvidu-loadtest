@@ -1,0 +1,19 @@
+platform:
+  url: https://openvidu-test.io:7443
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: chrome
+    description: "Basic N:N topology test"
+
+workers:
+  urls: browser-emulator
+
+distribution:
+  manual: true
+  usersPerWorker: 2

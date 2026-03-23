@@ -333,101 +333,14 @@ public abstract class LoadTestConfig {
 
     protected void checkConfigurationProperties() {
         try {
-            openviduUrl = asString("platform.url");
-            openviduUrl = openviduUrl.replaceAll("/$", "");
-            sessionNamePrefix = asOptionalString("session.namePrefix");
-            if (sessionNamePrefix.isEmpty()) {
-                sessionNamePrefix = "LoadTestSession";
-            }
-            userNamePrefix = asOptionalString("session.usersNamePrefix");
-            if (userNamePrefix.isEmpty()) {
-                userNamePrefix = "User";
-            }
-            secondsToWaitBetweenParticipants = asInt("session.secondsBetweenParticipants");
-            secondsToWaitBetweenSession = asInt("session.secondsBetweenSessions");
-            if (secondsToWaitBetweenSession == -1) {
-                secondsToWaitBetweenSession = 0;
-            }
-            secondsToWaitBeforeTestFinished = asInt("session.secondsBeforeTestFinished");
-            if (secondsToWaitBeforeTestFinished == -1) {
-                secondsToWaitBeforeTestFinished = 0;
-            }
-            secondsToWaitBetweenTestCases = asInt("session.secondsBetweenTestCases");
-            if (secondsToWaitBetweenTestCases == -1) {
-                secondsToWaitBetweenTestCases = 0;
-            }
-            Boolean manualAllocation = yamlConfig.getBooleanOrNull("distribution.manual");
-            manualParticipantsAllocation = manualAllocation != null ? manualAllocation : false;
-            usersPerWorker = asInt("distribution.usersPerWorker");
-            if (usersPerWorker == -1) {
-                usersPerWorker = asInt("distribution.sessionsPerWorker");
-            }
-            if (manualParticipantsAllocation && usersPerWorker <= 0) {
-                log.error("distribution.manual is true but distribution.usersPerWorker is not defined");
-                System.exit(1);
-            }
-            elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
-            elasticsearchUserName = asOptionalString("monitoring.elasticsearch.username");
-            elasticsearchPassword = asOptionalString("monitoring.elasticsearch.password");
-            kibanaHost = asOptionalURL("monitoring.kibana.host");
-            workerUrlList = asOptionalStringList("workers.urls");
-            workerAmiId = asOptionalString("aws.amiId");
-            workerInstanceKeyPair = asOptionalString("aws.keyPairName");
-            workerInstanceType = asOptionalString("aws.instanceType");
-            workerSecurityGroupId = asOptionalString("aws.securityGroupId");
-            workerInstanceRegion = asOptionalString("aws.region");
-            workerAvailabilityZone = asOptionalString("aws.availabilityZone");
-            workersNumberAtTheBeginning = asInt("aws.workersAtStart");
-            recordingWorkersNumberAtTheBeginning = asInt("recording.workersAtStart");
-            workerMaxLoad = asInt("distribution.maxLoadPercent");
-            workersRumpUp = asInt("aws.rampUpWorkers");
-            medianodeLoadForStartRecording = asDouble("recording.mediaNodeLoadThreshold");
-            recordingSessionGroup = asInt("recording.sessionsGroupSize");
-            terminateWorkers = asBoolean("terminateWorkers");
-            awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
-            awsAccessKey = asOptionalString("aws.accessKey");
-            s3bucketName = asOptionalString("storage.bucket");
-            Boolean retryEnabled = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
-            retryMode = retryEnabled != null ? retryEnabled : true;
-            retryTimes = asInt("advanced.retry.times");
-            if (retryTimes == -1) {
-                retryTimes = 5;
-            }
-            qoeAnalysisRecordings = asBoolean("qoe.recordStreams");
-            qoeAnalysisInSitu = asBoolean("qoe.analyzeInSitu");
-            paddingDuration = asInt("qoe.paddingDuration");
-            fragmentDuration = asInt("qoe.fragmentDuration");
-            videoType = asOptionalString("video.type");
-            if (videoType.isEmpty()) {
-                videoType = "BUNNY";
-            }
-            videoHeight = asInt("video.height");
-            if (videoHeight == -1) {
-                videoHeight = 480;
-            }
-            videoWidth = asInt("video.width");
-            if (videoWidth == -1) {
-                videoWidth = 640;
-            }
-            videoFps = asInt("video.fps");
-            if (videoFps == -1) {
-                videoFps = 30;
-            }
-            videoUrl = asOptionalString("video.customVideoUrl");
-            audioUrl = asOptionalString("video.customAudioUrl");
-            s3Region = asOptionalString("storage.region");
-            s3Host = asOptionalString("storage.endpoint");
-            s3HostAccessKey = asOptionalString("storage.accessKey");
-            s3HostSecretKey = asOptionalString("storage.secretKey");
-            batchMaxRequests = asInt("advanced.batches.maxConcurrentRequests");
-            if (batchMaxRequests == -1) {
-                batchMaxRequests = Runtime.getRuntime().availableProcessors() + 1;
-            }
-            Boolean batchesEnabled = yamlConfig.getBooleanOrNull("advanced.batches.enabled");
-            batches = batchesEnabled != null ? batchesEnabled : true;
-            Boolean waitCompleteEnabled = yamlConfig.getBooleanOrNull("advanced.waitForCompletion");
-            waitCompletion = waitCompleteEnabled != null ? waitCompleteEnabled : true;
-            disableHttps = asBoolean("workers.disableHttps");
+            initPlatformAndSessionConfig();
+            initDistributionConfig();
+            initMonitoringConfig();
+            initWorkerConfig();
+            initAwsAndRecordingConfig();
+            initRetryAndQoeConfig();
+            initVideoAndStorageConfig();
+            initBatchAndMiscConfig();
             this.printInfo();
 
         } catch (Exception e) {
@@ -435,6 +348,99 @@ public abstract class LoadTestConfig {
             System.exit(1);
         }
 
+    }
+
+    private void initPlatformAndSessionConfig() {
+        openviduUrl = asString("platform.url");
+        openviduUrl = openviduUrl.replaceAll("/$", "");
+        sessionNamePrefix = defaultIfEmpty(asOptionalString("session.namePrefix"), "LoadTestSession");
+        userNamePrefix = defaultIfEmpty(asOptionalString("session.usersNamePrefix"), "User");
+        secondsToWaitBetweenParticipants = asInt("session.secondsBetweenParticipants");
+        secondsToWaitBetweenSession = defaultIfMinusOne(asInt("session.secondsBetweenSessions"), 0);
+        secondsToWaitBeforeTestFinished = defaultIfMinusOne(asInt("session.secondsBeforeTestFinished"), 0);
+        secondsToWaitBetweenTestCases = defaultIfMinusOne(asInt("session.secondsBetweenTestCases"), 0);
+    }
+
+    private void initDistributionConfig() {
+        Boolean manualAllocation = yamlConfig.getBooleanOrNull("distribution.manual");
+        manualParticipantsAllocation = Boolean.TRUE.equals(manualAllocation);
+        usersPerWorker = asInt("distribution.usersPerWorker");
+        usersPerWorker = usersPerWorker == -1 ? asInt("distribution.sessionsPerWorker") : usersPerWorker;
+        if (manualParticipantsAllocation && usersPerWorker <= 0) {
+            log.error("distribution.manual is true but distribution.usersPerWorker is not defined");
+            System.exit(1);
+        }
+    }
+
+    private void initMonitoringConfig() throws URISyntaxException {
+        elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
+        elasticsearchUserName = asOptionalString("monitoring.elasticsearch.username");
+        elasticsearchPassword = asOptionalString("monitoring.elasticsearch.password");
+        kibanaHost = asOptionalURL("monitoring.kibana.host");
+    }
+
+    private void initWorkerConfig() {
+        workerUrlList = asOptionalStringList("workers.urls");
+        workerAmiId = asOptionalString("aws.amiId");
+        workerInstanceKeyPair = asOptionalString("aws.keyPairName");
+        workerInstanceType = asOptionalString("aws.instanceType");
+        workerSecurityGroupId = asOptionalString("aws.securityGroupId");
+        workerInstanceRegion = asOptionalString("aws.region");
+        workerAvailabilityZone = asOptionalString("aws.availabilityZone");
+        workersNumberAtTheBeginning = asInt("aws.workersAtStart");
+        recordingWorkersNumberAtTheBeginning = asInt("recording.workersAtStart");
+        workerMaxLoad = asInt("distribution.maxLoadPercent");
+        workersRumpUp = asInt("aws.rampUpWorkers");
+        disableHttps = asBoolean("workers.disableHttps");
+    }
+
+    private void initAwsAndRecordingConfig() {
+        medianodeLoadForStartRecording = asDouble("recording.mediaNodeLoadThreshold");
+        recordingSessionGroup = asInt("recording.sessionsGroupSize");
+        terminateWorkers = asBoolean("terminateWorkers");
+        awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
+        awsAccessKey = asOptionalString("aws.accessKey");
+        s3bucketName = asOptionalString("storage.bucket");
+    }
+
+    private void initRetryAndQoeConfig() {
+        Boolean retryEnabled = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
+        retryMode = Boolean.TRUE.equals(retryEnabled);
+        retryTimes = defaultIfMinusOne(asInt("advanced.retry.times"), 5);
+        qoeAnalysisRecordings = asBoolean("qoe.recordStreams");
+        qoeAnalysisInSitu = asBoolean("qoe.analyzeInSitu");
+        paddingDuration = asInt("qoe.paddingDuration");
+        fragmentDuration = asInt("qoe.fragmentDuration");
+    }
+
+    private void initVideoAndStorageConfig() {
+        videoType = defaultIfEmpty(asOptionalString("video.type"), "BUNNY");
+        videoHeight = defaultIfMinusOne(asInt("video.height"), 480);
+        videoWidth = defaultIfMinusOne(asInt("video.width"), 640);
+        videoFps = defaultIfMinusOne(asInt("video.fps"), 30);
+        videoUrl = asOptionalString("video.customVideoUrl");
+        audioUrl = asOptionalString("video.customAudioUrl");
+        s3Region = asOptionalString("storage.region");
+        s3Host = asOptionalString("storage.endpoint");
+        s3HostAccessKey = asOptionalString("storage.accessKey");
+        s3HostSecretKey = asOptionalString("storage.secretKey");
+    }
+
+    private void initBatchAndMiscConfig() {
+        batchMaxRequests = asInt("advanced.batches.maxConcurrentRequests");
+        batchMaxRequests = batchMaxRequests == -1 ? Runtime.getRuntime().availableProcessors() + 1 : batchMaxRequests;
+        Boolean batchesEnabled = yamlConfig.getBooleanOrNull("advanced.batches.enabled");
+        batches = Boolean.TRUE.equals(batchesEnabled);
+        Boolean waitCompleteEnabled = yamlConfig.getBooleanOrNull("advanced.waitForCompletion");
+        waitCompletion = Boolean.TRUE.equals(waitCompleteEnabled);
+    }
+
+    private String defaultIfEmpty(String value, String defaultValue) {
+        return value == null || value.isEmpty() ? defaultValue : value;
+    }
+
+    private int defaultIfMinusOne(int value, int defaultValue) {
+        return value == -1 ? defaultValue : value;
     }
 
     private void printInfo() {
@@ -529,7 +535,7 @@ public abstract class LoadTestConfig {
     // Format Checkers (now using YamlConfigLoader)
     // -------------------------------------------------------
 
-    protected String asOptionalURL(String property) throws Exception {
+    protected String asOptionalURL(String property) throws URISyntaxException {
         String url = asOptionalString(property);
         try {
             if ((url != null) && (!url.isEmpty())) {
@@ -537,24 +543,24 @@ public abstract class LoadTestConfig {
                 return url;
             }
             return "";
-        } catch (Exception e) {
+        } catch (URISyntaxException e) {
             e.printStackTrace();
-            throw new Exception(property + " is wrong." + e);
+            throw new URISyntaxException(property, "is wrong. " + e.getMessage());
         }
     }
 
-    protected String asString(String property) throws Exception {
+    protected String asString(String property) throws IllegalArgumentException {
         String value = yamlConfig.getString(property);
         if (value == null || value.isEmpty()) {
-            throw new Exception(property + " is required.");
+            throw new IllegalArgumentException(property + " is required.");
         }
         return value;
     }
 
-    protected List<String> asStringList(String property) throws Exception {
+    protected List<String> asStringList(String property) throws IllegalArgumentException {
         String value = yamlConfig.getString(property);
         if (value == null || value.isEmpty()) {
-            throw new Exception(property + " is required.");
+            throw new IllegalArgumentException(property + " is required.");
         }
         return Arrays.asList(value.split(","));
     }
@@ -583,11 +589,11 @@ public abstract class LoadTestConfig {
         return yamlConfig.getBoolean(property);
     }
 
-    protected void checkUrl(String url) throws Exception {
+    protected void checkUrl(String url) throws URISyntaxException {
         try {
             new URI(url);
         } catch (URISyntaxException e) {
-            throw new Exception("String '" + url + "' has not a valid URL format: " + e.getMessage());
+            throw new URISyntaxException(url, "has not a valid URL format: " + e.getMessage());
         }
     }
 
