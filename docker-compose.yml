@@ -8,7 +8,7 @@ services:
     container_name: loadtest-controller
     restart: no
     environment:
-      LOADTEST_CONFIG: /config/config.yaml
+      LOADTEST_CONFIG: ${LOADTEST_CONFIG:-/config/config.yaml}
       RESULTS_DIR: /results
     networks:
       - browseremulator
