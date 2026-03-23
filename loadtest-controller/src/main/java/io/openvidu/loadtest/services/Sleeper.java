@@ -16,7 +16,8 @@ public class Sleeper {
                 }
                 Thread.sleep(seconds * 1000);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                Thread.currentThread().interrupt();
+                log.warn("Sleep interrupted: {}", e.getMessage());
             }
         }
 
