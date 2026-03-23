@@ -1,0 +1,47 @@
+name: OpenVidu Load Test E2E Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e-test:
+    runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+    steps:
+        
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+  
+      - name: Setup OpenVidu Local Deployment
+        uses: OpenVidu/actions/start-openvidu-local-deployment@35d136377813cf9b0b23d12d16d57864ccf3a8c2 # v1.0.2
+        with:
+          ref-openvidu-local-deployment: main
+
+      - name: Export HTTPS URL from OpenVidu Local Deployment
+        id: openvidu_env
+        shell: bash
+        run: |
+          ENV_FILE="./openvidu-local-deployment/community/.env"
+          LAN_PRIVATE_IP="$(grep -E '^LAN_PRIVATE_IP=' "$ENV_FILE" | head -n1 | cut -d'=' -f2- | tr -d '\r')"
+
+          if [ -z "$LAN_PRIVATE_IP" ]; then
+            echo "LAN_PRIVATE_IP not found in $ENV_FILE" >&2
+            exit 1
+          fi
+
+          echo "ovurl=https://$LAN_PRIVATE_IP.openvidu-local.dev:7443" >> "$GITHUB_OUTPUT"
+        
+      - name: Run Browser Emulator E2E Tests in Docker
+        env:
+          TEST_LIVEKIT_URL: ${{ steps.openvidu_env.outputs.ovurl }}
+        run: |
+          cd browser-emulator
+          docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from browser-emulator-tests          
+
+      - name: Run OpenVidu LoadTest E2E Tests
+        run: |
+          cd e2e-tests/scripts
+          ./run-smoke-test.sh ${{ steps.openvidu_env.outputs.ovurl }}
+      
+      - name: Clean up
+        if: always()
+        uses: OpenVidu/actions/cleanup@35d136377813cf9b0b23d12d16d57864ccf3a8c2 # v1.0.2

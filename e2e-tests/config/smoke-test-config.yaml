@@ -1,0 +1,14 @@
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: chrome
+    description: "Basic N:N topology test"
+
+workers:
+  urls: browser-emulator
+
+distribution:
+  manual: true
+  usersPerWorker: 2
