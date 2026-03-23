@@ -362,7 +362,10 @@ public abstract class LoadTestConfig {
     }
 
     private void initDistributionConfig() {
-        Boolean manualAllocation = yamlConfig.getBooleanOrNull("distribution.manual");
+        // FIXME: Force set manual allocation until we figure out a way to obtain media
+        // node CPU in OV3, when we realise it set manualAllocation to the value in key
+        // "distribution.manual" and set default mode to automatic
+        Boolean manualAllocation = true;
         manualParticipantsAllocation = Boolean.TRUE.equals(manualAllocation);
         usersPerWorker = asInt("distribution.usersPerWorker");
         usersPerWorker = usersPerWorker == -1 ? asInt("distribution.sessionsPerWorker") : usersPerWorker;
@@ -373,9 +376,15 @@ public abstract class LoadTestConfig {
     }
 
     private void initMonitoringConfig() throws URISyntaxException {
-        elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
-        elasticsearchUserName = asOptionalString("monitoring.elasticsearch.username");
-        elasticsearchPassword = asOptionalString("monitoring.elasticsearch.password");
+        // FIXME: See reasons for this is initDistributionConfig() comment
+        // elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
+        // elasticsearchUserName =
+        // asOptionalString("monitoring.elasticsearch.username");
+        // elasticsearchPassword =
+        // asOptionalString("monitoring.elasticsearch.password");
+        elasticsearchHost = "";
+        elasticsearchUserName = "";
+        elasticsearchPassword = "";
         kibanaHost = asOptionalURL("monitoring.kibana.host");
     }
 

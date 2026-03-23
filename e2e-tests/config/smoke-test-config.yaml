@@ -10,5 +10,4 @@ workers:
   urls: browser-emulator
 
 distribution:
-  manual: true
   usersPerWorker: 2

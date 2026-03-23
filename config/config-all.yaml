@@ -61,10 +61,7 @@ aws:
 
 # ---------- Participant Distribution ----------
 distribution:
-  # Set to false for automatic distribution based on CPU load
-  manual: true
   usersPerWorker: 10
-  maxLoadPercent: 70
 
 # ---------- Video ----------
 video:

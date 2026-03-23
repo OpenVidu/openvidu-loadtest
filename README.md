@@ -38,7 +38,6 @@ workers:
   urls: browser-emulator
 
 distribution:
-  manual: true
   usersPerWorker: 2
 ```
 
@@ -62,7 +61,6 @@ distribution:
 
 **distribution**: How participants are distributed across workers
 
-- `manual: true`: Manually assign participants to workers
 - `usersPerWorker: 2`: Each browser-emulator worker handles 2 participants maximum
 
 ### Run the test
@@ -215,11 +213,9 @@ Configuration for where browsers run. Workers can be manually provided and manag
 
 How participants are distributed across workers.
 
-| Property         | Required          | Default | Description                                                                                                                              |
-| ---------------- | ----------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `manual`         | No                | `false` | Use manual distribution. If false, a preliminary test will be run to determine the number of users required to reach the target CPU load |
-| `maxLoadPercent` | No                | `70`    | If `manual: false`, when CPU load exceeds this percentage, new workers will be started                                                   |
-| `usersPerWorker` | If `manual: true` | -       | Max number of users per worker                                                                                                           |
+| Property         | Required          | Default | Description                    |
+| ---------------- | ----------------- | ------- | ------------------------------ |
+| `usersPerWorker` | If `manual: true` | -       | Max number of users per worker |
 
 ### Video
 
@@ -248,14 +244,11 @@ The predefined options available are:
 
 ### Monitoring
 
-Elasticsearch and Kibana integration for metrics visualization. Expects Elastichsearch 9.x and Kibana 9.x.
+Kibana integration for metrics visualization. Expects Elastichsearch 9.x and Kibana 9.x.
 
-| Property                 | Required | Default | Description            |
-| ------------------------ | -------- | ------- | ---------------------- |
-| `elasticsearch.host`     | No       | -       | Elasticsearch URL      |
-| `elasticsearch.username` | No       | -       | Elasticsearch username |
-| `elasticsearch.password` | No       | -       | Elasticsearch password |
-| `kibana.host`            | No       | -       | Kibana URL             |
+| Property      | Required | Default | Description |
+| ------------- | -------- | ------- | ----------- |
+| `kibana.host` | No       | -       | Kibana URL  |
 
 ### Advanced User Management Options
 

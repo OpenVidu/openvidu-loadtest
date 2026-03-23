@@ -36,5 +36,4 @@ aws:
   rampUpWorkers: 5
 
 distribution:
-  manual: false
-  maxLoadPercent: 70
+  usersPerWorker: 4
