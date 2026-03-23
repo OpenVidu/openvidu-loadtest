@@ -2,7 +2,6 @@ package io.openvidu.loadtest.services;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
-import java.net.http.HttpTimeoutException;
 import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,7 +17,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,13 +26,13 @@ import software.amazon.awssdk.services.ec2.model.Instance;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
-import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
+import io.openvidu.loadtest.models.testcase.CreateParticipantErrorContext;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.Role;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.models.testcase.UserInfo;
 import io.openvidu.loadtest.models.testcase.request.InitializeRequestBody;
 import io.openvidu.loadtest.models.testcase.request.QoeAnalysisBody;
-import io.openvidu.loadtest.models.testcase.request.modules.LKCreateUserRequestBody;
 import io.openvidu.loadtest.models.testcase.request.CreateUserRequestBody;
 import io.openvidu.loadtest.models.testcase.request.CreateUserRequestBodyFactory;
 import io.openvidu.loadtest.utils.CustomHttpClient;
@@ -43,14 +41,16 @@ import io.openvidu.loadtest.utils.JsonUtils;
 @Service
 public class BrowserEmulatorClient {
 
+    private static final String CONTENT_TYPE_APPLICATION_JSON = "application/json";
     private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
     private static final int HTTP_STATUS_OK = 200;
     private static final int WORKER_PORT = 5000;
     public static final String LOADTEST_INDEX = "loadtest-webrtc-stats-" + System.currentTimeMillis();
-    private static List<Integer> recordingParticipantCreated = new ArrayList<Integer>();
-    private static Map<String, int[]> publishersAndSubscribersInWorker = new ConcurrentHashMap<String, int[]>();
+    private static Set<Integer> recordingParticipantCreated = new CopyOnWriteArraySet<>();
+    private static Map<String, int[]> publishersAndSubscribersInWorker = new ConcurrentHashMap<>();
 
     private static final int WAIT_S = 1;
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
 
     private LoadTestConfig loadTestConfig;
 
@@ -108,12 +108,19 @@ public class BrowserEmulatorClient {
             if (response.statusCode() != HTTP_STATUS_OK) {
                 log.error("Error doing ping. Retry...");
                 log.info("Ping response status code: {}", response.statusCode());
-                log.info("Ping response body: {}", response.body());
+                if (log.isInfoEnabled()) {
+                    log.info("Ping response body: {}", response.body());
+                }
                 sleeper.sleep(WAIT_S, null);
                 ping(workerUrl);
             } else {
-                log.info("Ping success. Response {}", response.body());
+                if (log.isInfoEnabled()) {
+                    log.info("Ping success. Response {}", response.body());
+                }
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Ping interrupted: {}", e.getMessage());
         } catch (Exception e) {
             log.error(e.getMessage());
             log.error("Error doing ping. Retry...");
@@ -128,7 +135,11 @@ public class BrowserEmulatorClient {
             return this.httpClient.sendPost(
                     this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
                     null, getHeaders());
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error(e.getMessage());
+            return null;
+        } catch (IOException e) {
             log.error(e.getMessage());
             sleeper.sleep(WAIT_S, "Error initializing worker " + workerUrl);
             if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
@@ -161,17 +172,10 @@ public class BrowserEmulatorClient {
             }
             sleeper.sleep(WAIT_S, null);
         }
-        ConcurrentHashMap<String, AtomicInteger> failures = this.clientFailures.get(workerUrl);
-        if (failures == null) {
-            failures = new ConcurrentHashMap<>();
-            this.clientFailures.put(workerUrl, failures);
-        }
+        ConcurrentHashMap<String, AtomicInteger> failures = this.clientFailures.computeIfAbsent(workerUrl,
+                key -> new ConcurrentHashMap<>());
         String user = participant + "-" + session;
-        AtomicInteger currentFailures = failures.get(user);
-        if (currentFailures == null) {
-            currentFailures = new AtomicInteger(0);
-            failures.put(user, currentFailures);
-        }
+        AtomicInteger currentFailures = failures.computeIfAbsent(user, key -> new AtomicInteger(0));
         int newFailures = currentFailures.incrementAndGet();
         log.error("Participant {} in session {} failed {} times", participant, session, newFailures);
         log.debug("Retry mode: {}", this.loadTestConfig.isRetryMode());
@@ -194,29 +198,26 @@ public class BrowserEmulatorClient {
 
     private void reconnect(String workerUrl, String participant, String session) {
         this.participantReconnecting.add(participant + "-" + session);
-        ExecutorService executorService = Executors.newFixedThreadPool(1);
-        Callable<HttpResponse<String>> callableTask = () -> {
-            return this.disconnectUser(workerUrl, participant, session);
-        };
-        try {
+        try (ExecutorService executorService = Executors.newFixedThreadPool(1)) {
+            Callable<HttpResponse<String>> callableTask = () -> this.disconnectUser(workerUrl, participant, session);
             Future<HttpResponse<String>> future = executorService.submit(callableTask);
             HttpResponse<String> response = future.get();
-            executorService.shutdown();
             if ((response == null) || (response.statusCode() != HTTP_STATUS_OK)) {
-                if (response != null) {
-                    log.error(Integer.toString(response.statusCode()));
-                    log.error(response.body());
+                if (log.isErrorEnabled() && response != null) {
+                    int statusCode = response.statusCode();
+                    log.error("{}", statusCode);
+                    log.error("{}", response.body());
                 }
-                throw new Exception("Error deleting participant " + participant + " from worker " + workerUrl);
+                throw new IllegalStateException(
+                        "Error deleting participant " + participant + " from worker " + workerUrl);
             }
             afterDisconnect(workerUrl, participant, session);
         } catch (InterruptedException ie) {
-            ie.printStackTrace();
+            Thread.currentThread().interrupt();
+            log.error("Reconnect interrupted: {}", ie.getMessage());
         } catch (ExecutionException ee) {
             ee.printStackTrace();
             log.error(ee.getCause().getMessage());
-        } catch (HttpTimeoutException te) {
-            log.error(te.getMessage());
         } catch (Exception e) {
             log.error(e.getMessage());
         }
@@ -255,8 +256,8 @@ public class BrowserEmulatorClient {
     private HttpResponse<String> disconnectUser(String workerUrl, String participant, String session) {
         try {
             log.info("Deleting participant {} from worker {}", participant, workerUrl);
-            Map<String, String> headers = new HashMap<String, String>();
-            headers.put("Content-Type", "application/json");
+            Map<String, String> headers = new HashMap<>();
+            headers.put(CONTENT_TYPE_HEADER, CONTENT_TYPE_APPLICATION_JSON);
             HttpResponse<String> response = this.httpClient.sendDelete(
                     this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session/"
                             + session
@@ -268,19 +269,19 @@ public class BrowserEmulatorClient {
             log.error("Connection refused (ConnectException)");
             e.printStackTrace();
             return null;
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.error(e.getMessage());
-            e.printStackTrace();
+            return null;
+        } catch (IOException e) {
+            log.error(e.getMessage());
             return null;
         }
     }
 
     private void addClient(String workerUrl, int userNumber, int sessionNumber, Role role, TestCase testCase) {
-        ConcurrentHashMap<String, Role> roles = this.clientRoles.get(workerUrl);
-        if (roles == null) {
-            roles = new ConcurrentHashMap<>();
-            this.clientRoles.put(workerUrl, roles);
-        }
+        ConcurrentHashMap<String, Role> roles = this.clientRoles.computeIfAbsent(workerUrl,
+                key -> new ConcurrentHashMap<>());
         String participant = this.loadTestConfig.getUserNamePrefix() + userNumber;
         String session = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
         String user = participant + "-" + session;
@@ -330,31 +331,29 @@ public class BrowserEmulatorClient {
     }
 
     public void disconnectAll(List<String> workerUrlList) {
-        ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size());
-        List<Callable<String>> callableTasks = new ArrayList<>();
-
-        for (String workerUrl : workerUrlList) {
-
-            Callable<String> callableTask = () -> {
-                return this.disconnect(workerUrl);
-            };
-            callableTasks.add(callableTask);
-        }
-        try {
-            // TODO: Refactoring callable task in an external class
+        try (ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size())) {
+            List<Callable<String>> callableTasks = new ArrayList<>();
+            for (String workerUrl : workerUrlList) {
+                Callable<String> callableTask = () -> this.disconnect(workerUrl);
+                callableTasks.add(callableTask);
+            }
             List<Future<String>> futures = executorService.invokeAll(callableTasks);
-            futures.forEach((future) -> {
-                try {
-                    log.info(future.get());
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
-            });
-            executorService.shutdown();
-            recordingParticipantCreated = new ArrayList<>();
+            for (Future<String> future : futures) {
+                getFuture(future);
+            }
+            recordingParticipantCreated.clear();
             log.info("Participants disconnected");
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Thread.currentThread().interrupt();
+            log.error("Disconnect all interrupted: {}", e.getMessage());
+        }
+    }
+
+    private void getFuture(Future<String> future) throws InterruptedException {
+        try {
+            log.info(future.get());
+        } catch (ExecutionException ee) {
+            log.error("Error getting future result", ee);
         }
     }
 
@@ -365,21 +364,25 @@ public class BrowserEmulatorClient {
     public String disconnect(String workerUrl) {
         try {
             log.info("Deleting all participants from worker {}", workerUrl);
-            Map<String, String> headers = new HashMap<String, String>();
-            headers.put("Content-Type", "application/json");
+            Map<String, String> headers = new HashMap<>();
+            headers.put(CONTENT_TYPE_HEADER, CONTENT_TYPE_APPLICATION_JSON);
             HttpResponse<String> response = this.httpClient.sendDelete(
                     this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager",
                     headers);
             log.info("Participants in worker {} deleted", workerUrl);
             return response.body();
-        } catch (Exception e) {
-            return e.getMessage();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error(e.getMessage());
+            return null;
+        } catch (IOException e) {
+            log.error(e.getMessage());
+            return null;
         }
     }
 
     private CreateParticipantResponse createParticipant(String workerUrl, int userNumber, int sessionNumber,
-            TestCase testCase,
-            Role role) {
+            TestCase testCase, Role role) {
         // Get current failures if registered
         String userId = this.loadTestConfig.getUserNamePrefix() + userNumber;
         String sessionId = this.loadTestConfig.getSessionNamePrefix() + sessionNumber;
@@ -394,36 +397,27 @@ public class BrowserEmulatorClient {
         try {
             log.info("Selected worker: {}", workerUrl);
             log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
-            log.debug(body.toJson().toString());
             HttpResponse<String> response = this.httpClient.sendPost(
                     this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager",
                     body.toJson(), null,
                     getHeaders());
-            log.debug("Response received: {}", response.body());
+            if (log.isDebugEnabled()) {
+                log.debug(body.toJson().toString());
+                log.debug("Response received: {}", response.body());
+            }
             if (isClean.get()) {
                 // The test has finished
                 return cpr.setResponseOk(false);
             }
             if (response.statusCode() != HTTP_STATUS_OK) {
-                log.warn("Error: " + response.body());
-
-                ConcurrentHashMap<String, AtomicInteger> failuresMap = this.clientFailures.get(workerUrl);
-                int failures;
-                if (failuresMap != null) {
-                    AtomicInteger userFailures = failuresMap.get(user);
-                    if (userFailures != null) {
-                        failures = userFailures.incrementAndGet();
-                    } else {
-                        failures = 1;
-                        userFailures = new AtomicInteger(failures);
-                        failuresMap.put(user, userFailures);
-                    }
-                } else {
-                    failures = 1;
-                    failuresMap = new ConcurrentHashMap<>();
-                    failuresMap.put(user, new AtomicInteger(failures));
-                    this.clientFailures.put(workerUrl, failuresMap);
+                if (log.isWarnEnabled()) {
+                    log.warn("Error: {}", response.body());
                 }
+
+                ConcurrentHashMap<String, AtomicInteger> failuresMap = this.clientFailures.computeIfAbsent(workerUrl,
+                        key -> new ConcurrentHashMap<>());
+                AtomicInteger userFailures = failuresMap.computeIfAbsent(user, key -> new AtomicInteger(0));
+                int failures = userFailures.incrementAndGet();
                 log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
                 sleeper.sleep(WAIT_S, null);
                 if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures) || endOfTest.get()) {
@@ -437,24 +431,33 @@ public class BrowserEmulatorClient {
             }
             return processResponse(response);
         } catch (Exception e) {
-            // lastResponses.add("Failure");
-            if (e.getMessage() != null && e.getMessage().contains("timed out")) {
-                this.addClientFailure(workerUrl, userId, sessionId, false, false);
-                sleeper.sleep(WAIT_S, "Timeout error. Retrying...");
-                return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
-            } else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("refused")) {
-                log.error("Error trying connect with worker on {}: {}", workerUrl, e.getMessage());
-                this.addClientFailure(workerUrl, userId, sessionId, false, false);
-                sleeper.sleep(WAIT_S, "Connection refused. Retrying...");
-                return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
-            } else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
-                log.error(workerUrl + ": " + e.getMessage());
-                return cpr.setResponseOk(true);
-            }
-            e.printStackTrace();
-            return cpr.setResponseOk(false);
+            CreateParticipantErrorContext ctx = new CreateParticipantErrorContext(
+                    new UserInfo(workerUrl, userNumber, sessionNumber, role, userId, sessionId), testCase, cpr);
+            return this.handleCreateParticipantErrors(ctx, e);
         }
 
+    }
+
+    private CreateParticipantResponse handleCreateParticipantErrors(CreateParticipantErrorContext ctx, Exception e) {
+        if (e.getMessage() != null && e.getMessage().contains("timed out")) {
+            this.addClientFailure(ctx.getUserInfo().getWorkerUrl(), ctx.getUserInfo().getUserId(),
+                    ctx.getUserInfo().getSessionId(), false, false);
+            sleeper.sleep(WAIT_S, "Timeout error. Retrying...");
+            return this.createParticipant(ctx.getUserInfo().getWorkerUrl(), ctx.getUserInfo().getUserNumber(),
+                    ctx.getUserInfo().getSessionNumber(), ctx.getTestCase(), ctx.getUserInfo().getRole());
+        } else if (e.getMessage() != null && e.getMessage().equalsIgnoreCase("refused")) {
+            log.error("Error trying connect with worker on {}: {}", ctx.getUserInfo().getWorkerUrl(), e.getMessage());
+            this.addClientFailure(ctx.getUserInfo().getWorkerUrl(), ctx.getUserInfo().getUserId(),
+                    ctx.getUserInfo().getSessionId(), false, false);
+            sleeper.sleep(WAIT_S, "Connection refused. Retrying...");
+            return this.createParticipant(ctx.getUserInfo().getWorkerUrl(), ctx.getUserInfo().getUserNumber(),
+                    ctx.getUserInfo().getSessionNumber(), ctx.getTestCase(), ctx.getUserInfo().getRole());
+        } else if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
+            log.error("{}: {}", ctx.getUserInfo().getWorkerUrl(), e.getMessage());
+            return ctx.getCpr().setResponseOk(true);
+        }
+        e.printStackTrace();
+        return ctx.getCpr().setResponseOk(false);
     }
 
     private void saveParticipantData(String workerUrl, Role role) {
@@ -500,8 +503,14 @@ public class BrowserEmulatorClient {
                     .setWorkerCpuPct(workerCpuPct).setStreamsInWorker(streamsInWorker)
                     .setParticipantsInWorker(participantsInWorker);
         }
-        log.error("Error. Http Status Response {} ", response.statusCode());
-        log.error("Response message {} ", response.body());
+        if (response == null) {
+            log.error("Error. Response is null");
+            return cpr.setResponseOk(false).setStopReason("No response from worker");
+        }
+        if (log.isErrorEnabled()) {
+            log.error("Error. Http Status Response {} ", response.statusCode());
+            log.error("Response message {} ", response.body());
+        }
         String stopReason = response.body().substring(0, 100);
         return cpr.setResponseOk(false).setStopReason(stopReason);
     }
@@ -512,7 +521,6 @@ public class BrowserEmulatorClient {
 
     private CreateUserRequestBody generateRequestBody(int userNumber, String sessionNumber, Role role,
             TestCase testCase) {
-        // TODO: make more generic
         boolean video = (testCase.isTeaching() && role.equals(Role.PUBLISHER)) || !testCase.isTeaching();
         Role actualRole = testCase.isTeaching() ? Role.PUBLISHER : role;
         boolean audio = true;
@@ -524,8 +532,8 @@ public class BrowserEmulatorClient {
     }
 
     private Map<String, String> getHeaders() {
-        Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Content-Type", "application/json");
+        Map<String, String> headers = new HashMap<>();
+        headers.put(CONTENT_TYPE_HEADER, CONTENT_TYPE_APPLICATION_JSON);
         return headers;
     }
 
@@ -539,10 +547,9 @@ public class BrowserEmulatorClient {
     }
 
     public void calculateQoe(List<Instance> workersList) {
-        ExecutorService executorService = Executors.newFixedThreadPool(workersList.size());
-        List<String> workerUrlsList = workersList.stream().map(Instance::publicDnsName).collect(Collectors.toList());
-        List<Callable<String>> callableTasks = new ArrayList<>();
-        try {
+        try (ExecutorService executorService = Executors.newFixedThreadPool(workersList.size())) {
+            List<String> workerUrlsList = workersList.stream().map(Instance::publicDnsName).toList();
+            List<Callable<String>> callableTasks = new ArrayList<>();
             for (String workerUrl : workerUrlsList) {
                 Callable<String> callable = new Callable<String>() {
                     @Override
@@ -581,7 +588,7 @@ public class BrowserEmulatorClient {
                     };
                     statusCallableTasks.add(callable);
                 }
-                List<Future<String>> statusFutures = executorService.invokeAll(callableTasks);
+                List<Future<String>> statusFutures = executorService.invokeAll(statusCallableTasks);
                 List<Integer> currentRemainingFilesList = new ArrayList<>(statusFutures.size());
                 for (Future<String> future : statusFutures) {
                     String response = future.get();
@@ -598,6 +605,9 @@ public class BrowserEmulatorClient {
                 }
             }
             log.info("Finished QoE Analysis, results can be found in the S3 Bucket");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("QoE calculation interrupted: {}", e.getMessage());
         } catch (Exception e) {
             log.error(e.getMessage());
         }
