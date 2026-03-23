@@ -1,12 +1,8 @@
 package io.openvidu.loadtest.utils;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,10 +10,9 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -29,7 +24,7 @@ import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
 
-@Service
+@Component
 public class DataIO {
 
     private static final Logger log = LoggerFactory.getLogger(DataIO.class);
@@ -38,14 +33,13 @@ public class DataIO {
     private static final String REPORT_FILE_RESULT = "results.txt";
 
     private final Environment environment;
+    private final ResultExporter resultExporter;
 
-    @Autowired
-    public DataIO(Environment environment) {
+    // Constructor for tests or explicit wiring
+    public DataIO(Environment environment, ResultExporter resultExporter) {
         this.environment = environment;
+        this.resultExporter = resultExporter;
     }
-
-    @Autowired
-    private JsonUtils jsonUtils;
 
     @SuppressWarnings("unchecked")
     public List<TestCase> getTestCasesFromJSON() {
@@ -90,135 +84,145 @@ public class DataIO {
     }
 
     public void exportResults(ResultReport result) {
-        String resultsDir = System.getenv("RESULTS_DIR");
-        String resultPath = null;
         try {
-            if (resultsDir != null && !resultsDir.isBlank()) {
-                File dir = new File(resultsDir);
-                if (!dir.exists()) {
-                    dir.mkdirs();
-                }
-                resultPath = new File(dir, REPORT_FILE_RESULT).getAbsolutePath();
-            } else {
-                resultPath = new FileSystemResource(REPORT_FILE_RESULT).getFile().getAbsolutePath();
-            }
-
-            FileWriter fw = new FileWriter(resultPath, true);
-            BufferedWriter bw = new BufferedWriter(fw);
-            bw.write(result.toString());
-            bw.newLine();
-            bw.newLine();
-            bw.close();
-            log.info("Saved result in " + resultPath);
+            this.resultExporter.export(result, REPORT_FILE_RESULT);
         } catch (IOException e) {
-            e.printStackTrace();
-            log.error("Could not save results to {}", resultPath);
+            log.error("Could not save results to file", e);
         }
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Protected factory method to create a FileSystemResource. Overridable in
+     * tests.
+     */
+    protected FileSystemResource createFileSystemResource(String resource) {
+        return new FileSystemResource(resource);
+    }
+
     private List<TestCase> convertMapListToTestCasesList(List<Map<String, Object>> testCasesList) {
         List<TestCase> testCaseList = new ArrayList<>();
-
         for (Map<String, Object> element : testCasesList) {
-            boolean headlessBrowser = false;
-            boolean browserRecording = false;
-            boolean showBrowserVideoElements = true;
-            String openviduRecordingModeStr = "";
-            int frameRate = 30;
-            Resolution resolution = Resolution.MEDIUM;
-            List<String> participants = new ArrayList<>();
-            int sessions = 0;
-            OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
-            Browser browser = Browser.CHROME;
+            testCaseList.add(parseTestCase(element));
+        }
+        return testCaseList;
+    }
 
-            Object topologyObj = element.get("topology");
-            if (topologyObj == null) {
-                topologyObj = element.get("typology");
-            }
-            String topology = topologyObj != null ? topologyObj.toString() : "";
+    private TestCase parseTestCase(Map<String, Object> element) {
+        String topology = parseTopology(element);
 
-            int startingParticipants = 0;
-
-            if (!topology.equalsIgnoreCase(Topology.TERMINATE.getValue())) {
-                Object sessionsObj = element.get("sessions");
-                String sessionsStr = sessionsObj != null ? sessionsObj.toString() : "1";
-
-                Object participantsObj = element.get("participants");
-                if (participantsObj instanceof List) {
-                    participants = new ArrayList<>();
-                    for (Object p : (List<?>) participantsObj) {
-                        participants.add(p.toString());
-                    }
-                }
-
-                Object frameRateObj = element.get("frameRate");
-                if (frameRateObj != null) {
-                    frameRate = parseInt(frameRateObj.toString());
-                }
-
-                Object resolutionObj = element.get("resolution");
-                if (resolutionObj != null) {
-                    String resStr = resolutionObj.toString();
-                    if (resStr.equalsIgnoreCase(Resolution.HIGH.getValue()) || resStr.equals("1280x720")) {
-                        resolution = Resolution.HIGH;
-                    } else if (resStr.equalsIgnoreCase("1920x1080") || resStr.equalsIgnoreCase(Resolution.FULLHIGH.getValue())) {
-                        resolution = Resolution.FULLHIGH;
-                    } else {
-                        resolution = Resolution.MEDIUM;
-                    }
-                }
-
-                Object openviduRecordingModeObj = element.get("openviduRecordingMode");
-                if (openviduRecordingModeObj != null) {
-                    openviduRecordingModeStr = openviduRecordingModeObj.toString();
-                }
-
-                Object startingParticipantsObj = element.get("startingParticipants");
-                if (startingParticipantsObj != null) {
-                    startingParticipants = parseInt(startingParticipantsObj.toString());
-                }
-
-                if (!openviduRecordingModeStr.isBlank()) {
-                    if (openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.COMPOSED.getValue())) {
-                        openviduRecordingMode = OpenViduRecordingMode.COMPOSED;
-                    } else if (openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.INDIVIDUAL.getValue())) {
-                        openviduRecordingMode = OpenViduRecordingMode.INDIVIDUAL;
-                    }
-                }
-
-                sessions = sessionsStr.equalsIgnoreCase("infinite") ? -1 : parseInt(sessionsStr);
-
-                Object recordingObj = element.get("recording");
-                browserRecording = recordingObj instanceof Boolean ? (Boolean) recordingObj : false;
-
-                Object headlessObj = element.get("headless");
-                headlessBrowser = headlessObj instanceof Boolean ? (Boolean) headlessObj : false;
-
-                Object showBrowserObj = element.get("showBrowserVideoElements");
-                showBrowserVideoElements = showBrowserObj instanceof Boolean ? (Boolean) showBrowserObj : true;
-
-                Object browserObj = element.get("browser");
-                if (browserObj != null && !browserObj.toString().isBlank()) {
-                    String browserStr = browserObj.toString();
-                    if (browserStr.equalsIgnoreCase(Browser.CHROME.getValue())) {
-                        browser = Browser.CHROME;
-                    } else if (browserStr.equalsIgnoreCase(Browser.FIREFOX.getValue())) {
-                        browser = Browser.FIREFOX;
-                    } else {
-                        log.warn("Browser {} not recognized. Defaulting to Chrome.", browserStr);
-                    }
-                }
-            }
-
-            TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution,
-                    openviduRecordingMode,
-                    headlessBrowser, browserRecording, showBrowserVideoElements, browser);
-            testCase.setStartingParticipants(startingParticipants);
-            testCaseList.add(testCase);
+        if (topology.equalsIgnoreCase(Topology.TERMINATE.getValue())) {
+            return new TestCase(topology, new ArrayList<>(), 0, 30, Resolution.MEDIUM,
+                    OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         }
 
-        return testCaseList;
+        List<String> participants = parseParticipants(element);
+        int sessions = parseSessions(element);
+        int frameRate = parseFrameRate(element);
+        Resolution resolution = parseResolution(element);
+        OpenViduRecordingMode openviduRecordingMode = parseOpenViduRecordingMode(element);
+        boolean headlessBrowser = parseHeadless(element);
+        boolean browserRecording = parseBrowserRecording(element);
+        boolean showBrowserVideoElements = parseShowBrowserVideoElements(element);
+        Browser browser = parseBrowser(element);
+        int startingParticipants = parseStartingParticipants(element);
+
+        TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution,
+                openviduRecordingMode, headlessBrowser, browserRecording, showBrowserVideoElements, browser);
+        testCase.setStartingParticipants(startingParticipants);
+        return testCase;
+    }
+
+    private String parseTopology(Map<String, Object> element) {
+        Object topologyObj = element.get("topology");
+        if (topologyObj == null) {
+            topologyObj = element.get("typology");
+        }
+        return topologyObj != null ? topologyObj.toString() : "";
+    }
+
+    private List<String> parseParticipants(Map<String, Object> element) {
+        List<String> participants = new ArrayList<>();
+        Object participantsObj = element.get("participants");
+        if (participantsObj instanceof List) {
+            for (Object p : (List<?>) participantsObj) {
+                participants.add(p.toString());
+            }
+        }
+        return participants;
+    }
+
+    private int parseSessions(Map<String, Object> element) {
+        Object sessionsObj = element.get("sessions");
+        String sessionsStr = sessionsObj != null ? sessionsObj.toString() : "1";
+        return sessionsStr.equalsIgnoreCase("infinite") ? -1 : parseInt(sessionsStr);
+    }
+
+    private int parseFrameRate(Map<String, Object> element) {
+        Object frameRateObj = element.get("frameRate");
+        return frameRateObj != null ? parseInt(frameRateObj.toString()) : 30;
+    }
+
+    private Resolution parseResolution(Map<String, Object> element) {
+        Object resolutionObj = element.get("resolution");
+        if (resolutionObj == null) {
+            return Resolution.MEDIUM;
+        }
+        String resStr = resolutionObj.toString();
+        if (resStr.equalsIgnoreCase(Resolution.HIGH.getValue()) || resStr.equals("1280x720")) {
+            return Resolution.HIGH;
+        } else if (resStr.equalsIgnoreCase("1920x1080") || resStr.equalsIgnoreCase(Resolution.FULLHIGH.getValue())) {
+            return Resolution.FULLHIGH;
+        }
+        return Resolution.MEDIUM;
+    }
+
+    private OpenViduRecordingMode parseOpenViduRecordingMode(Map<String, Object> element) {
+        Object openviduRecordingModeObj = element.get("openviduRecordingMode");
+        if (openviduRecordingModeObj == null || openviduRecordingModeObj.toString().isBlank()) {
+            return OpenViduRecordingMode.NONE;
+        }
+        String modeStr = openviduRecordingModeObj.toString();
+        if (modeStr.equalsIgnoreCase(OpenViduRecordingMode.COMPOSED.getValue())) {
+            return OpenViduRecordingMode.COMPOSED;
+        } else if (modeStr.equalsIgnoreCase(OpenViduRecordingMode.INDIVIDUAL.getValue())) {
+            return OpenViduRecordingMode.INDIVIDUAL;
+        }
+        return OpenViduRecordingMode.NONE;
+    }
+
+    private boolean parseHeadless(Map<String, Object> element) {
+        Object headlessObj = element.get("headless");
+        return headlessObj instanceof Boolean headlessObjBool && headlessObjBool;
+    }
+
+    private boolean parseBrowserRecording(Map<String, Object> element) {
+        Object recordingObj = element.get("recording");
+        return recordingObj instanceof Boolean recordingObjBool && recordingObjBool;
+    }
+
+    private boolean parseShowBrowserVideoElements(Map<String, Object> element) {
+        Object showBrowserObj = element.get("showBrowserVideoElements");
+        return showBrowserObj instanceof Boolean showBrowserObjBool && showBrowserObjBool;
+    }
+
+    private Browser parseBrowser(Map<String, Object> element) {
+        Object browserObj = element.get("browser");
+        if (browserObj == null || browserObj.toString().isBlank()) {
+            return Browser.CHROME;
+        }
+        String browserStr = browserObj.toString();
+        if (browserStr.equalsIgnoreCase(Browser.CHROME.getValue())) {
+            return Browser.CHROME;
+        } else if (browserStr.equalsIgnoreCase(Browser.FIREFOX.getValue())) {
+            return Browser.FIREFOX;
+        }
+        log.warn("Browser {} not recognized. Defaulting to Chrome.", browserStr);
+        return Browser.CHROME;
+    }
+
+    private int parseStartingParticipants(Map<String, Object> element) {
+        Object startingParticipantsObj = element.get("startingParticipants");
+        return startingParticipantsObj != null ? parseInt(startingParticipantsObj.toString()) : 0;
     }
 
     private int parseInt(String value) {
@@ -232,13 +236,14 @@ public class DataIO {
     public boolean askForConfirmation(String message) {
         log.warn(message);
         String confirmation;
-        java.util.Scanner scanner = new java.util.Scanner(System.in);
-        do {
-            confirmation = scanner.nextLine();
-            if (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N")) {
-                log.warn("Please answer with Y or N.");
-            }
-        } while (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N"));
+        try (java.util.Scanner scanner = new java.util.Scanner(System.in)) {
+            do {
+                confirmation = scanner.nextLine();
+                if (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N")) {
+                    log.warn("Please answer with Y or N.");
+                }
+            } while (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N"));
+        }
         return confirmation.equalsIgnoreCase("Y");
     }
 

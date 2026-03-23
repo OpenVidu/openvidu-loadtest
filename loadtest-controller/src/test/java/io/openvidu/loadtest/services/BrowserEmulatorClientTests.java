@@ -1,4 +1,4 @@
-package io.openvidu.loadtest;
+package io.openvidu.loadtest.services;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;

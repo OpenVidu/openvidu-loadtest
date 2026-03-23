@@ -3,7 +3,6 @@ package io.openvidu.loadtest.utils;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
@@ -57,9 +56,7 @@ public class CustomHttpClient {
         Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
         BodyPublisher postBody;
 
-        headers.forEach((k, v) -> {
-            requestBuilder.header(k, v);
-        });
+        headers.forEach(requestBuilder::header);
 
         if (file != null) {
             boundary = new BigInteger(256, new Random()).toString();
@@ -79,20 +76,16 @@ public class CustomHttpClient {
 
         Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
 
-        headers.forEach((k, v) -> {
-            requestBuilder.header(k, v);
-        });
+        headers.forEach(requestBuilder::header);
 
         HttpRequest request = requestBuilder.GET().build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     public HttpResponse<String> sendDelete(String url, Map<String, String> headers)
-            throws IOException, InterruptedException, ConnectException {
+            throws IOException, InterruptedException {
         Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
-        headers.forEach((k, v) -> {
-            requestBuilder.header(k, v);
-        });
+        headers.forEach(requestBuilder::header);
         HttpRequest request = requestBuilder.DELETE().build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
@@ -104,8 +97,7 @@ public class CustomHttpClient {
         for (Map.Entry<Object, Object> entry : data.entrySet()) {
             byteArrays.add(separator);
 
-            if (entry.getValue() instanceof Path) {
-                var path = (Path) entry.getValue();
+            if (entry.getValue() instanceof Path path) {
                 String mimeType = Files.probeContentType(path);
                 byteArrays.add(("\"" + entry.getKey() + "\"; filename=\"" + path.getFileName() + "\"\r\nContent-Type: "
                         + mimeType + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
@@ -144,7 +136,7 @@ public class CustomHttpClient {
         };
 
         // Install the all-trusting trust manager
-        SSLContext sc = SSLContext.getInstance("SSL");
+        SSLContext sc = SSLContext.getInstance("TLS");
         sc.init(null, trustAllCerts, new java.security.SecureRandom());
         HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
         return HttpClient.newBuilder().sslContext(sc).version(Version.HTTP_1_1).build();

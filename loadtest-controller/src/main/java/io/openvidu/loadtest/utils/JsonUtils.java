@@ -3,7 +3,7 @@ package io.openvidu.loadtest.utils;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -11,7 +11,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 
-@Service
+@Component
 public class JsonUtils {
 
     public JsonObject getJson(String string) {
