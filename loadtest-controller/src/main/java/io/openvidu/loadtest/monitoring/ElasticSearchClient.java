@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.exceptions.LoadTestInitializationException;
 
 @Service
 public class ElasticSearchClient {
@@ -81,9 +82,11 @@ public class ElasticSearchClient {
                 log.info("Connection to Elasticsearch established at {}", elasticsearchHost);
             }
         } catch (Exception e) {
-            log.error("Failed to initialize Elasticsearch client: {}", e.getMessage());
-            log.error(
-                    "If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it");
+            throw new LoadTestInitializationException(
+                    "Connection to Elasticsearch failed at " + loadTestConfig.getElasticsearchHost()
+                            + " (" + e.getMessage()
+                            + "). If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it",
+                    e);
         }
     }
 
@@ -93,11 +96,11 @@ public class ElasticSearchClient {
             BooleanResponse response = this.client.ping();
             pingSuccess = response.value();
         } catch (IOException e) {
-            log.error("Connection to Elasticsearch failed at {} ({})", loadTestConfig.getElasticsearchHost(),
-                    e.getMessage());
-            log.error(
-                    "If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it");
-            System.exit(1);
+            throw new LoadTestInitializationException(
+                    "Connection to Elasticsearch failed at " + loadTestConfig.getElasticsearchHost()
+                            + " (" + e.getMessage()
+                            + "). If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it",
+                    e);
         }
         return pingSuccess;
     }

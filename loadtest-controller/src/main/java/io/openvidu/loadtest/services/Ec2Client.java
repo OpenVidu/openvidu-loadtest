@@ -36,6 +36,7 @@ import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceState;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.exceptions.LoadTestInitializationException;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 
 @Service
@@ -86,9 +87,9 @@ public class Ec2Client {
                     .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
                     .build();
         } else {
-            log.error("AWS credentials are empty in application.properties");
             if (this.loadTestConfig.getWorkerUrlList().isEmpty()) {
-                System.exit(0);
+                throw new LoadTestInitializationException(
+                        "No workers or AWS credentials provided. Please provide at least one of them to run the load test");
             }
         }
     }
