@@ -74,7 +74,7 @@ class WebRTCStatsManager {
                             this.savedStats = [];
                             const response = {
                                 webrtcStats: data,
-                                timestamp: new Date().toISOString(),
+                                "@timestamp": new Date().toISOString(),
                                 user: USER_ID,
                                 session: SESSION_ID
                             };
