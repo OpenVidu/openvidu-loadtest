@@ -47,14 +47,6 @@ snap remove firefox
 mkdir -p ./recordings/chrome
 mkdir -p ./recordings/qoe
 
-# Add user ubuntu to docker, video and syslog groups
-if id "ubuntu" &>/dev/null; then
-    usermod -aG docker ubuntu
-    usermod -aG syslog ubuntu
-    usermod -aG video ubuntu
-    chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
-fi
-
 install_node_dependencies_and_build() {
     ## Install node dependencies
     corepack enable pnpm
@@ -76,5 +68,13 @@ pull_images() {
 pull_images &
 install_node_dependencies_and_build &
 wait
+
+# Add user ubuntu to docker, video and syslog groups
+if id "ubuntu" &>/dev/null; then
+    usermod -aG docker ubuntu
+    usermod -aG syslog ubuntu
+    usermod -aG video ubuntu
+    chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
+fi
 
 echo "base installation completed"
