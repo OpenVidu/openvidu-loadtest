@@ -52,5 +52,11 @@ class LoadTestConfigTest {
 
         // batchMaxRequests should be positive (computed default if not set)
         assertTrue(cfg.getBatchMaxRequests() > 0);
+        // If advanced.batches.enabled is not defined, batches should default to true
+        assertTrue(cfg.isBatches());
+        // Same with waitCompletion, should default to true if not defined
+        assertTrue(cfg.isWaitCompletion());
+        // Same with retries
+        assertTrue(cfg.isRetryMode());
     }
 }
