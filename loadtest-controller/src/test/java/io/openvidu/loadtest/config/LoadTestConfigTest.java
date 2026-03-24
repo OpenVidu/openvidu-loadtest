@@ -59,4 +59,21 @@ class LoadTestConfigTest {
         // Same with retries
         assertTrue(cfg.isRetryMode());
     }
+
+    @Test
+    void readsMonitoringOptionsFromAlternateYaml() {
+        MockEnvironment env = new MockEnvironment();
+        // Load an alternate test YAML that contains monitoring options
+        env.setProperty("LOADTEST_CONFIG", "config/monitoring-config.yaml");
+
+        TestLoadTestConfig cfg = new TestLoadTestConfig(env);
+
+        // Monitoring credentials and Kibana host come from monitoring-config.yaml
+        assertTrue(cfg.isElasticSearchSecured());
+        assertEquals("https://es-test.io:9200", cfg.getElasticsearchHost());
+        assertEquals("esuser", cfg.getElasticsearchUserName());
+        assertEquals("espwd", cfg.getElasticsearchPassword());
+        assertTrue(cfg.isKibanaEstablished());
+        assertEquals("https://kibana-test.io:5601", cfg.getKibanaHost());
+    }
 }

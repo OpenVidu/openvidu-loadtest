@@ -376,11 +376,9 @@ public abstract class LoadTestConfig {
     }
 
     private void initMonitoringConfig() throws URISyntaxException {
-        // FIXME: See reasons for this is initDistributionConfig() comment
-        // elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
+        elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
         elasticsearchUserName = asOptionalString("monitoring.elasticsearch.username");
         elasticsearchPassword = asOptionalString("monitoring.elasticsearch.password");
-        elasticsearchHost = "";
         kibanaHost = asOptionalURL("monitoring.kibana.host");
     }
 
@@ -516,7 +514,6 @@ public abstract class LoadTestConfig {
         log.info("Kibana Host: {}", kibanaHost);
         log.info("ElasticSearch Host: {}", elasticsearchHost);
         log.info("ElasticSearch Username: {}", elasticsearchUserName);
-        log.info("ElasticSearch Password: {}", elasticsearchPassword);
         log.info("-------- -------------------- --------");
 
         log.info("");

@@ -1,0 +1,27 @@
+platform:
+  url: https://openvidu-test.io:7443
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: chrome
+    description: "Basic N:N topology test with monitoring"
+
+workers:
+  urls: browser-emulator
+
+distribution:
+  manual: true
+  usersPerWorker: 2
+
+monitoring:
+  elasticsearch:
+    username: esuser
+    password: espwd
+    host: https://es-test.io:9200
+  kibana:
+    host: https://kibana-test.io:5601

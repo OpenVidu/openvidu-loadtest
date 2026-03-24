@@ -249,6 +249,7 @@ Kibana integration for metrics visualization. Expects Elastichsearch 9.x and Kib
 | Property                 | Required | Default | Description            |
 | ------------------------ | -------- | ------- | ---------------------- |
 | `kibana.host`            | No       | -       | Kibana URL             |
+| `elasticsearch.host`     | No       | -       | Elasticsearch URL      |
 | `elasticsearch.username` | No       | -       | Elasticsearch username |
 | `elasticsearch.password` | No       | -       | Elasticsearch password |
 
