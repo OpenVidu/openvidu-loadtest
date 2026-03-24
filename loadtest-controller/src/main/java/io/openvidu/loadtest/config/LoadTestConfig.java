@@ -410,7 +410,7 @@ public abstract class LoadTestConfig {
 
     private void initRetryAndQoeConfig() {
         Boolean retryEnabled = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
-        retryMode = Boolean.TRUE.equals(retryEnabled);
+        retryMode = !Boolean.FALSE.equals(retryEnabled);
         retryTimes = defaultIfMinusOne(asInt("advanced.retry.times"), 5);
         qoeAnalysisRecordings = asBoolean("qoe.recordStreams");
         qoeAnalysisInSitu = asBoolean("qoe.analyzeInSitu");
@@ -435,9 +435,9 @@ public abstract class LoadTestConfig {
         batchMaxRequests = asInt("advanced.batches.maxConcurrentRequests");
         batchMaxRequests = batchMaxRequests == -1 ? Runtime.getRuntime().availableProcessors() + 1 : batchMaxRequests;
         Boolean batchesEnabled = yamlConfig.getBooleanOrNull("advanced.batches.enabled");
-        batches = Boolean.TRUE.equals(batchesEnabled);
+        batches = !Boolean.FALSE.equals(batchesEnabled);
         Boolean waitCompleteEnabled = yamlConfig.getBooleanOrNull("advanced.waitForCompletion");
-        waitCompletion = Boolean.TRUE.equals(waitCompleteEnabled);
+        waitCompletion = !Boolean.FALSE.equals(waitCompleteEnabled);
     }
 
     private String defaultIfEmpty(String value, String defaultValue) {
