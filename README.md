@@ -246,9 +246,11 @@ The predefined options available are:
 
 Kibana integration for metrics visualization. Expects Elastichsearch 9.x and Kibana 9.x.
 
-| Property      | Required | Default | Description |
-| ------------- | -------- | ------- | ----------- |
-| `kibana.host` | No       | -       | Kibana URL  |
+| Property                 | Required | Default | Description            |
+| ------------------------ | -------- | ------- | ---------------------- |
+| `kibana.host`            | No       | -       | Kibana URL             |
+| `elasticsearch.username` | No       | -       | Elasticsearch username |
+| `elasticsearch.password` | No       | -       | Elasticsearch password |
 
 ### Advanced User Management Options
 
