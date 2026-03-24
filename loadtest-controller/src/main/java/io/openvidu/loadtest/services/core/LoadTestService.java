@@ -123,8 +123,8 @@ public class LoadTestService {
                     + (nParticipants < 0 ? "infinite" : nParticipants)
                     + " participants trying to fit in " + workersAvailable + " worker at "
                     + getBrowserEstimation()
-                    + " browsers per worker). The test will stop when there are no more workers available. Continue? (Y/N)";
-            return io.askForConfirmation(warning);
+                    + " browsers per worker). The test will stop when there are no more workers available.";
+            log.warn(warning);
         }
 
         return true;

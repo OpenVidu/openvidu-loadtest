@@ -233,18 +233,4 @@ public class DataIO {
         }
     }
 
-    public boolean askForConfirmation(String message) {
-        log.warn(message);
-        String confirmation;
-        try (java.util.Scanner scanner = new java.util.Scanner(System.in)) {
-            do {
-                confirmation = scanner.nextLine();
-                if (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N")) {
-                    log.warn("Please answer with Y or N.");
-                }
-            } while (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N"));
-        }
-        return confirmation.equalsIgnoreCase("Y");
-    }
-
 }

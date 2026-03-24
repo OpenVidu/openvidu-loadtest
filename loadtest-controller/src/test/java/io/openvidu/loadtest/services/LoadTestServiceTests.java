@@ -72,7 +72,6 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getSessionNamePrefix()).thenReturn("LoadTestSession");
         when(this.loadTestConfig.isTerminateWorkers()).thenReturn(false);
         when(this.loadTestConfig.isKibanaEstablished()).thenReturn(true);
-        when(this.dataIO.askForConfirmation(anyString())).thenReturn(true);
         doAnswer(invocation -> {
             ResultReport resultReport = invocation.getArgument(0);
             // Store the resultReport for later verification
