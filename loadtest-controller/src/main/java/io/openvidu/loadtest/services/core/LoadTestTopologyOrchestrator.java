@@ -42,9 +42,7 @@ class LoadTestTopologyOrchestrator {
             return;
         }
 
-        if (loadTestService.isProdMode()) {
-            kibanaClient.importDashboards();
-        }
+        kibanaClient.importDashboards();
 
         if (!loadTestService.hasInitialWorkersAvailable()) {
             log.error("No workers available. Exiting");
