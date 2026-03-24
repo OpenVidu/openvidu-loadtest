@@ -1,4 +1,5 @@
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
+import { InstanceService } from './instance.service.ts';
 
 export interface DockerizedBrowsersConfig {
 	enabled: boolean;
@@ -20,6 +21,7 @@ export class ConfigService {
 	private readonly disableHttps: boolean;
 	private readonly mediaFilesHostDir: string;
 	private readonly scriptsLogsHostDir: string;
+	private readonly metricbeatConfig: string;
 	private legacyMode = false;
 
 	constructor() {
@@ -36,6 +38,10 @@ export class ConfigService {
 		this.scriptsLogsHostDir = this.pickString(
 			process.env.SCRIPTS_LOGS_HOST_DIR,
 			LocalFilesRepository.SCRIPTS_LOGS_DIR,
+		);
+		this.metricbeatConfig = this.pickString(
+			process.env.METRICBEAT_CONFIG,
+			InstanceService.METRICBEAT_YML_LOCATION,
 		);
 		this.legacyMode = false;
 
@@ -235,5 +241,9 @@ export class ConfigService {
 
 	public setLegacyMode(legacyMode: boolean): void {
 		this.legacyMode = legacyMode;
+	}
+
+	public getMetricbeatConfig(): string {
+		return this.metricbeatConfig;
 	}
 }

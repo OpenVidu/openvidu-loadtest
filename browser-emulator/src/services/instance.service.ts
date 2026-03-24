@@ -2,22 +2,25 @@ import { OSUtils } from 'node-os-utils';
 import type { ContainerCreateOptions } from 'dockerode';
 import { DockerService } from './docker.service.js';
 import { ContainerName } from '../types/container-info.type.js';
+import type { ConfigService } from './config.service.ts';
 
 export class InstanceService {
 	private instanceReady = false;
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
 	private readonly METRICBEAT_IMAGE =
 		'docker.elastic.co/beats/metricbeat-oss:7.12.0';
-	private readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
+	public static readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
 
 	readonly WORKER_UUID: string = Date.now().toString();
 	private pullImagesRetries = 0;
 
 	private readonly osutils = new OSUtils();
 	private readonly dockerService: DockerService;
+	private readonly configService: ConfigService;
 
-	constructor(dockerService: DockerService) {
+	constructor(dockerService: DockerService, configService: ConfigService) {
 		this.dockerService = dockerService;
+		this.configService = configService;
 	}
 
 	public isInstanceReady() {
@@ -61,7 +64,7 @@ export class InstanceService {
 			HostConfig: {
 				Binds: [
 					`/var/run/docker.sock:/var/run/docker.sock`,
-					`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
+					`${this.configService.getMetricbeatConfig()}:/usr/share/metricbeat/metricbeat.yml:ro`,
 					'/proc:/hostfs/proc:ro',
 					'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
 					'/:/hostfs:ro',
