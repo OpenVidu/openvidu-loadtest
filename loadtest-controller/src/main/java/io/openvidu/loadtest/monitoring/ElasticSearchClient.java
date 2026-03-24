@@ -7,6 +7,7 @@ import java.text.DecimalFormat;
 import jakarta.annotation.PostConstruct;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
@@ -90,19 +91,9 @@ public class ElasticSearchClient {
         }
     }
 
-    private boolean doPing() {
-        boolean pingSuccess = false;
-        try {
-            BooleanResponse response = this.client.ping();
-            pingSuccess = response.value();
-        } catch (IOException e) {
-            throw new LoadTestInitializationException(
-                    "Connection to Elasticsearch failed at " + loadTestConfig.getElasticsearchHost()
-                            + " (" + e.getMessage()
-                            + "). If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it",
-                    e);
-        }
-        return pingSuccess;
+    private boolean doPing() throws ElasticsearchException, IOException {
+        BooleanResponse response = this.client.ping();
+        return response.value();
     }
 
     public boolean isInitialized() {

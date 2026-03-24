@@ -10,17 +10,21 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
+import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
+import java.nio.file.Files;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
 /**
- * @author Carlos Santos
+ * @author Carlos Santos & Iván Chicano
  *
  */
 
@@ -28,9 +32,11 @@ import io.openvidu.loadtest.utils.JsonUtils;
 public class KibanaClient {
 
     private static final String API_IMPORT_OBJECTS = "/api/saved_objects/_import?overwrite=true";
-    private static final String API_FIND_DASHBOARD = "/api/saved_objects/_find?type=dashboard&search_fields=title&search=";
+    private static final String API_EXPORT_SAVED_OBJECTS = "/api/saved_objects/_export";
     private static final String KIBANA_DASHBOARD_URL = "/app/kibana#/dashboard/";
     private static final String LOAD_TEST_DASHBOARD = "Load Test";
+
+    private static final String DASHBOARD_NOT_FOUND = "Kibana Load Test Dashboard is not found. You can import it manually to see the results.";
 
     private static final int HTTP_STATUS_OK = 200;
 
@@ -58,7 +64,8 @@ public class KibanaClient {
                 this.kibanaHost = loadTestConfig.getKibanaHost().replaceAll("/$", "");
                 log.info("Importing Kibana JSON file with saved objects from resources directory");
                 Resource resource = resourceLoader.getResource("classpath:loadtest.ndjson");
-                importSavedObjects(resource.getFile());
+                File file = resourceToFile(resource);
+                importSavedObjects(file);
             } catch (Exception e) {
                 log.warn("Can't import dashboard to Kibana at {}", this.kibanaHost);
                 log.error(e.getMessage());
@@ -68,11 +75,23 @@ public class KibanaClient {
         log.warn("Kibana Host parameter is empty. Dashboard won't be imported.");
     }
 
+    private File resourceToFile(Resource resource) throws IOException {
+        try {
+            return resource.getFile();
+        } catch (Exception ex) {
+            try (InputStream is = resource.getInputStream()) {
+                File file = File.createTempFile("loadtest", ".ndjson");
+                Files.copy(is, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                file.deleteOnExit();
+                return file;
+            }
+        }
+    }
+
     public String getDashboardUrl(String startTime, String endTime) {
         if (this.loadTestConfig.isKibanaEstablished()) {
-
-            final String URL = this.loadTestConfig.getKibanaHost() + API_FIND_DASHBOARD
-                    + LOAD_TEST_DASHBOARD.replaceAll("\\s+", "%20");
+            // Use the Export API instead of the deprecated _find endpoint.
+            final String URL = this.loadTestConfig.getKibanaHost() + API_EXPORT_SAVED_OBJECTS;
             Map<String, String> headers = new HashMap<>();
 
             String esUserName = loadTestConfig.getElasticsearchUserName();
@@ -81,18 +100,20 @@ public class KibanaClient {
             if (securityEnabled) {
                 headers.put("Authorization", getBasicAuth(esUserName, esPassword));
             }
+            headers.put("kbn-xsrf", "true");
 
             try {
-                HttpResponse<String> response = this.httpClient.sendGet(URL, headers);
+                JsonObject body = new JsonObject();
+                body.addProperty("type", "dashboard");
+                body.addProperty("search", LOAD_TEST_DASHBOARD);
+                JsonArray searchFields = new JsonArray();
+                searchFields.add("title");
+                body.add("search_fields", searchFields);
+
+                HttpResponse<String> response = this.httpClient.sendPost(URL, body, null, headers);
 
                 if (response.statusCode() == HTTP_STATUS_OK) {
-
-                    JsonObject jsonResponse = this.jsonUtils.getJson(response.body());
-                    JsonObject dashboard = jsonResponse.get("saved_objects").getAsJsonArray().get(0).getAsJsonObject();
-                    String dashboardId = dashboard.get("id").getAsString();
-
-                    return this.loadTestConfig.getKibanaHost() + KIBANA_DASHBOARD_URL + dashboardId
-                            + "?_g=(time:(from:'" + startTime + "',to:'" + endTime + "'))";
+                    return extractDashboardUrlFromResponse(response, startTime, endTime);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -104,8 +125,25 @@ public class KibanaClient {
             }
         }
 
-        return "Kibana Load Test Dashboard is not found. You can import it manually to see the results.";
+        return DASHBOARD_NOT_FOUND;
 
+    }
+
+    private String extractDashboardUrlFromResponse(HttpResponse<String> response, String startTime, String endTime) {
+        // response is NDJSON (one JSON object per line). Parse first dashboard object.
+        String[] lines = response.body().split("\\r?\\n");
+        for (String line : lines) {
+            if (line == null || line.trim().isEmpty()) {
+                continue;
+            }
+            JsonObject obj = this.jsonUtils.getJson(line);
+            if (obj.has("type") && "dashboard".equals(obj.get("type").getAsString()) && obj.has("id")) {
+                String dashboardId = obj.get("id").getAsString();
+                return this.loadTestConfig.getKibanaHost() + KIBANA_DASHBOARD_URL + dashboardId
+                        + "?_g=(time:(from:'" + startTime + "',to:'" + endTime + "'))";
+            }
+        }
+        return DASHBOARD_NOT_FOUND;
     }
 
     private void importSavedObjects(File file) throws IOException {
