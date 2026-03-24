@@ -1,4 +1,4 @@
-package io.openvidu.loadtest.utils;
+package io.openvidu.loadtest.unit.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
+import io.openvidu.loadtest.utils.DataIO;
+import io.openvidu.loadtest.utils.ResultExporter;
 
 class DataIOTest {
 

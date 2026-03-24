@@ -1,4 +1,4 @@
-package io.openvidu.loadtest.services;
+package io.openvidu.loadtest.unit.services;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -30,6 +30,11 @@ import io.openvidu.loadtest.models.testcase.Topology;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
+import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.Sleeper;
+import io.openvidu.loadtest.services.WebSocketClient;
+import io.openvidu.loadtest.services.WebSocketConnectionFactory;
 import io.openvidu.loadtest.services.core.LoadTestService;
 import io.openvidu.loadtest.utils.DataIO;
 

@@ -1,4 +1,4 @@
-package io.openvidu.loadtest.monitoring;
+package io.openvidu.loadtest.unit.monitoring;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -25,6 +25,7 @@ import org.mockito.quality.Strictness;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 
 import java.lang.reflect.Field;
 

@@ -1,7 +1,9 @@
-package io.openvidu.loadtest.config;
+package io.openvidu.loadtest.unit.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
+
+import io.openvidu.loadtest.config.YamlConfigLoader;
 
 import java.util.List;
 import java.util.Map;
