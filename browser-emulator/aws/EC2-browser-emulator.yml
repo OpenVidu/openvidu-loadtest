@@ -11,13 +11,16 @@ Parameters:
         Description: Git tag or branch to checkout (e.g., 'v4.0.0', 'main', 'develop')
         Default: 'v4.0.0'
     KeyName:
-        Type: AWS::EC2::KeyPair::KeyName
-        Description: Name of an existing EC2 KeyPair to enable SSH access.
-        Default: ''
+        Type: String
+        Description: (Optional) Name of an existing EC2 KeyPair to enable SSH access. Leave empty to not set a key.
+        Default: 'ivan-aws-virginia'
     CacheMediaFilesArgs:
         Type: String
         Description: Cache media files by resolution and fps if you are going to create multiple instances and want to save time and bandwidth. Use '__enabled__' to cache all media files or specify resolutions and fps (e.g., '1080x60 720x30') to cache only specific combinations. If not set or set to '__disabled__', media files will not be cached.
         Default: '__disabled__'
+
+Conditions:
+    HasKeyName: !Not [!Equals [!Ref KeyName, '']]
 
 Resources:
     BrowserInstance:
@@ -28,7 +31,7 @@ Resources:
                 Count: 1
         Properties:
             ImageId: !Ref ImageId
-            KeyName: !Ref KeyName
+            KeyName: !If [HasKeyName, !Ref KeyName, !Ref AWS::NoValue]
             InstanceType: 't3.xlarge'
             Tags:
                 - Key: Name
