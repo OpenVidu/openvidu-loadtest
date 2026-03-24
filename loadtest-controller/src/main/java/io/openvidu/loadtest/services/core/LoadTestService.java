@@ -278,8 +278,8 @@ public class LoadTestService {
         endTime.add(Calendar.SECOND, 10);
 
         // Parse date to match with Kibana time filter
-        String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T");
-        String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T");
+        String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T") + "Z";
+        String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T") + "Z";
         String kibanaUrl = kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
         String stopReason = lastCPR.getStopReason();
         if (stopReason == null) {

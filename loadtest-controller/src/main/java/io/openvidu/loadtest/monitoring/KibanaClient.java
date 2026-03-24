@@ -34,7 +34,7 @@ public class KibanaClient {
     private static final String API_IMPORT_OBJECTS = "/api/saved_objects/_import?overwrite=true";
     private static final String API_EXPORT_SAVED_OBJECTS = "/api/saved_objects/_export";
     private static final String KIBANA_DASHBOARD_URL = "/app/kibana#/dashboard/";
-    private static final String LOAD_TEST_DASHBOARD = "Load Test";
+    private static final String LOAD_TEST_DASHBOARD = "Load Test Dashboard";
 
     private static final String DASHBOARD_NOT_FOUND = "Kibana Load Test Dashboard is not found. You can import it manually to see the results.";
 
@@ -106,9 +106,7 @@ public class KibanaClient {
                 JsonObject body = new JsonObject();
                 body.addProperty("type", "dashboard");
                 body.addProperty("search", LOAD_TEST_DASHBOARD);
-                JsonArray searchFields = new JsonArray();
-                searchFields.add("title");
-                body.add("search_fields", searchFields);
+                body.addProperty("excludeExportDetails", true);
 
                 HttpResponse<String> response = this.httpClient.sendPost(URL, body, null, headers);
 
