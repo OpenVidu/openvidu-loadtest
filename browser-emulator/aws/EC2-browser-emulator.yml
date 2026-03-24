@@ -10,6 +10,10 @@ Parameters:
         Type: String
         Description: Git tag or branch to checkout (e.g., 'v4.0.0', 'main', 'develop')
         Default: 'v4.0.0'
+    KeyName:
+        Type: AWS::EC2::KeyPair::KeyName
+        Description: Name of an existing EC2 KeyPair to enable SSH access.
+        Default: ''
     CacheMediaFilesArgs:
         Type: String
         Description: Cache media files by resolution and fps if you are going to create multiple instances and want to save time and bandwidth. Use '__enabled__' to cache all media files or specify resolutions and fps (e.g., '1080x60 720x30') to cache only specific combinations. If not set or set to '__disabled__', media files will not be cached.
@@ -24,6 +28,7 @@ Resources:
                 Count: 1
         Properties:
             ImageId: !Ref ImageId
+            KeyName: !Ref KeyName
             InstanceType: 't3.xlarge'
             Tags:
                 - Key: Name
@@ -53,10 +58,6 @@ Resources:
                         ./prepare_scripts/download_mediafiles.sh ${CacheMediaFilesArgs} > /var/log/download_mediafiles.log 2>&1
                       fi
                     fi
-                    usermod -aG docker ubuntu
-                    usermod -aG syslog ubuntu
-                    usermod -aG video ubuntu
-                    chown -R ubuntu:ubuntu /opt/openvidu-loadtest/
                     echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install > /var/log/pnpm_install.log 2>&1 && pnpm run build > /var/log/build.log 2>&1 && pnpm run start:prod > /var/log/crontab.log 2>&1" 2>&1 | crontab -u ubuntu -
-                    apt-get install -y linux-aws-edge
+                    apt-get install -y python3-pip linux-aws-edge
                     ./notify-aws.sh > /var/log/notify_aws.log 2>&1
