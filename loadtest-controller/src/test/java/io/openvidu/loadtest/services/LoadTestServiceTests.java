@@ -614,7 +614,7 @@ class LoadTestServiceTests {
         // Test start
         this.loadTestController.startLoadTests(testCases);
 
-        verify(this.kibanaClient, times(0)).importDashboards();
+        verify(this.kibanaClient, times(1)).importDashboards();
         for (String instanceUrl : devWorkers) {
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
             verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
@@ -703,7 +703,7 @@ class LoadTestServiceTests {
         }
         // Test start
         this.loadTestController.startLoadTests(testCases);
-        verify(this.kibanaClient, times(0)).importDashboards();
+        verify(this.kibanaClient, times(1)).importDashboards();
         for (String instanceUrl : devWorkers) {
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
             verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
