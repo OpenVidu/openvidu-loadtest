@@ -10,5 +10,11 @@
 			"path": "./loadtest-controller"
 		}
 	],
-    "settings": {}
+    "settings": {
+        "java.configuration.updateBuildConfiguration": "automatic",
+        "files.exclude": {
+            "browser-emulator": true,
+            "loadtest-controller": true
+        }
+    }
 }
