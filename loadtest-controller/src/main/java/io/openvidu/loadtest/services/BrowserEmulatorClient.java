@@ -6,6 +6,7 @@ import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Calendar;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -65,6 +66,7 @@ public class BrowserEmulatorClient {
     private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, AtomicBoolean> participantConnecting = new ConcurrentHashMap<>();
     private Set<String> participantReconnecting = new CopyOnWriteArraySet<>();
+    private ConcurrentHashMap<String, Calendar> userDisconnectTimestamps = new ConcurrentHashMap<>();
 
     private CreateParticipantResponse lastErrorReconnectingResponse;
 
@@ -90,6 +92,16 @@ public class BrowserEmulatorClient {
         this.participantTestCases.clear();
         this.participantConnecting.clear();
         this.participantReconnecting.clear();
+        this.userDisconnectTimestamps.clear();
+    }
+
+    public void addDisconnectTimestamp(String userId, String sessionId) {
+        String key = userId + "-" + sessionId;
+        userDisconnectTimestamps.put(key, Calendar.getInstance());
+    }
+
+    public Map<String, Calendar> getPerUserDisconnectTimestamps() {
+        return userDisconnectTimestamps;
     }
 
     public boolean isAnyParticipantReconnecting() {
@@ -182,6 +194,7 @@ public class BrowserEmulatorClient {
         log.debug("Retry times: {}", this.loadTestConfig.getRetryTimes());
         log.debug("New failures: {}", newFailures);
         log.debug("Reconnect: {}", reconnect);
+        this.addDisconnectTimestamp(participant, session);
         if (reconnect) {
             if (this.loadTestConfig.isRetryMode() && (newFailures < this.loadTestConfig.getRetryTimes())) {
                 log.debug("Reconnecting participant {} in session {}", participant, session);
@@ -361,7 +374,7 @@ public class BrowserEmulatorClient {
         return recordingParticipantCreated.contains(sessionNumber);
     }
 
-    public String disconnect(String workerUrl) {
+    private String disconnect(String workerUrl) {
         try {
             log.info("Deleting all participants from worker {}", workerUrl);
             Map<String, String> headers = new HashMap<>();
@@ -495,8 +508,12 @@ public class BrowserEmulatorClient {
             double workerCpuPct = jsonResponse.get("workerCpuUsage").getAsDouble();
             int streamsInWorker = jsonResponse.get("streams").getAsInt();
             int participantsInWorker = jsonResponse.get("participants").getAsInt();
-            String userId = jsonResponse.get("userId").getAsString();
-            String sessionId = jsonResponse.get("sessionId").getAsString();
+            String userId = jsonResponse.has("userId") && !jsonResponse.get("userId").isJsonNull()
+                    ? jsonResponse.get("userId").getAsString()
+                    : "";
+            String sessionId = jsonResponse.has("sessionId") && !jsonResponse.get("sessionId").isJsonNull()
+                    ? jsonResponse.get("sessionId").getAsString()
+                    : "";
             log.info("Connection {} created for user {} and session {}", connectionId, userId, sessionId);
             return cpr.setResponseOk(true).setConnectionId(connectionId)
                     .setUserId(userId).setSessionId(sessionId)
@@ -615,5 +632,48 @@ public class BrowserEmulatorClient {
 
     public void setEndOfTest(boolean isEndOfTest) {
         this.endOfTest.set(isEndOfTest);
+    }
+
+    public int[] getRetryStatistics() {
+        int totalRetries = 0;
+        int successfulRetries = 0;
+        for (Map.Entry<String, ConcurrentHashMap<String, AtomicInteger>> workerEntry : clientFailures.entrySet()) {
+            String workerUrl = workerEntry.getKey();
+            ConcurrentHashMap<String, AtomicInteger> userFailures = workerEntry.getValue();
+            ConcurrentHashMap<String, Role> workerRoles = clientRoles.get(workerUrl);
+            for (Map.Entry<String, AtomicInteger> userEntry : userFailures.entrySet()) {
+                String userSession = userEntry.getKey();
+                int failures = userEntry.getValue().get();
+                totalRetries += failures;
+                if (workerRoles != null && workerRoles.containsKey(userSession) && failures > 0) {
+                    successfulRetries++;
+                }
+            }
+        }
+        return new int[] { totalRetries, successfulRetries };
+    }
+
+    public int getMaxRetriesPerParticipant() {
+        int max = 0;
+        for (ConcurrentHashMap<String, AtomicInteger> userFailures : clientFailures.values()) {
+            for (AtomicInteger failures : userFailures.values()) {
+                int f = failures.get();
+                if (f > max)
+                    max = f;
+            }
+        }
+        return max;
+    }
+
+    public Map<String, Integer> getPerUserRetryCounts() {
+        Map<String, Integer> counts = new HashMap<>();
+        for (ConcurrentHashMap<String, AtomicInteger> userFailures : clientFailures.values()) {
+            for (Map.Entry<String, AtomicInteger> entry : userFailures.entrySet()) {
+                String userSession = entry.getKey();
+                int failures = entry.getValue().get();
+                counts.merge(userSession, failures, Integer::sum);
+            }
+        }
+        return counts;
     }
 }

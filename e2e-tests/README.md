@@ -33,6 +33,10 @@ Where:
 - `PLATFORM_APIKEY`: Optional. API key for authentication (defaults to "devkey")
 - `PLATFORM_APISECRET`: Optional. API secret for authentication (defaults to "secret")
 
+### Configuration File
+
+The smoke test uses the configuration file `config/smoke-test-config.yaml` which specifies `advanced.reportOutput: html,txt` to generate both text and HTML reports.
+
 ### Running the Smoke Test
 
 ```bash
@@ -59,12 +63,16 @@ The test should:
 - Start both loadtest-controller and browser-emulator services
 - Launch 2 Chrome browsers that connect to the OpenVidu instance
 - Create a single session with 2 participants in N:N topology
-- Generate results in the `results/` directory
+- Generate results in the `results/` directory:
+  - `results.txt` (text summary)
+  - `report.html` (HTML report, with user retry details if retries occurred)
 - Complete successfully and shut down cleanly
 
 ### Validation Checks
 
-The smoke test validates that the results.txt file contains:
+The smoke test validates that both `results.txt` and `report.html` files are generated and contain expected content.
+
+**results.txt validation:**
 
 - "Test Case Report"
 - "Number of sessions created: 1"
@@ -72,6 +80,17 @@ The smoke test validates that the results.txt file contains:
 - "Stop reason: Test finished"
 - "User start times:"
 - User start time lines in the format: "Day Mon DD HH:MM:SS TZ YYYY | LoadTestSessionX | UserY"
+
+**report.html validation:**
+
+- "OpenVidu Load Test Report"
+- "Sessions Created"
+- "Total Participants"
+- "User Connections" (mandatory)
+- Table columns: User, Session, Join date (from successful connection), Disconnect Date (captured from ParticipantDisconnected websocket event), Retry Number (count of retries per user)
+- Two user rows (User1 and User2) present
+
+The smoke test configuration uses `advanced.reportOutput: html,txt` to generate both output formats. If validation fails, the result files are kept in the `results/` directory for debugging.
 
 ## Extending the Test Suite
 

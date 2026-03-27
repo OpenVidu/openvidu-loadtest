@@ -62,3 +62,5 @@ browser-emulator/qoe_scripts/__pycache__/
 browser-emulator/.awsconfig/
 
 docker/browser-emulator/browser-emulator/
+
+report.html

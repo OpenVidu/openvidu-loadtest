@@ -1,6 +1,8 @@
 package io.openvidu.loadtest.unit.services;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -279,5 +281,39 @@ class BrowserEmulatorClientTests {
         assertTrue(cpr.isResponseOk());
         verify(this.httpClientMock, times(3)).sendPost("https://localhost:5000/openvidu-browser/streamManager",
                 expectedBody, null, headers);
+    }
+
+    @Test
+    void processResponseHandlesNullUserIdAndSessionId() throws IOException, InterruptedException {
+        // Mock HTTP response with null userId and sessionId
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("connectionId", "connectionId");
+        responseBody.addProperty("workerCpuUsage", 0.0);
+        responseBody.addProperty("streams", 2);
+        responseBody.addProperty("participants", 1);
+        responseBody.add("userId", null);  // null JsonElement
+        responseBody.add("sessionId", null); // null JsonElement
+        String responseString = responseBody.toString();
+        when(response.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+        
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+        
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+        JsonObject expectedBody = new JsonObject();
+        when(this.httpClientMock.sendPost(anyString(), any(), any(), any())).thenReturn(response);
+        
+        CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
+        
+        // Should still be successful but userId and sessionId should be empty strings
+        assertTrue(cpr.isResponseOk());
+        assertEquals("", cpr.getUserId());
+        assertEquals("", cpr.getSessionId());
     }
 }

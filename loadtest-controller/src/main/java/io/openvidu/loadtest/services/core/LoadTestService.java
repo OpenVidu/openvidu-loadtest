@@ -4,7 +4,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.CompletableFuture;
 
@@ -293,6 +295,49 @@ public class LoadTestService {
                 videoControl = "https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName();
             }
         }
+        // Compute per-user success timestamps
+        Map<String, Calendar> userSuccessTimestamps = new HashMap<>();
+        log.debug("Computing per-user success timestamps. getUserStartTimes size: {}",
+                participantOrchestrator.getUserStartTimes().size());
+        for (Map.Entry<Calendar, List<String>> entry : participantOrchestrator.getUserStartTimes().entrySet()) {
+            Calendar timestamp = entry.getKey();
+            List<String> sessionUser = entry.getValue();
+            log.debug("Entry: timestamp={}, sessionUser={}", timestamp, sessionUser);
+            log.debug("sessionUser size: {}", sessionUser.size());
+            if (sessionUser.size() >= 2) {
+                String sessionId = sessionUser.get(0);
+                String userId = sessionUser.get(1);
+                log.debug("sessionId={}, userId={}", sessionId, userId);
+                String key = userId + "-" + sessionId;
+                log.debug("Adding key: {}", key);
+                userSuccessTimestamps.put(key, timestamp);
+            } else {
+                log.warn("sessionUser size less than 2: {}", sessionUser);
+            }
+        }
+        log.debug("userSuccessTimestamps size: {}", userSuccessTimestamps.size());
+        if (userSuccessTimestamps.isEmpty()) {
+            log.warn("userSuccessTimestamps is empty. This may cause missing rows in the HTML report.");
+            // Attempt fallback: try both orders of sessionId and userId
+            for (Map.Entry<Calendar, List<String>> entry : participantOrchestrator.getUserStartTimes().entrySet()) {
+                Calendar timestamp = entry.getKey();
+                List<String> sessionUser = entry.getValue();
+                if (sessionUser.size() >= 2) {
+                    String first = sessionUser.get(0);
+                    String second = sessionUser.get(1);
+                    // Try second-first order (userId-sessionId) - typical expectation
+                    String key1 = second + "-" + first;
+                    log.warn("Fallback adding key (userId-sessionId): {}", key1);
+                    userSuccessTimestamps.put(key1, timestamp);
+                    // Try first-second order (sessionId-userId) just in case
+                    String key2 = first + "-" + second;
+                    log.warn("Fallback adding key (sessionId-userId): {}", key2);
+                    userSuccessTimestamps.put(key2, timestamp);
+                }
+            }
+            log.warn("After fallback, userSuccessTimestamps size: {}", userSuccessTimestamps.size());
+        }
+
         ResultReport rr = new ResultReport().setTotalParticipants(participantOrchestrator.getTotalParticipants())
                 .setNumSessionsCompleted(participantOrchestrator.getSessionsCompleted())
                 .setNumSessionsCreated(participantOrchestrator.getSessionNumber())
@@ -308,6 +353,7 @@ public class LoadTestService {
                 .setTimePerWorker(shutdownOrchestrator.getWorkerTimes())
                 .setTimePerRecordingWorker(shutdownOrchestrator.getRecordingWorkerTimes())
                 .setUserStartTimes(participantOrchestrator.getUserStartTimes())
+                .setUserSuccessTimestamps(userSuccessTimestamps)
                 .build();
 
         io.exportResults(rr);

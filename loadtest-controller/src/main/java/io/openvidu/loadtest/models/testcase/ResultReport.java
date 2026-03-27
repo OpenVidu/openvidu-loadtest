@@ -2,6 +2,7 @@ package io.openvidu.loadtest.models.testcase;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -29,6 +30,23 @@ public class ResultReport {
     private String s3BucketName = "";
     private Map<Calendar, List<String>> userStartTimes = new TreeMap<>();
 
+    // New aggregated fields
+    private List<CreateParticipantResponse> participantResponses = new ArrayList<>();
+    private int totalRetries = 0;
+    private int successfulRetries = 0;
+    private double retrySuccessRate = 0.0;
+    private double avgRetriesPerParticipant = 0.0;
+    private int maxRetriesInSingleParticipant = 0;
+    private Map<String, Integer> errorCounts = new TreeMap<>();
+    private Map<String, Double> workerCpuAvg = new TreeMap<>();
+    private Map<String, Double> workerCpuMax = new TreeMap<>();
+    private Map<String, Integer> workerStreams = new TreeMap<>();
+    private Map<String, Integer> workerParticipants = new TreeMap<>();
+    private double[] userStartDelaysPercentiles = new double[0]; // p50, p90, p95, p99
+    private Map<String, Calendar> userSuccessTimestamps = new TreeMap<>(); // key: "session-user"
+    private Map<String, Integer> userRetryCounts = new TreeMap<>(); // key: "session-user"
+    private Map<String, Calendar> userDisconnectTimestamps = new TreeMap<>(); // key: "session-user"
+
     public ResultReport() {
     }
 
@@ -38,7 +56,11 @@ public class ResultReport {
                 this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
                 this.usersPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
                 this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
-                this.userStartTimes);
+                this.userStartTimes, this.participantResponses, this.totalRetries, this.successfulRetries,
+                this.retrySuccessRate, this.avgRetriesPerParticipant, this.maxRetriesInSingleParticipant,
+                this.errorCounts, this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
+                this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
+                this.userSuccessTimestamps, this.userRetryCounts);
     }
 
     public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -136,12 +158,191 @@ public class ResultReport {
         return this;
     }
 
+    public ResultReport setParticipantResponses(List<CreateParticipantResponse> participantResponses) {
+        this.participantResponses = participantResponses;
+        computeAggregates();
+        return this;
+    }
+
+    public ResultReport setRetryStatistics(int totalRetries, int successfulRetries) {
+        this.totalRetries = totalRetries;
+        this.successfulRetries = successfulRetries;
+        if (totalRetries > 0) {
+            this.retrySuccessRate = (double) successfulRetries / totalRetries;
+        }
+        return this;
+    }
+
+    public ResultReport setAvgRetriesPerParticipant(double avg) {
+        this.avgRetriesPerParticipant = avg;
+        return this;
+    }
+
+    public ResultReport setMaxRetriesInSingleParticipant(int max) {
+        this.maxRetriesInSingleParticipant = max;
+        return this;
+    }
+
+    public ResultReport setErrorCounts(Map<String, Integer> errorCounts) {
+        this.errorCounts = errorCounts;
+        return this;
+    }
+
+    public ResultReport setWorkerCpuStats(Map<String, Double> avg, Map<String, Double> max) {
+        this.workerCpuAvg = avg;
+        this.workerCpuMax = max;
+        return this;
+    }
+
+    public ResultReport setWorkerStreams(Map<String, Integer> streams) {
+        this.workerStreams = streams;
+        return this;
+    }
+
+    public ResultReport setWorkerParticipants(Map<String, Integer> participants) {
+        this.workerParticipants = participants;
+        return this;
+    }
+
+    public ResultReport setUserStartDelaysPercentiles(double[] percentiles) {
+        this.userStartDelaysPercentiles = percentiles;
+        return this;
+    }
+
+    public ResultReport setUserSuccessTimestamps(Map<String, Calendar> userSuccessTimestamps) {
+        System.out.println("DEBUG: setUserSuccessTimestamps called with size " + userSuccessTimestamps.size());
+        this.userSuccessTimestamps = userSuccessTimestamps;
+        return this;
+    }
+
+    public ResultReport setUserRetryCounts(Map<String, Integer> userRetryCounts) {
+        this.userRetryCounts = userRetryCounts;
+        return this;
+    }
+
+    public ResultReport setUserDisconnectTimestamps(Map<String, Calendar> userDisconnectTimestamps) {
+        this.userDisconnectTimestamps = userDisconnectTimestamps;
+        return this;
+    }
+
+    private void computeAggregates() {
+        // Compute error counts from participantResponses
+        errorCounts.clear();
+        for (CreateParticipantResponse resp : participantResponses) {
+            if (!resp.isResponseOk() && resp.getStopReason() != null) {
+                errorCounts.merge(resp.getStopReason(), 1, Integer::sum);
+            }
+        }
+        // Compute average and max CPU across all successful responses
+        double cpuSum = 0;
+        int cpuCount = 0;
+        double cpuMax = 0;
+        for (CreateParticipantResponse resp : participantResponses) {
+            if (resp.isResponseOk()) {
+                double cpu = resp.getWorkerCpuPct();
+                cpuSum += cpu;
+                cpuCount++;
+                if (cpu > cpuMax)
+                    cpuMax = cpu;
+            }
+        }
+        if (cpuCount > 0) {
+            Map<String, Double> avgMap = new TreeMap<>();
+            avgMap.put("all_workers", cpuSum / cpuCount);
+            Map<String, Double> maxMap = new TreeMap<>();
+            maxMap.put("all_workers", cpuMax);
+            workerCpuAvg = avgMap;
+            workerCpuMax = maxMap;
+        }
+        // Compute user start delays percentiles (relative to test start)
+        if (!userStartTimes.isEmpty() && startTime != null) {
+            List<Long> delaysMs = new ArrayList<>();
+            for (Calendar userStart : userStartTimes.keySet()) {
+                long delay = userStart.getTime().getTime() - startTime.getTime().getTime();
+                delaysMs.add(delay);
+            }
+            Collections.sort(delaysMs);
+            userStartDelaysPercentiles = new double[4];
+            userStartDelaysPercentiles[0] = getPercentile(delaysMs, 0.5);
+            userStartDelaysPercentiles[1] = getPercentile(delaysMs, 0.9);
+            userStartDelaysPercentiles[2] = getPercentile(delaysMs, 0.95);
+            userStartDelaysPercentiles[3] = getPercentile(delaysMs, 0.99);
+        }
+    }
+
+    private double getPercentile(List<Long> sorted, double percentile) {
+        if (sorted.isEmpty())
+            return 0.0;
+        int index = (int) Math.ceil(percentile * sorted.size()) - 1;
+        index = Math.max(0, Math.min(index, sorted.size() - 1));
+        return sorted.get(index);
+    }
+
+    // Getters for new fields
+    public Map<String, Integer> getErrorCounts() {
+        return errorCounts;
+    }
+
+    public Map<String, Double> getWorkerCpuAvg() {
+        return workerCpuAvg;
+    }
+
+    public Map<String, Double> getWorkerCpuMax() {
+        return workerCpuMax;
+    }
+
+    public double[] getUserStartDelaysPercentiles() {
+        return userStartDelaysPercentiles;
+    }
+
+    public Map<String, Calendar> getUserSuccessTimestamps() {
+        return userSuccessTimestamps;
+    }
+
+    public Map<String, Integer> getUserRetryCounts() {
+        return userRetryCounts;
+    }
+
+    public Map<String, Calendar> getUserDisconnectTimestamps() {
+        return userDisconnectTimestamps;
+    }
+
+    public int getTotalRetries() {
+        return totalRetries;
+    }
+
+    public int getSuccessfulRetries() {
+        return successfulRetries;
+    }
+
+    public double getRetrySuccessRate() {
+        return retrySuccessRate;
+    }
+
+    public double getAvgRetriesPerParticipant() {
+        return avgRetriesPerParticipant;
+    }
+
+    public int getMaxRetriesInSingleParticipant() {
+        return maxRetriesInSingleParticipant;
+    }
+
+    public List<CreateParticipantResponse> getParticipantResponses() {
+        return participantResponses;
+    }
+
     private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
             List<Integer> streamsPerWorker, String sessionTopology,
             String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
             int usersPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
             Calendar endTime, String kibanaUrl, String s3BucketName, List<Long> timePerWorker,
-            List<Long> timePerRecordingWorker, Map<Calendar, List<String>> userStartTimes) {
+            List<Long> timePerRecordingWorker, Map<Calendar, List<String>> userStartTimes,
+            List<CreateParticipantResponse> participantResponses, int totalRetries, int successfulRetries,
+            double retrySuccessRate, double avgRetriesPerParticipant, int maxRetriesInSingleParticipant,
+            Map<String, Integer> errorCounts, Map<String, Double> workerCpuAvg, Map<String, Double> workerCpuMax,
+            Map<String, Integer> workerStreams, Map<String, Integer> workerParticipants,
+            double[] userStartDelaysPercentiles, Map<String, Calendar> userDisconnectTimestamps,
+            Map<String, Calendar> userSuccessTimestamps, Map<String, Integer> userRetryCounts) {
         this.totalParticipants = totalParticipants;
         this.numSessionsCompleted = numSessionsCompleted;
         this.numSessionsCreated = numSessionsCreated;
@@ -161,6 +362,21 @@ public class ResultReport {
         this.timePerWorker = timePerWorker;
         this.timePerRecordingWorker = timePerRecordingWorker;
         this.userStartTimes = userStartTimes;
+        this.participantResponses = participantResponses;
+        this.totalRetries = totalRetries;
+        this.successfulRetries = successfulRetries;
+        this.retrySuccessRate = retrySuccessRate;
+        this.avgRetriesPerParticipant = avgRetriesPerParticipant;
+        this.maxRetriesInSingleParticipant = maxRetriesInSingleParticipant;
+        this.errorCounts = errorCounts;
+        this.workerCpuAvg = workerCpuAvg;
+        this.workerCpuMax = workerCpuMax;
+        this.workerStreams = workerStreams;
+        this.workerParticipants = workerParticipants;
+        this.userStartDelaysPercentiles = userStartDelaysPercentiles;
+        this.userDisconnectTimestamps = userDisconnectTimestamps;
+        this.userSuccessTimestamps = userSuccessTimestamps;
+        this.userRetryCounts = userRetryCounts;
     }
 
     private String getDuration() {
@@ -198,6 +414,79 @@ public class ResultReport {
 
     public String getStopReason() {
         return stopReason;
+    }
+
+    public List<Integer> getStreamsPerWorker() {
+        return streamsPerWorker;
+    }
+
+    public List<Long> getTimePerWorker() {
+        return timePerWorker;
+    }
+
+    public List<Long> getTimePerRecordingWorker() {
+        return timePerRecordingWorker;
+    }
+
+    public Map<Calendar, List<String>> getUserStartTimes() {
+        return userStartTimes;
+    }
+
+    // Getters for existing fields
+    public int getTotalParticipants() {
+        return totalParticipants;
+    }
+
+    public int getNumSessionsCompleted() {
+        return numSessionsCompleted;
+    }
+
+    public int getNumSessionsCreated() {
+        return numSessionsCreated;
+    }
+
+    public int getWorkersUsed() {
+        return workersUsed;
+    }
+
+    public String getSessionTopology() {
+        return sessionTopology;
+    }
+
+    public boolean isBrowserRecording() {
+        return browserRecording;
+    }
+
+    public String getOpenviduRecording() {
+        return openviduRecording;
+    }
+
+    public String getParticipantsPerSession() {
+        return participantsPerSession;
+    }
+
+    public boolean isManualParticipantAllocation() {
+        return isManualParticipantAllocation;
+    }
+
+    public int getUsersPerWorker() {
+        return usersPerWorker;
+    }
+
+    public String getKibanaUrl() {
+        return kibanaUrl;
+    }
+
+    public Calendar getStartTime() {
+        return startTime;
+    }
+
+    public Calendar getEndTime() {
+        return endTime;
+    }
+
+    public String getS3BucketName() {
+        return s3BucketName;
     }
 
     @Override

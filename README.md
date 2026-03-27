@@ -77,7 +77,7 @@ The docker compose file will start two services:
 - **Browser-emulator**: The worker that launches Chrome browsers to connect to rooms
 - **Loadtest-controller**: Orchestrates the test by coordinating the browser-emulator
 
-OpenVidu loadtest will execute the test cases and output results at `results/results.txt`.
+OpenVidu loadtest will execute the test cases and output results at `results/results.html`, you can open this file in a browser to see the results. You can also check the console output for real-time logs.
 
 For more detailed instructions on how to configure tests, see [Configuration](#configuration).
 
@@ -264,6 +264,14 @@ Performance and retry settings.
 | `advanced.batches.enabled`               | No       | `true`          | Enable batch mode: Users will be inserted in batches                                                                                                                     |
 | `advanced.batches.maxConcurrentRequests` | No       | `CPU cores + 1` | Max concurrent requests when in batch mode                                                                                                                               |
 | `advanced.waitForCompletion`             | No       | `true`          | Wait for all participants in the batch to confirm insertion into the platform before inserting the next batch. Will wait for individual participants if `batches: false` |
+
+### Report Output Configuration
+
+Control which output formats are generated after test completion.
+
+| Property                | Required | Default | Description                               |
+| ----------------------- | -------- | ------- | ----------------------------------------- |
+| `advanced.reportOutput` | No       | `html`  | Comma-separated list: `html` and/or `txt` |
 
 ### Environment Variables
 

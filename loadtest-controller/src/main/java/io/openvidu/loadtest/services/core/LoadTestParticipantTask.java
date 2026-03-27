@@ -62,6 +62,7 @@ class LoadTestParticipantTask implements Supplier<CreateParticipantResponse> {
         } else {
             log.error("Response status is not 200 OK. Exit");
         }
+        this.loadTestParticipantOrchestrator.addParticipantResponse(response);
         return response;
     }
 }

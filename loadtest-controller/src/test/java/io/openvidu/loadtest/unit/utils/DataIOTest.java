@@ -2,39 +2,62 @@ package io.openvidu.loadtest.unit.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.core.env.Environment;
-import org.mockito.Mockito;
-import static org.mockito.ArgumentMatchers.any;
 
+import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
 import io.openvidu.loadtest.utils.DataIO;
+import io.openvidu.loadtest.utils.HtmlReportGenerator;
 import io.openvidu.loadtest.utils.ResultExporter;
 
 class DataIOTest {
 
+    @Mock
     private Environment env;
+    @Mock
     private ResultExporter resultExporter;
+    @Mock
+    private LoadTestConfig loadTestConfig;
+    @Mock
+    private HtmlReportGenerator htmlReportGenerator;
+
+    private DataIO dataIO;
 
     @BeforeEach
-    void setUp() {
-        env = mock(Environment.class);
-        resultExporter = mock(ResultExporter.class);
+    void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this);
+        dataIO = new DataIO(env, resultExporter);
+        // Inject the remaining mocks via reflection
+        setField(dataIO, "loadTestConfig", loadTestConfig);
+        setField(dataIO, "htmlReportGenerator", htmlReportGenerator);
+    }
+
+    private void setField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 
     @Test
@@ -60,7 +83,6 @@ class DataIOTest {
 
         when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn(cfg.toString());
 
-        DataIO dataIO = new DataIO(env, resultExporter);
         List<TestCase> cases = dataIO.getTestCasesFromJSON();
 
         assertEquals(1, cases.size(), "Should load one test case");
@@ -73,6 +95,7 @@ class DataIOTest {
     @Test
     void testExportResults_writesResultsFile(@TempDir Path tempDir) throws IOException {
         when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn("nonexistent.yaml");
+        when(loadTestConfig.getReportOutput()).thenReturn(Arrays.asList("txt")); // Only txt output
 
         // Mock ResultExporter to write into our temp directory and return its path
         when(resultExporter.export(any(), anyString())).thenAnswer(invocation -> {
@@ -81,8 +104,6 @@ class DataIOTest {
             Files.writeString(tempDir.resolve(fname), r.toString());
             return tempDir.resolve(fname).toString();
         });
-
-        DataIO dataIO = new DataIO(env, resultExporter);
 
         // Prepare a minimal ResultReport with start/end times and some values
         ResultReport report = new ResultReport()
@@ -97,7 +118,45 @@ class DataIOTest {
 
         String content = Files.readString(resultFile);
         assertTrue(content.contains("Number of participants created: 5"), "Content should include participants count");
-        Mockito.verify(resultExporter).export(report, "results.txt");
+        verify(resultExporter).export(report, "results.txt");
+        verify(htmlReportGenerator, never()).generateHtmlReport(any(), anyString());
+    }
+
+    @Test
+    void testExportResults_generatesHtmlReportWhenEnabled(@TempDir Path tempDir) throws IOException {
+        when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn("nonexistent.yaml");
+        when(loadTestConfig.getReportOutput()).thenReturn(Arrays.asList("html", "txt"));
+
+        when(resultExporter.export(any(), anyString())).thenReturn(tempDir.resolve("results.txt").toString());
+
+        ResultReport report = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(2)
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance());
+        dataIO.exportResults(report);
+
+        verify(loadTestConfig).getReportOutput(); // ensure it was called
+        verify(resultExporter).export(report, "results.txt");
+        verify(htmlReportGenerator).generateHtmlReport(report, "report.html");
+    }
+
+    @Test
+    void testExportResults_doesNotGenerateHtmlReportWhenDisabled(@TempDir Path tempDir) throws IOException {
+        when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn("nonexistent.yaml");
+        when(loadTestConfig.getReportOutput()).thenReturn(Arrays.asList("txt"));
+
+        when(resultExporter.export(any(), anyString())).thenReturn(tempDir.resolve("results.txt").toString());
+
+        ResultReport report = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(2)
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance());
+        dataIO.exportResults(report);
+
+        verify(resultExporter).export(report, "results.txt");
+        verify(htmlReportGenerator, never()).generateHtmlReport(any(), anyString());
     }
 
 }

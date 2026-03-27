@@ -11,3 +11,6 @@ workers:
 
 distribution:
   usersPerWorker: 2
+
+advanced:
+  reportOutput: html,txt

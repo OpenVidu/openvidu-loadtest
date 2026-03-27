@@ -84,6 +84,8 @@ class LoadTestServiceTests {
             return null;
         }).when(this.dataIO).exportResults(any());
         when(this.webSocketConnectionFactory.createConnection(anyString())).thenReturn(mock(WebSocketClient.class));
+        when(this.browserEmulatorClient.getRetryStatistics()).thenReturn(new int[]{0, 0});
+        when(this.browserEmulatorClient.getMaxRetriesPerParticipant()).thenReturn(0);
     }
 
     private Instance generateRandomInstance() {

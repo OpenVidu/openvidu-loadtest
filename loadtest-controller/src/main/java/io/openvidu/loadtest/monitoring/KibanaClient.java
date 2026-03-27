@@ -36,7 +36,7 @@ public class KibanaClient {
     private static final String KIBANA_DASHBOARD_URL = "/app/kibana#/dashboard/";
     private static final String LOAD_TEST_DASHBOARD = "Load Test Dashboard";
 
-    private static final String DASHBOARD_NOT_FOUND = "Kibana Load Test Dashboard is not found. You can import it manually to see the results.";
+    private static final String DASHBOARD_NOT_FOUND = "Kibana Load Test Dashboard is not found. You can import it manually to see the results if you provided an ElasticSearch instance.";
 
     private static final int HTTP_STATUS_OK = 200;
 

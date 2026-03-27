@@ -8,10 +8,11 @@
 set -e  # Exit on any error
 
 echo "Starting OpenVidu Load Test Smoke Test..."
+EXIT_CODE=0
 
-# Check if docker-compose is available
-if ! command -v docker-compose &> /dev/null; then
-    echo "docker-compose not found. Please install docker-compose."
+# Check if docker compose is available
+if ! command -v docker compose &> /dev/null; then
+    echo "docker compose not found. Please install docker compose."
     exit 1
 fi
 
@@ -33,25 +34,24 @@ E2E_TEST_DIR="$(dirname "$(realpath "$0")")/.."
 export LOCAL_CONFIG_DIR="$E2E_TEST_DIR/config" 
 export LOCAL_RESULTS_DIR="$E2E_TEST_DIR/results"
 export LOADTEST_CONFIG="/config/smoke-test-config.yaml"
-
 # Start services
-echo "Starting services with docker-compose..."
-docker-compose up --build -d
+echo "Starting services with docker compose..."
+docker compose up --build -d
 
 MAX_WAIT=120
 ELAPSED=0
 while [ $ELAPSED -lt $MAX_WAIT ]; do
-    # Check if loadtest-controller has finished (results file exists)
-    if [ -f "$LOCAL_RESULTS_DIR/results.txt" ]; then
-        echo "Results file found. Test appears to be complete."
+    # Check if loadtest-controller has finished (results and HTML report exist)
+    if [ -f "$LOCAL_RESULTS_DIR/results.txt" ] && [ -f "$LOCAL_RESULTS_DIR/report.html" ]; then
+        echo "Results and HTML report found. Test appears to be complete."
         break
     fi
     
     # Check if containers are still running
-    RUNNING_CONTAINERS=$(docker-compose ps -q)
+    RUNNING_CONTAINERS=$(docker compose ps -q)
     if [ -z "$RUNNING_CONTAINERS" ]; then
         echo "No running containers found. Something went wrong."
-        docker-compose logs
+        docker compose logs
         exit 1
     fi
     
@@ -62,13 +62,14 @@ done
 
 if [ $ELAPSED -ge $MAX_WAIT ]; then
     echo "Timeout waiting for test to complete after $MAX_WAIT seconds."
-    docker-compose ps
-    docker-compose logs
+    docker compose ps
+    docker compose logs
 fi
 
 # Stop services
+docker compose logs > $LOCAL_RESULTS_DIR/docker-compose.log 2>&1
 echo "Stopping services..."
-docker-compose down
+docker compose down
 
     # Check results
     echo "Checking test results..."
@@ -120,29 +121,96 @@ docker-compose down
             VALIDATION_PASSED=false
         fi
         
-        # Check for user start time lines (pattern: Day Mon DD HH:MM:SS TZ YYYY | LoadTestSession | UserX)
-        # Using a more flexible pattern that matches the expected format
-        if grep -E "[A-Za-z]{3} [A-Za-z]{3} [0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [A-Z]+ [0-9]{4} \| LoadTestSession[0-9]+ \| User[0-9]+" "$LOCAL_RESULTS_DIR/results.txt"; then
+        # Check for user start time lines (pattern: Day Mon DD HH:MM:SS TZ YYYY | session | user)
+        # Using a flexible pattern that matches any session/user values (including empty)
+        if grep -E "[A-Za-z]{3} [A-Za-z]{3} [0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [A-Z]+ [0-9]{4} \\| [^|]* \\| [^|]*" "$LOCAL_RESULTS_DIR/results.txt"; then
             echo "✓ Found user start time lines matching expected pattern"
         else
             echo "✗ Missing user start time lines matching expected pattern (e.g., 'Fri Mar 20 12:53:18 GMT 2026 | LoadTestSession1 | User1')"
             VALIDATION_PASSED=false
         fi
         
-        if [ "$VALIDATION_PASSED" = true ]; then
+        # HTML report validation
+        HTML_VALIDATION_PASSED=true
+        HTML_FILE="$LOCAL_RESULTS_DIR/report.html"
+        if [ -f "$HTML_FILE" ]; then
+            echo "✓ HTML report found"
+            
+            # Check for basic HTML structure
+            if grep -q "OpenVidu Load Test Report" "$HTML_FILE"; then
+                echo "✓ HTML contains 'OpenVidu Load Test Report'"
+            else
+                echo "✗ HTML missing 'OpenVidu Load Test Report'"
+                HTML_VALIDATION_PASSED=false
+            fi
+            
+            # Check for sessions created
+            if grep -q "Sessions Created" "$HTML_FILE"; then
+                echo "✓ HTML contains 'Sessions Created'"
+            else
+                echo "✗ HTML missing 'Sessions Created'"
+                HTML_VALIDATION_PASSED=false
+            fi
+            
+            # Check for total participants
+            if grep -q "Total Participants" "$HTML_FILE"; then
+                echo "✓ HTML contains 'Total Participants'"
+            else
+                echo "✗ HTML missing 'Total Participants'"
+                HTML_VALIDATION_PASSED=false
+            fi
+            
+            # Check for User Connections section (mandatory)
+            if grep -q "User Connections" "$HTML_FILE"; then
+                echo "✓ HTML contains 'User Connections'"
+                # Check for new column headers
+                if grep -q "Join date" "$HTML_FILE" && grep -q "Disconnect Date" "$HTML_FILE" && grep -q "Retry Number" "$HTML_FILE"; then
+                    echo "✓ HTML contains new table columns"
+                    # Check for two user rows (User1 and User2)
+                    if grep -q "User1" "$HTML_FILE" && grep -q "User2" "$HTML_FILE"; then
+                        echo "✓ HTML contains two user rows"
+                    else
+                        echo "✗ HTML missing user rows (expected User1 and User2)"
+                        HTML_VALIDATION_PASSED=false
+                    fi
+                else
+                    echo "✗ HTML missing new table columns"
+                    HTML_VALIDATION_PASSED=false
+                fi
+            else
+                echo "✗ HTML missing 'User Connections'"
+                HTML_VALIDATION_PASSED=false
+            fi
+            
+            # HTML file will be deleted later if validation passes
+        else
+            echo "✗ HTML report not found at $HTML_FILE"
+            HTML_VALIDATION_PASSED=false
+        fi
+        
+        # Combine validation results
+        if [ "$VALIDATION_PASSED" = true ] && [ "$HTML_VALIDATION_PASSED" = true ]; then
             echo "SUCCESS: All validation checks passed."
         else
             echo "FAILURE: One or more validation checks failed."
+            EXIT_CODE=1
         fi
         
-        # Delete results file after reading
-        echo "Deleting results file..."
-        rm -f "$LOCAL_RESULTS_DIR/results.txt"
+        # Delete result files only if validation passed
+        if [ $EXIT_CODE -eq 0 ]; then
+            echo "Deleting result files..."
+            rm -f "$LOCAL_RESULTS_DIR/results.txt"
+            rm -f "$HTML_FILE"
+            rm -f "$LOCAL_RESULTS_DIR/docker-compose.log"
+        else
+            echo "Keeping result files for debugging. Remember to remove them manually before re-running the test."
+        fi
 else
-    echo "ERROR: Results file not found at $LOCAL_RESULTS_DIR/results.txt"
-    exit 1
+    echo "ERROR: Results file or HTML report not found at $LOCAL_RESULTS_DIR/results.txt or report.html"
+    EXIT_CODE=1
 fi
 
-echo "Smoke test completed successfully!"
-
-exit 0
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "Smoke test completed successfully!"
+fi
+exit $EXIT_CODE

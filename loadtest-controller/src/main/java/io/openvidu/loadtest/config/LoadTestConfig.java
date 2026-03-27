@@ -92,6 +92,8 @@ public abstract class LoadTestConfig {
 
     private int retryTimes;
 
+    private List<String> reportOutput = new ArrayList<>(Arrays.asList("html"));
+
     private boolean qoeAnalysisRecordings;
 
     private boolean qoeAnalysisInSitu;
@@ -261,6 +263,16 @@ public abstract class LoadTestConfig {
 
     public int getRetryTimes() {
         return retryTimes;
+    }
+
+
+
+    public List<String> getReportOutput() {
+        return reportOutput;
+    }
+
+    public void setReportOutput(List<String> reportOutput) {
+        this.reportOutput = reportOutput;
     }
 
     public boolean isQoeAnalysisRecordings() {
@@ -436,6 +448,12 @@ public abstract class LoadTestConfig {
         batches = !Boolean.FALSE.equals(batchesEnabled);
         Boolean waitCompleteEnabled = yamlConfig.getBooleanOrNull("advanced.waitForCompletion");
         waitCompletion = !Boolean.FALSE.equals(waitCompleteEnabled);
+        // Parse report output list
+        List<String> reportOutputList = asOptionalStringList("advanced.reportOutput");
+        if (!reportOutputList.isEmpty()) {
+            reportOutput = reportOutputList;
+        }
+        // default reportOutput already initialized to ["html"]
     }
 
     private String defaultIfEmpty(String value, String defaultValue) {

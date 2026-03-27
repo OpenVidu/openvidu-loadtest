@@ -31,7 +31,7 @@ services:
     restart: unless-stopped
     environment:
       RUNNING_IN_DOCKER: true
-      DOCKER_NETWORK_NAME: browseremulator
+      DOCKER_NETWORK_NAME: browseremulator-e2e
       DOCKER_BROWSER_EMULATOR_HOST: browser-emulator
       MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/../../browser-emulator/mediafiles}
       SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/../../browser-emulator/logs}
@@ -47,4 +47,4 @@ services:
 
 networks:
   browseremulator:
-    name: browseremulator
+    name: browseremulator-e2e

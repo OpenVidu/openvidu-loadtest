@@ -23,6 +23,8 @@ import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
+import io.openvidu.loadtest.config.LoadTestConfig;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class DataIO {
@@ -34,6 +36,10 @@ public class DataIO {
 
     private final Environment environment;
     private final ResultExporter resultExporter;
+    @Autowired
+    private LoadTestConfig loadTestConfig;
+    @Autowired
+    private HtmlReportGenerator htmlReportGenerator;
 
     // Constructor for tests or explicit wiring
     public DataIO(Environment environment, ResultExporter resultExporter) {
@@ -84,10 +90,22 @@ public class DataIO {
     }
 
     public void exportResults(ResultReport result) {
-        try {
-            this.resultExporter.export(result, REPORT_FILE_RESULT);
-        } catch (IOException e) {
-            log.error("Could not save results to file", e);
+        System.out.println("DATAIO: exportResults called");
+        List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
+        System.out.println("DATAIO: reportOutput = " + reportOutput);
+        if (reportOutput.contains("txt")) {
+            try {
+                this.resultExporter.export(result, REPORT_FILE_RESULT);
+            } catch (IOException e) {
+                log.error("Could not save results to file", e);
+            }
+        }
+        if (reportOutput.contains("html")) {
+            try {
+                htmlReportGenerator.generateHtmlReport(result, "report.html");
+            } catch (IOException e) {
+                log.error("Could not save HTML report to file", e);
+            }
         }
     }
 

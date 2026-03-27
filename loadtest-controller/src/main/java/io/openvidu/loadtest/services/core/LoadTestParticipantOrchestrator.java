@@ -55,6 +55,7 @@ class LoadTestParticipantOrchestrator {
     private AtomicInteger sessionsCompleted = new AtomicInteger(0);
     private AtomicInteger totalParticipants = new AtomicInteger(0);
     private AtomicInteger userNumber = new AtomicInteger(1);
+    private List<CreateParticipantResponse> allResponses = new ArrayList<>();
 
     LoadTestParticipantOrchestrator(LoadTestService loadTestService, BrowserEmulatorClient browserEmulatorClient,
             ElasticSearchClient esClient, LoadTestConfig loadTestConfig, Sleeper sleeper) {
@@ -340,6 +341,8 @@ class LoadTestParticipantOrchestrator {
         this.sessionsCompleted.set(0);
         this.totalParticipants.set(0);
         this.userNumber.set(1);
+        this.userStartTimes.clear();
+        this.allResponses.clear();
     }
 
     int getSessionNumber() {
@@ -359,13 +362,27 @@ class LoadTestParticipantOrchestrator {
     }
 
     void addUserStartTime(Calendar startTime, String sessionId, String userId) {
+        log.debug("addUserStartTime: sessionId={}, userId={}", sessionId, userId);
         List<String> sessionUserList = new ArrayList<>(2);
         sessionUserList.add(sessionId);
         sessionUserList.add(userId);
-        this.userStartTimes.put(startTime, sessionUserList);
+        // Ensure key uniqueness in case of duplicate timestamps
+        Calendar key = (Calendar) startTime.clone();
+        while (this.userStartTimes.containsKey(key)) {
+            key.add(Calendar.MILLISECOND, 1);
+        }
+        this.userStartTimes.put(key, sessionUserList);
     }
 
     Map<Calendar, List<String>> getUserStartTimes() {
         return userStartTimes;
+    }
+
+    void addParticipantResponse(CreateParticipantResponse response) {
+        allResponses.add(response);
+    }
+
+    List<CreateParticipantResponse> getAllParticipantResponses() {
+        return allResponses;
     }
 }

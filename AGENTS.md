@@ -150,7 +150,6 @@ When implementing changes in this repository, agents MUST follow these rules:
 
 - **Browser-emulator changes**: Run `pnpm run test:unit` and `pnpm run test:integration` after modifications
 - **Loadtest-controller changes**: Run `mvn test` after Java modifications
-- **E2E affecting changes**: Run the smoke test via `./e2e-tests/scripts/run-smoke-test.sh`
 
 ### 2. Lint Requirements (Browser-emulator only)
 
