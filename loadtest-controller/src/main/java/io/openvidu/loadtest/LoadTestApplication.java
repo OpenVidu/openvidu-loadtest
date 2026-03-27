@@ -40,9 +40,13 @@ public class LoadTestApplication {
         if (!testCasesList.isEmpty()) {
             loadTestService.startLoadTests(testCasesList);
             log.info("Finished");
+            // Exit the application after all tests are completed
+            System.exit(0);
         } else {
             log.error(
                     "Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
+            // Exit with error code when no test cases are found
+            System.exit(1);
         }
     }
 
