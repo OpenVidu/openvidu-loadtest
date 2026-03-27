@@ -146,10 +146,15 @@ export class SeleniumService {
 		);
 
 		const seleniumServerBaseUrl = `http://${containerName}:${dockerizedConfig.seleniumPort}`;
-		await this.waitForSeleniumServer(
-			seleniumServerBaseUrl,
-			dockerizedConfig.startupTimeoutMs,
-		);
+		try {
+			await this.waitForSeleniumServer(
+				seleniumServerBaseUrl,
+				dockerizedConfig.startupTimeoutMs,
+			);
+		} catch (err) {
+			await this.dockerService.removeContainer(containerName);
+			throw err;
+		}
 
 		return await this.buildDockerizedDriver(
 			browser,
@@ -322,11 +327,29 @@ export class SeleniumService {
 						value?: { ready?: boolean };
 					};
 					if (body.value?.ready === true) {
+						console.log(
+							'Dockerized Selenium server ' +
+								seleniumServerBaseUrl +
+								' is ready',
+						);
 						return;
+					} else {
+						console.warn(
+							`Selenium server at ${seleniumServerBaseUrl} responded but is not ready yet, retrying...`,
+						);
+						console.warn('Response body:', body);
 					}
+				} else {
+					console.warn(
+						`Selenium server responded with status ${response.status}, retrying...`,
+					);
+					console.warn('Response body:', await response.text());
 				}
-			} catch {
-				// Selenium is still booting, retry until timeout.
+			} catch (error) {
+				console.warn(
+					'Failed to connect to dockerized Selenium, retrying...',
+					error,
+				);
 			}
 			await new Promise(resolve => setTimeout(resolve, 1000));
 		}
