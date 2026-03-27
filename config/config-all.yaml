@@ -23,7 +23,7 @@ session:
 
 # ---------- Test Cases ----------
 # Each test case defines a load test scenario to run sequentially.
-# After all test cases complete, the load test ends (or TERMINATE terminates workers).
+# After all test cases complete, the load test ends.
 testcases:
   - topology: N:N
     participants:
@@ -58,6 +58,7 @@ aws:
   availabilityZone: us-east-1f
   workersAtStart: 0
   rampUpWorkers: 0
+  terminateWorkers: true
 
 # ---------- Participant Distribution ----------
 distribution:

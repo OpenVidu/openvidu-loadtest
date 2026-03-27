@@ -128,11 +128,6 @@ public class DataIO {
     private TestCase parseTestCase(Map<String, Object> element) {
         String topology = parseTopology(element);
 
-        if (topology.equalsIgnoreCase(Topology.TERMINATE.getValue())) {
-            return new TestCase(topology, new ArrayList<>(), 0, 30, Resolution.MEDIUM,
-                    OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
-        }
-
         List<String> participants = parseParticipants(element);
         int sessions = parseSessions(element);
         int frameRate = parseFrameRate(element);

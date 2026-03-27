@@ -412,7 +412,9 @@ public abstract class LoadTestConfig {
     private void initAwsAndRecordingConfig() {
         medianodeLoadForStartRecording = asDouble("recording.mediaNodeLoadThreshold");
         recordingSessionGroup = asInt("recording.sessionsGroupSize");
-        terminateWorkers = asBoolean("terminateWorkers");
+        // Default terminateWorkers to true when AWS is configured (no worker URLs), false for local workers
+        Boolean terminateWorkersConfig = asBoolean("terminateWorkers");
+        terminateWorkers = terminateWorkersConfig != null ? terminateWorkersConfig : workerUrlList.isEmpty();
         awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
         awsAccessKey = asOptionalString("aws.accessKey");
         s3bucketName = asOptionalString("storage.bucket");

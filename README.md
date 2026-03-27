@@ -157,7 +157,7 @@ Define multiple test scenarios that run sequentially. Each test case can have th
 
 | Property                   | Required | Default   | Description                                                                                                |
 | -------------------------- | -------- | --------- | ---------------------------------------------------------------------------------------------------------- |
-| `topology`                 | **Yes**  | -         | `N:N`, `N:M`, `TEACHING`, `ONE_SESSION`, or `TERMINATE`                                                    |
+| `topology`                 | **Yes**  | -         | `N:N`, `N:M`, `TEACHING`, or `ONE_SESSION`                                                                 |
 | `participants`             | **Yes**  | -         | List of participant counts (e.g., `["2", "10"]`). Each element of the list will create a new test scenario |
 | `sessions`                 | **Yes**  | -         | Number of sessions or `infinite`                                                                           |
 | `browser`                  | No       | `chrome`  | Browser to use: `chrome` or `firefox`                                                                      |
@@ -176,7 +176,6 @@ Define multiple test scenarios that run sequentially. Each test case can have th
 | `N:M`         | N publishers, M subscribers            | `"5:50"` |
 | `TEACHING`    | Publisher with audio-only subscribers  | `"2:30"` |
 | `ONE_SESSION` | Single session with N participants     | `"100"`  |
-| `TERMINATE`   | Terminate all EC2 instances            | (none)   |
 
 ### Workers
 
@@ -208,6 +207,7 @@ Configuration for where browsers run. Workers can be manually provided and manag
 | `availabilityZone` | No       | `us-east-1f` | AWS availability zone                                            |
 | `workersAtStart`   | No       | `0`          | Number of instances to start the test with                       |
 | `rampUpWorkers`    | No       | `0`          | Workers instances to add when the test runs out of existing ones |
+| `terminateWorkers` | No       | _true_       | Whether to terminate EC2 instances after test completion         |
 
 ### Distribution
 

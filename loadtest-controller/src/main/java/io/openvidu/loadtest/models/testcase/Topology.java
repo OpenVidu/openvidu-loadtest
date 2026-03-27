@@ -8,9 +8,7 @@ public enum Topology {
 
     TEACHING("TEACHING", "TEACHING"),
 
-    ONE_SESSION("ONE_SESSION", "One session with N publishers or X:M subscribers"),
-
-    TERMINATE("TERMINATE", "Terminate all Ec2 instances launched");
+    ONE_SESSION("ONE_SESSION", "One session with N publishers or X:M subscribers");
 
     private String value;
     private String description;

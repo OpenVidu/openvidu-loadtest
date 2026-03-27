@@ -62,10 +62,6 @@ public class TestCase {
         return this.topology.getValue().equals(Topology.ONE_SESSION.getValue());
     }
 
-    public boolean isTerminate() {
-        return this.topology.getValue().equals(Topology.TERMINATE.getValue());
-    }
-
     public Topology getTopology() {
         return topology;
     }

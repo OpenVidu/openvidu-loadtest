@@ -36,12 +36,6 @@ class LoadTestTopologyOrchestrator {
 
     void startLoadTests(List<TestCase> testCasesList) {
 
-        if (loadTestConfig.isTerminateWorkers()) {
-            log.info("Terminate all EC2 instances");
-            loadTestService.terminateAllInstances();
-            return;
-        }
-
         kibanaClient.importDashboards();
 
         if (!loadTestService.hasInitialWorkersAvailable()) {
@@ -50,6 +44,11 @@ class LoadTestTopologyOrchestrator {
         }
 
         testCasesList.forEach(this::runTestCase);
+
+        if (loadTestConfig.isTerminateWorkers()) {
+            log.info("Terminate all EC2 instances");
+            loadTestService.terminateAllInstances();
+        }
     }
 
     private void runTestCase(TestCase testCase) {
@@ -59,9 +58,6 @@ class LoadTestTopologyOrchestrator {
             runNxMCase(testCase);
         } else if (testCase.isOneSession()) {
             runOneSessionCase(testCase);
-        } else if (testCase.isTerminate() && loadTestService.isProdMode()) {
-            log.info("TERMINATE topology. Terminate all EC2 instances");
-            loadTestService.terminateAllInstances();
         } else {
             log.error("Test case has wrong topology, SKIPPED.");
         }
