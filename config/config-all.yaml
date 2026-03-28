@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../schema/openvidu-loadtest-schema.json
 # ============================================
 # OpenVidu Load Test Configuration
 # ============================================

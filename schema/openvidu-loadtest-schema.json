@@ -1,0 +1,498 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenVidu Load Test Configuration",
+  "description": "Configuration schema for OpenVidu Load Test scenarios",
+  "type": "object",
+  "required": ["platform", "testcases"],
+  "properties": {
+    "platform": {
+      "type": "object",
+      "title": "Platform Connection Settings",
+      "description": "Connection settings for the OpenVidu/LiveKit platform under test",
+      "required": ["url", "apiKey", "apiSecret"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the OpenVidu deployment"
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key for authentication with the platform"
+        },
+        "apiSecret": {
+          "type": "string",
+          "description": "API secret for authentication with the platform"
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "title": "Session Configuration",
+      "description": "Naming and timing configuration for test sessions",
+      "properties": {
+        "namePrefix": {
+          "type": "string",
+          "default": "LoadTestSession",
+          "description": "Prefix for session names"
+        },
+        "usersNamePrefix": {
+          "type": "string",
+          "default": "User",
+          "description": "Prefix for participant names"
+        },
+        "secondsBetweenParticipants": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Seconds to wait between adding participants"
+        },
+        "secondsBetweenSessions": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Seconds to wait between sessions"
+        },
+        "secondsBeforeTestFinished": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Seconds to wait before test ends"
+        },
+        "secondsBetweenTestCases": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Seconds to wait between test cases"
+        }
+      }
+    },
+    "testcases": {
+      "type": "array",
+      "title": "Test Cases",
+      "description": "List of test scenarios to run sequentially",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["topology", "participants", "sessions"],
+        "properties": {
+          "topology": {
+            "type": "string",
+            "enum": ["N:N", "N:M", "TEACHING", "ONE_SESSION"],
+            "description": "Topology type: N:N (all publish/subscribe), N:M (N publishers, M subscribers), TEACHING (publisher with audio-only subscribers), ONE_SESSION (single session with N participants)"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9]+(:[0-9]+)?$"
+            },
+            "description": "List of participant counts. Each element creates a new test scenario. Format: 'N' or 'N:M' for N:M topology"
+          },
+          "sessions": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "enum": ["infinite"]
+              }
+            ],
+            "description": "Number of sessions to create, or 'infinite' to run until platform fails"
+          },
+          "browser": {
+            "type": "string",
+            "enum": ["chrome", "firefox"],
+            "default": "chrome",
+            "description": "Browser type to use for the test"
+          },
+          "resolution": {
+            "type": "string",
+            "pattern": "^[0-9]+x[0-9]+$",
+            "enum": ["640x480", "1280x720", "1920x1080"],
+            "default": "640x480",
+            "description": "Video resolution to force (e.g., 640x480, 1280x720, 1920x1080)"
+          },
+          "frameRate": {
+            "type": "integer",
+            "default": 30,
+            "minimum": 1,
+            "maximum": 60,
+            "description": "Video frame rate to force"
+          },
+          "startingParticipants": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "description": "Initial batch of participants to add at test start"
+          },
+          "headlessBrowser": {
+            "type": "boolean",
+            "default": false,
+            "description": "Run browser in headless mode (no visible UI)"
+          },
+          "browserRecording": {
+            "type": "boolean",
+            "default": false,
+            "description": "Record browser output using ffmpeg"
+          },
+          "showBrowserVideoElements": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show video elements in browser window"
+          },
+          "recordingMode": {
+            "type": "string",
+            "enum": ["COMPOSED", "INDIVIDUAL"],
+            "description": "Recording mode for media recording"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of this test case"
+          }
+        }
+      }
+    },
+    "workers": {
+      "type": "object",
+      "title": "Worker Configuration",
+      "description": "Configuration for where browsers run",
+      "properties": {
+        "urls": {
+          "type": "string",
+          "description": "Comma-separated list of worker URLs (for local workers). Leave empty for AWS workers."
+        },
+        "disableHttps": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable HTTPS certificate verification (useful for local testing)"
+        },
+        "exitOnEnd": {
+          "type": "boolean",
+          "default": true,
+          "description": "Signal workers to cleanup and exit after test completion"
+        }
+      }
+    },
+    "aws": {
+      "type": "object",
+      "title": "AWS Configuration",
+      "description": "AWS EC2 instance provisioning settings (required when workers.urls is empty)",
+      "properties": {
+        "accessKey": {
+          "type": "string",
+          "description": "AWS access key ID"
+        },
+        "secretAccessKey": {
+          "type": "string",
+          "description": "AWS secret access key"
+        },
+        "amiId": {
+          "type": "string",
+          "description": "Amazon Machine Image ID for browser-emulator instances"
+        },
+        "instanceType": {
+          "type": "string",
+          "default": "c5.xlarge",
+          "description": "EC2 instance type"
+        },
+        "keyPairName": {
+          "type": "string",
+          "description": "Name of the SSH key pair for EC2 instances"
+        },
+        "securityGroupId": {
+          "type": "string",
+          "description": "Security group ID for EC2 instances"
+        },
+        "region": {
+          "type": "string",
+          "default": "us-east-1",
+          "description": "AWS region for EC2 instances"
+        },
+        "availabilityZone": {
+          "type": "string",
+          "default": "us-east-1f",
+          "description": "AWS availability zone for EC2 instances"
+        },
+        "workersAtStart": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Number of worker instances to launch at test start"
+        },
+        "rampUpWorkers": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Number of additional workers to launch during test"
+        },
+        "terminateWorkers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically terminate EC2 instances after test completion"
+        }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "title": "Participant Distribution",
+      "description": "How participants are distributed across workers",
+      "properties": {
+        "usersPerWorker": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of participants each worker can handle"
+        }
+      }
+    },
+    "video": {
+      "type": "object",
+      "title": "Video Configuration",
+      "description": "Video source and quality settings",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["BUNNY", "INTERVIEW", "GAME", "CUSTOM"],
+          "default": "BUNNY",
+          "description": "Video source type. BUNNY=standard test video, INTERVIEW=talking head, GAME=screen sharing, CUSTOM=custom URLs"
+        },
+        "width": {
+          "type": "integer",
+          "default": 640,
+          "minimum": 1,
+          "description": "Video width in pixels"
+        },
+        "height": {
+          "type": "integer",
+          "default": 480,
+          "minimum": 1,
+          "description": "Video height in pixels"
+        },
+        "fps": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Video frames per second"
+        },
+        "customVideoUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for custom video file (required when type is CUSTOM)"
+        },
+        "customAudioUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for custom audio file (required when type is CUSTOM)"
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "title": "Monitoring Configuration",
+      "description": "Elasticsearch and Kibana integration for metrics",
+      "properties": {
+        "elasticsearch": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "Elasticsearch host URL"
+            },
+            "username": {
+              "type": "string",
+              "description": "Elasticsearch username"
+            },
+            "password": {
+              "type": "string",
+              "description": "Elasticsearch password"
+            }
+          }
+        },
+        "kibana": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "Kibana host URL"
+            }
+          }
+        }
+      }
+    },
+    "recording": {
+      "type": "object",
+      "title": "Media Node Recording",
+      "description": "Automatic recording settings based on media node load",
+      "properties": {
+        "mediaNodeLoadThreshold": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "CPU load percentage threshold to trigger recording (0 = disabled)"
+        },
+        "sessionsGroupSize": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Group sessions for recording (0 = disabled, 1 = each session, 2 = every 2 sessions)"
+        },
+        "workersAtStart": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Number of dedicated recording workers"
+        }
+      }
+    },
+    "qoe": {
+      "type": "object",
+      "title": "Quality of Experience Analysis",
+      "description": "QoE analysis measures video/audio quality by comparing recordings against reference files",
+      "properties": {
+        "recordStreams": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable recording of media streams for QoE analysis"
+        },
+        "analyzeInSitu": {
+          "type": "boolean",
+          "default": false,
+          "description": "Perform analysis in the worker (true) or upload to S3 for later processing (false)"
+        },
+        "paddingDuration": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 0,
+          "description": "Padding duration in seconds for QoE analysis"
+        },
+        "fragmentDuration": {
+          "type": "integer",
+          "default": 15,
+          "minimum": 1,
+          "description": "Fragment duration in seconds for QoE analysis"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "title": "Storage Configuration",
+      "description": "S3-compatible storage for recordings and results",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "description": "S3 bucket name for storage"
+        },
+        "region": {
+          "type": "string",
+          "default": "us-east-1",
+          "description": "AWS region for S3 bucket"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "Custom S3 endpoint URL (for S3-compatible services)"
+        },
+        "accessKey": {
+          "type": "string",
+          "description": "AWS access key for S3"
+        },
+        "secretKey": {
+          "type": "string",
+          "description": "AWS secret key for S3"
+        }
+      }
+    },
+    "advanced": {
+      "type": "object",
+      "title": "Advanced Settings",
+      "description": "Advanced retry, batching, and report output options",
+      "properties": {
+        "retry": {
+          "type": "object",
+          "description": "Retry configuration for failed participant insertions",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable retry on participant insertion failure"
+            },
+            "times": {
+              "type": "integer",
+              "default": 5,
+              "minimum": 1,
+              "description": "Number of retry attempts"
+            }
+          }
+        },
+        "batches": {
+          "type": "object",
+          "description": "Batch insertion control",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable batch participant insertion"
+            },
+            "maxConcurrentRequests": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum concurrent participant insertion requests"
+            }
+          }
+        },
+        "waitForCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Wait for batch/participant confirmation before continuing"
+        },
+        "reportOutput": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["html", "txt"]
+          },
+          "description": "Output formats for test reports"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "not": {
+          "required": ["aws"]
+        }
+      },
+      "then": {
+        "required": ["workers"],
+        "properties": {
+          "workers": {
+            "required": ["urls"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["aws"]
+      },
+      "then": {
+        "properties": {
+          "aws": {
+            "required": [
+              "accessKey",
+              "secretAccessKey",
+              "amiId",
+              "securityGroupId"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
