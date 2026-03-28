@@ -45,6 +45,8 @@ workers:
   urls: 127.0.0.1
   # Set to true if workers don't have HTTPS configured (local testing)
   disableHttps: false
+  # Signal workers to cleanup and exit after test completion
+  exitOnEnd: true
 
 # ---------- AWS ----------
 aws:

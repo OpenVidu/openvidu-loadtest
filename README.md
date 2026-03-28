@@ -195,19 +195,20 @@ Configuration for where browsers run. Workers can be manually provided and manag
 
 #### AWS Workers
 
-| Property           | Required | Default      | Description                                                      |
-| ------------------ | -------- | ------------ | ---------------------------------------------------------------- |
-| `accessKey`        | **Yes**  | -            | AWS access key                                                   |
-| `secretAccessKey`  | **Yes**  | -            | AWS secret access key                                            |
-| `amiId`            | **Yes**  | -            | AMI ID for worker instances                                      |
-| `instanceType`     | No       | `c5.xlarge`  | EC2 instance type                                                |
-| `keyPairName`      | No       | -            | EC2 key pair name                                                |
-| `securityGroupId`  | No       | -            | Security group ID                                                |
-| `region`           | No       | `us-east-1`  | AWS region                                                       |
-| `availabilityZone` | No       | `us-east-1f` | AWS availability zone                                            |
-| `workersAtStart`   | No       | `0`          | Number of instances to start the test with                       |
-| `rampUpWorkers`    | No       | `0`          | Workers instances to add when the test runs out of existing ones |
-| `terminateWorkers` | No       | _true_       | Whether to terminate EC2 instances after test completion         |
+| Property           | Required | Default      | Description                                                         |
+| ------------------ | -------- | ------------ | ------------------------------------------------------------------- |
+| `accessKey`        | **Yes**  | -            | AWS access key                                                      |
+| `secretAccessKey`  | **Yes**  | -            | AWS secret access key                                               |
+| `amiId`            | **Yes**  | -            | AMI ID for worker instances                                         |
+| `instanceType`     | No       | `c5.xlarge`  | EC2 instance type                                                   |
+| `keyPairName`      | No       | -            | EC2 key pair name                                                   |
+| `securityGroupId`  | No       | -            | Security group ID                                                   |
+| `region`           | No       | `us-east-1`  | AWS region                                                          |
+| `availabilityZone` | No       | `us-east-1f` | AWS availability zone                                               |
+| `workersAtStart`   | No       | `0`          | Number of instances to start the test with                          |
+| `rampUpWorkers`    | No       | `0`          | Workers instances to add when the test runs out of existing ones    |
+| `terminateWorkers` | No       | _true_       | Whether to terminate EC2 instances after test completion            |
+| `exitOnEnd`        | No       | _true_       | Whether to signal workers to cleanup and exit after test completion |
 
 ### Distribution
 

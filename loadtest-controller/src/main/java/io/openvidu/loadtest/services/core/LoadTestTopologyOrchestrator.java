@@ -1,6 +1,7 @@
 package io.openvidu.loadtest.services.core;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.KibanaClient;
+import io.openvidu.loadtest.services.BrowserEmulatorClient;
 
 class LoadTestTopologyOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(LoadTestTopologyOrchestrator.class);
@@ -26,12 +28,14 @@ class LoadTestTopologyOrchestrator {
     private final LoadTestService loadTestService;
     private final LoadTestConfig loadTestConfig;
     private final KibanaClient kibanaClient;
+    private final BrowserEmulatorClient browserEmulatorClient;
 
     LoadTestTopologyOrchestrator(LoadTestService loadTestService, LoadTestConfig loadTestConfig,
-            KibanaClient kibanaClient) {
+            KibanaClient kibanaClient, BrowserEmulatorClient browserEmulatorClient) {
         this.loadTestService = loadTestService;
         this.loadTestConfig = loadTestConfig;
         this.kibanaClient = kibanaClient;
+        this.browserEmulatorClient = browserEmulatorClient;
     }
 
     void startLoadTests(List<TestCase> testCasesList) {
@@ -45,6 +49,25 @@ class LoadTestTopologyOrchestrator {
 
         testCasesList.forEach(this::runTestCase);
 
+        // Signal workers to cleanup and exit if configured
+        if (loadTestConfig.isExitOnEnd()) {
+            boolean isAwsMode = loadTestService.isProdMode();
+            List<String> workerUrls = isAwsMode 
+                    ? loadTestService.getAwsWorkersList().stream()
+                        .map(instance -> instance.publicDnsName())
+                        .collect(Collectors.toList())
+                    : loadTestService.getDevWorkersList();
+            
+            if (!workerUrls.isEmpty()) {
+                log.info("Sending exit signal to {} workers ({} mode)", 
+                        workerUrls.size(), isAwsMode ? "AWS" : "local");
+                
+                // Wait for response with timeout to ensure shutdown request is delivered
+                browserEmulatorClient.shutdownWorkers(workerUrls, true);
+            }
+        }
+
+        // Terminate workers after all test cases are completed if configured
         if (loadTestConfig.isTerminateWorkers()) {
             log.info("Terminate all EC2 instances");
             loadTestService.terminateAllInstances();

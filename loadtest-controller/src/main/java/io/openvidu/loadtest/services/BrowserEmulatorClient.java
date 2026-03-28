@@ -16,6 +16,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -675,5 +677,45 @@ public class BrowserEmulatorClient {
             }
         }
         return counts;
+    }
+
+    public void shutdownWorkers(List<String> workerUrls, boolean waitForResponse) {
+        if (workerUrls == null || workerUrls.isEmpty()) {
+            return;
+        }
+
+        ExecutorService executorService = Executors.newFixedThreadPool(Math.min(workerUrls.size(), 10));
+        List<Future<Void>> futures = new ArrayList<>();
+
+        try {
+            for (String workerUrl : workerUrls) {
+                Callable<Void> callable = () -> {
+                    try {
+                        httpClient.sendDelete(
+                                httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/shutdown",
+                                getHeaders());
+                    } catch (Exception e) {
+                        log.warn("Failed to send shutdown request to worker {}: {}", workerUrl, e.getMessage());
+                    }
+                    return null;
+                };
+                futures.add(executorService.submit(callable));
+            }
+
+            if (waitForResponse) {
+                // Wait for all futures to complete with a timeout
+                try {
+                    for (Future<Void> future : futures) {
+                        future.get(5, TimeUnit.MINUTES); // 5 minute timeout
+                    }
+                } catch (TimeoutException e) {
+                    log.warn("Timeout waiting for worker shutdown responses: {}", e.getMessage());
+                } catch (Exception e) {
+                    log.warn("Error waiting for worker shutdown responses: {}", e.getMessage());
+                }
+            }
+        } finally {
+            executorService.shutdownNow();
+        }
     }
 }

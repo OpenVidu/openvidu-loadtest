@@ -34,6 +34,8 @@ E2E_TEST_DIR="$(dirname "$(realpath "$0")")/.."
 export LOCAL_CONFIG_DIR="$E2E_TEST_DIR/config" 
 export LOCAL_RESULTS_DIR="$E2E_TEST_DIR/results"
 export LOADTEST_CONFIG="/config/smoke-test-config.yaml"
+# Clean previous results to avoid false positives
+rm -f "$LOCAL_RESULTS_DIR/results.txt" "$LOCAL_RESULTS_DIR/report.html" "$LOCAL_RESULTS_DIR/docker-compose.log"
 # Start services
 echo "Starting services with docker compose..."
 docker compose up --build -d
@@ -66,10 +68,58 @@ if [ $ELAPSED -ge $MAX_WAIT ]; then
     docker compose logs
 fi
 
+# If results exist, wait for both containers to stop (max 30 seconds)
+if [ -f "$LOCAL_RESULTS_DIR/results.txt" ]; then
+    echo "Waiting for containers to stop..."
+    TIMEOUT=30
+    ELAPSED=0
+    while [ $ELAPSED -lt $TIMEOUT ]; do
+        RUNNING_CONTAINERS=$(docker compose ps --status running -q 2>/dev/null || true)
+        if [ -z "$RUNNING_CONTAINERS" ]; then
+            echo "All containers stopped."
+            break
+        fi
+        sleep 2
+        ELAPSED=$((ELAPSED + 2))
+        echo "Waiting for containers to stop... ($ELAPSED/$TIMEOUT seconds)"
+    done
+    if [ $ELAPSED -ge $TIMEOUT ]; then
+        echo "WARNING: Some containers did not stop within $TIMEOUT seconds."
+    fi
+fi
+
+# Check if any containers are still running after shutdown
+echo "Checking for leftover containers..."
+REMAINING_CONTAINERS=$(docker compose ps --status running -q 2>/dev/null || true)
+if [ -n "$REMAINING_CONTAINERS" ]; then
+    echo "ERROR: Containers still running after shutdown:"
+    docker compose ps
+    EXIT_CODE=1
+fi
+
+# Check for any Selenium browser containers that might have been left running
+echo "Checking for leftover Selenium containers..."
+SELENIUM_CONTAINERS=$(docker ps -q --filter "name=selenium" 2>/dev/null || true)
+if [ -n "$SELENIUM_CONTAINERS" ]; then
+    echo "ERROR: Selenium containers still running:"
+    docker ps --filter "name=selenium"
+    EXIT_CODE=1
+fi
+
 # Stop services
 docker compose logs > $LOCAL_RESULTS_DIR/docker-compose.log 2>&1
 echo "Stopping services..."
 docker compose down
+# Stop and remove any remaining selenium containers
+SELENIUM_CONTAINERS=$(docker ps -aq --filter "name=selenium" 2>/dev/null || true)
+if [ -n "$SELENIUM_CONTAINERS" ]; then
+    echo "Removing remaining Selenium containers..."
+    docker rm -f $SELENIUM_CONTAINERS >/dev/null 2>&1 || true
+fi
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "✓ All containers stopped successfully"
+fi
 
     # Check results
     echo "Checking test results..."
@@ -203,7 +253,7 @@ docker compose down
             rm -f "$HTML_FILE"
             rm -f "$LOCAL_RESULTS_DIR/docker-compose.log"
         else
-            echo "Keeping result files for debugging. Remember to remove them manually before re-running the test."
+            echo "Keeping result files for debugging."
         fi
 else
     echo "ERROR: Results file or HTML report not found at $LOCAL_RESULTS_DIR/results.txt or report.html"

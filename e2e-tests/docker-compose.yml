@@ -28,7 +28,7 @@ services:
       dockerfile: Dockerfile
     image: browser-emulator:local
     container_name: browser-emulator-e2e
-    restart: unless-stopped
+    restart: no
     environment:
       RUNNING_IN_DOCKER: true
       DOCKER_NETWORK_NAME: browseremulator-e2e

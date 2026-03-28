@@ -43,6 +43,7 @@ public abstract class LoadTestConfig {
     private int workersRumpUp;
 
     private boolean terminateWorkers;
+    private boolean exitOnEnd;
 
     private String openviduUrl;
 
@@ -257,6 +258,10 @@ public abstract class LoadTestConfig {
         return terminateWorkers;
     }
 
+    public boolean isExitOnEnd() {
+        return exitOnEnd;
+    }
+
     public boolean isRetryMode() {
         return retryMode;
     }
@@ -264,8 +269,6 @@ public abstract class LoadTestConfig {
     public int getRetryTimes() {
         return retryTimes;
     }
-
-
 
     public List<String> getReportOutput() {
         return reportOutput;
@@ -407,13 +410,17 @@ public abstract class LoadTestConfig {
         workerMaxLoad = asInt("distribution.maxLoadPercent");
         workersRumpUp = asInt("aws.rampUpWorkers");
         disableHttps = asBoolean("workers.disableHttps");
+        // Default exitOnEnd to true
+        Boolean exitOnEndConfig = yamlConfig.getBooleanOrNull("workers.exitOnEnd");
+        exitOnEnd = exitOnEndConfig != null ? exitOnEndConfig : true;
     }
 
     private void initAwsAndRecordingConfig() {
         medianodeLoadForStartRecording = asDouble("recording.mediaNodeLoadThreshold");
         recordingSessionGroup = asInt("recording.sessionsGroupSize");
-        // Default terminateWorkers to true when AWS is configured (no worker URLs), false for local workers
-        Boolean terminateWorkersConfig = asBoolean("terminateWorkers");
+        // Default terminateWorkers to true when AWS is configured (no worker URLs),
+        // false for local workers
+        Boolean terminateWorkersConfig = yamlConfig.getBooleanOrNull("terminateWorkers");
         terminateWorkers = terminateWorkersConfig != null ? terminateWorkersConfig : workerUrlList.isEmpty();
         awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
         awsAccessKey = asOptionalString("aws.accessKey");

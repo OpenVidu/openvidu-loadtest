@@ -8,7 +8,12 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ResultReport {
+
+    private static Logger log = LoggerFactory.getLogger(ResultReport.class);
 
     private int totalParticipants = 0;
     private int numSessionsCompleted = 0;
@@ -210,7 +215,7 @@ public class ResultReport {
     }
 
     public ResultReport setUserSuccessTimestamps(Map<String, Calendar> userSuccessTimestamps) {
-        System.out.println("DEBUG: setUserSuccessTimestamps called with size " + userSuccessTimestamps.size());
+        log.debug("setUserSuccessTimestamps called with size {}", userSuccessTimestamps.size());
         this.userSuccessTimestamps = userSuccessTimestamps;
         return this;
     }

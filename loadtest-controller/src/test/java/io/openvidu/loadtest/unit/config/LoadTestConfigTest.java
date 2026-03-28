@@ -60,6 +60,7 @@ class LoadTestConfigTest {
         assertTrue(cfg.isWaitCompletion());
         // Same with retries
         assertTrue(cfg.isRetryMode());
+        assertTrue(cfg.isExitOnEnd());
     }
 
     @Test

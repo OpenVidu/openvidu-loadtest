@@ -90,9 +90,9 @@ public class DataIO {
     }
 
     public void exportResults(ResultReport result) {
-        System.out.println("DATAIO: exportResults called");
+        log.debug("exportResults called");
         List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
-        System.out.println("DATAIO: reportOutput = " + reportOutput);
+        log.debug("reportOutput = {}", reportOutput);
         if (reportOutput.contains("txt")) {
             try {
                 this.resultExporter.export(result, REPORT_FILE_RESULT);

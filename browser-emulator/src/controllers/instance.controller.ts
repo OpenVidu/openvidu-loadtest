@@ -11,6 +11,7 @@ import type {
 } from '../types/initialize.type.ts';
 import type { ConfigService } from '../services/config.service.ts';
 import type { SeleniumService } from '../services/selenium.service.ts';
+import { gracefulExit } from 'exit-hook';
 
 export class InstanceController {
 	private readonly router: express.Router;
@@ -46,6 +47,7 @@ export class InstanceController {
 	private setupRoutes(): void {
 		this.router.get('/ping', this.ping.bind(this));
 		this.router.post('/initialize', this.initialize.bind(this));
+		this.router.delete('/shutdown', this.shutdown.bind(this));
 	}
 
 	private ping(_: Request, res: Response): void {
@@ -116,6 +118,23 @@ export class InstanceController {
 		}
 	}
 
+	private shutdown(_: Request, res: Response) {
+		try {
+			console.log('Shutdown signal received, exiting...');
+			setTimeout(() => {
+				gracefulExit(0);
+			}, 1000);
+			res.status(200).send('Shutdown initiated');
+		} catch (error) {
+			console.error('Error during shutdown:', error);
+			res.status(500).send(error);
+		}
+	}
+
+	public getRouter(): express.Router {
+		return this.router;
+	}
+
 	private setupRemotePersistenceService(request: InitializePost) {
 		let accessKey: string | undefined;
 		let secretAccessKey: string | undefined;
@@ -143,9 +162,5 @@ export class InstanceController {
 				host,
 			);
 		}
-	}
-
-	public getRouter(): express.Router {
-		return this.router;
 	}
 }
