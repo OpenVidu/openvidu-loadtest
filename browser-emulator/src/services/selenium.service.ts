@@ -33,9 +33,14 @@ export class SeleniumService {
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly dockerService: DockerService;
 	private readonly scriptRunnerService: ScriptRunnerService;
+
 	private recordingScript: ChildProcess | undefined;
 	private isRecordingFullScreen = false;
+
 	private readonly dockerizedSessionContainers = new Map<string, string>();
+
+	private readonly DOCKER_SELENIUM_RECORDING_IMAGE =
+		'selenium/video:ffmpeg-8.0-20260222';
 
 	public constructor(
 		configService: ConfigService,
@@ -196,8 +201,14 @@ export class SeleniumService {
 				Binds: [
 					`${this.configService.getMediaFilesHostDir()}:/app/mediafiles/:ro`,
 					`${this.configService.getScriptsLogsHostDir()}:/app/logs/:rw`,
+					`${LocalFilesRepository.FULLSCREEN_RECORDING_DIR}:/videos/:rw`,
 				],
 			},
+			Env: [
+				'SE_SCREEN_WIDTH=1920',
+				'SE_SCREEN_HEIGHT=1080',
+				'SE_SCREEN_DEPTH=24',
+			],
 		};
 
 		await this.dockerService.startContainer(createOptions);
@@ -424,7 +435,22 @@ export class SeleniumService {
 			return;
 		}
 		if (this.configService.shouldUseDockerizedBrowsers()) {
-			// TODO: Implement full screen recording for dockerized browsers, potentially by running ffmpeg in the same container and capturing the X11 display output.
+			const dateNow = Date.now();
+			const createOptions: ContainerCreateOptions = {
+				Image: this.DOCKER_SELENIUM_RECORDING_IMAGE,
+				name: 'selenium-recording-' + dateNow,
+				HostConfig: {
+					NetworkMode:
+						this.configService.getDockerizedBrowsersConfig()
+							.networkName,
+					Binds: [
+						`${LocalFilesRepository.FULLSCREEN_RECORDING_DIR}:/videos/:rw`,
+					],
+				},
+				Env: [`FILE_NAME=session_${dateNow}.mp4`],
+			};
+
+			await this.dockerService.startContainer(createOptions);
 		} else {
 			const ffmpegCommand = [
 				'ffmpeg -hide_banner -loglevel warning -nostdin -y',
