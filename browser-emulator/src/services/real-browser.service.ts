@@ -218,7 +218,6 @@ export class RealBrowserService {
 		request: CreateUserBrowser,
 		storageNameObj?: StorageNameObject,
 		storageValueObj?: StorageValueObject,
-		timeout = 1000,
 	): Promise<string> {
 		const properties = request.properties;
 		const filesExist = await this.localFilesRepository.existMediaFiles();
@@ -231,22 +230,20 @@ export class RealBrowserService {
 			this.seleniumService.setHeadless();
 		}
 		return new Promise((resolve, reject) => {
-			setTimeout(() => {
-				this.initializeBrowser(
-					request,
-					this.seleniumService,
-					storageNameObj,
-					storageValueObj,
-				)
-					.then(driverId => resolve(driverId))
-					.catch(error =>
-						reject(
-							error instanceof Error
-								? error
-								: new Error(String(error)),
-						),
-					);
-			}, timeout);
+			this.initializeBrowser(
+				request,
+				this.seleniumService,
+				storageNameObj,
+				storageValueObj,
+			)
+				.then(driverId => resolve(driverId))
+				.catch(error =>
+					reject(
+						error instanceof Error
+							? error
+							: new Error(String(error)),
+					),
+				);
 		});
 	}
 
