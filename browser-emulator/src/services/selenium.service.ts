@@ -35,6 +35,7 @@ export class SeleniumService {
 	private readonly scriptRunnerService: ScriptRunnerService;
 
 	private recordingScript: ChildProcess | undefined;
+	private recordingDockerContainerId: string | undefined;
 	private isRecordingFullScreen = false;
 
 	private readonly dockerizedSessionContainers = new Map<string, string>();
@@ -450,7 +451,8 @@ export class SeleniumService {
 				Env: [`FILE_NAME=session_${dateNow}.mp4`],
 			};
 
-			await this.dockerService.startContainer(createOptions);
+			this.recordingDockerContainerId =
+				await this.dockerService.startContainer(createOptions);
 		} else {
 			const ffmpegCommand = [
 				'ffmpeg -hide_banner -loglevel warning -nostdin -y',
@@ -483,6 +485,12 @@ export class SeleniumService {
 		if (this.recordingScript) {
 			console.log('Stopping full screen recording');
 			await this.scriptRunnerService.killDetached(this.recordingScript);
+		}
+		if (this.recordingDockerContainerId) {
+			console.log('Stopping full screen recording container');
+			await this.dockerService.removeContainer(
+				this.recordingDockerContainerId,
+			);
 		}
 	}
 }
