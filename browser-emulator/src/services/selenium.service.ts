@@ -1,3 +1,4 @@
+import fsPromises from 'node:fs/promises';
 import {
 	Browser,
 	Builder,
@@ -9,13 +10,18 @@ import chrome from 'selenium-webdriver/chrome.js';
 import firefox from 'selenium-webdriver/firefox.js';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 import path from 'node:path';
-import type { AvailableBrowsers } from '../types/create-user.type.ts';
+import type {
+	AvailableBrowsers,
+	UserJoinProperties,
+} from '../types/create-user.type.ts';
 import type {
 	ConfigService,
 	DockerizedBrowsersConfig,
 } from './config.service.ts';
 import { DockerService } from './docker.service.ts';
 import type { ContainerCreateOptions } from 'dockerode';
+import type { ChildProcess } from 'node:child_process';
+import type { ScriptRunnerService } from './script-runner.service.ts';
 
 export class SeleniumService {
 	private readonly chromeOptions = new chrome.Options();
@@ -26,16 +32,21 @@ export class SeleniumService {
 	private readonly configService: ConfigService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly dockerService: DockerService;
+	private readonly scriptRunnerService: ScriptRunnerService;
+	private recordingScript: ChildProcess | undefined;
+	private isRecordingFullScreen = false;
 	private readonly dockerizedSessionContainers = new Map<string, string>();
 
 	public constructor(
 		configService: ConfigService,
 		localFilesRepository: LocalFilesRepository,
 		dockerService: DockerService,
+		scriptRunnerService: ScriptRunnerService,
 	) {
 		this.configService = configService;
 		this.localFilesRepository = localFilesRepository;
 		this.dockerService = dockerService;
+		this.scriptRunnerService = scriptRunnerService;
 	}
 
 	public initialize() {
@@ -400,5 +411,52 @@ export class SeleniumService {
 	public setHeadless() {
 		this.chromeOptions.addArguments('--headless');
 		this.firefoxOptions.addArguments('--headless');
+	}
+
+	public async recordFullScreen(
+		driver: WebDriver,
+		properties: UserJoinProperties,
+	) {
+		if (this.isRecordingFullScreen) {
+			console.warn(
+				'Already recording full screen, only one recording is supported at a time',
+			);
+			return;
+		}
+		if (this.configService.shouldUseDockerizedBrowsers()) {
+			// TODO: Implement full screen recording for dockerized browsers, potentially by running ffmpeg in the same container and capturing the X11 display output.
+		} else {
+			const ffmpegCommand = [
+				'ffmpeg -hide_banner -loglevel warning -nostdin -y',
+				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
+				` -f pulse -i 0 `,
+				`${LocalFilesRepository.FULLSCREEN_RECORDING_DIR}/session_${Date.now()}.mp4`,
+			].join('');
+			const logFileFd = await fsPromises.open(
+				`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/fullscreen_recording_ffmpeg.log`,
+				'a',
+			);
+			this.recordingScript = await this.scriptRunnerService.run(
+				ffmpegCommand,
+				{
+					detached: true,
+					stdio: ['ignore', logFileFd.fd, logFileFd.fd],
+					onCloseCallback: code => {
+						console.log(
+							`Recording process exited with code ${code}`,
+						);
+						this.isRecordingFullScreen = false;
+					},
+				},
+			);
+			await logFileFd.close();
+		}
+	}
+
+	async stopFullScreenRecording() {
+		if (this.recordingScript) {
+			console.log('Stopping full screen recording');
+			await this.scriptRunnerService.killDetached(this.recordingScript);
+		}
 	}
 }

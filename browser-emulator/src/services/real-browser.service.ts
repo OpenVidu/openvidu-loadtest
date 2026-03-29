@@ -1,4 +1,3 @@
-import fsPromises from 'node:fs/promises';
 import { By, logging, until, WebDriver } from 'selenium-webdriver';
 import type { Storage } from './local-storage.service.js';
 import type {
@@ -7,9 +6,7 @@ import type {
 } from '../types/storage-config.type.js';
 import { SeleniumService } from './selenium.service.js';
 import { Mutex } from 'async-mutex';
-import type { ChildProcess } from 'node:child_process';
 import type BaseComModule from '../com-modules/base.ts';
-import type { ScriptRunnerService } from './script-runner.service.ts';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 import {
 	type AvailableBrowsers,
@@ -39,23 +36,18 @@ export class RealBrowserService {
 	private readonly driverMap = new Map<string, DriverInfo>();
 	private readonly keepAliveIntervals = new Map<string, NodeJS.Timeout>();
 	private totalPublishers = 0;
-	private recordingScript: ChildProcess | undefined;
-	private isRecordingFullScreen = false;
 	private readonly muteButtonMutex = new Mutex();
 	private readonly seleniumService: SeleniumService;
-	private readonly scriptRunnerService: ScriptRunnerService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly comModule: BaseComModule;
 
 	constructor(
 		seleniumService: SeleniumService,
 		comModule: BaseComModule,
-		scriptRunnerService: ScriptRunnerService,
 		localFilesRepository: LocalFilesRepository,
 	) {
 		this.seleniumService = seleniumService;
 		this.comModule = comModule;
-		this.scriptRunnerService = scriptRunnerService;
 		this.localFilesRepository = localFilesRepository;
 	}
 
@@ -199,19 +191,12 @@ export class RealBrowserService {
 
 	async clean(): Promise<void> {
 		console.log('Cleaning real browsers');
-		await this.stopRecording();
+		await this.seleniumService.stopFullScreenRecording();
 		await Promise.all([
 			this.deleteStreamManagerWithRole(Role.PUBLISHER),
 			this.deleteStreamManagerWithRole(Role.SUBSCRIBER),
 		]);
 		console.log('Real browsers cleaned');
-	}
-
-	async stopRecording() {
-		if (this.recordingScript) {
-			console.log('Stopping general recording');
-			await this.scriptRunnerService.killDetached(this.recordingScript);
-		}
 	}
 
 	async launchBrowser(
@@ -335,33 +320,8 @@ export class RealBrowserService {
 			await driver.manage().window().maximize();
 		}
 
-		const recordFullScreen = !!properties.recording && !properties.headless;
-		if (recordFullScreen && !this.isRecordingFullScreen) {
-			this.isRecordingFullScreen = true;
-			const ffmpegCommand = [
-				'ffmpeg -hide_banner -loglevel warning -nostdin -y',
-				` -video_size 1920x1080 -framerate ${properties.frameRate} -f x11grab -i :10`,
-				` -f pulse -i 0 `,
-				`${LocalFilesRepository.FULLSCREEN_RECORDING_DIR}/session_${Date.now()}.mp4`,
-			].join('');
-			const logFileFd = await fsPromises.open(
-				`${LocalFilesRepository.SCRIPTS_LOGS_DIR}/fullscreen_recording_ffmpeg.log`,
-				'a',
-			);
-			this.recordingScript = await this.scriptRunnerService.run(
-				ffmpegCommand,
-				{
-					detached: true,
-					stdio: ['ignore', logFileFd.fd, logFileFd.fd],
-					onCloseCallback: code => {
-						console.log(
-							`Recording process exited with code ${code}`,
-						);
-						this.isRecordingFullScreen = false;
-					},
-				},
-			);
-			await logFileFd.close();
+		if (properties.recording) {
+			await this.seleniumService.recordFullScreen(driver, properties);
 		}
 	}
 
