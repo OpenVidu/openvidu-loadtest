@@ -1,7 +1,7 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
 import type BaseComModule from '../com-modules/base.js';
-import type { BrowserManagerService } from '../services/browser-manager.service.js';
+import type { BrowserManagerService } from '../services/browser/browser-manager.service.ts';
 import {
 	type CreateUserBrowserResponse,
 	type CreateUserBrowserRequest,
@@ -49,6 +49,20 @@ export class OpenViduBrowserController {
 	): Promise<void> {
 		try {
 			const request = req.body;
+
+			// Validate browser is present and valid
+			if (
+				!request.properties?.browser ||
+				!['chrome', 'firefox', 'emulated'].includes(
+					request.properties.browser,
+				)
+			) {
+				res.status(400).send({
+					message:
+						'browser is required and must be "chrome", "firefox", or "emulated"',
+				});
+				return;
+			}
 
 			if (this.comModule.areParametersCorrect(request)) {
 				await this.comModule.processNewUserRequest(request);

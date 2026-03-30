@@ -61,6 +61,6 @@ Resources:
                     chmod +x ./prepare_scripts/*.sh
                     chmod +x ./*.sh
                     ./prepare_scripts/install_base.sh > /var/log/install.log 2>&1
-                    echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install > /var/log/pnpm_install.log 2>&1 && pnpm run build > /var/log/build.log 2>&1 && pnpm run start:prod > /var/log/crontab.log 2>&1" 2>&1 | crontab -u ubuntu -
+                    echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && /usr/bin/docker compose -f docker-compose.yml up -d --build > /var/log/docker_compose_reboot.log 2>&1" | crontab -u ubuntu -
                     apt-get install -y python3-pip linux-aws-edge
                     ./notify-aws.sh > /var/log/notify_aws.log 2>&1

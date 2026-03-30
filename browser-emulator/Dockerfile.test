@@ -3,7 +3,7 @@ FROM node:24-trixie AS test
 WORKDIR /app
 ENV NODE_ENV=test
 
-RUN apt-get update && apt-get install -y procps xvfb x11vnc ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y procps curl && rm -rf /var/lib/apt/lists/*
 
 COPY index-mappings.json ./index-mappings.json
 

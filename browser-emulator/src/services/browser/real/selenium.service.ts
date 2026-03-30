@@ -8,20 +8,20 @@ import {
 } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import firefox from 'selenium-webdriver/firefox.js';
-import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
+import { LocalFilesRepository } from '../../../repositories/files/local-files.repository.ts';
 import path from 'node:path';
 import type {
 	AvailableBrowsers,
 	UserJoinProperties,
-} from '../types/create-user.type.ts';
+} from '../../../types/create-user.type.ts';
 import type {
 	ConfigService,
 	DockerizedBrowsersConfig,
-} from './config.service.ts';
-import { DockerService } from './docker.service.ts';
+} from '../../config.service.ts';
+import { DockerService } from '../../docker.service.ts';
 import type { ContainerCreateOptions } from 'dockerode';
 import type { ChildProcess } from 'node:child_process';
-import type { ScriptRunnerService } from './script-runner.service.ts';
+import type { ScriptRunnerService } from '../../script-runner.service.ts';
 
 export class SeleniumService {
 	private readonly chromeOptions = new chrome.Options();
@@ -368,10 +368,9 @@ export class SeleniumService {
 					);
 					console.warn('Response body:', await response.text());
 				}
-			} catch (error) {
+			} catch {
 				console.warn(
 					'Failed to connect to dockerized Selenium, retrying...',
-					error,
 				);
 			}
 			await new Promise(resolve => setTimeout(resolve, 1000));
@@ -425,10 +424,7 @@ export class SeleniumService {
 		this.firefoxOptions.addArguments('--headless');
 	}
 
-	public async recordFullScreen(
-		driver: WebDriver,
-		properties: UserJoinProperties,
-	) {
+	public async recordFullScreen(properties: UserJoinProperties) {
 		if (this.isRecordingFullScreen) {
 			console.warn(
 				'Already recording full screen, only one recording is supported at a time',
@@ -437,6 +433,15 @@ export class SeleniumService {
 		}
 		if (this.configService.shouldUseDockerizedBrowsers()) {
 			const dateNow = Date.now();
+			if (
+				!(await this.dockerService.imageExists(
+					this.DOCKER_SELENIUM_RECORDING_IMAGE,
+				))
+			) {
+				await this.dockerService.pullImage(
+					this.DOCKER_SELENIUM_RECORDING_IMAGE,
+				);
+			}
 			const createOptions: ContainerCreateOptions = {
 				Image: this.DOCKER_SELENIUM_RECORDING_IMAGE,
 				name: 'selenium-recording-' + dateNow,

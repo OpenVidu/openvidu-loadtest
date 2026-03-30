@@ -15,6 +15,18 @@ export class DockerService {
 		this.docker = new Docker();
 	}
 
+	public async ensureNetworkExists(networkName: string): Promise<void> {
+		const networks = await this.docker.listNetworks({
+			filters: { name: [networkName] },
+		});
+		if (networks.length === 0) {
+			await this.docker.createNetwork({ Name: networkName });
+			console.log('Docker network ' + networkName + ' created');
+		} else {
+			console.log('Docker network ' + networkName + ' already exists');
+		}
+	}
+
 	async startContainer(
 		options: Docker.ContainerCreateOptions,
 	): Promise<string> {
@@ -26,7 +38,32 @@ export class DockerService {
 		return container.id;
 	}
 
-	async streamContainerLogs(
+	async runAndWaitContainer(
+		options: Docker.ContainerCreateOptions,
+	): Promise<[number, string]> {
+		console.log(`Running ${options.Image} and waiting for completion`);
+		const container: Docker.Container =
+			await this.docker.createContainer(options);
+		await container.start();
+		console.log(`${options.Image} started: ${container.id}`);
+
+		const waitResult = (await container.wait()) as {
+			StatusCode: number;
+			Error?: string;
+		};
+		const exitCode = waitResult.StatusCode;
+		console.log(`${options.Image} exited with code ${exitCode}`);
+
+		const logs = await container.logs({
+			stdout: true,
+			stderr: true,
+		});
+		const logsString = logs.toString();
+		console.log(`Logs from ${options.Image}:\n${logsString}`);
+		return [exitCode, logsString];
+	}
+
+	public async streamContainerLogs(
 		nameOrId: string,
 		destPath: string,
 	): Promise<void> {
@@ -140,7 +177,7 @@ export class DockerService {
 		}
 	}
 
-	async pullImage(image: string): Promise<void> {
+	public async pullImage(image: string): Promise<void> {
 		return new Promise((resolve, reject) => {
 			function onFinished(err: Error | null) {
 				if (err) {
@@ -215,5 +252,29 @@ export class DockerService {
 		if (!!containerInfo && containerInfo?.Id) {
 			return this.docker.getContainer(containerInfo.Id);
 		}
+	}
+
+	async getLogsFromContainer(nameOrId: string): Promise<string> {
+		const container = await this.getContainerByIdOrName(nameOrId);
+		if (!container) {
+			console.error('Container ' + nameOrId + ' does not exist');
+			throw new Error('Container ' + nameOrId + ' not found');
+		}
+
+		const logs = await container.logs({
+			stdout: true,
+			stderr: true,
+		});
+		return logs.toString();
+	}
+
+	async isContainerRunning(nameOrId: string): Promise<boolean> {
+		const container = await this.getContainerByIdOrName(nameOrId);
+		if (!container) {
+			console.error('Container ' + nameOrId + ' does not exist');
+			return false;
+		}
+		const containerInfo = await container.inspect();
+		return containerInfo.State.Running;
 	}
 }

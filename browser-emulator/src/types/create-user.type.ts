@@ -40,7 +40,7 @@ export const Resolution = {
 
 export type Resolution = (typeof Resolution)[keyof typeof Resolution];
 
-export type AvailableBrowsers = 'chrome' | 'firefox';
+export type AvailableBrowsers = 'chrome' | 'firefox' | 'emulated';
 
 export interface CreateUserBrowserResponse {
 	connectionId: string;

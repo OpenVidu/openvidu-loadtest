@@ -18,7 +18,7 @@ FROM node:24-trixie-slim AS runtime
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y procps xvfb x11vnc ffmpeg curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y procps curl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV SERVER_PORT=5000

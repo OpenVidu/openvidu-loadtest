@@ -1,19 +1,19 @@
 import { By, logging, until, WebDriver } from 'selenium-webdriver';
-import type { Storage } from './local-storage.service.js';
+import type { Storage } from '../../local-storage.service.js';
 import type {
 	StorageNameObject,
 	StorageValueObject,
-} from '../types/storage-config.type.js';
+} from '../../../types/storage-config.type.js';
 import { SeleniumService } from './selenium.service.js';
 import { Mutex } from 'async-mutex';
-import type BaseComModule from '../com-modules/base.ts';
-import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
+import type BaseComModule from '../../../com-modules/base.ts';
+import { LocalFilesRepository } from '../../../repositories/files/local-files.repository.ts';
 import {
 	type AvailableBrowsers,
 	type CreateUserBrowser,
 	type UserJoinProperties,
 	Role,
-} from '../types/create-user.type.ts';
+} from '../../../types/create-user.type.ts';
 
 declare let localStorage: Storage;
 
@@ -27,15 +27,9 @@ interface DriverInfo {
 }
 
 export class RealBrowserService {
-	private readonly connections = new Map<
-		string,
-		{ publishers: string[]; subscribers: string[] }
-	>();
-
 	private readonly BROWSER_WAIT_TIMEOUT_MS = 30000;
 	private readonly driverMap = new Map<string, DriverInfo>();
 	private readonly keepAliveIntervals = new Map<string, NodeJS.Timeout>();
-	private totalPublishers = 0;
 	private readonly muteButtonMutex = new Mutex();
 	private readonly seleniumService: SeleniumService;
 	private readonly localFilesRepository: LocalFilesRepository;
@@ -65,11 +59,6 @@ export class RealBrowserService {
 			}
 			await this.seleniumService.quitDriver(value.driver);
 			this.driverMap.delete(driverId);
-			this.deleteConnection(
-				value.sessionName,
-				driverId,
-				value.connectionRole,
-			);
 		}
 	}
 
@@ -90,7 +79,6 @@ export class RealBrowserService {
 				if (value.mediaRecorders) {
 					recordingPromises.push(this.saveQoERecordings(key));
 				}
-				this.deleteConnection(sessionId, key, value.connectionRole);
 			}
 		});
 		if (recordingPromises.length > 0) {
@@ -135,11 +123,6 @@ export class RealBrowserService {
 				if (value.mediaRecorders) {
 					recordingPromises.push(this.saveQoERecordings(key));
 				}
-				this.deleteConnection(
-					value.sessionName,
-					key,
-					value.connectionRole,
-				);
 			}
 		});
 		console.log('Number of users to delete: ' + driversToDelete.length);
@@ -321,7 +304,7 @@ export class RealBrowserService {
 		}
 
 		if (properties.recording) {
-			await this.seleniumService.recordFullScreen(driver, properties);
+			await this.seleniumService.recordFullScreen(properties);
 		}
 	}
 
@@ -334,24 +317,18 @@ export class RealBrowserService {
 			until.elementsLocated(By.id('local-connection-created')),
 			this.BROWSER_WAIT_TIMEOUT_MS,
 		);
-		let currentPublishers = 0;
 		if (request.properties.role === Role.PUBLISHER) {
 			// Wait until publisher has been published regardless of whether the videos are shown or not
 			await driver.wait(
 				until.elementsLocated(By.id('local-stream-created')),
 				this.BROWSER_WAIT_TIMEOUT_MS,
 			);
-			currentPublishers++;
 		}
 		// As subscribers are created muted because of user gesture policies, we need to unmute subscriber manually
 		// await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
 		await driver.sleep(1000);
 		await this.clickUnmuteButtons();
 		console.log('Browser works as expected');
-		const publisherVideos = await driver.findElements(
-			By.css('[id^="remote-video-str"]'),
-		);
-		this.totalPublishers = currentPublishers + publisherVideos.length;
 	}
 
 	private setupKeepAlive(driver: WebDriver, driverId: string): void {
@@ -405,81 +382,6 @@ export class RealBrowserService {
 			}
 		}
 		throw new Error('Button could not be clicked after multiple attempts');
-	}
-
-	getStreamsCreated(): number {
-		let result = 0;
-		this.connections.forEach(
-			(value: { publishers: string[]; subscribers: string[] }) => {
-				const streamsSent = value.publishers.length;
-				let streamsReceived = 0;
-				const publishersInWorker = value.publishers.length;
-				let externalPublishers =
-					this.totalPublishers - publishersInWorker;
-				if (externalPublishers < 0) {
-					externalPublishers = 0;
-				}
-				// Add all streams subscribed by publishers
-				streamsReceived =
-					publishersInWorker * externalPublishers +
-					publishersInWorker * (publishersInWorker - 1);
-
-				streamsReceived +=
-					value.subscribers.length * this.totalPublishers;
-				result += streamsSent + streamsReceived;
-			},
-		);
-
-		return result;
-	}
-
-	getParticipantsCreated(): number {
-		return this.driverMap.size;
-	}
-
-	storeConnection(connectionId: string, properties: UserJoinProperties) {
-		const conn = this.connections.get(properties.sessionName);
-		if (conn) {
-			if (properties.role === Role.PUBLISHER) {
-				conn.publishers.push(connectionId);
-			} else {
-				conn.subscribers.push(connectionId);
-			}
-		} else {
-			const subscribers = [];
-			const publishers = [];
-			if (properties.role === Role.PUBLISHER) {
-				publishers.push(connectionId);
-			} else {
-				subscribers.push(connectionId);
-			}
-			this.connections.set(properties.sessionName, {
-				publishers,
-				subscribers,
-			});
-		}
-	}
-
-	private deleteConnection(
-		sessionName: string,
-		connectionId: string,
-		role: Role,
-	) {
-		const value = this.connections.get(sessionName);
-		if (value) {
-			let index = -1;
-			if (role === Role.PUBLISHER) {
-				index = value.publishers.indexOf(connectionId, 0);
-				if (index >= 0) {
-					value.publishers.splice(index, 1);
-				}
-			} else {
-				index = value.subscribers.indexOf(connectionId, 0);
-				if (index >= 0) {
-					value.subscribers.splice(index, 1);
-				}
-			}
-		}
 	}
 
 	private async saveQoERecordings(driverId: string) {

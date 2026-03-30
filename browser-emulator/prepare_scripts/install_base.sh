@@ -32,42 +32,23 @@ Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
 Components: stable
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF
-NODE_MAJOR=24
-curl -fsSL https://deb.nodesource.com/setup_$NODE_MAJOR.x | sudo -E bash -
 apt-get update
 apt-get install -yq --no-install-recommends \
-    ffmpeg docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin xvfb nodejs dkms x11vnc net-tools sysstat fvwm
-# Config needed for ffmpeg to work
-export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-echo export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} | tee -a /etc/profile
-
-snap remove firefox
+    docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Create recording directories
 mkdir -p ./recordings/chrome
 mkdir -p ./recordings/qoe
 
-install_node_dependencies_and_build() {
-    ## Install node dependencies
-    corepack enable pnpm
-    corepack use pnpm@10
-    pnpm install
-    pnpm run build
-    echo "node build completed"
-}
+# Pull images used by browser-emulator for faster initialization time
+docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
+docker pull selenium/standalone-chrome:latest
+docker pull selenium/standalone-firefox:latest
+docker pull selenium/video:ffmpeg-8.0-20260222
+docker pull jrottenberg/ffmpeg:8-alpine
+docker pull livekit/livekit-cli:latest
 
-pull_images() {
-    # Pull images used by browser-emulator for faster initialization time
-    docker pull docker.elastic.co/beats/metricbeat-oss:7.12.0
-    docker pull selenium/standalone-chrome:latest
-    docker pull selenium/standalone-firefox:latest
-    docker network create browseremulator
-    echo "docker images pulled"
-}
-
-pull_images &
-install_node_dependencies_and_build &
-wait
+docker compose build
 
 # Add user ubuntu to docker, video and syslog groups
 if id "ubuntu" &>/dev/null; then

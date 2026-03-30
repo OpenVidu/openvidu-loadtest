@@ -3,12 +3,13 @@ import type { AwilixContainer } from 'awilix';
 
 // Services
 import { ConfigService } from './services/config.service.js';
-import { BrowserManagerService } from './services/browser-manager.service.js';
-import { RealBrowserService } from './services/real-browser.service.js';
+import { BrowserManagerService } from './services/browser/browser-manager.service.ts';
+import { RealBrowserService } from './services/browser/real/real-browser.service.js';
+import { EmulatedBrowserService } from './services/browser/emulated/emulated-browser.service.ts';
 import { InstanceService } from './services/instance.service.js';
 import { ElasticSearchService } from './services/elasticsearch.service.js';
 import { WsService } from './services/ws.service.js';
-import { SeleniumService } from './services/selenium.service.js';
+import { SeleniumService } from './services/browser/real/selenium.service.ts';
 import { DockerService } from './services/docker.service.js';
 import { LocalStorageService } from './services/local-storage.service.js';
 import { QoeAnalysisOrchestratorService } from './services/qoe-analysis/qoe-analysis-orchestrator.service.ts';
@@ -26,12 +27,15 @@ import { ScriptRunnerService } from './services/script-runner.service.ts';
 import { FakeMediaDevicesService } from './services/fake-media/fake-media-devices.service.ts';
 import { QoeAnalyzerService } from './services/qoe-analysis/qoe-analyzer.service.ts';
 import { QoeCommandRunner } from './services/qoe-analysis/qoe-command-runner.ts';
+import { EmulatedFilePublishStreamService } from './services/browser/emulated/emulated-file-publish-stream.service.ts';
 
 // Define the container interface for type safety
 export interface DIContainer {
 	configService: ConfigService;
 	browserManagerService: BrowserManagerService;
 	realBrowserService: RealBrowserService;
+	emulatedBrowserService: EmulatedBrowserService;
+	emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
 	instanceService: InstanceService;
 	elasticSearchService: ElasticSearchService;
 	wsService: WsService;
@@ -89,7 +93,11 @@ export async function configureContainer(): Promise<
 		// Browser management services
 		seleniumService: asClass(SeleniumService).singleton(),
 		realBrowserService: asClass(RealBrowserService).singleton(),
+		emulatedBrowserService: asClass(EmulatedBrowserService).singleton(),
 		browserManagerService: asClass(BrowserManagerService).singleton(),
+		emulatedFilePublishStreamService: asClass(
+			EmulatedFilePublishStreamService,
+		).singleton(),
 
 		// Repositories
 		localFilesRepository: asClass(LocalFilesRepository).singleton(),

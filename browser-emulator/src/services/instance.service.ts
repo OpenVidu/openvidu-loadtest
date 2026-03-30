@@ -39,6 +39,12 @@ export class InstanceService {
 		return 0;
 	}
 
+	public async ensureDockerNetworkExists(): Promise<void> {
+		await this.dockerService.ensureNetworkExists(
+			this.configService.getDockerizedBrowsersConfig().networkName,
+		);
+	}
+
 	public async launchMetricBeat(
 		elasticsearchHost: string,
 		elasticsearchUsername?: string,
@@ -69,7 +75,9 @@ export class InstanceService {
 					'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
 					'/:/hostfs:ro',
 				],
-				NetworkMode: 'browseremulator',
+				NetworkMode:
+					this.configService.getDockerizedBrowsersConfig()
+						.networkName,
 			},
 		};
 		try {

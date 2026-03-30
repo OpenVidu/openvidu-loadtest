@@ -24,6 +24,8 @@ hs_err_pid*
 
 *.wav
 *.y4m
+*.h264
+*.ogg
 *.yuv
 *.mp4
 *.mkv

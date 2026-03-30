@@ -10,7 +10,7 @@ import type {
 	InitializePostRequest,
 } from '../types/initialize.type.ts';
 import type { ConfigService } from '../services/config.service.ts';
-import type { SeleniumService } from '../services/selenium.service.ts';
+import type { SeleniumService } from '../services/browser/real/selenium.service.ts';
 import { gracefulExit } from 'exit-hook';
 
 export class InstanceController {
@@ -69,6 +69,7 @@ export class InstanceController {
 
 			console.log('Initialize browser-emulator');
 
+			await this.instanceService.ensureDockerNetworkExists();
 			const promises = [];
 			// Set up file service if possible now so that it doesn't have to be initialized later when needed
 			this.setupRemotePersistenceService(request);
@@ -76,14 +77,19 @@ export class InstanceController {
 				this.localFilesService
 					.downloadBrowserMediaFiles(request.browserVideo)
 					.then((fileNames: string[]) => {
+						const promises = [];
+						this.seleniumService.initialize();
+
 						if (request.legacyMode) {
-							return this.fakeMediaDevicesService.startFakeMediaDevices(
-								fileNames[0],
-								fileNames[1],
-								request.vnc,
+							promises.push(
+								this.fakeMediaDevicesService.startFakeMediaDevices(
+									fileNames[0],
+									fileNames[1],
+									request.vnc,
+								),
 							);
 						}
-						this.seleniumService.initialize();
+						return Promise.all(promises);
 					}),
 			);
 			if (

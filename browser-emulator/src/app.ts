@@ -11,26 +11,33 @@ let server: http.Server | https.Server;
 async function cleanup() {
 	const container = await getContainer();
 	const browserManager = container.resolve('browserManagerService');
+	const configService = container.resolve('configService');
+	const scriptRunnerService = container.resolve('scriptRunnerService');
+	const instanceService = container.resolve('instanceService');
+	const remotePersistenceService = container.resolve(
+		'remotePersistenceService',
+	);
+	const emulatedFilePublishStreamService = container.resolve(
+		'emulatedFilePublishStreamService',
+	);
 	try {
 		await browserManager.clean();
 	} catch (err) {
 		console.error(err);
 	}
-	const remotePersistenceService = container.resolve(
-		'remotePersistenceService',
-	);
 	remotePersistenceService.clean();
-	const configService = container.resolve('configService');
 	if (configService.isLegacyMode()) {
 		const fakeMediaDevicesService = container.resolve(
 			'fakeMediaDevicesService',
 		);
 		await fakeMediaDevicesService.cleanupFakeMediaDevices();
 	}
-	const scriptRunnerService = container.resolve('scriptRunnerService');
-	await scriptRunnerService.killAllDetached();
-	const instanceService = container.resolve('instanceService');
-	await instanceService.removeMetricBeat();
+	await Promise.all([
+		scriptRunnerService.killAllDetached(),
+		instanceService.removeMetricBeat(),
+		emulatedFilePublishStreamService.stopPublishing(),
+	]);
+	console.log('Cleanup finished');
 }
 
 async function createServer() {
