@@ -596,7 +596,7 @@ public abstract class LoadTestConfig {
 
     protected List<String> asOptionalStringList(String property) {
         try {
-            return this.asStringList(property);
+            return this.yamlConfig.getStringList(property);
         } catch (Exception e) {
             return new ArrayList<>();
         }

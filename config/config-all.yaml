@@ -42,8 +42,8 @@ testcases:
 
 # ---------- Workers ----------
 workers:
-  # Comma-separated list of worker IP addresses, or empty for AWS
-  urls: 127.0.0.1
+  urls: 
+    - 127.0.0.1
   # Set to true if workers don't have HTTPS configured (local testing)
   disableHttps: false
   # Signal workers to cleanup and exit after test completion

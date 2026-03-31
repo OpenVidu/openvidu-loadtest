@@ -366,12 +366,11 @@ class LoadTestParticipantOrchestrator {
         List<String> sessionUserList = new ArrayList<>(2);
         sessionUserList.add(sessionId);
         sessionUserList.add(userId);
-        // Ensure key uniqueness in case of duplicate timestamps
+        // Ensure key uniqueness in case of duplicate timestamps using atomic putIfAbsent
         Calendar key = (Calendar) startTime.clone();
-        while (this.userStartTimes.containsKey(key)) {
+        while (this.userStartTimes.putIfAbsent(key, sessionUserList) != null) {
             key.add(Calendar.MILLISECOND, 1);
         }
-        this.userStartTimes.put(key, sessionUserList);
     }
 
     Map<Calendar, List<String>> getUserStartTimes() {

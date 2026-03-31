@@ -7,11 +7,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.services.core.LoadTestService;
 import io.openvidu.loadtest.utils.DataIO;
+import io.openvidu.loadtest.utils.ShutdownManager;
 
 /**
  * @author Carlos Santos & Iván Chicano
@@ -22,11 +24,12 @@ import io.openvidu.loadtest.utils.DataIO;
 public class LoadTestApplication {
 
     private static final Logger log = LoggerFactory.getLogger(LoadTestApplication.class);
-
     private LoadTestService loadTestService;
     private DataIO io;
+    private ShutdownManager shutdownManager;
 
-    public LoadTestApplication(LoadTestService loadTestService, DataIO io) {
+    public LoadTestApplication(ShutdownManager shutdownManager, LoadTestService loadTestService, DataIO io) {
+        this.shutdownManager = shutdownManager;
         this.loadTestService = loadTestService;
         this.io = io;
     }
@@ -41,12 +44,12 @@ public class LoadTestApplication {
             loadTestService.startLoadTests(testCasesList);
             log.info("Finished");
             // Exit the application after all tests are completed
-            System.exit(0);
+            shutdownManager.shutdownWithCode(0);
         } else {
             log.error(
                     "Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
             // Exit with error code when no test cases are found
-            System.exit(1);
+            shutdownManager.shutdownWithCode(1);
         }
     }
 

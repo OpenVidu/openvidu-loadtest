@@ -19,6 +19,9 @@ public class ResultExporter {
 
     public String export(ResultReport result, String fileName) throws IOException {
         String resultsDir = System.getenv("RESULTS_DIR");
+        if (resultsDir == null || resultsDir.isBlank()) {
+            resultsDir = System.getProperty("RESULTS_DIR");
+        }
         String resultPath;
 
         if (resultsDir != null && !resultsDir.isBlank()) {

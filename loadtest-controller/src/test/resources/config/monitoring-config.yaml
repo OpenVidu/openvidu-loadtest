@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../../../../schema/openvidu-loadtest-schema.json
 platform:
   url: https://openvidu-test.io:7443
   apiKey: devkey
@@ -12,7 +13,8 @@ testcases:
     description: "Basic N:N topology test with monitoring"
 
 workers:
-  urls: browser-emulator
+  urls: 
+    - browser-emulator
 
 distribution:
   manual: true

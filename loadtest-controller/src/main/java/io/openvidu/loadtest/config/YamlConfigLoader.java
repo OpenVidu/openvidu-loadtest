@@ -15,7 +15,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class YamlConfigLoader {
@@ -100,7 +103,27 @@ public class YamlConfigLoader {
         }
 
         Object value = getNestedValue(key.split("\\."));
-        return value != null ? value.toString() : "";
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof List<?> listValue) {
+            return listValue.isEmpty() ? "" : listValue.get(0).toString();
+        }
+        return value.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> getStringList(String key) {
+        Object value = getNestedValue(key.split("\\."));
+        if (value == null) {
+            return new ArrayList<>();
+        }
+        if (value instanceof List<?> listValue) {
+            return listValue.stream()
+                    .map(Object::toString)
+                    .toList();
+        }
+        throw new IllegalArgumentException("Expected YAML list for key: " + key + ", but got: " + value.getClass().getName());
     }
 
     public int getInt(String key) {

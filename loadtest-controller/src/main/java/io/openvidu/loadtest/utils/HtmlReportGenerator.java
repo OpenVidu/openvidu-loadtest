@@ -26,6 +26,11 @@ public class HtmlReportGenerator {
 
     public void generateHtmlReport(ResultReport result, String fileName) throws IOException {
         String resultsDir = System.getenv("RESULTS_DIR");
+        log.debug("RESULTS_DIR env: {}", resultsDir);
+        if (resultsDir == null || resultsDir.isBlank()) {
+            resultsDir = System.getProperty("RESULTS_DIR");
+            log.debug("RESULTS_DIR sysprop: {}", resultsDir);
+        }
         String resultPath;
 
         if (resultsDir != null && !resultsDir.isBlank()) {
@@ -38,6 +43,7 @@ public class HtmlReportGenerator {
             resultPath = new FileSystemResource(fileName).getFile().getAbsolutePath();
         }
 
+        log.debug("Writing HTML report to: {}", resultPath);
         try (FileWriter fw = new FileWriter(resultPath);
                 BufferedWriter bw = new BufferedWriter(fw)) {
             bw.write(generateHtmlContent(result));
@@ -73,7 +79,7 @@ public class HtmlReportGenerator {
         // Summary section
         html.append("    <div class=\"section\">\n");
         html.append("        <h2>Summary</h2>\n");
-        html.append("        <table>\n");
+        html.append("        <table id=\"summary-table\">\n");
         html.append("            <tr><td class=\"metric\">Test Duration</td><td class=\"value\">")
                 .append(getDuration(result)).append("</td></tr>\n");
         html.append("            <tr><td class=\"metric\">Sessions Created</td><td class=\"value\">")
@@ -94,7 +100,7 @@ public class HtmlReportGenerator {
         if (!errorCounts.isEmpty()) {
             html.append("    <div class=\"section\">\n");
             html.append("        <h2>Error Categorization</h2>\n");
-            html.append("        <table>\n");
+            html.append("        <table id=\"error-categorization-table\">\n");
             html.append("            <tr><th>Error Reason</th><th>Count</th><th>Percentage</th></tr>\n");
             int totalErrors = errorCounts.values().stream().mapToInt(Integer::intValue).sum();
             for (Map.Entry<String, Integer> entry : errorCounts.entrySet()) {
@@ -113,7 +119,7 @@ public class HtmlReportGenerator {
         if (!cpuAvg.isEmpty()) {
             html.append("    <div class=\"section\">\n");
             html.append("        <h2>Worker CPU Utilization</h2>\n");
-            html.append("        <table>\n");
+            html.append("        <table id=\"cpu-utilization-table\">\n");
             html.append("            <tr><th>Worker</th><th>Average CPU %</th><th>Max CPU %</th></tr>\n");
             for (String worker : cpuAvg.keySet()) {
                 html.append("            <tr><td>").append(escapeHtml(worker)).append("</td><td>")
@@ -151,7 +157,7 @@ public class HtmlReportGenerator {
         // Always generate the table, even if empty
         html.append("    <div class=\"section\">\n");
         html.append("        <h2>User Connections</h2>\n");
-        html.append("        <table>\n");
+        html.append("        <table id=\"user-connections-table\">\n");
         html.append(
                 "            <tr><th>User</th><th>Session</th><th>Join date</th><th>Disconnect Date</th><th>Retry Number</th></tr>\n");
         if (!userSuccessTimestamps.isEmpty()) {
@@ -196,7 +202,7 @@ public class HtmlReportGenerator {
         // Configuration details
         html.append("    <div class=\"section\">\n");
         html.append("        <h2>Configuration</h2>\n");
-        html.append("        <table>\n");
+        html.append("        <table id=\"configuration-table\">\n");
         html.append("            <tr><td class=\"metric\">Session Topology</td><td class=\"value\">")
                 .append(escapeHtml(result.getSessionTopology())).append("</td></tr>\n");
         html.append("            <tr><td class=\"metric\">Participants per Session</td><td class=\"value\">")
