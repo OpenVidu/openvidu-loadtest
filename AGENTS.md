@@ -94,12 +94,19 @@ mvn spring-boot:run  # Start the controller
 ```bash
 cd e2e-tests
 
-# Run smoke test (requires OpenVidu instance)
-./scripts/run-smoke-test.sh <PLATFORM_URL> [APIKEY] [APISECRET]
+# Run all e2e tests (requires OpenVidu instance)
+./scripts/run-all-e2e-tests.sh <PLATFORM_URL> [APIKEY] [APISECRET]
+
+# Run central test runner with custom config
+./scripts/run-e2e-test.sh <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [APIKEY] [APISECRET]
 
 # Direct Docker Compose
-docker-compose up --build
+docker compose up --build
 ```
+
+**Default credentials**: API key defaults to `devkey`, API secret defaults to `secret` if not provided.
+
+**Test discovery**: The unified runner (`run-all-e2e-tests.sh`) automatically discovers all `*-config.yaml` files in `config/` and maps them to validation scripts using convention: `foo-config.yaml` → `validate-foo.sh` (fallback: `validate-default.sh`).
 
 ## Code Style Guidelines
 

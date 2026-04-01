@@ -28,7 +28,8 @@ jobs:
             exit 1
           fi
 
-          echo "ovurl=https://$LAN_PRIVATE_IP.openvidu-local.dev:7443" >> "$GITHUB_OUTPUT"
+          LAN_PRIVATE_IP_DASHED="${LAN_PRIVATE_IP//./-}"
+          echo "ovurl=https://$LAN_PRIVATE_IP_DASHED.openvidu-local.dev:7443" >> "$GITHUB_OUTPUT"
         
       - name: Run Browser Emulator E2E Tests in Docker
         env:
@@ -37,10 +38,10 @@ jobs:
           cd browser-emulator
           docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from browser-emulator-tests          
 
-      - name: Run OpenVidu LoadTest E2E Tests
+      - name: Run All OpenVidu LoadTest E2E Tests
         run: |
           cd e2e-tests/scripts
-          ./run-smoke-test.sh ${{ steps.openvidu_env.outputs.ovurl }}
+          ./run-all-e2e-tests.sh ${{ steps.openvidu_env.outputs.ovurl }} devkey secret
       
       - name: Clean up
         if: always()

@@ -33,8 +33,7 @@ services:
       MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/browser-emulator/mediafiles}
       SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/browser-emulator/logs}
       METRICBEAT_CONFIG: ${METRICBEAT_CONFIG:-${PWD}/browser-emulator/src/assets/metricbeat-config/metricbeat.yml}
-    ports:
-      - '5000:5000'
+    stop_grace_period: 60s
     networks:
       - browseremulator
     volumes:

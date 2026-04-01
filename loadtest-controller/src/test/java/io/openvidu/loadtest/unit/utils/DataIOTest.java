@@ -25,6 +25,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.core.env.Environment;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
@@ -90,6 +91,29 @@ class DataIOTest {
         assertEquals(Topology.N_X_N.getValue(), tc.getTopology().getValue());
         assertEquals(2, tc.getParticipants().size());
         assertEquals(30, tc.getFrameRate());
+    }
+
+    @Test
+    void testGetTestCasesFromJSON_emulatedBrowser(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+                testcases:
+                  - topology: N:N
+                    sessions: 1
+                    participants:
+                      - "4"
+                    browser: emulated
+                """;
+
+        Path cfg = tempDir.resolve("config.yaml");
+        Files.writeString(cfg, yaml);
+
+        when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn(cfg.toString());
+
+        List<TestCase> cases = dataIO.getTestCasesFromJSON();
+
+        assertEquals(1, cases.size(), "Should load one test case");
+        TestCase tc = cases.get(0);
+        assertEquals(Browser.EMULATED, tc.getBrowser(), "Browser should be emulated");
     }
 
     @Test

@@ -228,6 +228,8 @@ public class DataIO {
             return Browser.CHROME;
         } else if (browserStr.equalsIgnoreCase(Browser.FIREFOX.getValue())) {
             return Browser.FIREFOX;
+        } else if (browserStr.equalsIgnoreCase(Browser.EMULATED.getValue())) {
+            return Browser.EMULATED;
         }
         log.warn("Browser {} not recognized. Defaulting to Chrome.", browserStr);
         return Browser.CHROME;

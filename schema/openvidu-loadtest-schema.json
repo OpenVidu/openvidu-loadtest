@@ -124,7 +124,8 @@
                         "type": "string",
                         "enum": [
                             "chrome",
-                            "firefox"
+                            "firefox",
+                            "emulated"
                         ],
                         "default": "chrome",
                         "description": "Browser type to use for the test"

@@ -160,7 +160,7 @@ Define multiple test scenarios that run sequentially. Each test case can have th
 | `topology`                 | **Yes**  | -         | `N:N`, `N:M`, `TEACHING`, or `ONE_SESSION`                                                                 |
 | `participants`             | **Yes**  | -         | List of participant counts (e.g., `["2", "10"]`). Each element of the list will create a new test scenario |
 | `sessions`                 | **Yes**  | -         | Number of sessions or `infinite`                                                                           |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome` or `firefox`                                                                      |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, or `emulated`                                                                   |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                       |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                              |
 | `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                          |

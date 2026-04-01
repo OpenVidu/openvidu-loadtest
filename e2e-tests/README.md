@@ -14,63 +14,93 @@ This directory contains end-to-end tests that validate the complete OpenVidu Loa
 2. An OpenVidu instance available for testing (you can use a local development installation)
 3. The OpenVidu instance URL, API key, and API secret
 
-## Smoke Test
+## Script Architecture
 
-The smoke test performs a basic end-to-end test with 2 participants in a single session using the N:N topology.
+The e2e test scripts follow a modular architecture:
 
-### Configuration
+- **`run-all-e2e-tests.sh`** - Unified test runner that discovers and runs all tests sequentially
+- **`run-e2e-test.sh`** - Central test runner for a single test (called by unified runner)
+- **`validate-default.sh`** - Default validation script for smoke test expectations
 
-The smoke test script accepts command-line arguments for OpenVidu connection details:
+## Running All Tests
+
+To run all e2e tests in one command:
+
+```bash
+cd e2e-tests/scripts
+./run-all-e2e-tests.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+
+# Example
+./run-all-e2e-tests.sh https://172-31-224-178.openvidu-local.dev:7443 devkey secret
+```
+
+The unified runner will:
+
+1. Discover all `*-config.yaml` files in the `config/` directory
+2. Map each config to its validation script using convention (see below)
+3. Run each test sequentially
+4. Print a summary of all test results
+
+## Running Individual Tests
+
+### Smoke Test (Chrome)
 
 ```bash
 cd e2e-tests/scripts
-./run-smoke-test.sh <PLATFORM_URL> [PLATFORM_APIKEY] [PLATFORM_APISECRET]
+./run-e2e-test.sh emulated-smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
-Where:
-
-- `PLATFORM_URL`: Required. The URL of your OpenVidu deployment (e.g., https://your-openvidu-url.io:7443)
-- `PLATFORM_APIKEY`: Optional. API key for authentication (defaults to "devkey")
-- `PLATFORM_APISECRET`: Optional. API secret for authentication (defaults to "secret")
-
-### Configuration File
-
-The smoke test uses the configuration file `config/smoke-test-config.yaml` which specifies `advanced.reportOutput: html,txt` to generate both text and HTML reports.
-
-### Running the Smoke Test
+### Emulated Browser Test
 
 ```bash
-# Example with all parameters
 cd e2e-tests/scripts
-./run-smoke-test.sh https://your-openvidu-url.io:7443 myapikey myapisecret
-
-# Example with defaults for API key and secret
-cd e2e-tests/scripts
-./run-smoke-test.sh https://your-openvidu-url.io:7443
+./run-e2e-test.sh smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
-This script will:
+## Test Discovery and Validation Mapping
 
-1. Start both services using Docker Compose
-2. Wait for the test to complete
-3. Stop the services
-4. Display and validate the test results
+The unified runner uses convention-based mapping to determine which validation script to use for each config file:
 
-### Expected Results
+1. For a config file named `foo-config.yaml`, the runner looks for `validate-foo.sh`
+2. If a specific validation script is not found, it falls back to `validate-default.sh`
 
-The test should:
+**Example:**
+
+- `smoke-test-config.yaml` → looks for `validate-smoke-test.sh` → falls back to `validate-default.sh`
+- `emulated-smoke-test-config.yaml` → looks for `validate-emulated-smoke-test.sh` → falls back to `validate-default.sh`
+
+## Adding New Test Types
+
+To add a new test type:
+
+1. **Create a configuration file** in `config/` (e.g., `my-test-config.yaml`)
+
+2. **Optionally create a validation script** in `scripts/` if the expected results differ from the default:
+   - Name it `validate-my-test.sh` (matching the config name without `-config.yaml`)
+   - If not created, `validate-default.sh` will be used automatically
+
+3. **No workflow changes needed** - the unified runner automatically discovers and runs all config files
+
+## Configuration-Validation Mapping Examples
+
+| Config file                       | Validation script (if exists)     | Fallback              |
+| --------------------------------- | --------------------------------- | --------------------- |
+| `smoke-test-config.yaml`          | `validate-smoke-test.sh`          | `validate-default.sh` |
+| `emulated-smoke-test-config.yaml` | `validate-emulated-smoke-test.sh` | `validate-default.sh` |
+| `load-test-config.yaml`           | `validate-load-test.sh`           | `validate-default.sh` |
+
+## Expected Results
+
+All smoke tests should:
 
 - Start both loadtest-controller and browser-emulator services
-- Launch 2 Chrome browsers that connect to the OpenVidu instance
 - Create a single session with 2 participants in N:N topology
 - Generate results in the `results/` directory:
   - `results.txt` (text summary)
-  - `report.html` (HTML report, with user retry details if retries occurred)
+  - `report.html` (HTML report)
 - Complete successfully and shut down cleanly
 
-### Validation Checks
-
-The smoke test validates that both `results.txt` and `report.html` files are generated and contain expected content.
+### Validation Checks (Default)
 
 **results.txt validation:**
 
@@ -87,26 +117,13 @@ The smoke test validates that both `results.txt` and `report.html` files are gen
 - "Sessions Created"
 - "Total Participants"
 - "User Connections" (mandatory)
-- Table columns: User, Session, Join date (from successful connection), Disconnect Date (captured from ParticipantDisconnected websocket event), Retry Number (count of retries per user)
+- Table columns: User, Session, Join date, Disconnect Date, Retry Number
 - Two user rows (User1 and User2) present
 
-The smoke test configuration uses `advanced.reportOutput: html,txt` to generate both output formats. If validation fails, the result files are kept in the `results/` directory for debugging.
-
-## Extending the Test Suite
-
-Additional test scenarios can be added by:
-
-1. Creating new configuration files in `configs/` directory
-2. Adding new scripts in `scripts/` directory or modifying the existing one
-3. Following the same pattern as the smoke test
-
-Examples of additional test scenarios:
-
-- Scaling tests with different participant counts
-- Different topologies (N:M, TEACHING, etc.)
-- Different browsers (Chrome vs Firefox)
+If validation fails, the result files are kept in the `results/` directory for debugging.
 
 ## Notes
 
 - Make sure your OpenVidu instance is accessible from the Docker containers
-- For troubleshooting, check the Docker Compose logs with `docker-compose logs`
+- For troubleshooting, check the Docker Compose logs with `docker compose logs`
+- Tests run sequentially to avoid resource conflicts
