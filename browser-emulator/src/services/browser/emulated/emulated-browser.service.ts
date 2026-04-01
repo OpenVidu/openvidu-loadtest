@@ -13,6 +13,7 @@ interface EmulatedContainerInfo {
 	containerId: string;
 	sessionName: string;
 	userName: string;
+	ffmpegContainerName?: string;
 	createdAt: Date;
 }
 
@@ -111,6 +112,11 @@ export class EmulatedBrowserService {
 			containerId,
 			sessionName,
 			userName: userId,
+			ffmpegContainerName:
+				properties.role === Role.PUBLISHER &&
+				(properties.video || properties.audio)
+					? ffmpegContainerName
+					: undefined,
 			createdAt: new Date(),
 		});
 
@@ -258,6 +264,21 @@ export class EmulatedBrowserService {
 			return;
 		}
 
+		// Stop ffmpeg container if present
+		if (containerInfo.ffmpegContainerName) {
+			try {
+				await this.dockerService.stopContainer(
+					containerInfo.ffmpegContainerName,
+				);
+			} catch (error) {
+				console.error(
+					`Error stopping ffmpeg container ${containerInfo.ffmpegContainerName} for ${connectionId}:`,
+					error,
+				);
+			}
+		}
+
+		// Stop join container
 		try {
 			await this.dockerService.stopContainer(containerInfo.containerId);
 		} catch (error) {

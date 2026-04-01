@@ -203,6 +203,14 @@ describe('EmulatedBrowserService', () => {
 			await service.deleteStreamManagerWithConnectionId(connectionId);
 
 			expect(mockDockerService.stopContainer).toHaveBeenCalled();
+			// Ensure ffmpeg container was also stopped
+			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
+				expect.stringContaining('ffmpeg-emulated-'),
+			);
+			// Ensure join container (startContainer return value) was stopped
+			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
+				'container-id-123',
+			);
 			expect(mockDockerService.removeContainer).toHaveBeenCalled();
 		});
 	});
@@ -231,6 +239,9 @@ describe('EmulatedBrowserService', () => {
 			);
 
 			expect(mockDockerService.stopContainer).toHaveBeenCalled();
+			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
+				expect.stringContaining('ffmpeg-emulated-'),
+			);
 			// Verify container is no longer tracked
 			expect(
 				service.getParticipantContainerId(connectionId),
@@ -268,6 +279,9 @@ describe('EmulatedBrowserService', () => {
 			await service.clean();
 
 			expect(mockDockerService.stopContainer).toHaveBeenCalled();
+			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
+				expect.stringContaining('ffmpeg-emulated-'),
+			);
 			// Verify container is no longer tracked
 			expect(
 				service.getParticipantContainerId(connectionId),
