@@ -13,7 +13,7 @@ Parameters:
     KeyName:
         Type: String
         Description: (Optional) Name of an existing EC2 KeyPair to enable SSH access. Leave empty to not set a key.
-        Default: 'ivan-aws-virginia'
+        Default: ''
     CacheMediaFilesArgs:
         Type: String
         Description: Cache media files by resolution and fps if you are going to create multiple instances and want to save time and bandwidth. Use '__enabled__' to cache all media files or specify resolutions and fps (e.g., '1080x60 720x30') to cache only specific combinations. If not set or set to '__disabled__', media files will not be cached.
