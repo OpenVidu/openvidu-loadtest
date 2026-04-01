@@ -8,6 +8,10 @@ import org.springframework.stereotype.Component;
 public class ShutdownManager {
     private ApplicationContext context;
 
+    public ShutdownManager(ApplicationContext context) {
+        this.context = context;
+    }
+
     public void shutdownWithCode(int code) {
         SpringApplication.exit(context, () -> code);
     }
