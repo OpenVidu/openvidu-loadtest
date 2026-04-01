@@ -19,12 +19,12 @@ jobs:
             - name: Build and unit tests
               run: |
                 cd loadtest-controller
-                mvn clean test -Dtest='io.openvidu.loadtest.unit.*'
+                mvn -Dtest=io.openvidu.loadtest.unit.**.*Test clean test
 
             - name: Run integration tests
               run: |
                 cd loadtest-controller
-                mvn test -Dtest='io.openvidu.loadtest.integration.*'
+                mvn -Dtest=io.openvidu.loadtest.integration.**.*Test test
 
     cleanup:
       needs: unit-test
