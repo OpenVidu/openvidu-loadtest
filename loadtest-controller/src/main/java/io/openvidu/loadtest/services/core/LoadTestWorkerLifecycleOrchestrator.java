@@ -17,6 +17,7 @@ import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.WorkerUrlResolver;
 
 class LoadTestWorkerLifecycleOrchestrator {
 
@@ -25,16 +26,18 @@ class LoadTestWorkerLifecycleOrchestrator {
     private final LoadTestService loadTestService;
     private final Ec2Client ec2Client;
     private final LoadTestConfig loadTestConfig;
+    private final WorkerUrlResolver workerUrlResolver;
 
     private int workersUsed = 0;
     private List<Date> workerStartTimes = new ArrayList<>();
     private List<Date> recordingWorkerStartTimes = new ArrayList<>();
 
     LoadTestWorkerLifecycleOrchestrator(LoadTestService loadTestService, Ec2Client ec2Client,
-            LoadTestConfig loadTestConfig) {
+            LoadTestConfig loadTestConfig, WorkerUrlResolver workerUrlResolver) {
         this.loadTestService = loadTestService;
         this.ec2Client = ec2Client;
         this.loadTestConfig = loadTestConfig;
+        this.workerUrlResolver = workerUrlResolver;
     }
 
     String setAndInitializeNextWorker(String actualCurrentWorkerUrl, WorkerType workerType)
@@ -73,14 +76,14 @@ class LoadTestWorkerLifecycleOrchestrator {
         String workerTypeValue = workerType.getValue();
 
         if (actualCurrentWorkerUrl.isBlank()) {
-            String workerUrl = workerList.get(0).publicDnsName();
+            String workerUrl = workerUrlResolver.resolveUrl(workerList.get(0));
             log.info("Getting new {} already launched: {}", workerTypeValue, workerUrl);
             return workerUrl;
         }
 
         Instance nextInstance = findNextInstance(actualCurrentWorkerUrl, workerList);
         if (nextInstance != null) {
-            String workerUrl = nextInstance.publicDnsName();
+            String workerUrl = workerUrlResolver.resolveUrl(nextInstance);
             log.info("Getting new {} already launched: {}", workerTypeValue, workerUrl);
             return workerUrl;
         }
@@ -117,7 +120,7 @@ class LoadTestWorkerLifecycleOrchestrator {
         workerList.addAll(nextInstanceList);
         workerStartTimesForType.addAll(nextInstanceList.stream().map(instance -> new Date()).toList());
 
-        String newWorkerUrl = nextInstanceList.get(0).publicDnsName();
+        String newWorkerUrl = workerUrlResolver.resolveUrl(nextInstanceList.get(0));
         log.info("New {} has been launched: {}", workerTypeValue, newWorkerUrl);
         return newWorkerUrl;
     }
@@ -126,7 +129,7 @@ class LoadTestWorkerLifecycleOrchestrator {
         if (instances.isEmpty()) {
             return;
         }
-        List<String> urls = instances.stream().map(Instance::publicDnsName).toList();
+        List<String> urls = workerUrlResolver.resolveUrls(instances);
         initializeWorkerUrls(urls);
     }
 
@@ -160,7 +163,7 @@ class LoadTestWorkerLifecycleOrchestrator {
     private Instance findNextInstance(String actualCurrentWorkerUrl, List<Instance> workerList) {
         int currentIndex = 0;
         for (int i = 0; i < workerList.size(); i++) {
-            if (actualCurrentWorkerUrl.equals(workerList.get(i).publicDnsName())) {
+            if (actualCurrentWorkerUrl.equals(workerUrlResolver.resolveUrl(workerList.get(i)))) {
                 currentIndex = i;
                 break;
             }

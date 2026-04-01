@@ -13,6 +13,7 @@ import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
 import io.openvidu.loadtest.services.WebSocketClient;
+import io.openvidu.loadtest.services.WorkerUrlResolver;
 
 class LoadTestShutdownOrchestrator {
 
@@ -20,17 +21,19 @@ class LoadTestShutdownOrchestrator {
     private final BrowserEmulatorClient browserEmulatorClient;
     private final Ec2Client ec2Client;
     private final LoadTestConfig loadTestConfig;
+    private final WorkerUrlResolver workerUrlResolver;
 
     private Queue<WebSocketClient> wsSessions = new ConcurrentLinkedQueue<>();
     private List<Long> workerTimes = new ArrayList<>();
     private List<Long> recordingWorkerTimes = new ArrayList<>();
 
     LoadTestShutdownOrchestrator(LoadTestService loadTestService, BrowserEmulatorClient browserEmulatorClient,
-            Ec2Client ec2Client, LoadTestConfig loadTestConfig) {
+            Ec2Client ec2Client, LoadTestConfig loadTestConfig, WorkerUrlResolver workerUrlResolver) {
         this.loadTestService = loadTestService;
         this.browserEmulatorClient = browserEmulatorClient;
         this.ec2Client = ec2Client;
         this.loadTestConfig = loadTestConfig;
+        this.workerUrlResolver = workerUrlResolver;
     }
 
     void disconnectAllSessions() {
@@ -72,10 +75,10 @@ class LoadTestShutdownOrchestrator {
         }
 
         for (Instance ec2 : loadTestService.getAwsWorkersList()) {
-            workerUrls.add(ec2.publicDnsName());
+            workerUrls.add(workerUrlResolver.resolveUrl(ec2));
         }
         for (Instance recordingEc2 : loadTestService.getRecordingWorkersList()) {
-            workerUrls.add(recordingEc2.publicDnsName());
+            workerUrls.add(workerUrlResolver.resolveUrl(recordingEc2));
         }
         return workerUrls;
     }

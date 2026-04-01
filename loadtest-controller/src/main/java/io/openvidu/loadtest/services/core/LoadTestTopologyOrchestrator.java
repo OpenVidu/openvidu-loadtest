@@ -12,6 +12,7 @@ import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.WorkerUrlResolver;
 
 class LoadTestTopologyOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(LoadTestTopologyOrchestrator.class);
@@ -29,13 +30,16 @@ class LoadTestTopologyOrchestrator {
     private final LoadTestConfig loadTestConfig;
     private final KibanaClient kibanaClient;
     private final BrowserEmulatorClient browserEmulatorClient;
+    private final WorkerUrlResolver workerUrlResolver;
 
     LoadTestTopologyOrchestrator(LoadTestService loadTestService, LoadTestConfig loadTestConfig,
-            KibanaClient kibanaClient, BrowserEmulatorClient browserEmulatorClient) {
+            KibanaClient kibanaClient, BrowserEmulatorClient browserEmulatorClient,
+            WorkerUrlResolver workerUrlResolver) {
         this.loadTestService = loadTestService;
         this.loadTestConfig = loadTestConfig;
         this.kibanaClient = kibanaClient;
         this.browserEmulatorClient = browserEmulatorClient;
+        this.workerUrlResolver = workerUrlResolver;
     }
 
     void startLoadTests(List<TestCase> testCasesList) {
@@ -52,16 +56,16 @@ class LoadTestTopologyOrchestrator {
         // Signal workers to cleanup and exit if configured
         if (loadTestConfig.isExitOnEnd()) {
             boolean isAwsMode = loadTestService.isProdMode();
-            List<String> workerUrls = isAwsMode 
+            List<String> workerUrls = isAwsMode
                     ? loadTestService.getAwsWorkersList().stream()
-                        .map(instance -> instance.publicDnsName())
-                        .collect(Collectors.toList())
+                            .map(workerUrlResolver::resolveUrl)
+                            .toList()
                     : loadTestService.getDevWorkersList();
-            
+
             if (!workerUrls.isEmpty()) {
-                log.info("Sending exit signal to {} workers ({} mode)", 
+                log.info("Sending exit signal to {} workers ({} mode)",
                         workerUrls.size(), isAwsMode ? "AWS" : "local");
-                
+
                 // Wait for response with timeout to ensure shutdown request is delivered
                 browserEmulatorClient.shutdownWorkers(workerUrls, true);
             }
@@ -106,6 +110,8 @@ class LoadTestTopologyOrchestrator {
                 } else {
                     log.error(ERROR_WHILE_ESTIMATING);
                 }
+            } catch (Exception e) {
+                log.error("Error occurred while running test case", e);
             } finally {
                 loadTestService.cleanupAfterParticipantConfiguration();
             }
@@ -133,6 +139,8 @@ class LoadTestTopologyOrchestrator {
                 } else {
                     log.error(ERROR_WHILE_ESTIMATING);
                 }
+            } catch (Exception e) {
+                log.error("Error occurred while running test case", e);
             } finally {
                 loadTestService.cleanupAfterParticipantConfiguration();
             }
@@ -148,6 +156,8 @@ class LoadTestTopologyOrchestrator {
                 } else {
                     runOneSessionNxN(testCase, participants, instancesInitialized);
                 }
+            } catch (Exception e) {
+                log.error("Error occurred while running test case", e);
             } finally {
                 loadTestService.cleanupAfterParticipantConfiguration();
             }

@@ -27,6 +27,7 @@ import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Sleeper;
+import io.openvidu.loadtest.services.WorkerUrlResolver;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -38,6 +39,7 @@ class BrowserEmulatorClientTests {
     private LKLoadTestConfig loadTestConfigMock;
     private JsonUtils jsonUtilsMock;
     private Sleeper sleeper;
+    private WorkerUrlResolver workerUrlResolver;
 
     @BeforeEach
     void setUp() {
@@ -45,6 +47,7 @@ class BrowserEmulatorClientTests {
         this.loadTestConfigMock = mock(LKLoadTestConfig.class);
         this.jsonUtilsMock = mock(JsonUtils.class);
         this.sleeper = mock(Sleeper.class);
+        this.workerUrlResolver = mock(WorkerUrlResolver.class);
 
         when(this.loadTestConfigMock.getVideoType()).thenReturn("BUNNY");
         when(this.loadTestConfigMock.getVideoWidth()).thenReturn(640);
@@ -78,7 +81,7 @@ class BrowserEmulatorClientTests {
         when(this.loadTestConfigMock.isHttpsDisabled()).thenReturn(false);
 
         this.browserEmulatorClient = new BrowserEmulatorClient(this.loadTestConfigMock, this.httpClientMock,
-                this.jsonUtilsMock, this.sleeper);
+                this.jsonUtilsMock, this.sleeper, this.workerUrlResolver);
     }
 
     @Test

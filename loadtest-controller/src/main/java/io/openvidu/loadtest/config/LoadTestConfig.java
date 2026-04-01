@@ -78,6 +78,8 @@ public abstract class LoadTestConfig {
     private String awsSecretAccessKey;
 
     private String awsAccessKey;
+    
+    private String endpointOverride;
 
     private String s3bucketName;
 
@@ -143,6 +145,10 @@ public abstract class LoadTestConfig {
 
     public String getAwsAccessKey() {
         return awsAccessKey;
+    }
+    
+    public String getEndpointOverride() {
+        return endpointOverride;
     }
 
     public String getSessionNamePrefix() {
@@ -424,6 +430,7 @@ public abstract class LoadTestConfig {
         terminateWorkers = terminateWorkersConfig != null ? terminateWorkersConfig : workerUrlList.isEmpty();
         awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
         awsAccessKey = asOptionalString("aws.accessKey");
+        endpointOverride = asOptionalString("aws.endpointOverride");
         s3bucketName = asOptionalString("storage.bucket");
     }
 

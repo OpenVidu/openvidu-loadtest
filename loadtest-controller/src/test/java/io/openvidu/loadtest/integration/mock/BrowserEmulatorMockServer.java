@@ -43,14 +43,25 @@ public class BrowserEmulatorMockServer {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Random random = new Random();
     private final AtomicInteger requestCount = new AtomicInteger(0);
+    private final AtomicInteger participantCounter = new AtomicInteger(0);
     private X509Certificate certificate;
     private final int port;
     private boolean useHttps = false;
     private WebSocketMockServer webSocketServer;
+    private ReconnectionFailureSimulator failureSimulator;
 
     public BrowserEmulatorMockServer(int port) {
         this.port = port;
         log.info("BrowserEmulatorMockServer created for port {}", port);
+    }
+
+    /**
+     * Constructor with failure simulator for reconnection failure testing.
+     */
+    public BrowserEmulatorMockServer(int port, ReconnectionFailureSimulator failureSimulator) {
+        this.port = port;
+        this.failureSimulator = failureSimulator;
+        log.info("BrowserEmulatorMockServer created for port {} with failure simulator", port);
     }
 
     /**
@@ -220,6 +231,12 @@ public class BrowserEmulatorMockServer {
             requestCount.incrementAndGet();
             log.debug("Received POST /instance/initialize request #{}", requestCount);
 
+            try {
+                Thread.sleep(random.nextInt(750, 1500));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Thread interrupted");
+            }
             String response = "Instance initialized successfully";
             exchange.getResponseHeaders().set("Content-Type", "text/plain");
             exchange.sendResponseHeaders(200, response.length());
@@ -233,38 +250,80 @@ public class BrowserEmulatorMockServer {
     /**
      * Handler for POST /openvidu-browser/streamManager endpoint.
      * This endpoint creates a new participant (publisher or subscriber).
-     * Also sends a ParticipantCreated event via WebSocket to notify the controller.
+     * Simulates reconnection failures for participant 200.
      */
     private class StreamManagerHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if ("POST".equals(exchange.getRequestMethod())) {
-                requestCount.incrementAndGet();
-                log.debug("Received POST /openvidu-browser/streamManager request #{}", requestCount);
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.getResponseBody().close();
+                return;
+            }
 
+            requestCount.incrementAndGet();
+            log.debug("Received POST /openvidu-browser/streamManager request #{}", requestCount);
+
+            try {
+                Thread.sleep(random.nextInt(1000, 5000));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Thread interrupted");
+            }
+            try {
+                // Read request body
+                int length = exchange.getRequestBody().available();
+                byte[] input = new byte[length];
+                exchange.getRequestBody().read(input);
+                String requestBody = new String(input);
+
+                // Parse JSON to extract userId and sessionName
                 try {
-                    // Read request body
-                    int length = exchange.getRequestBody().available();
-                    byte[] input = new byte[length];
-                    exchange.getRequestBody().read(input);
-                    String requestBody = new String(input);
 
-                    // Parse JSON to extract userId and sessionName
                     ObjectNode requestJson = (ObjectNode) objectMapper.readTree(requestBody);
                     String userId = requestJson.path("properties").path("userId").asText("unknown");
                     String sessionName = requestJson.path("properties").path("sessionName").asText("unknown");
                     String role = requestJson.path("properties").path("role").asText("SUBSCRIBER");
 
+                    // Check if this participant should fail (reconnection failure simulation)
+                    if (failureSimulator != null && failureSimulator.shouldFailOnCreate(userId, sessionName)) {
+                        int attempt = failureSimulator.recordFailure(userId);
+
+                        if (attempt == -1) {
+                            // Max retries exceeded - this triggers test termination
+                            log.info("Participant {} failed after {} retries - triggering test end",
+                                    userId, failureSimulator.getMaxRetries());
+                            String errorResponse = "{\"error\": \"Participant " + userId
+                                    + " failed after " + failureSimulator.getMaxRetries() + " retries\"}";
+                            exchange.getResponseHeaders().set("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(500, errorResponse.length());
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(errorResponse.getBytes());
+                            }
+                        } else if (attempt > 0) {
+                            // During retry window - simulate connection failure
+                            log.info("Simulating failure for {} (attempt {}/{})",
+                                    userId, attempt, failureSimulator.getMaxRetries());
+                            String errorResponse = "{\"error\": \"Connection refused - retry " + attempt + "\"}";
+                            exchange.getResponseHeaders().set("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(500, errorResponse.length());
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(errorResponse.getBytes());
+                            }
+                        }
+                        return;
+                    }
+
                     // Calculate streams and participants based on role
                     int streams = "PUBLISHER".equals(role) ? 2 : 1;
                     int participants = 1;
 
-                    // Generate response
+                    // Generate success response
                     ObjectNode responseJson = objectMapper.createObjectNode();
-                    responseJson.put("connectionId", "conn-" + userId + "-" + sessionName + "-" + requestCount);
+                    responseJson.put("connectionId", "conn-" + userId + "-" + sessionName + "-" + requestCount.get());
                     responseJson.put("streams", streams);
                     responseJson.put("participants", participants);
-                    responseJson.put("workerCpuUsage", 0.1 + random.nextDouble() * 0.6); // 0.1-0.7
+                    responseJson.put("workerCpuUsage", 0.1 + random.nextDouble() * 0.6);
                     responseJson.put("userId", userId);
                     responseJson.put("sessionId", sessionName);
 
@@ -277,30 +336,26 @@ public class BrowserEmulatorMockServer {
                     }
 
                     // Send ParticipantCreated event via WebSocket if connected
-                    // This mimics the real browser-emulator behavior
                     sendParticipantCreatedEvent(userId, sessionName);
-
-                    // Small delay to ensure unique timestamps for multiple users
-                    try {
-                        Thread.sleep(10);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-
-                } catch (Exception e) {
-                    log.error("Error processing streamManager request", e);
-                    String errorResponse = "{\"error\": \"Internal server error\"}";
+                } catch (ClassCastException e) {
+                    log.error("Invalid JSON structure in request body: {}", requestBody, e);
+                    String errorResponse = "{\"error\": \"Invalid JSON structure\"}";
                     exchange.getResponseHeaders().set("Content-Type", "application/json");
-                    exchange.sendResponseHeaders(500, errorResponse.length());
-
+                    exchange.sendResponseHeaders(400, errorResponse.length());
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(errorResponse.getBytes());
                     }
                 }
-            } else {
-                // Handle unexpected methods
-                exchange.sendResponseHeaders(405, -1); // Method Not Allowed
-                exchange.getResponseBody().close();
+
+            } catch (Exception e) {
+                log.error("Error processing streamManager request", e);
+                String errorResponse = "{\"error\": \"Internal server error\"}";
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(500, errorResponse.length());
+
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(errorResponse.getBytes());
+                }
             }
         }
 

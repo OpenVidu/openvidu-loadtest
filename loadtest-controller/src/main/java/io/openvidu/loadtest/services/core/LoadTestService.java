@@ -29,6 +29,7 @@ import io.openvidu.loadtest.services.Ec2Client;
 import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.services.WebSocketConnectionFactory;
+import io.openvidu.loadtest.services.WorkerUrlResolver;
 import io.openvidu.loadtest.utils.DataIO;
 
 /**
@@ -47,6 +48,7 @@ public class LoadTestService {
     private Ec2Client ec2Client;
     private Sleeper sleeper;
     private WebSocketConnectionFactory webSocketConnectionFactory;
+    private WorkerUrlResolver workerUrlResolver;
     private final LoadTestWorkerLifecycleOrchestrator workerLifecycleOrchestrator;
     private final LoadTestEstimationOrchestrator estimationOrchestrator;
     private final LoadTestShutdownOrchestrator shutdownOrchestrator;
@@ -70,7 +72,8 @@ public class LoadTestService {
 
     public LoadTestService(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
             KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client,
-            WebSocketConnectionFactory webSocketConnectionFactory, DataIO dataIO, Sleeper sleeper) {
+            WebSocketConnectionFactory webSocketConnectionFactory, DataIO dataIO, Sleeper sleeper,
+            WorkerUrlResolver workerUrlResolver) {
         this.browserEmulatorClient = browserEmulatorClient;
         this.loadTestConfig = loadTestConfig;
         this.kibanaClient = kibanaClient;
@@ -79,15 +82,17 @@ public class LoadTestService {
         this.webSocketConnectionFactory = webSocketConnectionFactory;
         this.io = dataIO;
         this.sleeper = sleeper;
-        this.workerLifecycleOrchestrator = new LoadTestWorkerLifecycleOrchestrator(this, ec2Client, loadTestConfig);
+        this.workerUrlResolver = workerUrlResolver;
+        this.workerLifecycleOrchestrator = new LoadTestWorkerLifecycleOrchestrator(this, ec2Client, loadTestConfig,
+                workerUrlResolver);
         this.estimationOrchestrator = new LoadTestEstimationOrchestrator(this, browserEmulatorClient,
                 loadTestConfig, sleeper);
         this.shutdownOrchestrator = new LoadTestShutdownOrchestrator(this, browserEmulatorClient, ec2Client,
-                loadTestConfig);
+                loadTestConfig, workerUrlResolver);
         this.participantOrchestrator = new LoadTestParticipantOrchestrator(this, browserEmulatorClient, esClient,
                 loadTestConfig, sleeper);
         this.topologyOrchestrator = new LoadTestTopologyOrchestrator(this, loadTestConfig, kibanaClient,
-                browserEmulatorClient);
+                browserEmulatorClient, workerUrlResolver);
 
         prodMode = loadTestConfig.getWorkerUrlList().isEmpty();
         devWorkersList = loadTestConfig.getWorkerUrlList();
@@ -157,7 +162,7 @@ public class LoadTestService {
     }
 
     private String getWorkerUrlForEstimation() {
-        return prodMode ? awsWorkersList.get(0).publicDnsName() : devWorkersList.get(0);
+        return prodMode ? workerUrlResolver.resolveUrl(awsWorkersList.get(0)) : devWorkersList.get(0);
     }
 
     boolean isProdMode() {

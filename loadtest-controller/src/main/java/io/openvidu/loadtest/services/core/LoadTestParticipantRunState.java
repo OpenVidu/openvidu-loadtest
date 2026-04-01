@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
@@ -11,9 +12,9 @@ import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 public class LoadTestParticipantRunState {
     private String worker;
     private String recordingWorker = "";
-    private int browsersInWorker = 0;
-    private int tasksInProgress = 0;
-    private int participantCounter = 0;
+    private final AtomicInteger browsersInWorker = new AtomicInteger(0);
+    private final AtomicInteger tasksInProgress = new AtomicInteger(0);
+    private final AtomicInteger participantCounter = new AtomicInteger(0);
 
     private final int startingParticipants;
     private final int batchMax;
@@ -37,11 +38,11 @@ public class LoadTestParticipantRunState {
     }
 
     public boolean isStartingParticipant() {
-        return this.startingParticipants > 0 && this.participantCounter <= this.startingParticipants;
+        return this.startingParticipants > 0 && this.participantCounter.get() <= this.startingParticipants;
     }
 
     public boolean isLastStartingParticipant() {
-        return this.startingParticipants > 0 && this.participantCounter == this.startingParticipants;
+        return this.startingParticipants > 0 && this.participantCounter.get() == this.startingParticipants;
     }
 
     public String getWorker() {
@@ -53,15 +54,15 @@ public class LoadTestParticipantRunState {
     }
 
     public int getBrowsersInWorker() {
-        return browsersInWorker;
+        return browsersInWorker.get();
     }
 
     public int getTasksInProgress() {
-        return tasksInProgress;
+        return tasksInProgress.get();
     }
 
     public int getParticipantCounter() {
-        return participantCounter;
+        return participantCounter.get();
     }
 
     public int getStartingParticipants() {
@@ -113,15 +114,23 @@ public class LoadTestParticipantRunState {
     }
 
     public void setBrowsersInWorker(int browsersInWorker) {
-        this.browsersInWorker = browsersInWorker;
+        this.browsersInWorker.set(browsersInWorker);
+    }
+
+    public void incrementBrowsersInWorker() {
+        this.browsersInWorker.incrementAndGet();
     }
 
     public void setTasksInProgress(int tasksInProgress) {
-        this.tasksInProgress = tasksInProgress;
+        this.tasksInProgress.set(tasksInProgress);
     }
 
-    public void setParticipantCounter(int participantCounter) {
-        this.participantCounter = participantCounter;
+    public void incrementTasksInProgress() {
+        this.tasksInProgress.incrementAndGet();
+    }
+
+    public void incrementParticipantCounter() {
+        this.participantCounter.incrementAndGet();
     }
 
     public void addToFutureList(CompletableFuture<CreateParticipantResponse> future) {

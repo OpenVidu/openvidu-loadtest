@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -101,16 +102,16 @@ class LoadTestParticipantOrchestrator {
         int testCaseSessionsLimit = testCase.getSessions();
         LoadTestParticipantRunState state = createParticipantRunState(testCase);
 
-        while (this.needCreateNewSession(testCaseSessionsLimit)) {
+        try (ExecutorService executorService = Executors.newFixedThreadPool(state.getMaxRequestsInFlight())) {
+            while (this.needCreateNewSession(testCaseSessionsLimit)) {
 
-            if (sessionNumber.get() > 0) {
-                sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
-            }
+                if (sessionNumber.get() > 0) {
+                    sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+                }
 
-            int sessNum = sessionNumber.incrementAndGet();
-            log.info("Starting session '{}{}'", loadTestConfig.getSessionNamePrefix(), sessNum);
-            boolean isLastSession = sessNum == testCaseSessionsLimit;
-            try (ExecutorService executorService = Executors.newFixedThreadPool(state.getMaxRequestsInFlight())) {
+                int sessNum = sessionNumber.incrementAndGet();
+                log.info("Starting session '{}{}'", loadTestConfig.getSessionNamePrefix(), sessNum);
+                boolean isLastSession = sessNum == testCaseSessionsLimit;
 
                 String recordingMetadata = "N-N_" + participantsBySession + "_" + participantsBySession + "PSes";
                 CreateParticipantResponse phaseResponse = runBoundedPhase(testCase, executorService, state,
@@ -251,7 +252,7 @@ class LoadTestParticipantOrchestrator {
                                 sessionNumber.get(), role),
                         testCase, false, null),
                 executorService);
-        state.setBrowsersInWorker(state.getBrowsersInWorker() + 1);
+        state.incrementBrowsersInWorker();
         return future;
     }
 
@@ -265,8 +266,8 @@ class LoadTestParticipantOrchestrator {
 
     private void trackParticipantFuture(LoadTestParticipantRunState state,
             CompletableFuture<CreateParticipantResponse> future) {
-        state.setTasksInProgress(state.getTasksInProgress() + 1);
-        state.setParticipantCounter(state.getParticipantCounter() + 1);
+        state.incrementTasksInProgress();
+        state.incrementParticipantCounter();
         if (shouldTrackAsyncStop(state)) {
             future.thenAccept((CreateParticipantResponse response) -> {
                 if (!response.isResponseOk()) {
@@ -286,19 +287,29 @@ class LoadTestParticipantOrchestrator {
     }
 
     private CreateParticipantResponse flushParticipantResponses(LoadTestParticipantRunState state,
-            boolean waitAfterFlush) {
+            boolean wait) {
         state.setLastResponse(loadTestService.getLastResponse(state.getFutureList()));
         CreateParticipantResponse lastResponseValue = state.getLastResponse();
         if ((lastResponseValue != null) && !lastResponseValue.isResponseOk()) {
             return lastResponseValue;
         }
 
-        state.resetFutureList();
-        state.setTasksInProgress(0);
-        if (waitAfterFlush) {
+        if (wait) {
+            for (CompletableFuture<CreateParticipantResponse> future : state.getFutureList()) {
+                try {
+                    future.get();
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.error("Error waiting participant future", ie);
+                } catch (ExecutionException e) {
+                    log.error("Error in participant future execution", e);
+                }
+            }
             sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenParticipants(), "time between participants");
             this.waitReconnectingUsersAfterParticipantBatch();
         }
+        state.resetFutureList();
+        state.setTasksInProgress(0);
         return null;
     }
 
@@ -366,7 +377,8 @@ class LoadTestParticipantOrchestrator {
         List<String> sessionUserList = new ArrayList<>(2);
         sessionUserList.add(sessionId);
         sessionUserList.add(userId);
-        // Ensure key uniqueness in case of duplicate timestamps using atomic putIfAbsent
+        // Ensure key uniqueness in case of duplicate timestamps using atomic
+        // putIfAbsent
         Calendar key = (Calendar) startTime.clone();
         while (this.userStartTimes.putIfAbsent(key, sessionUserList) != null) {
             key.add(Calendar.MILLISECOND, 1);

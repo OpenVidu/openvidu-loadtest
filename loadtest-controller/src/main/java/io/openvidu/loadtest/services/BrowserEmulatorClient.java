@@ -63,6 +63,8 @@ public class BrowserEmulatorClient {
 
     private Sleeper sleeper;
 
+    private WorkerUrlResolver workerUrlResolver;
+
     private ConcurrentHashMap<String, ConcurrentHashMap<String, AtomicInteger>> clientFailures = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, ConcurrentHashMap<String, Role>> clientRoles = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
@@ -79,11 +81,12 @@ public class BrowserEmulatorClient {
     private String httpProtocolPrefix;
 
     public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils,
-            Sleeper sleeper) {
+            Sleeper sleeper, WorkerUrlResolver workerUrlResolver) {
         this.loadTestConfig = loadTestConfig;
         this.httpClient = httpClient;
         this.jsonUtils = jsonUtils;
         this.sleeper = sleeper;
+        this.workerUrlResolver = workerUrlResolver;
         this.httpProtocolPrefix = loadTestConfig.isHttpsDisabled() ? "http://" : "https://";
     }
 
@@ -346,6 +349,10 @@ public class BrowserEmulatorClient {
     }
 
     public void disconnectAll(List<String> workerUrlList) {
+        if (workerUrlList == null || workerUrlList.isEmpty()) {
+            log.info("No workers to disconnect");
+            return;
+        }
         try (ExecutorService executorService = Executors.newFixedThreadPool(workerUrlList.size())) {
             List<Callable<String>> callableTasks = new ArrayList<>();
             for (String workerUrl : workerUrlList) {
@@ -436,6 +443,11 @@ public class BrowserEmulatorClient {
                 log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
                 sleeper.sleep(WAIT_S, null);
                 if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures) || endOfTest.get()) {
+                    // Set lastErrorReconnectingResponse to trigger test termination
+                    this.lastErrorReconnectingResponse = new CreateParticipantResponse()
+                            .setResponseOk(false)
+                            .setStopReason("Participant " + userId + " in session " + sessionId + " failed "
+                                    + failures + " times");
                     return cpr.setResponseOk(false);
                 }
                 log.warn("Retrying");
@@ -567,7 +579,7 @@ public class BrowserEmulatorClient {
 
     public void calculateQoe(List<Instance> workersList) {
         try (ExecutorService executorService = Executors.newFixedThreadPool(workersList.size())) {
-            List<String> workerUrlsList = workersList.stream().map(Instance::publicDnsName).toList();
+            List<String> workerUrlsList = workerUrlResolver.resolveUrls(workersList);
             List<Callable<String>> callableTasks = new ArrayList<>();
             for (String workerUrl : workerUrlsList) {
                 Callable<String> callable = new Callable<String>() {
@@ -684,17 +696,17 @@ public class BrowserEmulatorClient {
             return;
         }
 
-        ExecutorService executorService = Executors.newFixedThreadPool(Math.min(workerUrls.size(), 10));
-        List<Future<Void>> futures = new ArrayList<>();
+        try (ExecutorService executorService = Executors.newFixedThreadPool(Math.min(workerUrls.size(), 10))) {
+            List<Future<Void>> futures = new ArrayList<>();
 
-        try {
             for (String workerUrl : workerUrls) {
                 Callable<Void> callable = () -> {
                     try {
                         httpClient.sendDelete(
                                 httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/shutdown",
                                 getHeaders());
-                    } catch (Exception e) {
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         log.warn("Failed to send shutdown request to worker {}: {}", workerUrl, e.getMessage());
                     }
                     return null;
@@ -710,12 +722,14 @@ public class BrowserEmulatorClient {
                     }
                 } catch (TimeoutException e) {
                     log.warn("Timeout waiting for worker shutdown responses: {}", e.getMessage());
-                } catch (Exception e) {
-                    log.warn("Error waiting for worker shutdown responses: {}", e.getMessage());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Interrupted while waiting for worker shutdown responses: {}", e.getMessage());
+                } catch (ExecutionException e) {
+                    log.warn("Error while waiting for worker shutdown responses: {}", e.getMessage());
                 }
             }
-        } finally {
-            executorService.shutdownNow();
         }
+
     }
 }
