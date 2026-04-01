@@ -10,7 +10,7 @@ jobs:
     unit-test:
         runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
         container:
-            image: maven:3.9.14-eclipse-temurin-25-alpine
+            image: maven:3.9.14-eclipse-temurin-25
             options: --user root
         steps:
             - name: Checkout repository
