@@ -28,10 +28,15 @@ jobs:
           cd browser-emulator
           pnpm install
 
-      - name: Run tests
+      - name: Run unit tests
         run: |
           cd browser-emulator
           pnpm run test:unit
+
+      - name: Run integration tests
+        run: |
+          cd browser-emulator
+          pnpm run test:integration
 
       - name: Clean up
         if: always()
