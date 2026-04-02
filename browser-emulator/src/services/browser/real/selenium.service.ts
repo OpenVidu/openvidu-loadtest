@@ -340,7 +340,7 @@ export class SeleniumService {
 		while (Date.now() < deadline) {
 			try {
 				const response = await fetch(
-					`${seleniumServerBaseUrl}/status`,
+					`${seleniumServerBaseUrl}/wd/hub/status`,
 					{
 						signal: AbortSignal.timeout(3000),
 					},
