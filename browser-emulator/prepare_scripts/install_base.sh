@@ -16,9 +16,9 @@ fi
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)" # Absolute canonical path
 
 # Resolve absolute defaults for host directories and metricbeat config
-DEFAULT_MEDIAFILES_HOST_DIR="${MEDIAFILES_HOST_DIR:-$SELF_PATH/mediafiles}"
-DEFAULT_SCRIPTS_LOGS_HOST_DIR="${SCRIPTS_LOGS_HOST_DIR:-$SELF_PATH/logs}"
-DEFAULT_METRICBEAT_CONFIG="${METRICBEAT_CONFIG:-$SELF_PATH/src/assets/metricbeat-config/metricbeat.yml}"
+DEFAULT_MEDIAFILES_HOST_DIR="${MEDIAFILES_HOST_DIR:-$SELF_PATH/browser-emulator/mediafiles}"
+DEFAULT_SCRIPTS_LOGS_HOST_DIR="${SCRIPTS_LOGS_HOST_DIR:-$SELF_PATH/browser-emulator/logs}"
+DEFAULT_METRICBEAT_CONFIG="${METRICBEAT_CONFIG:-$SELF_PATH/browser-emulator/src/assets/metricbeat-config/metricbeat.yml}"
 
 # Export variables so the rest of the script and subsequent shells use them
 export MEDIAFILES_HOST_DIR="$DEFAULT_MEDIAFILES_HOST_DIR"
