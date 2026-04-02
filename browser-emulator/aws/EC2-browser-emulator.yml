@@ -51,6 +51,8 @@ Resources:
                     git checkout ${GitRef}
                     echo 'AWS_STACK=${AWS::StackId}' | sudo tee -a /etc/environment
                     echo 'AWS_REGION=${AWS::Region}' | sudo tee -a /etc/environment
+                    chmod +x ./prepare_scripts/*.sh
+                    chmod +x ./*.sh
                     if [ "${CacheMediaFilesArgs}" != "__disabled__" ]; then
                       if [ "${CacheMediaFilesArgs}" = "__enabled__" ]; then
                         ./prepare_scripts/download_mediafiles.sh > /var/log/download_mediafiles.log 2>&1
@@ -58,8 +60,7 @@ Resources:
                         ./prepare_scripts/download_mediafiles.sh ${CacheMediaFilesArgs} > /var/log/download_mediafiles.log 2>&1
                       fi
                     fi
-                    chmod +x ./prepare_scripts/*.sh
-                    chmod +x ./*.sh
+                    mv /opt/openvidu-loadtest/browser-emulator/prepare_scripts/mediafiles/* /opt/openvidu-loadtest/browser-emulator/mediafiles/
                     ./prepare_scripts/install_base.sh > /var/log/install.log 2>&1
                     echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && /usr/bin/docker compose -f docker-compose.yml up -d --build > /var/log/docker_compose_reboot.log 2>&1" | crontab -u ubuntu -
                     apt-get install -y python3-pip linux-aws-edge
