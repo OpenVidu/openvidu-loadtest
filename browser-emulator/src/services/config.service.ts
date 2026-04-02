@@ -112,7 +112,7 @@ export class ConfigService {
 			chromeImage: 'selenium/standalone-chrome:latest',
 			firefoxImage: 'selenium/standalone-firefox:latest',
 			seleniumPort: 4444,
-			startupTimeoutMs: 30000,
+			startupTimeoutMs: 60000,
 		};
 
 		// Use individual DOCKERIZED_BROWSERS_* environment variables only
