@@ -139,7 +139,11 @@ public class BrowserEmulatorClient {
             Thread.currentThread().interrupt();
             log.error("Ping interrupted: {}", e.getMessage());
         } catch (Exception e) {
-            log.error(e.getMessage());
+            if (e.getMessage() != null) {
+                log.error(e.getMessage());
+            } else {
+                log.debug("Error doing ping", e);
+            }
             log.error("Error doing ping. Retry...");
             ping(workerUrl);
         }

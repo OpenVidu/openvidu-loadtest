@@ -83,11 +83,11 @@ public class ElasticSearchClient {
                 log.info("Connection to Elasticsearch established at {}", elasticsearchHost);
             }
         } catch (Exception e) {
-            throw new LoadTestInitializationException(
-                    "Connection to Elasticsearch failed at " + loadTestConfig.getElasticsearchHost()
-                            + " (" + e.getMessage()
-                            + "). If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it",
-                    e);
+            String message = "Connection to Elasticsearch failed at " + loadTestConfig.getElasticsearchHost()
+                    + " (" + e.getMessage()
+                    + "). If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it";
+            log.error(message);
+            throw new LoadTestInitializationException(message, e);
         }
     }
 
