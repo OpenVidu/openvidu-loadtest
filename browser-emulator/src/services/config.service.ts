@@ -180,16 +180,41 @@ export class ConfigService {
 	private logConfiguration(): void {
 		console.log('Configuration loaded:');
 		console.log(`  SERVER_PORT: ${this.serverPort}`);
+		console.log(`  WEBSOCKET_SERVER_PORT: ${this.websocketServerPort}`);
 		console.log(`  COM_MODULE: ${this.comModule}`);
 		console.log(`  RUNNING_IN_DOCKER: ${this.runningInDocker}`);
 		console.log(
 			`  DOCKERIZED_BROWSERS: ${this.shouldUseDockerizedBrowsers()}`,
 		);
+		console.log('  DOCKERIZED_BROWSERS_CONFIG:');
+		console.log(`    enabled: ${this.dockerizedBrowsersConfig.enabled}`);
+		console.log(
+			`    networkName: ${this.dockerizedBrowsersConfig.networkName}`,
+		);
+		console.log(
+			`    browserEmulatorHost: ${this.dockerizedBrowsersConfig.browserEmulatorHost}`,
+		);
+		console.log(
+			`    chromeImage: ${this.dockerizedBrowsersConfig.chromeImage}`,
+		);
+		console.log(
+			`    firefoxImage: ${this.dockerizedBrowsersConfig.firefoxImage}`,
+		);
+		console.log(
+			`    seleniumPort: ${this.dockerizedBrowsersConfig.seleniumPort}`,
+		);
+		console.log(
+			`    startupTimeoutMs: ${this.dockerizedBrowsersConfig.startupTimeoutMs}`,
+		);
 		if (this.disableHttps) {
-			console.log(`  DISABLE_HTTP: ${this.disableHttps}`);
+			console.log(`  DISABLE_HTTPS: ${this.disableHttps}`);
 		}
 		console.log(`  MEDIAFILES_HOST_DIR: ${this.mediaFilesHostDir}`);
 		console.log(`  SCRIPTS_LOGS_HOST_DIR: ${this.scriptsLogsHostDir}`);
+		console.log(`  METRICBEAT_CONFIG: ${this.metricbeatConfig}`);
+		console.log(
+			`  BROWSER_EMULATOR_HOST_FOR_BROWSERS: ${this.getBrowserEmulatorHostForBrowsers()}`,
+		);
 
 		if (this.legacyMode) {
 			console.log('  LEGACY_MODE: enabled');

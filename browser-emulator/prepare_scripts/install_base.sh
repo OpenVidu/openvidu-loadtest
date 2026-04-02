@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Shell setup, assumes running on Ubuntu 24.04 able to build and install v4l2loopback module
+# Shell setup, assumes running on Ubuntu 24.04
 # ====================================================
 
 # Trace all commands.
@@ -14,6 +14,43 @@ else
 fi
 
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)" # Absolute canonical path
+
+# Resolve absolute defaults for host directories and metricbeat config
+DEFAULT_MEDIAFILES_HOST_DIR="${MEDIAFILES_HOST_DIR:-$SELF_PATH/mediafiles}"
+DEFAULT_SCRIPTS_LOGS_HOST_DIR="${SCRIPTS_LOGS_HOST_DIR:-$SELF_PATH/logs}"
+DEFAULT_METRICBEAT_CONFIG="${METRICBEAT_CONFIG:-$SELF_PATH/src/assets/metricbeat-config/metricbeat.yml}"
+
+# Export variables so the rest of the script and subsequent shells use them
+export MEDIAFILES_HOST_DIR="$DEFAULT_MEDIAFILES_HOST_DIR"
+export SCRIPTS_LOGS_HOST_DIR="$DEFAULT_SCRIPTS_LOGS_HOST_DIR"
+export METRICBEAT_CONFIG="$DEFAULT_METRICBEAT_CONFIG"
+
+# Ensure directories and metricbeat config directory exist
+mkdir -p "$MEDIAFILES_HOST_DIR" "$SCRIPTS_LOGS_HOST_DIR" "$(dirname "$METRICBEAT_CONFIG")"
+
+# Persist environment variables across reboots (interactive shells and system-wide)
+PROFILE_D=/etc/profile.d
+ENV_FILE=/etc/environment
+
+cat > "$PROFILE_D/openvidu-loadtest.sh" <<EOF
+# OpenVidu Loadtest browser emulator environment variables
+export MEDIAFILES_HOST_DIR="$MEDIAFILES_HOST_DIR"
+export SCRIPTS_LOGS_HOST_DIR="$SCRIPTS_LOGS_HOST_DIR"
+export METRICBEAT_CONFIG="$METRICBEAT_CONFIG"
+EOF
+chmod 644 "$PROFILE_D/openvidu-loadtest.sh"
+
+# Ensure /etc/environment contains the variables (key="value" format)
+touch "$ENV_FILE"
+for VAR in MEDIAFILES_HOST_DIR SCRIPTS_LOGS_HOST_DIR METRICBEAT_CONFIG; do
+    VALUE="$(eval echo "\$$VAR")"
+    if grep -q "^$VAR=" "$ENV_FILE" 2>/dev/null; then
+        sed -i "s|^$VAR=.*|$VAR=\"$VALUE\"|" "$ENV_FILE"
+    else
+        echo "$VAR=\"$VALUE\"" >> "$ENV_FILE"
+    fi
+done
+
 
 ## Install necessary packages
 apt-get update

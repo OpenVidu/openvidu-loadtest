@@ -16,7 +16,7 @@ services:
             DOCKER_NETWORK_NAME: browseremulator
             DOCKER_BROWSER_EMULATOR_HOST: browser-emulator-tests
             MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/mediafiles}
-            METRICBEAT_CONFIG: ${METRICBEAT_CONFIG:-${PWD}/browser-emulator/src/assets/metricbeat-config/metricbeat.yml}
+            METRICBEAT_CONFIG: ${METRICBEAT_CONFIG:-${PWD}/src/assets/metricbeat-config/metricbeat.yml}
             SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/logs}
             # Set DOCKER_DEBUG=true to enable Node inspector on port 9229
             DOCKER_DEBUG: ${DOCKER_DEBUG:-false}
@@ -36,7 +36,7 @@ services:
             - /var/run/docker.sock:/var/run/docker.sock
         # Override the container command to enable optional debugging
         # When DOCKER_DEBUG=true the app starts with the Node inspector
-        command: sh -lc "if [ \"${DOCKER_DEBUG:-false}\" = \"true\" ]; then pnpm run test --inspect-brk=0.0.0.0:9229 --no-file-parallelism tests/e2e/emulated-browsers.test.ts; else pnpm run test; fi"
+        command: sh -lc "if [ \"${DOCKER_DEBUG:-false}\" = \"true\" ]; then pnpm run test --inspect-brk=0.0.0.0:9229 --no-file-parallelism tests/e2e/emulated-browsers.test.ts; else pnpm run test:coverage; fi"
 networks:
     browseremulator:
         name: browseremulator

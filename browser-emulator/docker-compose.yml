@@ -15,7 +15,7 @@ services:
             DOCKER_BROWSER_EMULATOR_HOST: browser-emulator
             MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/mediafiles}
             SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/logs}
-            METRICBEAT_CONFIG: ${METRICBEAT_CONFIG:-${PWD}/browser-emulator/src/assets/metricbeat-config/metricbeat.yml}
+            METRICBEAT_CONFIG: ${METRICBEAT_CONFIG:-${PWD}/src/assets/metricbeat-config/metricbeat.yml}
             DISABLE_HTTPS: ${DISABLE_HTTPS:-false}
         stop_grace_period: 60s
         ports:
