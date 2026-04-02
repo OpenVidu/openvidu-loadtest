@@ -79,4 +79,26 @@ class LoadTestConfigTest {
         assertTrue(cfg.isKibanaEstablished());
         assertEquals("https://kibana-test.io:5601", cfg.getKibanaHost());
     }
+
+    @Test
+    void readsAwsConfigFromYaml() {
+        MockEnvironment env = new MockEnvironment();
+        // Load an alternate test YAML that contains AWS options
+        env.setProperty("LOADTEST_CONFIG", "config/aws-config.yaml");
+
+        TestLoadTestConfig cfg = new TestLoadTestConfig(env);
+
+        // AWS properties come from config-aws.yaml
+        assertEquals("test", cfg.getAwsAccessKey());
+        assertEquals("secret", cfg.getAwsSecretAccessKey());
+        assertEquals("ami-test", cfg.getWorkerAmiId());
+        assertEquals("t3.large", cfg.getWorkerInstanceType());
+        assertEquals("test-key-pair", cfg.getWorkerInstanceKeyPair());
+        assertEquals("sg-test", cfg.getWorkerSecurityGroupId());
+        assertEquals("us-east-1", cfg.getWorkerInstanceRegion());
+        assertEquals("us-east-1a", cfg.getWorkerAvailabilityZone());
+        assertEquals(1, cfg.getWorkersNumberAtTheBeginning());
+        assertEquals(1, cfg.getWorkersRumpUp());
+        assertFalse(cfg.isTerminateWorkers());
+    }
 }

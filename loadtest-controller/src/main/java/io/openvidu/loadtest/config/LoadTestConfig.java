@@ -78,7 +78,7 @@ public abstract class LoadTestConfig {
     private String awsSecretAccessKey;
 
     private String awsAccessKey;
-    
+
     private String endpointOverride;
 
     private String s3bucketName;
@@ -146,7 +146,7 @@ public abstract class LoadTestConfig {
     public String getAwsAccessKey() {
         return awsAccessKey;
     }
-    
+
     public String getEndpointOverride() {
         return endpointOverride;
     }
@@ -426,7 +426,7 @@ public abstract class LoadTestConfig {
         recordingSessionGroup = asInt("recording.sessionsGroupSize");
         // Default terminateWorkers to true when AWS is configured (no worker URLs),
         // false for local workers
-        Boolean terminateWorkersConfig = yamlConfig.getBooleanOrNull("terminateWorkers");
+        Boolean terminateWorkersConfig = yamlConfig.getBooleanOrNull("aws.terminateWorkers");
         terminateWorkers = terminateWorkersConfig != null ? terminateWorkersConfig : workerUrlList.isEmpty();
         awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
         awsAccessKey = asOptionalString("aws.accessKey");
