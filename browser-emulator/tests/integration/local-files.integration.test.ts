@@ -167,7 +167,7 @@ function getExpectedFileNames(videoPreset: BrowserVideo): {
 	if (videoPreset.videoType === 'custom') {
 		return {
 			videoFile: 'fakevideo_custom.y4m',
-			audioFile: 'fakeaudio_custom.y4m',
+			audioFile: 'fakeaudio_custom.wav',
 		};
 	}
 

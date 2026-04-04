@@ -4,6 +4,7 @@ import type { Application } from 'express';
 import { createServer } from 'node:http';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
+import Docker from 'dockerode';
 import {
 	AvailableBrowsers,
 	Resolution,
@@ -32,6 +33,7 @@ import { stopServer } from '../../src/app.js';
 // Constants
 export const QOE_ANALYSIS_TIMEOUT_MS = 30 * 60 * 1000;
 export const QOE_ANALYSIS_POLL_INTERVAL_MS = 2000;
+export const MIN_EMULATED_LIVEKIT_DURATION_SECONDS = 10;
 export const EXPECTED_STATS_FILES = [
 	'connections.json',
 	'events.json',
@@ -250,6 +252,44 @@ export async function waitForBrowsersToSendStats(emulationDuration: number) {
 	await new Promise(resolve => setTimeout(resolve, emulationDuration * 1000));
 }
 
+export async function assertNoLiveKitCliUnpublishedTracks(sessionName: string) {
+	const docker = new Docker();
+	const sessionPrefix = `/lk-emulated-${sessionName}-`;
+	const containers = (await docker.listContainers({ all: true })).filter(
+		containerInfo =>
+			containerInfo.Names.some(name => name.startsWith(sessionPrefix)),
+	);
+
+	expect(containers.length).toBeGreaterThan(0);
+
+	for (const containerInfo of containers) {
+		const container = docker.getContainer(containerInfo.Id);
+		const logsBuffer = await container.logs({
+			stdout: true,
+			stderr: true,
+		});
+		const logs = logsBuffer.toString();
+		const failingLines = logs
+			.split('\n')
+			.filter(
+				line =>
+					line.includes('unpublished track') ||
+					line.includes('could not get sample from provider'),
+			)
+			.join('\n');
+
+		if (failingLines.length > 0) {
+			const containerName =
+				containerInfo.Names.find(name =>
+					name.startsWith(sessionPrefix),
+				) ?? containerInfo.Id;
+			throw new Error(
+				`LiveKit CLI container ${containerName} reported track publication errors:\n${failingLines}`,
+			);
+		}
+	}
+}
+
 export async function cleanUsers(app: Application) {
 	const deleteAllUsersResponse = await request(app).delete(
 		'/openvidu-browser/streamManager',
@@ -335,7 +375,14 @@ export async function run2BrowserTest(
 		browser,
 		mediaRecorders,
 	);
-	await waitForBrowsersToSendStats(emulationDuration);
+	const effectiveDuration =
+		platform === 'livekit' && browser === 'emulated'
+			? Math.max(emulationDuration, MIN_EMULATED_LIVEKIT_DURATION_SECONDS)
+			: emulationDuration;
+	await waitForBrowsersToSendStats(effectiveDuration);
+	if (platform === 'livekit' && browser === 'emulated') {
+		await assertNoLiveKitCliUnpublishedTracks(sessionName);
+	}
 	await cleanUsers(app);
 	if (mediaRecorders) {
 		await runQoeAnalysisAndWaitUntilFinished(app);

@@ -28,6 +28,8 @@ import { FakeMediaDevicesService } from './services/fake-media/fake-media-device
 import { QoeAnalyzerService } from './services/qoe-analysis/qoe-analyzer.service.ts';
 import { QoeCommandRunner } from './services/qoe-analysis/qoe-command-runner.ts';
 import { EmulatedFilePublishStreamService } from './services/browser/emulated/emulated-file-publish-stream.service.ts';
+import { SocketWriterService } from './services/streaming/socket-writer.service.ts';
+import { SocketWriterHealthService } from './services/streaming/socket-writer-health.service.ts';
 
 // Define the container interface for type safety
 export interface DIContainer {
@@ -36,6 +38,8 @@ export interface DIContainer {
 	realBrowserService: RealBrowserService;
 	emulatedBrowserService: EmulatedBrowserService;
 	emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
+	socketWriterService: SocketWriterService;
+	healthService: SocketWriterHealthService;
 	instanceService: InstanceService;
 	elasticSearchService: ElasticSearchService;
 	wsService: WsService;
@@ -95,6 +99,8 @@ export async function configureContainer(): Promise<
 		realBrowserService: asClass(RealBrowserService).singleton(),
 		emulatedBrowserService: asClass(EmulatedBrowserService).singleton(),
 		browserManagerService: asClass(BrowserManagerService).singleton(),
+		socketWriterService: asClass(SocketWriterService).singleton(),
+		healthService: asClass(SocketWriterHealthService).singleton(),
 		emulatedFilePublishStreamService: asClass(
 			EmulatedFilePublishStreamService,
 		).singleton(),

@@ -20,6 +20,7 @@ async function cleanup() {
 	const emulatedFilePublishStreamService = container.resolve(
 		'emulatedFilePublishStreamService',
 	);
+	const socketWriterService = container.resolve('socketWriterService');
 	try {
 		await browserManager.clean();
 	} catch (err) {
@@ -36,6 +37,7 @@ async function cleanup() {
 		scriptRunnerService.killAllDetached(),
 		instanceService.removeMetricBeat(),
 		emulatedFilePublishStreamService.stopPublishing(),
+		socketWriterService.stopAllWriters(),
 	]);
 	console.log('Cleanup finished');
 }

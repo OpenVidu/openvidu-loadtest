@@ -30,6 +30,7 @@ services:
             - ./logs:/app/logs
             - ./mediafiles:/app/mediafiles
             - /var/run/docker.sock:/var/run/docker.sock
+            - /tmp/openvidu-loadtest:/tmp/openvidu-loadtest
 
 networks:
     browseremulator:

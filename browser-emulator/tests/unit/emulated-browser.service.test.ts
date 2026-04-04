@@ -29,8 +29,34 @@ const mockConfigService = {
 
 const mockLocalFilesRepository = {
 	existMediaFiles: vi.fn().mockResolvedValue(true),
+	existStreamingMediaFiles: vi.fn().mockResolvedValue(true),
+	downloadStreamingFiles: vi.fn().mockResolvedValue({
+		videoPath: '/path/to/video.h264',
+		audioPath: '/path/to/audio.ogg',
+	}),
 	fakevideo: '/path/to/video.mp4',
 	fakeaudio: '/path/to/audio.wav',
+	fakevideoStreaming: '/path/to/video.h264',
+	fakeaudioStreaming: '/path/to/audio.ogg',
+};
+
+const mockSocketWriterService = {
+	startWriter: vi
+		.fn()
+		.mockResolvedValue('/tmp/openvidu-loadtest/test/video.sock'),
+	stopWriter: vi.fn().mockResolvedValue(undefined),
+	stopAllWriters: vi.fn().mockResolvedValue(undefined),
+	hasWriter: vi.fn().mockReturnValue(true),
+	getSocketPath: vi
+		.fn()
+		.mockReturnValue('/tmp/openvidu-loadtest/test/video.sock'),
+};
+
+const mockSocketWriterHealthService = {
+	startCheck: vi.fn(),
+	stopCheck: vi.fn(),
+	stopAllChecks: vi.fn(),
+	hasCheck: vi.fn().mockReturnValue(false),
 };
 
 vi.mock('../../src/services/docker.service.js', () => ({
@@ -47,6 +73,18 @@ vi.mock('../../src/repositories/files/local-files.repository.js', () => ({
 		.mockImplementation(() => mockLocalFilesRepository),
 }));
 
+vi.mock('../../src/services/streaming/socket-writer.service.js', () => ({
+	SocketWriterService: vi
+		.fn()
+		.mockImplementation(() => mockSocketWriterService),
+}));
+
+vi.mock('../../src/services/streaming/socket-writer-health.service.js', () => ({
+	SocketWriterHealthService: vi
+		.fn()
+		.mockImplementation(() => mockSocketWriterHealthService),
+}));
+
 import { EmulatedBrowserService } from '../../src/services/browser/emulated/emulated-browser.service.js';
 import { EmulatedFilePublishStreamService } from '../../src/services/browser/emulated/emulated-file-publish-stream.service.js';
 import { Role } from '../../src/types/create-user.type.js';
@@ -58,8 +96,8 @@ describe('EmulatedBrowserService', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		emulatedFilePublishStreamService = new EmulatedFilePublishStreamService(
-			mockDockerService as never,
-			mockConfigService as never,
+			mockSocketWriterService as never,
+			mockSocketWriterHealthService as never,
 			mockLocalFilesRepository as never,
 		);
 
@@ -88,17 +126,20 @@ describe('EmulatedBrowserService', () => {
 			},
 		};
 
-		it('should throw error if media files do not exist', async () => {
+		it('should throw error if streaming media files do not exist', async () => {
 			const failingLocalFilesRepository = {
-				existMediaFiles: vi.fn().mockResolvedValue(false),
+				existMediaFiles: vi.fn().mockResolvedValue(true),
+				existStreamingMediaFiles: vi.fn().mockResolvedValue(false),
 				fakevideo: '/path/to/video.mp4',
 				fakeaudio: '/path/to/audio.wav',
+				fakevideoStreaming: undefined,
+				fakeaudioStreaming: undefined,
 			} as never;
 
 			const emulatedFailStreamService =
 				new EmulatedFilePublishStreamService(
-					mockDockerService as never,
-					mockConfigService as never,
+					mockSocketWriterService as never,
+					mockSocketWriterHealthService as never,
 					failingLocalFilesRepository,
 				);
 
@@ -111,7 +152,43 @@ describe('EmulatedBrowserService', () => {
 
 			await expect(
 				service.createEmulatedParticipant(baseRequest as never),
-			).rejects.toThrow('Media files not found');
+			).rejects.toThrow('Streaming media files');
+		});
+
+		it('should retry participant creation after transient startup error', async () => {
+			mockDockerService.startContainer
+				.mockRejectedValueOnce(new Error('transient startup error'))
+				.mockResolvedValueOnce('container-id-456');
+
+			const result = await service.createEmulatedParticipant(
+				baseRequest as never,
+			);
+
+			expect(result).toContain('test-session_test-user_');
+			expect(mockDockerService.startContainer).toHaveBeenCalledTimes(2);
+		});
+
+		it('should keep room-check containers until logs are read', async () => {
+			await service.createEmulatedParticipant(baseRequest as never);
+
+			const runAndWaitCalls = mockDockerService.runAndWaitContainer.mock
+				.calls as [{ HostConfig?: { AutoRemove?: boolean } }][];
+
+			for (const [containerConfig] of runAndWaitCalls) {
+				expect(containerConfig.HostConfig?.AutoRemove).toBe(false);
+			}
+		});
+
+		it('should accept ICE and peer connected logs as successful join', async () => {
+			mockDockerService.getLogsFromContainer.mockResolvedValueOnce(
+				'\u0002\u0000\u0000\u0000\u0000\u0000\u0000k2026-04-03T23:10:14.691Z\tINFO\tlk.pion.pc\tICE connection state changed: connected\n\u0002\u0000\u0000\u0000\u0000\u0000\u0000r2026-04-03T23:10:14.694Z\tINFO\tlk.pion.pc\tpeer connection state changed: connected',
+			);
+
+			const result = await service.createEmulatedParticipant(
+				baseRequest as never,
+			);
+
+			expect(result).toContain('test-session_test-user_');
 		});
 
 		it('should check if LiveKit CLI image exists', async () => {
@@ -157,13 +234,10 @@ describe('EmulatedBrowserService', () => {
 			);
 		});
 
-		it('should return connection id on success', async () => {
-			const result = await service.createEmulatedParticipant(
-				baseRequest as never,
-			);
+		it('should start socket writers for publishers', async () => {
+			await service.createEmulatedParticipant(baseRequest as never);
 
-			expect(result).toContain('test-session_test-user_');
-			expect(result).toContain('containe'); // container-id-123 sliced to 8 chars
+			expect(mockSocketWriterService.startWriter).toHaveBeenCalled();
 		});
 
 		it('should return connection id on success', async () => {
@@ -183,7 +257,7 @@ describe('EmulatedBrowserService', () => {
 			expect(mockDockerService.stopContainer).not.toHaveBeenCalled();
 		});
 
-		it('should stop and remove container on delete', async () => {
+		it('should stop join container before stopping socket writers', async () => {
 			const connectionId = await service.createEmulatedParticipant({
 				openviduUrl: 'ws://localhost:7880',
 				livekitApiKey: 'test-api-key',
@@ -202,16 +276,37 @@ describe('EmulatedBrowserService', () => {
 
 			await service.deleteStreamManagerWithConnectionId(connectionId);
 
-			expect(mockDockerService.stopContainer).toHaveBeenCalled();
-			// Ensure ffmpeg container was also stopped
-			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
-				expect.stringContaining('ffmpeg-emulated-'),
-			);
+			const stopContainerOrder =
+				mockDockerService.stopContainer.mock.invocationCallOrder[0];
+			const stopWriterOrder =
+				mockSocketWriterService.stopWriter.mock.invocationCallOrder[0];
+
+			expect(stopContainerOrder).toBeLessThan(stopWriterOrder);
+		});
+
+		it('should stop socket writers and container on delete', async () => {
+			const connectionId = await service.createEmulatedParticipant({
+				openviduUrl: 'ws://localhost:7880',
+				livekitApiKey: 'test-api-key',
+				livekitApiSecret: 'test-api-secret',
+				properties: {
+					userId: 'test-user',
+					sessionName: 'test-session',
+					role: Role.PUBLISHER,
+					audio: true,
+					video: true,
+					resolution: '640x480',
+					frameRate: 30,
+					browser: 'emulated',
+				},
+			} as never);
+
+			await service.deleteStreamManagerWithConnectionId(connectionId);
+
 			// Ensure join container (startContainer return value) was stopped
 			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
 				'container-id-123',
 			);
-			expect(mockDockerService.removeContainer).toHaveBeenCalled();
 		});
 	});
 
@@ -239,9 +334,6 @@ describe('EmulatedBrowserService', () => {
 			);
 
 			expect(mockDockerService.stopContainer).toHaveBeenCalled();
-			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
-				expect.stringContaining('ffmpeg-emulated-'),
-			);
 			// Verify container is no longer tracked
 			expect(
 				service.getParticipantContainerId(connectionId),
@@ -279,9 +371,6 @@ describe('EmulatedBrowserService', () => {
 			await service.clean();
 
 			expect(mockDockerService.stopContainer).toHaveBeenCalled();
-			expect(mockDockerService.stopContainer).toHaveBeenCalledWith(
-				expect.stringContaining('ffmpeg-emulated-'),
-			);
 			// Verify container is no longer tracked
 			expect(
 				service.getParticipantContainerId(connectionId),

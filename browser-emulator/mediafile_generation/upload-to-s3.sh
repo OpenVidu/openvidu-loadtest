@@ -50,10 +50,10 @@ $AWS_CLI sts get-caller-identity >/dev/null 2>&1 ||
 # --- Main ---------------------------------------------------------------------
 
 # Find .y4m and .wav files in the current directory (non-recursive), safely handling spaces
-mapfile -d '' FILES < <(find . -maxdepth 1 -type f \( -iname "*.y4m" -o -iname "*.wav" \) -print0)
+mapfile -d '' FILES < <(find . -maxdepth 1 -type f \( -iname "*.y4m" -o -iname "*.wav" -o -iname "*.h264" -o -iname "*.ogg" \) -print0)
 
 if [[ ${#FILES[@]} -eq 0 ]]; then
-    echo "No .y4m or .wav files found in the current directory."
+    echo "No valid files found in the current directory."
     exit 0
 fi
 

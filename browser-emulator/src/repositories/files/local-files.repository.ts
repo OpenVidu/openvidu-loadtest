@@ -15,6 +15,8 @@ export class LocalFilesRepository {
 
 	private _fakevideo: string | undefined;
 	private _fakeaudio: string | undefined;
+	private _fakevideoStreaming: string | undefined;
+	private _fakeaudioStreaming: string | undefined;
 
 	constructor() {
 		this.createNeededDirectories();
@@ -26,6 +28,38 @@ export class LocalFilesRepository {
 
 	public get fakeaudio(): string | undefined {
 		return this._fakeaudio;
+	}
+
+	/**
+	 * Get path to H.264 streaming video file (for Unix socket streaming)
+	 */
+	public get fakevideoStreaming(): string | undefined {
+		return this._fakevideoStreaming;
+	}
+
+	/**
+	 * Get path to Opus Ogg streaming audio file (for Unix socket streaming)
+	 */
+	public get fakeaudioStreaming(): string | undefined {
+		return this._fakeaudioStreaming;
+	}
+
+	/**
+	 * Check if streaming media files exist
+	 */
+	public async existStreamingMediaFiles(): Promise<boolean> {
+		if (!this._fakevideoStreaming || !this._fakeaudioStreaming) {
+			return false;
+		}
+		try {
+			await Promise.all([
+				fsPromises.access(this._fakevideoStreaming, fs.constants.F_OK),
+				fsPromises.access(this._fakeaudioStreaming, fs.constants.F_OK),
+			]);
+			return true;
+		} catch {
+			return false;
+		}
 	}
 
 	private createNeededDirectories() {
@@ -52,6 +86,22 @@ export class LocalFilesRepository {
 		]);
 		this._fakevideo = filePaths[0];
 		this._fakeaudio = filePaths[1];
+
+		return filePaths;
+	}
+
+	public async downloadStreamingFiles(
+		videoFile: string,
+		videoUrl: string,
+		audioFile: string,
+		audioUrl: string,
+	): Promise<string[]> {
+		const filePaths = await Promise.all([
+			this.downloadFile(videoFile, videoUrl),
+			this.downloadFile(audioFile, audioUrl),
+		]);
+		this._fakevideoStreaming = filePaths[0];
+		this._fakeaudioStreaming = filePaths[1];
 
 		return filePaths;
 	}

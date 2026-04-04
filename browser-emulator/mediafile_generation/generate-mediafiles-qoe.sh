@@ -4,25 +4,32 @@
 # DEFAULT VALUES
 ##################################################################################
 
-VIDEO_SAMPLE_URL=https://archive.org/download/e-dv548_lwe08_christa_casebeer_003.ogg/e-dv548_lwe08_christa_casebeer_003.mp4
+# Big Buck Bunny is the default source video
+BUNNY_ZIP_URL="https://download.blender.org/demo/movies/BBB/bbb_sunflower_1080p_60fps_normal.mp4.zip"
+BUNNY_ZIP_FILE="bbb_sunflower_1080p_60fps_normal.mp4.zip"
+BUNNY_VIDEO_FILE="bbb_sunflower_1080p_60fps_normal.mp4"
+INTERVIEW_VIDEO_URL="https://archive.org/download/e-dv548_lwe08_christa_casebeer_003.ogg/e-dv548_lwe08_christa_casebeer_003.mp4"
+
+VIDEO_SAMPLE_URL="$BUNNY_VIDEO_FILE"  # Default to bunny (will be downloaded if needed)
 WIDTH=640
 HEIGHT=480
-VIDEO_DURATION=00:00:30
+VIDEO_DURATION=00:00:05
+START_POSITION=00:00:52
 PADDING_DURATION_SEC=1
 AUDIO_SAMPLE_RATE_HZ=48000
 TONE_FREQUENCY_HZ=1000
 AUDIO_CHANNELS_NUMBER=2
 FPS=30
+USE_BUNNY=true  # Bunny is default
 FFMPEG_LOG="-loglevel error"
-TARGET_VIDEO=./test.y4m
-TARGET_AUDIO=./test.wav
 GENERATE_DEFAULT_REF=false
 DEFAULT_VIDEO_REF=./test-no-padding.yuv
 DEFAULT_AUDIO_REF=./test-no-padding.wav
 FONT=./arial.ttf
 CLEANUP=true
 GET_ORIGINAL_STATS=false
-USAGE="Usage: `basename $0` [-d=duration] [-p=padding_duration_sec] [--game] [--generate_default_ref] [--no_cleanup] [--clean] [-v=video_url] [-w=width] [-h=height] [-a=audio_url] [-f=fps] [--original]"
+GENERATE_STREAMING=true
+USAGE="Usage: $(basename $0) [-d=duration] [-p=padding_duration_sec] [--game] [--interview] [--generate_default_ref] [--no_cleanup] [--clean] [--no-streaming] [-v=video_url] [-w=width] [-h=height] [-a=audio_url] [-f=fps] [--original]"
 
 ##################################################################################
 # FUNCTIONS
@@ -120,6 +127,16 @@ for i in "$@"; do
    case $i in
       --game)
       VIDEO_SAMPLE_URL=https://ia802808.us.archive.org/6/items/ForniteBattle8/fornite%20battle%202.mp4
+      USE_BUNNY=false
+      VIDEO_DURATION=00:00:30
+      START_POSITION=00:00:00
+      shift
+      ;;
+      --interview)
+      VIDEO_SAMPLE_URL="$INTERVIEW_VIDEO_URL"
+      USE_BUNNY=false
+      VIDEO_DURATION=00:00:15
+      START_POSITION=00:00:00
       shift
       ;;
       --generate_default_ref)
@@ -141,6 +158,10 @@ for i in "$@"; do
       --clean)
       cleanup
       exit 0
+      shift
+      ;;
+      --no-streaming)
+      GENERATE_STREAMING=false
       shift
       ;;
       -v=*)
@@ -178,6 +199,52 @@ done
 # INIT
 ##################################################################################
 
+# Download Big Buck Bunny if it's the source and doesn't exist yet
+if [ "$USE_BUNNY" = true ]; then
+   # Download zip if not exists
+   if [ ! -f "$BUNNY_ZIP_FILE" ] && [ ! -f "$BUNNY_VIDEO_FILE" ]; then
+      echo "Downloading Big Buck Bunny video from blender.org..."
+      if command -v curl &> /dev/null; then
+         curl -L -o "$BUNNY_ZIP_FILE" "$BUNNY_ZIP_URL" --progress-bar
+      elif command -v wget &> /dev/null; then
+         wget -O "$BUNNY_ZIP_FILE" "$BUNNY_ZIP_URL"
+      else
+         echo "Error: curl or wget required"
+         exit 1
+      fi
+   fi
+   
+   # Unzip if video file doesn't exist
+   if [ ! -f "$BUNNY_VIDEO_FILE" ]; then
+      echo "Extracting Big Buck Bunny video from zip..."
+      unzip -o "$BUNNY_ZIP_FILE"
+   fi
+   
+   VIDEO_SAMPLE_URL="$BUNNY_VIDEO_FILE"
+fi
+
+# Determine media type from source URL
+case "$VIDEO_SAMPLE_URL" in
+   *christa_casebeer*|*interview*)
+      MEDIA_TYPE="interview"
+      ;;
+   *ForniteBattle*)
+      MEDIA_TYPE="game"
+      ;;
+   *bbb_sunflower*|*BBB*)
+      MEDIA_TYPE="bunny"
+      ;;
+   *)
+      MEDIA_TYPE="custom"
+      ;;
+esac
+
+# Output filenames using consistent naming: {type}_{height}p_{fps}fps.{extension}
+BASE_NAME="${MEDIA_TYPE}_${HEIGHT}p_${FPS}fps"
+TARGET_VIDEO="./${BASE_NAME}.y4m"
+TARGET_AUDIO="./${MEDIA_TYPE}.wav"
+STREAMING_VIDEO="./${BASE_NAME}.h264"
+STREAMING_AUDIO="./${MEDIA_TYPE}.ogg"
 
 ##########################
 # 1. Download video sample
@@ -185,10 +252,10 @@ done
 VIDEO_SAMPLE_NAME=$(echo ${VIDEO_SAMPLE_URL##*/} | sed -e 's/%20/ /g')
 
 if [ ! -f "$VIDEO_SAMPLE_NAME" ]; then
-    echo "Content video ($VIDEO_SAMPLE_NAME) not exits ... downloading"
+    echo "Content video ($VIDEO_SAMPLE_NAME) not exists ... downloading"
     wget $VIDEO_SAMPLE_URL
 else
-    echo "Content video ($VIDEO_SAMPLE_NAME) already exits"
+    echo "Content video ($VIDEO_SAMPLE_NAME) already exists"
 fi
 if [ -z "$FPS" ]; then
 	FPS=$(ffprobe -v error -select_streams v -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 "$VIDEO_SAMPLE_NAME")
@@ -208,7 +275,7 @@ fi
 #######################
 if [ "$GET_ORIGINAL_STATS" = false ]; then
 	echo "Cutting original video (duration $VIDEO_DURATION)"
-	ffmpeg $FFMPEG_LOG -y -i "$VIDEO_SAMPLE_NAME" -ss 00:00:00 -t $VIDEO_DURATION -vf scale="$WIDTH:$HEIGHT",setsar=1:1 -r $FPS test-no-frame-number.mp4
+	ffmpeg $FFMPEG_LOG -y -i "$VIDEO_SAMPLE_NAME" -ss $START_POSITION -t $VIDEO_DURATION -vf scale="$WIDTH:$HEIGHT",setsar=1:1 -r $FPS test-no-frame-number.mp4
 	OUTPUT="test-no-frame-number.mp4"
 fi
 
@@ -349,7 +416,59 @@ if $GENERATE_DEFAULT_REF; then
 fi
 
 ################################
-# 9. Delete temporal video files
+# 9. Generate streaming files (H.264 + Opus Ogg)
+################################
+if $GENERATE_STREAMING; then
+   echo "=========================================="
+   echo "Generating streaming media files for LiveKit"
+   echo "=========================================="
+   
+   # Get FPS as integer for keyint calculation
+   FPS_INT=$(echo "$FPS" | awk '{if ($1 ~ /\//) {split($1, a, "/"); print a[1]/a[2]} else {print $1}}' | awk '{printf "%d", $1}')
+   if [ -z "$FPS_INT" ] || [ "$FPS_INT" -le 0 ]; then
+      FPS_INT=30
+   fi
+   
+   # Generate H.264 Annex B video from test.mp4 (same content as QoE Y4M)
+   echo "Generating H.264 video ($STREAMING_VIDEO)..."
+   ffmpeg $FFMPEG_LOG -y -i test.mp4 \
+     -c:v libx264 -preset veryfast -profile:v baseline \
+     -pix_fmt yuv420p \
+     -x264-params "keyint=$((FPS_INT * 4)):min-keyint=$((FPS_INT * 4))" \
+     -bf 0 -b:v 2M \
+     -an \
+     -f h264 \
+     "$STREAMING_VIDEO"
+   
+   echo "  -> $(ls -lh "$STREAMING_VIDEO" 2>/dev/null | awk '{print $5}' || echo 'not found')"
+   
+   # Generate Opus Ogg audio from test-audio-raw.wav (same content as QoE WAV)
+   echo "Generating Opus audio ($STREAMING_AUDIO)..."
+   ffmpeg $FFMPEG_LOG -y -i test-audio-raw.wav \
+     -c:a libopus -page_duration 20000 \
+     -ar $AUDIO_SAMPLE_RATE_HZ -ac $AUDIO_CHANNELS_NUMBER \
+     -f opus \
+     "$STREAMING_AUDIO"
+   
+   echo "  -> $(ls -lh "$STREAMING_AUDIO" 2>/dev/null | awk '{print $5}' || echo 'not found')"
+   
+   echo ""
+   echo "Streaming files generated:"
+   echo "  Video: $(pwd)/$STREAMING_VIDEO"
+   echo "  Audio: $(pwd)/$STREAMING_AUDIO"
+   echo ""
+   echo "These files are compatible with LiveKit CLI's h264:// and opus:// protocols."
+   echo "=========================================="
+
+   echo ""
+   echo "=========================================="
+   echo "All generated files:"
+   ls -lh ./${BASE_NAME}.* 2>/dev/null | awk '{print "  " $NF " (" $5 ")"}'
+   echo "=========================================="
+fi
+
+################################
+# 10. Delete temporal video files
 ################################
 if $CLEANUP; then
    cleanup

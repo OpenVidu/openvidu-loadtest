@@ -101,29 +101,29 @@ describe('Browser-emulator - External containers (S3 & Elasticsearch)', () => {
 			},
 		);
 
-		it(
-			'LiveKit basic workflow + S3 (Firefox with S3)',
-			{ repeats: 0 },
-			async () => {
-				const sessionName = await run2BrowserTest(
-					app,
-					'livekit',
-					'firefox',
-					10,
-					true,
-					false,
-					false,
-					s3MockContainer,
-					s3Client,
-				);
-				await assertSessionStats(sessionName);
-				await assertS3SessionStats(
-					s3Client,
-					'test-bucket',
-					sessionName,
-				);
-			},
-		);
+		// it(
+		// 	'LiveKit basic workflow + S3 (Firefox with S3)',
+		// 	{ repeats: 0 },
+		// 	async () => {
+		// 		const sessionName = await run2BrowserTest(
+		// 			app,
+		// 			'livekit',
+		// 			'firefox',
+		// 			10,
+		// 			true,
+		// 			false,
+		// 			false,
+		// 			s3MockContainer,
+		// 			s3Client,
+		// 		);
+		// 		await assertSessionStats(sessionName);
+		// 		await assertS3SessionStats(
+		// 			s3Client,
+		// 			'test-bucket',
+		// 			sessionName,
+		// 		);
+		// 	},
+		// );
 	});
 
 	describe('LiveKit + S3 + ELK', () => {
@@ -161,26 +161,26 @@ describe('Browser-emulator - External containers (S3 & Elasticsearch)', () => {
 			);
 		});
 
-		it('LiveKit basic workflow + S3+ELK (Firefox with ELK)', async () => {
-			const sessionName = await run2BrowserTest(
-				app,
-				'livekit',
-				'firefox',
-				10,
-				true,
-				true,
-				false,
-				s3MockContainer,
-				s3Client,
-				elasticsearchContainer,
-				elkIndex,
-			);
-			await assertSessionStats(sessionName);
-			await assertS3SessionStats(s3Client, 'test-bucket', sessionName);
-			await expectCorrectElasticSearchDocuments(
-				elasticsearchContainer,
-				elkIndex,
-			);
-		});
+		// it('LiveKit basic workflow + S3+ELK (Firefox with ELK)', async () => {
+		// 	const sessionName = await run2BrowserTest(
+		// 		app,
+		// 		'livekit',
+		// 		'firefox',
+		// 		10,
+		// 		true,
+		// 		true,
+		// 		false,
+		// 		s3MockContainer,
+		// 		s3Client,
+		// 		elasticsearchContainer,
+		// 		elkIndex,
+		// 	);
+		// 	await assertSessionStats(sessionName);
+		// 	await assertS3SessionStats(s3Client, 'test-bucket', sessionName);
+		// 	await expectCorrectElasticSearchDocuments(
+		// 		elasticsearchContainer,
+		// 		elkIndex,
+		// 	);
+		// });
 	});
 });

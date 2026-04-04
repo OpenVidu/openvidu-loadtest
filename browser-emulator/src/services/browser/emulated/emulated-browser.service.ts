@@ -8,13 +8,20 @@ import {
 } from '../../../types/create-user.type.ts';
 import type { LKCreateUserBrowser } from '../../../types/com-modules/livekit.ts';
 import { EmulatedFilePublishStreamService } from './emulated-file-publish-stream.service.ts';
+import * as fs from 'node:fs/promises';
 
 interface EmulatedContainerInfo {
 	containerId: string;
 	sessionName: string;
 	userName: string;
-	ffmpegContainerName?: string;
+	participantId: string;
+	videoSocket?: string; // Unix socket path for video
+	audioSocket?: string; // Unix socket path for audio
 	createdAt: Date;
+}
+
+interface FailedParticipantCreationContext extends Partial<EmulatedContainerInfo> {
+	connectionId?: string;
 }
 
 export class EmulatedBrowserService {
@@ -28,6 +35,8 @@ export class EmulatedBrowserService {
 
 	private readonly LIVEKIT_CLI_IMAGE = 'livekit/livekit-cli';
 	private readonly ROOM_EMPTY_TIMEOUT = 600; // 10 minutes
+	private readonly CREATE_PARTICIPANT_MAX_ATTEMPTS = 3;
+	private readonly CREATE_PARTICIPANT_RETRY_DELAY_MS = 1000;
 
 	constructor(
 		dockerService: DockerService,
@@ -54,11 +63,12 @@ export class EmulatedBrowserService {
 			`Creating emulated participant: userId=${userId}, session=${sessionName}`,
 		);
 
-		// Check media files exist
-		const filesExist = await this.localFilesRepository.existMediaFiles();
-		if (!filesExist) {
+		// Check streaming media files exist (H.264 and Ogg)
+		const streamingFilesExist =
+			await this.localFilesRepository.existStreamingMediaFiles();
+		if (!streamingFilesExist) {
 			throw new Error(
-				'WARNING! Media files not found. Have you downloaded the media files?',
+				'Streaming media files (.h264, .ogg) not found. Run prepare_scripts/generate-streaming-media.sh first.',
 			);
 		}
 
@@ -68,69 +78,168 @@ export class EmulatedBrowserService {
 		// Create room if it doesn't exist
 		await this.createRoomIfNeeded(lkRequest, sessionName);
 
-		// Generate unique container name
-		const basesuffix = `${sessionName}-${userId}-${Date.now()}`;
+		let lastError: unknown;
 
-		const ffmpegContainerName = `ffmpeg-emulated-${basesuffix}`;
+		for (
+			let attempt = 1;
+			attempt <= this.CREATE_PARTICIPANT_MAX_ATTEMPTS;
+			attempt++
+		) {
+			try {
+				return await this.createEmulatedParticipantAttempt(
+					lkRequest,
+					properties,
+					sessionName,
+					userId,
+				);
+			} catch (error) {
+				lastError = error;
+				console.warn(
+					`Emulated participant join attempt ${attempt}/${this.CREATE_PARTICIPANT_MAX_ATTEMPTS} failed for ${sessionName}/${userId}: ${String(error)}`,
+				);
+				if (attempt < this.CREATE_PARTICIPANT_MAX_ATTEMPTS) {
+					await new Promise(resolve =>
+						setTimeout(
+							resolve,
+							this.CREATE_PARTICIPANT_RETRY_DELAY_MS,
+						),
+					);
+				}
+			}
+		}
+
+		throw lastError instanceof Error
+			? lastError
+			: new Error(
+					`Failed to create emulated participant: ${String(lastError)}`,
+				);
+	}
+
+	private async createEmulatedParticipantAttempt(
+		lkRequest: LKCreateUserBrowser,
+		properties: UserJoinProperties,
+		sessionName: string,
+		userId: string,
+	): Promise<string> {
+		let connectionId: string | undefined;
+		let containerId: string | undefined;
+
+		// Generate unique identifier for this participant
+		const basesuffix = `${sessionName}-${userId}-${Date.now()}`;
+		const participantId = `emulated-${basesuffix}`;
+
+		// Start socket streaming for publishers
+		let videoSocket: string | undefined;
+		let audioSocket: string | undefined;
 
 		if (
 			properties.role === Role.PUBLISHER &&
 			(properties.video || properties.audio)
 		) {
-			await this.emulatedFilePublishStreamService.startEmulatedStreams(
-				ffmpegContainerName,
-				properties.video,
-				properties.audio,
-			);
+			const streamResult =
+				await this.emulatedFilePublishStreamService.startEmulatedStreams(
+					participantId,
+					properties.video,
+					properties.audio,
+				);
+			videoSocket = streamResult.videoSocket;
+			audioSocket = streamResult.audioSocket;
 		}
-		// Build the join command
+
+		// Build the join command with socket paths
 		const joinCommand = this.buildJoinCommand(
 			lkRequest,
-			ffmpegContainerName,
+			videoSocket,
+			audioSocket,
 		);
 
 		const joinContainerName = `lk-emulated-${basesuffix}`;
-		// Start the container
-		const containerId = await this.dockerService.startContainer({
-			Image: this.LIVEKIT_CLI_IMAGE,
-			name: joinContainerName,
-			Cmd: joinCommand,
-			HostConfig: {
-				Binds: [
-					`${this.configService.getMediaFilesHostDir()}:/app/mediafiles/:ro`,
-				],
-				AutoRemove: true,
-				NetworkMode:
-					this.configService.getDockerizedBrowsersConfig()
-						.networkName,
-			},
-		});
+		try {
+			// Start the LiveKit CLI container
+			// Note: AutoRemove is false so we can check logs after container exits
+			containerId = await this.dockerService.startContainer({
+				Image: this.LIVEKIT_CLI_IMAGE,
+				name: joinContainerName,
+				Cmd: joinCommand,
+				HostConfig: {
+					AutoRemove: false,
+					NetworkMode:
+						this.configService.getDockerizedBrowsersConfig()
+							.networkName,
+					// Mount socket directory so LiveKit CLI can access Unix sockets
+					Binds: ['/tmp/openvidu-loadtest:/tmp/openvidu-loadtest:ro'],
+				},
+			});
 
-		// Store container info (tracking for cleanup)
-		const connectionId = `${sessionName}_${userId}_${containerId.slice(0, 8)}`;
-		this.containerMap.set(connectionId, {
-			containerId,
-			sessionName,
-			userName: userId,
-			ffmpegContainerName:
-				properties.role === Role.PUBLISHER &&
-				(properties.video || properties.audio)
-					? ffmpegContainerName
-					: undefined,
-			createdAt: new Date(),
-		});
+			// Store container info (tracking for cleanup)
+			connectionId = `${sessionName}_${userId}_${containerId.slice(0, 8)}`;
+			this.containerMap.set(connectionId, {
+				containerId,
+				sessionName,
+				userName: userId,
+				participantId,
+				videoSocket,
+				audioSocket,
+				createdAt: new Date(),
+			});
 
-		await this.checkConnectionIsAliveAndCorrect(
-			properties,
-			joinContainerName,
-			ffmpegContainerName,
-		);
+			await this.checkConnectionIsAliveAndCorrect(
+				properties,
+				joinContainerName,
+				participantId,
+			);
 
-		console.log(
-			`Emulated participant created: connectionId=${connectionId}, containerId=${containerId}`,
-		);
+			console.log(
+				`Emulated participant created: connectionId=${connectionId}, containerId=${containerId}`,
+			);
 
-		return connectionId;
+			return connectionId;
+		} catch (error) {
+			await this.cleanupFailedParticipantCreation({
+				containerId,
+				connectionId,
+				participantId,
+				videoSocket,
+				audioSocket,
+				sessionName,
+				userName: userId,
+			});
+			throw error;
+		}
+	}
+
+	private async cleanupFailedParticipantCreation(
+		containerInfo: FailedParticipantCreationContext,
+	): Promise<void> {
+		if (containerInfo.connectionId) {
+			this.containerMap.delete(containerInfo.connectionId);
+		}
+
+		if (containerInfo.containerId) {
+			await Promise.allSettled([
+				this.dockerService.stopContainer(containerInfo.containerId),
+				this.dockerService.removeContainer(containerInfo.containerId),
+			]);
+		}
+
+		if (
+			containerInfo.participantId &&
+			(containerInfo.videoSocket || containerInfo.audioSocket)
+		) {
+			await this.emulatedFilePublishStreamService.stopPublishing(
+				containerInfo.participantId,
+			);
+
+			await this.cleanupSockets({
+				containerId: containerInfo.containerId ?? '',
+				sessionName: containerInfo.sessionName ?? '',
+				userName: containerInfo.userName ?? '',
+				participantId: containerInfo.participantId,
+				videoSocket: containerInfo.videoSocket,
+				audioSocket: containerInfo.audioSocket,
+				createdAt: containerInfo.createdAt ?? new Date(),
+			});
+		}
 	}
 
 	private async ensureLivekitCliImage(): Promise<void> {
@@ -149,6 +258,9 @@ export class EmulatedBrowserService {
 	): Promise<void> {
 		console.log(`Checking if room ${roomName} exists...`);
 
+		const checkContainerName = `lk-check-room-${roomName}-${Date.now()}`;
+		let createRoomContainerName: string | undefined;
+
 		const checkCommand = [
 			'room',
 			'list',
@@ -161,20 +273,20 @@ export class EmulatedBrowserService {
 		];
 
 		try {
-			const checkContainerName = `lk-check-room-${roomName}-${Date.now()}`;
 			const items = await this.dockerService.runAndWaitContainer({
 				Image: this.LIVEKIT_CLI_IMAGE,
 				name: checkContainerName,
 				Cmd: checkCommand,
 				HostConfig: {
-					AutoRemove: true,
+					// Keep container until we read logs to avoid Docker 409 races.
+					AutoRemove: false,
 					NetworkMode:
 						this.configService.getDockerizedBrowsersConfig()
 							.networkName,
 				},
 			});
-			const logs = items[1];
-			if (logs.includes(request.properties.sessionName)) {
+			const logs = this.normalizeContainerLogs(items[1]);
+			if (logs.includes(request.properties.sessionName.toLowerCase())) {
 				console.log(`Room ${roomName} already exists`);
 			} else {
 				const createRoomCommand = [
@@ -191,13 +303,13 @@ export class EmulatedBrowserService {
 					roomName,
 				];
 
-				const createRoomContainerName = `lk-create-room-${roomName}-${Date.now()}`;
+				createRoomContainerName = `lk-create-room-${roomName}-${Date.now()}`;
 				await this.dockerService.runAndWaitContainer({
 					Image: this.LIVEKIT_CLI_IMAGE,
 					name: createRoomContainerName,
 					Cmd: createRoomCommand,
 					HostConfig: {
-						AutoRemove: true,
+						AutoRemove: false,
 						NetworkMode:
 							this.configService.getDockerizedBrowsersConfig()
 								.networkName,
@@ -206,15 +318,24 @@ export class EmulatedBrowserService {
 
 				console.log(`Room ${roomName} created`);
 			}
-			void this.dockerService.removeContainer(checkContainerName);
 		} catch (error) {
 			console.log(`Room creation check failed: ${String(error)}`);
+		} finally {
+			await Promise.allSettled([
+				this.dockerService.removeContainer(checkContainerName),
+				createRoomContainerName
+					? this.dockerService.removeContainer(
+							createRoomContainerName,
+						)
+					: Promise.resolve(),
+			]);
 		}
 	}
 
 	private buildJoinCommand(
 		request: LKCreateUserBrowser,
-		ffmpegContainerName: string,
+		videoSocket?: string,
+		audioSocket?: string,
 	): string[] {
 		const properties = request.properties;
 		const baseUrl = request.openviduUrl
@@ -239,12 +360,13 @@ export class EmulatedBrowserService {
 		];
 
 		if (properties.role === Role.PUBLISHER) {
-			if (properties.video) {
-				parts.push('--publish', `h264://${ffmpegContainerName}:5004`);
+			// Use Unix socket format: h264:///tmp/openvidu-loadtest/{id}/video.sock
+			if (properties.video && videoSocket) {
+				parts.push('--publish', `h264://${videoSocket}`);
 			}
 
-			if (properties.audio) {
-				parts.push('--publish', `opus://${ffmpegContainerName}:5005`);
+			if (properties.audio && audioSocket) {
+				parts.push('--publish', `opus://${audioSocket}`);
 			}
 		}
 		// Add room name at the end
@@ -264,34 +386,55 @@ export class EmulatedBrowserService {
 			return;
 		}
 
-		// Stop ffmpeg container if present
-		if (containerInfo.ffmpegContainerName) {
+		// Stop and remove join container
+		try {
+			await this.dockerService.stopContainer(containerInfo.containerId);
+			await this.dockerService.removeContainer(containerInfo.containerId);
+		} catch (error) {
+			console.error(
+				`Error stopping/removing container for ${connectionId}:`,
+				error,
+			);
+		}
+
+		// Stop streaming sockets after LiveKit CLI has released them
+		if (containerInfo.videoSocket || containerInfo.audioSocket) {
 			try {
-				await this.dockerService.stopContainer(
-					containerInfo.ffmpegContainerName,
+				await this.emulatedFilePublishStreamService.stopPublishing(
+					containerInfo.participantId,
 				);
+
+				// Clean up socket files
+				await this.cleanupSockets(containerInfo);
 			} catch (error) {
 				console.error(
-					`Error stopping ffmpeg container ${containerInfo.ffmpegContainerName} for ${connectionId}:`,
+					`Error stopping socket streaming for ${connectionId}:`,
 					error,
 				);
 			}
-		}
-
-		// Stop join container
-		try {
-			await this.dockerService.stopContainer(containerInfo.containerId);
-		} catch (error) {
-			console.error(
-				`Error stopping container for ${connectionId}:`,
-				error,
-			);
 		}
 
 		// Remove container tracking
 		this.containerMap.delete(connectionId);
 
 		console.log(`Emulated participant deleted: ${connectionId}`);
+	}
+
+	private async cleanupSockets(
+		containerInfo: EmulatedContainerInfo,
+	): Promise<void> {
+		const socketsToClean = [
+			containerInfo.videoSocket,
+			containerInfo.audioSocket,
+		].filter(Boolean) as string[];
+
+		for (const socketPath of socketsToClean) {
+			try {
+				await fs.unlink(socketPath);
+			} catch {
+				// Socket may already be removed
+			}
+		}
 	}
 
 	async deleteStreamManagerWithSessionAndUser(
@@ -331,6 +474,9 @@ export class EmulatedBrowserService {
 
 		this.containerMap.clear();
 
+		// Also clean up all socket streaming
+		await this.emulatedFilePublishStreamService.stopPublishing();
+
 		console.log('Emulated participants cleaned');
 	}
 
@@ -341,7 +487,7 @@ export class EmulatedBrowserService {
 	private async checkConnectionIsAliveAndCorrect(
 		properties: UserJoinProperties,
 		joinContainerName: string,
-		ffmpegContainerName: string,
+		participantId: string,
 	): Promise<void> {
 		const errorMsg = `User ${properties.userId} failed to join LiveKit room ${properties.sessionName}`;
 
@@ -381,66 +527,54 @@ export class EmulatedBrowserService {
 				await this.dockerService.getLogsFromContainer(
 					joinContainerName,
 				);
-			return joinLogs.includes('connected to room');
-		});
+			return this.hasSuccessfulJoinIndicators(joinLogs);
+		}, 5);
 		if (!joinLogsOk) {
 			const joinLogs =
 				await this.dockerService.getLogsFromContainer(
 					joinContainerName,
 				);
 			console.error(
-				`Missing 'connected to room' in ${joinContainerName}:\n${joinLogs}`,
+				`Missing connection indicators in ${joinContainerName} logs:\n${joinLogs}`,
 			);
 			throw new Error(errorMsg);
 		}
 		console.log(
 			`Join container ${joinContainerName} logs indicate successful connection`,
 		);
+
 		if (properties.role === Role.PUBLISHER) {
+			const streamActive =
+				this.emulatedFilePublishStreamService.getParticipantSockets(
+					participantId,
+				);
 			console.log(
-				`Role is PUBLISHER. Checking if FFmpeg container ${ffmpegContainerName} is running...`,
+				`Socket streaming active for ${participantId}: video=${!!streamActive?.videoSocket}, audio=${!!streamActive?.audioSocket}`,
 			);
-			const ffmpegRunning = await retry(() =>
-				this.dockerService.isContainerRunning(ffmpegContainerName),
-			);
-			if (!ffmpegRunning) {
-				console.error(
-					`FFmpeg container ${ffmpegContainerName} is not running`,
-				);
-				throw new Error(errorMsg);
-			}
-			console.log(
-				`FFmpeg container ${ffmpegContainerName} running: ${ffmpegRunning}`,
-			);
-			if (properties.video || properties.audio) {
-				console.log(
-					`Checking join container ${joinContainerName} logs for published track...`,
-				);
-				const publishedTrack = await retry(async () => {
-					const joinLogs =
-						await this.dockerService.getLogsFromContainer(
-							joinContainerName,
-						);
-					return (
-						joinLogs.includes('published track') &&
-						(!properties.video || joinLogs.includes('CAMERA')) &&
-						(!properties.audio || joinLogs.includes('MICROPHONE'))
-					);
-				});
-				if (!publishedTrack) {
-					const joinLogs =
-						await this.dockerService.getLogsFromContainer(
-							joinContainerName,
-						);
-					console.error(
-						`Missing 'published track' in ${joinContainerName} logs:\n${joinLogs}`,
-					);
-					throw new Error(errorMsg);
-				}
-				console.log(
-					`Join container ${joinContainerName} logs indicate track published successfully`,
-				);
-			}
 		}
+	}
+
+	private normalizeContainerLogs(logs: string): string {
+		// Docker logs may include binary multiplexing markers. Keep only
+		// printable characters plus new lines/carriage returns/tabs.
+		const sanitizedChars = Array.from(logs).filter(char => {
+			const code = char.charCodeAt(0);
+			return code === 9 || code === 10 || code === 13 || code >= 32;
+		});
+
+		return sanitizedChars.join('').toLowerCase();
+	}
+
+	private hasSuccessfulJoinIndicators(joinLogs: string): boolean {
+		const normalizedLogs = this.normalizeContainerLogs(joinLogs);
+		const hasConnectedToRoom = normalizedLogs.includes('connected to room');
+		const hasIceConnected = normalizedLogs.includes(
+			'ice connection state changed: connected',
+		);
+		const hasPeerConnected = normalizedLogs.includes(
+			'peer connection state changed: connected',
+		);
+
+		return hasConnectedToRoom || (hasIceConnected && hasPeerConnected);
 	}
 }

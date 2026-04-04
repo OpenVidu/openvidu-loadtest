@@ -26,7 +26,7 @@ describe('Browser-emulator - Emulated browsers', () => {
 		});
 		// Added repeats to these tests to increase confidence in stability, as browsers can be flaky
 		it('LiveKit basic workflow', { repeats: 10 }, async () => {
-			await run2BrowserTest(app, 'livekit', 'emulated');
+			await run2BrowserTest(app, 'livekit', 'emulated', 10);
 		});
 	});
 });
