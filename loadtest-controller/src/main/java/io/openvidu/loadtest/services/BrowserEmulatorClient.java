@@ -471,6 +471,8 @@ public class BrowserEmulatorClient {
 
     private CreateParticipantResponse handleCreateParticipantErrors(CreateParticipantErrorContext ctx, Exception e) {
         if (e.getMessage() != null && e.getMessage().contains("timed out")) {
+            log.info("Timeout error trying connect with worker on {}: {}", ctx.getUserInfo().getWorkerUrl(),
+                    e.getMessage());
             this.addClientFailure(ctx.getUserInfo().getWorkerUrl(), ctx.getUserInfo().getUserId(),
                     ctx.getUserInfo().getSessionId(), false, false);
             sleeper.sleep(WAIT_S, "Timeout error. Retrying...");
