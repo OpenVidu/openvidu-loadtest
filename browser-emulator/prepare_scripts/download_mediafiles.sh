@@ -123,48 +123,53 @@ for res in 480 720 1080; do
     for fps in 30 60; do
         if should_download "$res" "$fps"; then
             dim="${DIMENSIONS[$res]}"
-            # Build expected filename pattern for the media type
-            pattern="${MEDIA_TYPE}_${res}p_${fps}fps.y4m"
+            for video_ext in y4m h264; do
+                # Build expected filename pattern for the media type
+                pattern="${MEDIA_TYPE}_${res}p_${fps}fps.${video_ext}"
 
-            # Find matching file in S3 listing
-            matching_file=""
-            for file in "${AVAILABLE_FILES[@]}"; do
-                if [[ "$file" == "$pattern" ]]; then
-                    matching_file="$file"
-                    break
+                # Find matching file in S3 listing
+                matching_file=""
+                for file in "${AVAILABLE_FILES[@]}"; do
+                    if [[ "$file" == "$pattern" ]]; then
+                        matching_file="$file"
+                        break
+                    fi
+                done
+
+                if [[ -n "$matching_file" ]]; then
+                    filename="fakevideo_${MEDIA_TYPE}_${fps}fps_${dim}.${video_ext}"
+                    if [[ ! -f "$MEDIAFILES_DIR/$filename" ]]; then
+                        echo "Downloading $matching_file as $filename..."
+                        curl --output "$MEDIAFILES_DIR/$filename" \
+                            --continue-at - \
+                            --location "$S3_BUCKET_URL/$matching_file"
+                    fi
                 fi
             done
-
-            if [[ -n "$matching_file" ]]; then
-                filename="fakevideo_${MEDIA_TYPE}_${fps}fps_${dim}.y4m"
-                if [[ ! -f "$MEDIAFILES_DIR/$filename" ]]; then
-                    echo "Downloading $matching_file as $filename..."
-                    curl --output "$MEDIAFILES_DIR/$filename" \
-                        --continue-at - \
-                        --location "$S3_BUCKET_URL/$matching_file"
-                fi
-            fi
         fi
     done
 done
 
-# Download audio file for the selected media type
-audio_pattern="${MEDIA_TYPE}.wav"
-matching_audio=""
-for file in "${AVAILABLE_FILES[@]}"; do
-    if [[ "$file" == "$audio_pattern" ]]; then
-        matching_audio="$file"
-        break
+# Download audio files for the selected media type
+for audio_ext in wav ogg; do
+    audio_pattern="${MEDIA_TYPE}.${audio_ext}"
+    matching_audio=""
+    for file in "${AVAILABLE_FILES[@]}"; do
+        if [[ "$file" == "$audio_pattern" ]]; then
+            matching_audio="$file"
+            break
+        fi
+    done
+
+    if [[ -n "$matching_audio" ]]; then
+        output_audio_file="fakeaudio_${MEDIA_TYPE}.${audio_ext}"
+        if [[ ! -f "$MEDIAFILES_DIR/$output_audio_file" ]]; then
+            echo "Downloading $matching_audio as $output_audio_file..."
+            curl --output "$MEDIAFILES_DIR/$output_audio_file" \
+                --continue-at - \
+                --location "$S3_BUCKET_URL/$matching_audio"
+        fi
+    elif [[ "$audio_ext" == "wav" ]]; then
+        echo "Warning: No audio file found for ${MEDIA_TYPE} (.wav)" >&2
     fi
 done
-
-if [[ -n "$matching_audio" ]]; then
-    if [[ ! -f "$MEDIAFILES_DIR/fakeaudio_${MEDIA_TYPE}.wav" ]]; then
-        echo "Downloading $matching_audio as fakeaudio_${MEDIA_TYPE}.wav..."
-        curl --output "$MEDIAFILES_DIR/fakeaudio_${MEDIA_TYPE}.wav" \
-            --continue-at - \
-            --location "$S3_BUCKET_URL/$matching_audio"
-    fi
-else
-    echo "Warning: No audio file found for ${MEDIA_TYPE}" >&2
-fi
