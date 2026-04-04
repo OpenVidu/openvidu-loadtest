@@ -24,7 +24,10 @@ set -o xtrace
 
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
 # Use the browser-emulator/mediafiles directory (sibling of prepare_scripts)
-MEDIAFILES_DIR="$(cd -P -- "$(dirname -- "$SELF_PATH")/mediafiles" && pwd -P)"
+# Compute the absolute path from the prepare_scripts parent directory without
+# attempting to cd into the (possibly missing) mediafiles directory itself.
+BASEDIR="$(dirname -- "$SELF_PATH")"
+MEDIAFILES_DIR="$(cd -P -- "$BASEDIR" && printf '%s\n' "$(pwd -P)/mediafiles")"
 mkdir -p "$MEDIAFILES_DIR"
 
 # S3 bucket URL for media files
