@@ -53,7 +53,7 @@ distribution:
 - `topology: N:N`: All participants publish video/audio and subscribe to all other participants
 - `participants: ["2"]`: Test with 2 participants per session. If more elements are added to the list, the test will be repeated with each of those values (e.g. 2, 8, 100... participants)
 - `sessions: 1`: Create a single session with the number of participants established above. To create sessions until the platform fails, set this to `infinite`
-- `browser: chrome`: Use Chrome as the browser for the test
+- `browser: emulated`: Use user emulation, adding users to the platform without using real browsers. You can use real browsers changing this option to `chrome` or `firefox`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) for more information.
 
 **workers**: Where the browsers run
 
@@ -155,18 +155,18 @@ Naming and timing configuration for test sessions.
 
 Define multiple test scenarios that run sequentially. Each test case can have the following properties:
 
-| Property                   | Required | Default   | Description                                                                                                |
-| -------------------------- | -------- | --------- | ---------------------------------------------------------------------------------------------------------- |
-| `topology`                 | **Yes**  | -         | `N:N`, `N:M`, `TEACHING`, or `ONE_SESSION`                                                                 |
-| `participants`             | **Yes**  | -         | List of participant counts (e.g., `["2", "10"]`). Each element of the list will create a new test scenario |
-| `sessions`                 | **Yes**  | -         | Number of sessions or `infinite`                                                                           |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, or `emulated`                                                                   |
-| `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                       |
-| `frameRate`                | No       | `30`      | Try to force video frame rate                                                                              |
-| `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                          |
-| `headlessBrowser`          | No       | `false`   | Run browser in headless mode                                                                               |
-| `browserRecording`         | No       | `false`   | Record browser output                                                                                      |
-| `showBrowserVideoElements` | No       | `true`    | Show video elements in browser                                                                             |
+| Property                   | Required | Default   | Description                                                                                                                       |
+| -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `topology`                 | **Yes**  | -         | `N:N`, `N:M`, `TEACHING`, or `ONE_SESSION`                                                                                        |
+| `participants`             | **Yes**  | -         | List of participant counts (e.g., `["2", "10"]`). Each element of the list will create a new test scenario                        |
+| `sessions`                 | **Yes**  | -         | Number of sessions or `infinite`                                                                                                  |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, or `emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) |
+| `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
+| `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
+| `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
+| `headlessBrowser`          | No       | `false`   | Run browser in headless mode. Only usable with real browsers.                                                                     |
+| `browserRecording`         | No       | `false`   | Record browser output                                                                                                             |
+| `showBrowserVideoElements` | No       | `true`    | Show video elements in browser. Only usable with real browsers.                                                                   |
 
 **Topology Types:**
 
@@ -176,6 +176,22 @@ Define multiple test scenarios that run sequentially. Each test case can have th
 | `N:M`         | N publishers, M subscribers            | `"5:50"` |
 | `TEACHING`    | Publisher with audio-only subscribers  | `"2:30"` |
 | `ONE_SESSION` | Single session with N participants     | `"100"`  |
+
+### Choosing Emulated vs Real Browsers
+
+An emulated user is a lightweight simulated participant implemented by the browser-emulator. It joins sessions and performs signaling while sending or receiving pre-recorded or synthetic media streams, but it does not run a full browser (no UI rendering or real device capture). Emulated users consume far less CPU and memory and start faster than real browser instances, making them suitable for large-scale load testing where browser-level behaviour is not required.
+
+Decide between the `emulated` worker mode and real browsers based on the trade-off between scale and realism:
+
+- **Use `emulated` when**:
+  - You need to run very large-scale load or stress tests where resource efficiency is critical.
+  - You primarily need to exercise signaling, session creation, and media forwarding rather than browser-specific rendering or UI behaviour.
+  - Faster startup and lower CPU/memory usage per participant.
+- **Limitations of `emulated`**:
+  - Does not run a full browser; it won't reproduce browser-specific bugs, real media capture issues, record media for QoE analysis or get WebRTC stats.
+- **Use real browsers (`chrome` / `firefox`) when**:
+  - You need accurate end-to-end behaviour, QoE analysis, WebRTC stats or need to validate features that depend on actual browser APIs.
+  - You are debugging issues that may be caused by rendering or browser implementation differences.
 
 ### Workers
 
