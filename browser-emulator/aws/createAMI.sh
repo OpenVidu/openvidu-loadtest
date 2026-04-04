@@ -36,7 +36,7 @@ OPTIONS:
       use one set of video and audio files for all browsers in that instance
       (combination of type of video, resolution and frame rate), so to use different sets
       in a test you will need to create multiple instances.
-      By default this is disabled.
+      By default this will cache the bunny 640x480 30fps files.
 
       Use without value to cache all default media files (bunny):
         --cache-mediafiles
@@ -58,7 +58,7 @@ DEFAULTS:
   Region: us-east-1
   Git Reference: v4.0.0
   Template: EC2-browser-emulator.yml (in the same directory as this script)
-  Cache media files: disabled
+  Cache media files: bunny 640x480 30fps (default)
 
 EXAMPLES:
   # Create AMI with defaults (tag v4.0.0 in us-east-1)
@@ -112,7 +112,7 @@ AWS_DEFAULT_REGION="us-east-1"
 GIT_REF="v3.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CF_URL="$SCRIPT_DIR/EC2-browser-emulator.yml"
-CACHE_MEDIAFILES_ARGS="__disabled__"
+CACHE_MEDIAFILES_ARGS="bunny 480 30"
 
 while [[ $# -gt 0 ]]; do
     key="$1"
