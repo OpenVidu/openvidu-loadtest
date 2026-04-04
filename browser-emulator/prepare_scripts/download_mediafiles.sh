@@ -23,7 +23,8 @@ set -o xtrace
 #   ./prepare_scripts/download_mediafiles.sh game 480 720 30                 # Downloads game media at 480p and 720p at 30fps
 
 SELF_PATH="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" # Absolute canonical path
-MEDIAFILES_DIR="$SELF_PATH/mediafiles"
+# Use the browser-emulator/mediafiles directory (sibling of prepare_scripts)
+MEDIAFILES_DIR="$(cd -P -- "$(dirname -- "$SELF_PATH")/mediafiles" && pwd -P)"
 mkdir -p "$MEDIAFILES_DIR"
 
 # S3 bucket URL for media files

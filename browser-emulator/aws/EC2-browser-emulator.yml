@@ -60,7 +60,6 @@ Resources:
                         ./prepare_scripts/download_mediafiles.sh ${CacheMediaFilesArgs} > /var/log/download_mediafiles.log 2>&1
                       fi
                     fi
-                    mv /opt/openvidu-loadtest/browser-emulator/prepare_scripts/mediafiles/* /opt/openvidu-loadtest/browser-emulator/mediafiles/
                     ./prepare_scripts/install_base.sh > /var/log/install.log 2>&1
                     echo "@reboot cd /opt/openvidu-loadtest/browser-emulator && /usr/bin/docker compose -f docker-compose.yml up -d --build > /var/log/docker_compose_reboot.log 2>&1" | crontab -u ubuntu -
                     apt-get install -y python3-pip linux-aws-edge
