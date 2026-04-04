@@ -18,7 +18,8 @@ testcases:
     description: "Basic N:N topology test"
 
 workers:
-  urls: browser-emulator
+  urls: 
+    - browser-emulator
 
 distribution:
   usersPerWorker: 2
