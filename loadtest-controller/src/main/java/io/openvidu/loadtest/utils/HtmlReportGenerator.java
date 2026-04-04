@@ -4,17 +4,27 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Component;
+
+import com.samskivert.mustache.Mustache;
+import com.samskivert.mustache.Template;
 
 import io.openvidu.loadtest.models.testcase.ResultReport;
 
@@ -22,7 +32,17 @@ import io.openvidu.loadtest.models.testcase.ResultReport;
 public class HtmlReportGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(HtmlReportGenerator.class);
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    private static final String REPORT_TEMPLATE_PATH = "templates/report.mustache";
+    private static final String KEY_METRIC = "metric";
+    private static final String KEY_VALUE = "value";
+    private static final String PERCENTAGE_FORMAT = "%.1f%%";
+
+    private final Template reportTemplate;
+
+    public HtmlReportGenerator() {
+        this.reportTemplate = loadTemplate();
+    }
 
     public void generateHtmlReport(ResultReport result, String fileName) throws IOException {
         String resultsDir = System.getenv("RESULTS_DIR");
@@ -46,196 +66,206 @@ public class HtmlReportGenerator {
         log.debug("Writing HTML report to: {}", resultPath);
         try (FileWriter fw = new FileWriter(resultPath);
                 BufferedWriter bw = new BufferedWriter(fw)) {
-            bw.write(generateHtmlContent(result));
+            bw.write(renderHtmlContent(result));
         }
         log.info("Saved HTML report in {}", resultPath);
     }
 
-    private String generateHtmlContent(ResultReport result) {
-        StringBuilder html = new StringBuilder();
-        html.append("<!DOCTYPE html>\n");
-        html.append("<html lang=\"en\">\n");
-        html.append("<head>\n");
-        html.append("    <meta charset=\"UTF-8\">\n");
-        html.append("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-        html.append("    <title>OpenVidu Load Test Report</title>\n");
-        html.append("    <style>\n");
-        html.append("        body { font-family: Arial, sans-serif; margin: 40px; }\n");
-        html.append("        h1 { color: #333; }\n");
-        html.append("        h2 { color: #555; margin-top: 30px; }\n");
-        html.append("        table { border-collapse: collapse; width: 100%; margin: 20px 0; }\n");
-        html.append("        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n");
-        html.append("        th { background-color: #f2f2f2; }\n");
-        html.append("        tr:nth-child(even) { background-color: #f9f9f9; }\n");
-        html.append("        .metric { font-weight: bold; }\n");
-        html.append("        .value { }\n");
-        html.append("        .section { margin-bottom: 40px; }\n");
-        html.append("    </style>\n");
-        html.append("</head>\n");
-        html.append("<body>\n");
-        html.append("    <h1>OpenVidu Load Test Report</h1>\n");
-        html.append("    <p>Generated: ").append(dateFormat.format(result.getStartTime().getTime())).append("</p>\n");
+    private Template loadTemplate() {
+        try (InputStream templateInputStream = new ClassPathResource(REPORT_TEMPLATE_PATH).getInputStream();
+                Reader templateReader = new InputStreamReader(templateInputStream, StandardCharsets.UTF_8)) {
+            return Mustache.compiler().compile(templateReader);
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot load HTML report template: " + REPORT_TEMPLATE_PATH, e);
+        }
+    }
 
-        // Summary section
-        html.append("    <div class=\"section\">\n");
-        html.append("        <h2>Summary</h2>\n");
-        html.append("        <table id=\"summary-table\">\n");
-        html.append("            <tr><td class=\"metric\">Test Duration</td><td class=\"value\">")
-                .append(getDuration(result)).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Sessions Created</td><td class=\"value\">")
-                .append(result.getNumSessionsCreated()).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Sessions Completed</td><td class=\"value\">")
-                .append(result.getNumSessionsCompleted()).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Total Participants</td><td class=\"value\">")
-                .append(result.getTotalParticipants()).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Workers Used</td><td class=\"value\">")
-                .append(result.getWorkersUsed()).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Stop Reason</td><td class=\"value\">")
-                .append(result.getStopReason()).append("</td></tr>\n");
-        html.append("        </table>\n");
-        html.append("    </div>\n");
+    private String renderHtmlContent(ResultReport result) {
+        Map<String, Object> context = buildTemplateContext(result);
+        return reportTemplate.execute(context);
+    }
 
-        // Error categorization
-        Map<String, Integer> errorCounts = result.getErrorCounts();
-        if (!errorCounts.isEmpty()) {
-            html.append("    <div class=\"section\">\n");
-            html.append("        <h2>Error Categorization</h2>\n");
-            html.append("        <table id=\"error-categorization-table\">\n");
-            html.append("            <tr><th>Error Reason</th><th>Count</th><th>Percentage</th></tr>\n");
-            int totalErrors = errorCounts.values().stream().mapToInt(Integer::intValue).sum();
-            for (Map.Entry<String, Integer> entry : errorCounts.entrySet()) {
-                double percentage = (double) entry.getValue() / totalErrors * 100;
-                html.append("            <tr><td>").append(escapeHtml(entry.getKey())).append("</td><td>")
-                        .append(entry.getValue()).append("</td><td>").append(String.format("%.1f%%", percentage))
-                        .append("</td></tr>\n");
-            }
-            html.append("        </table>\n");
-            html.append("    </div>\n");
-        }
+    private Map<String, Object> buildTemplateContext(ResultReport result) {
+        Map<String, Object> context = new HashMap<>();
+        context.put("generatedAt", formatDate(result.getStartTime()));
+        context.put("summaryRows", buildSummaryRows(result));
 
-        // Worker CPU utilization
-        Map<String, Double> cpuAvg = result.getWorkerCpuAvg();
-        Map<String, Double> cpuMax = result.getWorkerCpuMax();
-        if (!cpuAvg.isEmpty()) {
-            html.append("    <div class=\"section\">\n");
-            html.append("        <h2>Worker CPU Utilization</h2>\n");
-            html.append("        <table id=\"cpu-utilization-table\">\n");
-            html.append("            <tr><th>Worker</th><th>Average CPU %</th><th>Max CPU %</th></tr>\n");
-            for (String worker : cpuAvg.keySet()) {
-                html.append("            <tr><td>").append(escapeHtml(worker)).append("</td><td>")
-                        .append(String.format("%.1f%%", cpuAvg.get(worker))).append("</td><td>")
-                        .append(String.format("%.1f%%", cpuMax.get(worker))).append("</td></tr>\n");
-            }
-            html.append("        </table>\n");
-            html.append("    </div>\n");
-        }
+        List<Map<String, String>> errorRows = buildErrorRows(result.getErrorCounts());
+        context.put("hasErrorRows", !errorRows.isEmpty());
+        context.put("errorRows", errorRows);
 
-        // Per-user connections
-        Map<String, Calendar> userSuccessTimestamps = result.getUserSuccessTimestamps();
-        Map<String, Integer> userRetryCounts = result.getUserRetryCounts();
-        Map<String, Calendar> userDisconnectTimestamps = result.getUserDisconnectTimestamps();
-        // If userSuccessTimestamps is empty, compute from userStartTimes
-        if (userSuccessTimestamps.isEmpty() && !result.getUserStartTimes().isEmpty()) {
-            Map<String, Calendar> computed = new TreeMap<>();
-            for (Map.Entry<Calendar, List<String>> entry : result.getUserStartTimes().entrySet()) {
-                Calendar timestamp = entry.getKey();
-                List<String> sessionUser = entry.getValue();
-                if (sessionUser.size() >= 2) {
-                    String sessionId = sessionUser.get(0);
-                    String userId = sessionUser.get(1);
-                    String key = userId + "-" + sessionId;
-                    computed.put(key, timestamp);
-                }
-            }
-            userSuccessTimestamps = computed;
-            log.warn("Computed userSuccessTimestamps from userStartTimes, size: {}", computed.size());
-        }
-        log.debug("User success timestamps count: {}", userSuccessTimestamps.size());
-        for (String key : userSuccessTimestamps.keySet()) {
-            log.debug("  key: {}", key);
-        }
-        // Always generate the table, even if empty
-        html.append("    <div class=\"section\">\n");
-        html.append("        <h2>User Connections</h2>\n");
-        html.append("        <table id=\"user-connections-table\">\n");
-        html.append(
-                "            <tr><th>User</th><th>Session</th><th>Join date</th><th>Disconnect Date</th><th>Retry Number</th></tr>\n");
-        if (!userSuccessTimestamps.isEmpty()) {
-            // Prepare list of rows for sorting
-            List<UserRetryInfo> rows = new ArrayList<>();
-            for (String key : userSuccessTimestamps.keySet()) {
-                Calendar joinDate = userSuccessTimestamps.get(key);
-                Calendar disconnectDate = userDisconnectTimestamps.get(key);
-                int retries = userRetryCounts.getOrDefault(key, 0);
-                String[] parts = key.split("-", 2);
-                String userId = parts.length > 0 && !parts[0].isEmpty() ? parts[0] : "-";
-                String sessionId = parts.length > 1 && !parts[1].isEmpty() ? parts[1] : "-";
-                rows.add(new UserRetryInfo(userId, sessionId, joinDate, disconnectDate, retries));
-            }
-            // Sort by session, user, retry number
-            rows.sort((a, b) -> {
-                int cmp = a.sessionId.compareTo(b.sessionId);
-                if (cmp != 0)
-                    return cmp;
-                cmp = a.userId.compareTo(b.userId);
-                if (cmp != 0)
-                    return cmp;
-                return Integer.compare(a.retries, b.retries);
-            });
-            for (UserRetryInfo info : rows) {
-                String formattedJoin = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(info.joinDate.getTime());
-                String formattedDisconnect = info.disconnectDate != null
-                        ? new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(info.disconnectDate.getTime())
-                        : "-";
-                html.append("            <tr><td>").append(escapeHtml(info.userId)).append("</td><td>")
-                        .append(escapeHtml(info.sessionId)).append("</td><td>").append(formattedJoin)
-                        .append("</td><td>")
-                        .append(formattedDisconnect).append("</td><td>").append(info.retries).append("</td></tr>\n");
-            }
-        } else {
-            // No participants row
-            html.append("            <tr><td colspan=\"5\">No participants</td></tr>\n");
-        }
-        html.append("        </table>\n");
-        html.append("    </div>\n");
+        List<Map<String, String>> cpuRows = buildCpuRows(result.getWorkerCpuAvg(), result.getWorkerCpuMax());
+        context.put("hasCpuRows", !cpuRows.isEmpty());
+        context.put("cpuRows", cpuRows);
 
-        // Configuration details
-        html.append("    <div class=\"section\">\n");
-        html.append("        <h2>Configuration</h2>\n");
-        html.append("        <table id=\"configuration-table\">\n");
-        html.append("            <tr><td class=\"metric\">Session Topology</td><td class=\"value\">")
-                .append(escapeHtml(result.getSessionTopology())).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Participants per Session</td><td class=\"value\">")
-                .append(escapeHtml(result.getParticipantsPerSession())).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Browser Recording</td><td class=\"value\">")
-                .append(result.isBrowserRecording()).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">OpenVidu Recording</td><td class=\"value\">")
-                .append(escapeHtml(result.getOpenviduRecording())).append("</td></tr>\n");
-        html.append("            <tr><td class=\"metric\">Manual Participant Allocation</td><td class=\"value\">")
-                .append(result.isManualParticipantAllocation()).append("</td></tr>\n");
-        if (result.isManualParticipantAllocation()) {
-            html.append("            <tr><td class=\"metric\">Users per Worker</td><td class=\"value\">")
-                    .append(result.getUsersPerWorker()).append("</td></tr>\n");
-        }
+        context.put("userRows", buildUserRows(result));
+        context.put("configurationRows", buildConfigurationRows(result));
+
         String kibanaUrl = result.getKibanaUrl();
-        if (kibanaUrl != null && !kibanaUrl.trim().isEmpty() && !kibanaUrl.contains("not found")) {
-            if (!kibanaUrl.startsWith("http://") && !kibanaUrl.startsWith("https://")) {
-                html.append("            <tr><td class=\"metric\">Kibana Dashboard</td><td class=\"value\">")
-                        .append(kibanaUrl).append("</td></tr>\n");
-            } else {
-                html.append("            <tr><td class=\"metric\">Kibana Dashboard</td><td class=\"value\"><a href=\"")
-                        .append(escapeHtml(kibanaUrl)).append("\" target=\"_blank\">Link</a></td></tr>\n");
+        boolean showKibana = kibanaUrl != null && !kibanaUrl.trim().isEmpty() && !kibanaUrl.contains("not found");
+        context.put("kibanaUrl", safeString(kibanaUrl));
+        context.put("kibanaAsLink", showKibana && isHttpUrl(kibanaUrl));
+        context.put("kibanaAsText", showKibana && !isHttpUrl(kibanaUrl));
+
+        return context;
+    }
+
+    private List<Map<String, String>> buildSummaryRows(ResultReport result) {
+        List<Map<String, String>> rows = new ArrayList<>();
+        rows.add(stringRow(KEY_METRIC, "Test Duration", KEY_VALUE, getDuration(result)));
+        rows.add(stringRow(KEY_METRIC, "Sessions Created", KEY_VALUE, String.valueOf(result.getNumSessionsCreated())));
+        rows.add(
+                stringRow(KEY_METRIC, "Sessions Completed", KEY_VALUE,
+                        String.valueOf(result.getNumSessionsCompleted())));
+        rows.add(stringRow(KEY_METRIC, "Total Participants", KEY_VALUE, String.valueOf(result.getTotalParticipants())));
+        rows.add(stringRow(KEY_METRIC, "Workers Used", KEY_VALUE, String.valueOf(result.getWorkersUsed())));
+        rows.add(stringRow(KEY_METRIC, "Stop Reason", KEY_VALUE, safeString(result.getStopReason())));
+        return rows;
+    }
+
+    private List<Map<String, String>> buildErrorRows(Map<String, Integer> errorCounts) {
+        Map<String, Integer> effectiveErrorCounts = errorCounts != null ? errorCounts : Map.of();
+        if (effectiveErrorCounts.isEmpty()) {
+            return List.of();
+        }
+
+        int totalErrors = effectiveErrorCounts.values().stream().mapToInt(Integer::intValue).sum();
+        List<Map<String, String>> rows = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : effectiveErrorCounts.entrySet()) {
+            double percentage = totalErrors > 0 ? (double) entry.getValue() / totalErrors * 100 : 0.0;
+            rows.add(stringRow("reason", safeString(entry.getKey()), "count", String.valueOf(entry.getValue()),
+                    "percentage", String.format(PERCENTAGE_FORMAT, percentage)));
+        }
+        return rows;
+    }
+
+    private List<Map<String, String>> buildCpuRows(Map<String, Double> cpuAvg, Map<String, Double> cpuMax) {
+        Map<String, Double> effectiveCpuAvg = cpuAvg != null ? cpuAvg : Map.of();
+        Map<String, Double> effectiveCpuMax = cpuMax != null ? cpuMax : Map.of();
+        if (effectiveCpuAvg.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map<String, String>> rows = new ArrayList<>();
+        for (Map.Entry<String, Double> cpuEntry : effectiveCpuAvg.entrySet()) {
+            String worker = cpuEntry.getKey();
+            double avg = cpuEntry.getValue();
+            double max = effectiveCpuMax.getOrDefault(worker, 0.0);
+            rows.add(stringRow("worker", safeString(worker), "avgCpu", String.format(PERCENTAGE_FORMAT, avg),
+                    "maxCpu", String.format(PERCENTAGE_FORMAT, max)));
+        }
+        return rows;
+    }
+
+    private List<Map<String, Object>> buildUserRows(ResultReport result) {
+        Map<String, Calendar> userSuccessTimestamps = resolveUserSuccessTimestamps(result);
+        if (userSuccessTimestamps.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, Integer> userRetryCounts = result.getUserRetryCounts() != null ? result.getUserRetryCounts()
+                : Map.of();
+        Map<String, Calendar> userDisconnectTimestamps = result.getUserDisconnectTimestamps() != null
+                ? result.getUserDisconnectTimestamps()
+                : Map.of();
+        List<UserRetryInfo> users = toSortedUserRetryInfoList(userSuccessTimestamps, userDisconnectTimestamps,
+                userRetryCounts);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (UserRetryInfo info : users) {
+            rows.add(objectRow("userId", info.userId, "sessionId", info.sessionId,
+                    "joinDate", formatDate(info.joinDate),
+                    "disconnectDate", info.disconnectDate != null ? formatDate(info.disconnectDate) : "-",
+                    "retries", info.retries));
+        }
+        return rows;
+    }
+
+    private Map<String, Calendar> resolveUserSuccessTimestamps(ResultReport result) {
+        Map<String, Calendar> userSuccessTimestamps = result.getUserSuccessTimestamps() != null
+                ? result.getUserSuccessTimestamps()
+                : Map.of();
+
+        if (!userSuccessTimestamps.isEmpty()) {
+            logUserSuccessTimestamps(userSuccessTimestamps);
+            return userSuccessTimestamps;
+        }
+
+        if (result.getUserStartTimes() == null || result.getUserStartTimes().isEmpty()) {
+            log.debug("User success timestamps count: 0");
+            return userSuccessTimestamps;
+        }
+
+        Map<String, Calendar> computed = new TreeMap<>();
+        for (Map.Entry<Calendar, List<String>> entry : result.getUserStartTimes().entrySet()) {
+            Calendar timestamp = entry.getKey();
+            List<String> sessionUser = entry.getValue();
+            if (sessionUser.size() >= 2) {
+                String sessionId = sessionUser.get(0);
+                String userId = sessionUser.get(1);
+                String key = userId + "-" + sessionId;
+                computed.put(key, timestamp);
             }
         }
-        html.append("        </table>\n");
-        html.append("    </div>\n");
+        log.warn("Computed userSuccessTimestamps from userStartTimes, size: {}", computed.size());
+        logUserSuccessTimestamps(computed);
+        return computed;
+    }
 
-        html.append("</body>\n");
-        html.append("</html>\n");
-        return html.toString();
+    private void logUserSuccessTimestamps(Map<String, Calendar> userSuccessTimestamps) {
+        log.debug("User success timestamps count: {}", userSuccessTimestamps.size());
+        for (Map.Entry<String, Calendar> entry : userSuccessTimestamps.entrySet()) {
+            log.debug("  key: {}", entry.getKey());
+        }
+    }
+
+    private List<UserRetryInfo> toSortedUserRetryInfoList(Map<String, Calendar> userSuccessTimestamps,
+            Map<String, Calendar> userDisconnectTimestamps, Map<String, Integer> userRetryCounts) {
+        List<UserRetryInfo> users = new ArrayList<>();
+        for (Map.Entry<String, Calendar> entry : userSuccessTimestamps.entrySet()) {
+            String key = entry.getKey();
+            Calendar joinDate = entry.getValue();
+            Calendar disconnectDate = userDisconnectTimestamps.get(key);
+            int retries = userRetryCounts.getOrDefault(key, 0);
+            String[] parts = key.split("-", 2);
+            String userId = parts.length > 0 && !parts[0].isEmpty() ? parts[0] : "-";
+            String sessionId = parts.length > 1 && !parts[1].isEmpty() ? parts[1] : "-";
+            users.add(new UserRetryInfo(userId, sessionId, joinDate, disconnectDate, retries));
+        }
+
+        users.sort((a, b) -> {
+            int cmp = a.sessionId.compareTo(b.sessionId);
+            if (cmp != 0) {
+                return cmp;
+            }
+            cmp = a.userId.compareTo(b.userId);
+            if (cmp != 0) {
+                return cmp;
+            }
+            return Integer.compare(a.retries, b.retries);
+        });
+        return users;
+    }
+
+    private List<Map<String, String>> buildConfigurationRows(ResultReport result) {
+        List<Map<String, String>> rows = new ArrayList<>();
+        rows.add(stringRow(KEY_METRIC, "Session Topology", KEY_VALUE, safeString(result.getSessionTopology())));
+        rows.add(stringRow(KEY_METRIC, "Participants per Session", KEY_VALUE,
+                safeString(result.getParticipantsPerSession())));
+        rows.add(stringRow(KEY_METRIC, "Browser Recording", KEY_VALUE, String.valueOf(result.isBrowserRecording())));
+        rows.add(stringRow(KEY_METRIC, "OpenVidu Recording", KEY_VALUE, safeString(result.getOpenviduRecording())));
+        rows.add(stringRow(KEY_METRIC, "Manual Participant Allocation", KEY_VALUE,
+                String.valueOf(result.isManualParticipantAllocation())));
+        if (result.isManualParticipantAllocation()) {
+            rows.add(stringRow(KEY_METRIC, "Users per Worker", KEY_VALUE, String.valueOf(result.getUsersPerWorker())));
+        }
+        return rows;
     }
 
     private String getDuration(ResultReport result) {
+        if (result.getStartTime() == null || result.getEndTime() == null) {
+            return "-";
+        }
         long diffInMillis = Math
                 .abs(result.getEndTime().getTime().getTime() - result.getStartTime().getTime().getTime());
         long seconds = diffInMillis / 1000;
@@ -246,23 +276,51 @@ public class HtmlReportGenerator {
         return String.format("%dh %dm %ds", hours, minutes, seconds);
     }
 
-    private String escapeHtml(String text) {
-        if (text == null) {
-            return "";
+    private String formatDate(Calendar value) {
+        if (value == null) {
+            return "-";
         }
-        return text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+        return new SimpleDateFormat(DATE_PATTERN).format(value.getTime());
+    }
+
+    private boolean isHttpUrl(String value) {
+        return value != null && (value.startsWith("http://") || value.startsWith("https://"));
+    }
+
+    private String safeString(String text) {
+        return text == null ? "" : text;
+    }
+
+    private Map<String, String> stringRow(String... keyValuePairs) {
+        if (keyValuePairs.length % 2 != 0) {
+            throw new IllegalArgumentException("keyValuePairs must contain key/value pairs");
+        }
+
+        Map<String, String> row = new LinkedHashMap<>();
+        for (int i = 0; i < keyValuePairs.length; i += 2) {
+            row.put(keyValuePairs[i], safeString(keyValuePairs[i + 1]));
+        }
+        return row;
+    }
+
+    private Map<String, Object> objectRow(Object... keyValuePairs) {
+        if (keyValuePairs.length % 2 != 0) {
+            throw new IllegalArgumentException("keyValuePairs must contain key/value pairs");
+        }
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        for (int i = 0; i < keyValuePairs.length; i += 2) {
+            row.put(String.valueOf(keyValuePairs[i]), keyValuePairs[i + 1]);
+        }
+        return row;
     }
 
     private static class UserRetryInfo {
-        String userId;
-        String sessionId;
-        Calendar joinDate;
-        Calendar disconnectDate;
-        int retries;
+        private final String userId;
+        private final String sessionId;
+        private final Calendar joinDate;
+        private final Calendar disconnectDate;
+        private final int retries;
 
         UserRetryInfo(String userId, String sessionId, Calendar joinDate, Calendar disconnectDate, int retries) {
             this.userId = userId;

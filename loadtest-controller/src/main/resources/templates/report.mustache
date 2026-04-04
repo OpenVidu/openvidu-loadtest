@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenVidu Load Test Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 30px; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .metric { font-weight: bold; }
+        .value { }
+        .section { margin-bottom: 40px; }
+    </style>
+</head>
+<body>
+    <h1>OpenVidu Load Test Report</h1>
+    <p>Generated: {{generatedAt}}</p>
+
+    <div class="section">
+        <h2>Summary</h2>
+        <table id="summary-table">
+            {{#summaryRows}}
+            <tr><td class="metric">{{metric}}</td><td class="value">{{value}}</td></tr>
+            {{/summaryRows}}
+        </table>
+    </div>
+
+    {{#hasErrorRows}}
+    <div class="section">
+        <h2>Error Categorization</h2>
+        <table id="error-categorization-table">
+            <tr><th>Error Reason</th><th>Count</th><th>Percentage</th></tr>
+            {{#errorRows}}
+            <tr><td>{{reason}}</td><td>{{count}}</td><td>{{percentage}}</td></tr>
+            {{/errorRows}}
+        </table>
+    </div>
+    {{/hasErrorRows}}
+
+    {{#hasCpuRows}}
+    <div class="section">
+        <h2>Worker CPU Utilization</h2>
+        <table id="cpu-utilization-table">
+            <tr><th>Worker</th><th>Average CPU %</th><th>Max CPU %</th></tr>
+            {{#cpuRows}}
+            <tr><td>{{worker}}</td><td>{{avgCpu}}</td><td>{{maxCpu}}</td></tr>
+            {{/cpuRows}}
+        </table>
+    </div>
+    {{/hasCpuRows}}
+
+    <div class="section">
+        <h2>User Connections</h2>
+        <table id="user-connections-table">
+            <tr><th>User</th><th>Session</th><th>Join date</th><th>Disconnect Date</th><th>Retry Number</th></tr>
+            {{#userRows}}
+            <tr><td>{{userId}}</td><td>{{sessionId}}</td><td>{{joinDate}}</td><td>{{disconnectDate}}</td><td>{{retries}}</td></tr>
+            {{/userRows}}
+            {{^userRows}}
+            <tr><td colspan="5">No participants</td></tr>
+            {{/userRows}}
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Configuration</h2>
+        <table id="configuration-table">
+            {{#configurationRows}}
+            <tr><td class="metric">{{metric}}</td><td class="value">{{value}}</td></tr>
+            {{/configurationRows}}
+            {{#kibanaAsLink}}
+            <tr><td class="metric">Kibana Dashboard</td><td class="value"><a href="{{kibanaUrl}}" target="_blank">Link</a></td></tr>
+            {{/kibanaAsLink}}
+            {{#kibanaAsText}}
+            <tr><td class="metric">Kibana Dashboard</td><td class="value">{{kibanaUrl}}</td></tr>
+            {{/kibanaAsText}}
+        </table>
+    </div>
+</body>
+</html>
