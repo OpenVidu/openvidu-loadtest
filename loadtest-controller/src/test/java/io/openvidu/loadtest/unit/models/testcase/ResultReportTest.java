@@ -69,7 +69,7 @@ class ResultReportTest {
     void testSetParticipantResponses_withEmptyList() {
         List<CreateParticipantResponse> responses = new ArrayList<>();
         resultReport.setParticipantResponses(responses);
-        
+
         assertTrue(resultReport.getParticipantResponses().isEmpty());
         assertTrue(resultReport.getErrorCounts().isEmpty());
         assertTrue(resultReport.getWorkerCpuAvg().isEmpty());
@@ -81,28 +81,32 @@ class ResultReportTest {
     @Test
     void testSetParticipantResponses_withSuccessfulResponses() {
         List<CreateParticipantResponse> responses = new ArrayList<>();
-        responses.add(new CreateParticipantResponse(true, "", "conn1", 10, 1, "User1", "Session1", 25.0));
-        responses.add(new CreateParticipantResponse(true, "", "conn2", 20, 2, "User2", "Session1", 35.0));
-        responses.add(new CreateParticipantResponse(true, "", "conn3", 30, 3, "User3", "Session2", 45.0));
-        
+        responses.add(new CreateParticipantResponse(true, "", "conn1", 10, 1, "User1", "Session1", 25.0, "worker1"));
+        responses.add(new CreateParticipantResponse(true, "", "conn2", 20, 2, "User2", "Session1", 35.0, "worker1"));
+        responses.add(new CreateParticipantResponse(true, "", "conn3", 30, 3, "User3", "Session2", 45.0, "worker2"));
+
         resultReport.setParticipantResponses(responses);
-        
+
         assertEquals(3, resultReport.getParticipantResponses().size());
         assertTrue(resultReport.getErrorCounts().isEmpty());
-        assertEquals(1, resultReport.getWorkerCpuAvg().size());
-        assertEquals(35.0, resultReport.getWorkerCpuAvg().get("all_workers"), 0.001);
-        assertEquals(45.0, resultReport.getWorkerCpuMax().get("all_workers"), 0.001);
+        assertEquals(3, resultReport.getWorkerCpuAvg().size());
+        assertEquals(30.0, resultReport.getWorkerCpuAvg().get("worker1"), 0.001);
+        assertEquals(45.0, resultReport.getWorkerCpuAvg().get("worker2"), 0.001);
+        assertEquals(35.0, resultReport.getWorkerCpuAvg().get("All Workers"), 0.001);
+        assertEquals(35.0, resultReport.getWorkerCpuMax().get("worker1"), 0.001);
+        assertEquals(45.0, resultReport.getWorkerCpuMax().get("worker2"), 0.001);
+        assertEquals(45.0, resultReport.getWorkerCpuMax().get("All Workers"), 0.001);
     }
 
     @Test
     void testSetParticipantResponses_withFailedResponses() {
         List<CreateParticipantResponse> responses = new ArrayList<>();
-        responses.add(new CreateParticipantResponse(false, "Connection refused", "conn1", -1, -1, "", "", 0));
-        responses.add(new CreateParticipantResponse(false, "Connection refused", "conn2", -1, -1, "", "", 0));
-        responses.add(new CreateParticipantResponse(false, "Timeout", "conn3", -1, -1, "", "", 0));
-        
+        responses.add(new CreateParticipantResponse(false, "Connection refused", "conn1", -1, -1, "", "", 0, "worker1"));
+        responses.add(new CreateParticipantResponse(false, "Connection refused", "conn2", -1, -1, "", "", 0, "worker1"));
+        responses.add(new CreateParticipantResponse(false, "Timeout", "conn3", -1, -1, "", "", 0, "worker2"));
+
         resultReport.setParticipantResponses(responses);
-        
+
         assertEquals(3, resultReport.getParticipantResponses().size());
         assertEquals(2, resultReport.getErrorCounts().size());
         assertEquals(2, resultReport.getErrorCounts().get("Connection refused"));
@@ -115,25 +119,29 @@ class ResultReportTest {
     @Test
     void testSetParticipantResponses_mixedResponses() {
         List<CreateParticipantResponse> responses = new ArrayList<>();
-        responses.add(new CreateParticipantResponse(true, "", "conn1", 10, 1, "User1", "Session1", 20.0));
-        responses.add(new CreateParticipantResponse(false, "Timeout", "conn2", -1, -1, "", "", 0));
-        responses.add(new CreateParticipantResponse(true, "", "conn3", 30, 3, "User2", "Session2", 40.0));
-        
+        responses.add(new CreateParticipantResponse(true, "", "conn1", 10, 1, "User1", "Session1", 20.0, "worker1"));
+        responses.add(new CreateParticipantResponse(false, "Timeout", "conn2", -1, -1, "", "", 0, "worker1"));
+        responses.add(new CreateParticipantResponse(true, "", "conn3", 30, 3, "User2", "Session2", 40.0, "worker2"));
+
         resultReport.setParticipantResponses(responses);
-        
+
         assertEquals(3, resultReport.getParticipantResponses().size());
         assertEquals(1, resultReport.getErrorCounts().size());
         assertEquals(1, resultReport.getErrorCounts().get("Timeout"));
-        assertEquals(1, resultReport.getWorkerCpuAvg().size());
-        assertEquals(30.0, resultReport.getWorkerCpuAvg().get("all_workers"), 0.001);
-        assertEquals(40.0, resultReport.getWorkerCpuMax().get("all_workers"), 0.001);
+        assertEquals(3, resultReport.getWorkerCpuAvg().size());
+        assertEquals(20.0, resultReport.getWorkerCpuAvg().get("worker1"), 0.001);
+        assertEquals(40.0, resultReport.getWorkerCpuAvg().get("worker2"), 0.001);
+        assertEquals(30.0, resultReport.getWorkerCpuAvg().get("All Workers"), 0.001);
+        assertEquals(20.0, resultReport.getWorkerCpuMax().get("worker1"), 0.001);
+        assertEquals(40.0, resultReport.getWorkerCpuMax().get("worker2"), 0.001);
+        assertEquals(40.0, resultReport.getWorkerCpuMax().get("All Workers"), 0.001);
     }
 
     @Test
     void testComputeAggregates_withUserStartTimes() {
         Calendar startTime = Calendar.getInstance();
         resultReport.setStartTime(startTime);
-        
+
         Map<Calendar, List<String>> userStartTimes = new HashMap<>();
         // Add 5 user start times with delays of 100ms, 200ms, 300ms, 400ms, 500ms
         for (int i = 1; i <= 5; i++) {
@@ -145,10 +153,10 @@ class ResultReportTest {
             userStartTimes.put(userStart, sessionUser);
         }
         resultReport.setUserStartTimes(userStartTimes);
-        
+
         // Trigger computeAggregates by setting participant responses (empty)
         resultReport.setParticipantResponses(new ArrayList<>());
-        
+
         double[] percentiles = resultReport.getUserStartDelaysPercentiles();
         assertEquals(4, percentiles.length);
         // Check that percentiles are in increasing order
@@ -162,7 +170,7 @@ class ResultReportTest {
     @Test
     void testSetRetryStatistics() {
         resultReport.setRetryStatistics(10, 7);
-        
+
         assertEquals(10, resultReport.getTotalRetries());
         assertEquals(7, resultReport.getSuccessfulRetries());
         assertEquals(0.7, resultReport.getRetrySuccessRate(), 0.001);
@@ -171,7 +179,7 @@ class ResultReportTest {
     @Test
     void testSetRetryStatistics_zeroTotalRetries() {
         resultReport.setRetryStatistics(0, 0);
-        
+
         assertEquals(0, resultReport.getTotalRetries());
         assertEquals(0, resultReport.getSuccessfulRetries());
         assertEquals(0.0, resultReport.getRetrySuccessRate());
@@ -197,9 +205,9 @@ class ResultReportTest {
         Map<String, Double> max = new HashMap<>();
         max.put("worker1", 50.0);
         max.put("worker2", 60.0);
-        
+
         resultReport.setWorkerCpuStats(avg, max);
-        
+
         assertEquals(2, resultReport.getWorkerCpuAvg().size());
         assertEquals(25.0, resultReport.getWorkerCpuAvg().get("worker1"), 0.001);
         assertEquals(35.0, resultReport.getWorkerCpuAvg().get("worker2"), 0.001);
@@ -213,9 +221,9 @@ class ResultReportTest {
         Map<String, Integer> errors = new HashMap<>();
         errors.put("Timeout", 5);
         errors.put("Connection refused", 3);
-        
+
         resultReport.setErrorCounts(errors);
-        
+
         assertEquals(2, resultReport.getErrorCounts().size());
         assertEquals(5, resultReport.getErrorCounts().get("Timeout"));
         assertEquals(3, resultReport.getErrorCounts().get("Connection refused"));
@@ -226,7 +234,7 @@ class ResultReportTest {
         Calendar startTime = Calendar.getInstance();
         Calendar endTime = Calendar.getInstance();
         endTime.add(Calendar.SECOND, 100);
-        
+
         resultReport.setTotalParticipants(10)
                 .setNumSessionsCompleted(2)
                 .setNumSessionsCreated(3)
@@ -242,7 +250,7 @@ class ResultReportTest {
                 .setEndTime(endTime)
                 .setS3BucketName("bucket")
                 .setStopReason("Test finished");
-        
+
         assertEquals(10, resultReport.getTotalParticipants());
         assertEquals(2, resultReport.getNumSessionsCompleted());
         assertEquals(3, resultReport.getNumSessionsCreated());
@@ -265,7 +273,7 @@ class ResultReportTest {
         Calendar startTime = Calendar.getInstance();
         Calendar endTime = Calendar.getInstance();
         endTime.add(Calendar.SECOND, 60);
-        
+
         resultReport.setTotalParticipants(5)
                 .setNumSessionsCreated(2)
                 .setNumSessionsCompleted(2)
@@ -273,7 +281,7 @@ class ResultReportTest {
                 .setEndTime(endTime)
                 .setSessionTopology("N:N")
                 .setStopReason("Test finished");
-        
+
         String toString = resultReport.toString();
         assertTrue(toString.contains("Test Case Report"));
         assertTrue(toString.contains("Number of participants created: 5"));

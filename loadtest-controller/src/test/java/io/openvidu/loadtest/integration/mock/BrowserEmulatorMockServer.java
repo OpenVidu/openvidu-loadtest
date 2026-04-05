@@ -15,6 +15,8 @@ import java.net.InetSocketAddress;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,6 +51,45 @@ public class BrowserEmulatorMockServer {
     private boolean useHttps = false;
     private WebSocketMockServer webSocketServer;
     private ReconnectionFailureSimulator failureSimulator;
+    private final CopyOnWriteArrayList<ParticipantCreationListener> creationListeners = new CopyOnWriteArrayList<>();
+    private final ConcurrentHashMap<String, String> participantToWorker = new ConcurrentHashMap<>();
+
+    /**
+     * Track which worker a participant belongs to.
+     */
+    public void registerParticipant(String participant, String session, String workerUrl) {
+        String key = participant + "-" + session;
+        participantToWorker.put(key, workerUrl);
+    }
+
+    /**
+     * Get the worker URL for a participant.
+     */
+    public String getWorkerForParticipant(String participant, String session) {
+        return participantToWorker.get(participant + "-" + session);
+    }
+
+    /**
+     * Get the WebSocket server instance.
+     */
+    public WebSocketMockServer getWebSocketServer() {
+        return webSocketServer;
+    }
+
+    /**
+     * Listener interface for participant creation events.
+     */
+    @FunctionalInterface
+    public interface ParticipantCreationListener {
+        void onParticipantCreated(String userId, String sessionName, int participantNumber);
+    }
+
+    /**
+     * Register a listener to be notified when participants are created.
+     */
+    public void addParticipantCreationListener(ParticipantCreationListener listener) {
+        creationListeners.add(listener);
+    }
 
     public BrowserEmulatorMockServer(int port) {
         this.port = port;
@@ -138,6 +179,7 @@ public class BrowserEmulatorMockServer {
         server.createContext("/instance/ping", new PingHandler());
         server.createContext("/instance/initialize", new InitializeHandler());
         server.createContext("/openvidu-browser/streamManager", new StreamManagerHandler());
+        server.createContext("/openvidu-browser/streamManager/session/", new DisconnectHandler());
         server.createContext("/instance/shutdown", new ShutdownHandler());
     }
 
@@ -145,6 +187,7 @@ public class BrowserEmulatorMockServer {
         server.createContext("/instance/ping", new PingHandler());
         server.createContext("/instance/initialize", new InitializeHandler());
         server.createContext("/openvidu-browser/streamManager", new StreamManagerHandler());
+        server.createContext("/openvidu-browser/streamManager/session/", new DisconnectHandler());
         server.createContext("/instance/shutdown", new ShutdownHandler());
     }
 
@@ -201,6 +244,22 @@ public class BrowserEmulatorMockServer {
      */
     public int getRequestCount() {
         return requestCount.get();
+    }
+
+    /**
+     * Extract the numeric part from a userId like "User42" -> 42.
+     */
+    private static int extractUserNumber(String userId) {
+        if (userId == null) return 0;
+        String prefix = "User";
+        if (userId.startsWith(prefix)) {
+            try {
+                return Integer.parseInt(userId.substring(prefix.length()));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return 0;
     }
 
     /**
@@ -285,15 +344,16 @@ public class BrowserEmulatorMockServer {
                     String sessionName = requestJson.path("properties").path("sessionName").asText("unknown");
                     String role = requestJson.path("properties").path("role").asText("SUBSCRIBER");
 
-                    // Check if this participant should fail (reconnection failure simulation)
+                    // Check if this participant should fail on creation (initial connect)
                     if (failureSimulator != null && failureSimulator.shouldFailOnCreate(userId, sessionName)) {
-                        int attempt = failureSimulator.recordFailure(userId);
+                        String completeUser = userId + "-" + sessionName;
+                        int attempt = failureSimulator.recordFailure(completeUser);
 
                         if (attempt == -1) {
                             // Max retries exceeded - this triggers test termination
                             log.info("Participant {} failed after {} retries - triggering test end",
-                                    userId, failureSimulator.getMaxRetries());
-                            String errorResponse = "{\"error\": \"Participant " + userId
+                                    completeUser, failureSimulator.getMaxRetries());
+                            String errorResponse = "{\"error\": \"Participant " + completeUser
                                     + " failed after " + failureSimulator.getMaxRetries() + " retries\"}";
                             exchange.getResponseHeaders().set("Content-Type", "application/json");
                             exchange.sendResponseHeaders(500, errorResponse.length());
@@ -303,7 +363,7 @@ public class BrowserEmulatorMockServer {
                         } else if (attempt > 0) {
                             // During retry window - simulate connection failure
                             log.info("Simulating failure for {} (attempt {}/{})",
-                                    userId, attempt, failureSimulator.getMaxRetries());
+                                    completeUser, attempt, failureSimulator.getMaxRetries());
                             String errorResponse = "{\"error\": \"Connection refused - retry " + attempt + "\"}";
                             exchange.getResponseHeaders().set("Content-Type", "application/json");
                             exchange.sendResponseHeaders(500, errorResponse.length());
@@ -312,6 +372,29 @@ public class BrowserEmulatorMockServer {
                             }
                         }
                         return;
+                    }
+
+                    // Check if this participant should fail on reconnection (after WebSocket disconnect)
+                    if (failureSimulator != null && failureSimulator.shouldFailOnReconnect(userId, sessionName)) {
+                        String completeUser = userId + "-" + sessionName;
+                        int attempt = failureSimulator.recordFailure(completeUser);
+
+                        if (attempt == -1) {
+                            // Max retries exceeded - reconnection will succeed now
+                            log.info("Participant {} reconnection succeeded after {} failed attempts",
+                                    userId, failureSimulator.getMaxRetries());
+                        } else {
+                            // Still within retry window - fail this reconnection attempt
+                            log.info("Simulating reconnection failure for {} (attempt {}/{})",
+                                    userId, attempt, failureSimulator.getMaxRetries());
+                            String errorResponse = "{\"error\": \"Reconnection refused - retry " + attempt + "\"}";
+                            exchange.getResponseHeaders().set("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(500, errorResponse.length());
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(errorResponse.getBytes());
+                            }
+                            return;
+                        }
                     }
 
                     // Calculate streams and participants based on role
@@ -337,6 +420,12 @@ public class BrowserEmulatorMockServer {
 
                     // Send ParticipantCreated event via WebSocket if connected
                     sendParticipantCreatedEvent(userId, sessionName);
+
+                    // Notify creation listeners
+                    int userNum = extractUserNumber(userId);
+                    for (ParticipantCreationListener listener : creationListeners) {
+                        listener.onParticipantCreated(userId, sessionName, userNum);
+                    }
                 } catch (ClassCastException e) {
                     log.error("Invalid JSON structure in request body: {}", requestBody, e);
                     String errorResponse = "{\"error\": \"Invalid JSON structure\"}";
@@ -393,6 +482,32 @@ public class BrowserEmulatorMockServer {
 
             String response = "Shutdown initiated";
             exchange.getResponseHeaders().set("Content-Type", "text/plain");
+            exchange.sendResponseHeaders(200, response.length());
+
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(response.getBytes());
+            }
+        }
+    }
+
+    /**
+     * Handler for DELETE /openvidu-browser/streamManager/session/{session}/user/{participant}
+     * Used by the reconnect flow to disconnect a participant before re-creating them.
+     */
+    private class DisconnectHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"DELETE".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.getResponseBody().close();
+                return;
+            }
+
+            requestCount.incrementAndGet();
+            log.debug("Received DELETE /openvidu-browser/streamManager/session/... request #{}", requestCount);
+
+            String response = "{\"status\": \"ok\"}";
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, response.length());
 
             try (OutputStream os = exchange.getResponseBody()) {

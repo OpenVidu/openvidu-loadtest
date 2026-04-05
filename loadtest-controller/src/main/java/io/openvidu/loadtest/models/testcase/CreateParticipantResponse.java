@@ -9,12 +9,13 @@ public class CreateParticipantResponse {
     private int participantsInWorker;
     private String userId;
     private String sessionId;
+    private String workerUrl;
 
     public CreateParticipantResponse() {
     }
 
     public CreateParticipantResponse(boolean responseOk, String stopReason, String connectionId,
-            int streamsInWorker, int participantsInWorker, String userId, String sessionId, double workerCpuPct) {
+            int streamsInWorker, int participantsInWorker, String userId, String sessionId, double workerCpuPct, String workerUrl) {
         this.responseOk = responseOk;
         this.stopReason = stopReason;
         this.connectionId = connectionId;
@@ -23,6 +24,7 @@ public class CreateParticipantResponse {
         this.userId = userId;
         this.sessionId = sessionId;
         this.workerCpuPct = workerCpuPct;
+        this.workerUrl = workerUrl;
     }
 
     public boolean isResponseOk() {
@@ -97,12 +99,21 @@ public class CreateParticipantResponse {
         return this;
     }
 
+    public String getWorkerUrl() {
+        return workerUrl;
+    }
+
+    public CreateParticipantResponse setWorkerUrl(String workerUrl) {
+        this.workerUrl = workerUrl;
+        return this;
+    }
+
     @Override
     public String toString() {
         return "CreateParticipantResponse [responseOk=" + responseOk + ", stopReason=" + stopReason + ", connectionId="
                 + connectionId + ", workerCpuPct=" + workerCpuPct + ", streamsInWorker=" + streamsInWorker
                 + ", participantsInWorker=" + participantsInWorker + ", userId=" + userId + ", sessionId=" + sessionId
-                + "]";
+                + ", workerUrl=" + workerUrl + "]";
     }
 
 }

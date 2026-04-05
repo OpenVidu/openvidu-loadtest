@@ -167,7 +167,7 @@ class LoadTestServiceTests {
         }
         // Failure when adding participant
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3",
-                -1, -1, "", "", 0);
+                -1, -1, "", "", 0, "");
         when(this.browserEmulatorClient.createPublisher(instances.get(39).publicDnsName(), 8, 5, testCase)).thenReturn(
                 failureResponse);
 
@@ -263,7 +263,7 @@ class LoadTestServiceTests {
         }
         // Failure when adding participant
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3",
-                -1, -1, "", "", 0);
+                -1, -1, "", "", 0, "");
         when(this.browserEmulatorClient.createPublisher(instances.get(39).publicDnsName(), 1, 4, testCase)).thenReturn(
                 failureResponse);
 
@@ -359,7 +359,7 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getWorkerMaxLoad()).thenReturn(75);
 
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3",
-                -1, -1, "", "", 0);
+                -1, -1, "", "", 0, "");
 
         // First 4 are for estimation, shoudl return 4 browsers per worker
         createEstimationResponseMock(instance1Url, testCase);
@@ -474,7 +474,7 @@ class LoadTestServiceTests {
         }
         // Failure when adding participant
         CreateParticipantResponse failureResponse = new CreateParticipantResponse(false, "Any reason", "connectionId3",
-                -1, -1, "", "", 0);
+                -1, -1, "", "", 0, "");
         when(this.browserEmulatorClient.createSubscriber(instances.get(39).publicDnsName(), workersAtStart, 1,
                 testCase)).thenReturn(
                         failureResponse);
@@ -758,13 +758,13 @@ class LoadTestServiceTests {
 
     private void createEstimationResponseMock(String instance1Url, TestCase testCase) {
         when(this.browserEmulatorClient.createPublisher(instance1Url, 0, 0, testCase)).thenReturn(
-                new CreateParticipantResponse(true, "", "connectionId1", 1, 1, "User0", "LoadTestSession0", 5));
+                new CreateParticipantResponse(true, "", "connectionId1", 1, 1, "User0", "LoadTestSession0", 5, ""));
         when(this.browserEmulatorClient.createPublisher(instance1Url, 1, 0, testCase)).thenReturn(
-                new CreateParticipantResponse(true, "", "connectionId2", 4, 2, "User1", "LoadTestSession0", 15));
+                new CreateParticipantResponse(true, "", "connectionId2", 4, 2, "User1", "LoadTestSession0", 15, ""));
         when(this.browserEmulatorClient.createPublisher(instance1Url, 2, 0, testCase)).thenReturn(
-                new CreateParticipantResponse(true, "", "connectionId3", 9, 3, "User2", "LoadTestSession0", 40));
+                new CreateParticipantResponse(true, "", "connectionId3", 9, 3, "User2", "LoadTestSession0", 40, ""));
         when(this.browserEmulatorClient.createPublisher(instance1Url, 3, 0, testCase)).thenReturn(
-                new CreateParticipantResponse(true, "", "connectionId4", 16, 4, "User3", "LoadTestSession0", 80));
+                new CreateParticipantResponse(true, "", "connectionId4", 16, 4, "User3", "LoadTestSession0", 80, ""));
     }
 
     private void createSuccessfulResponsesMock(String instanceUrl, TestCase testCase, int usersInWorker,
@@ -782,7 +782,7 @@ class LoadTestServiceTests {
             }
             CreateParticipantResponse response = new CreateParticipantResponse(
                     true, "", "connectionId" + i, streamsInWorker, i, "User" + user,
-                    "LoadTestSession" + currentSession, 0);
+                    "LoadTestSession" + currentSession, 0, instanceUrl);
             if (testCase.getTopology().equals(Topology.N_X_N)) {
                 when(this.browserEmulatorClient.createPublisher(instanceUrl, user, currentSession, testCase))
                         .thenReturn(

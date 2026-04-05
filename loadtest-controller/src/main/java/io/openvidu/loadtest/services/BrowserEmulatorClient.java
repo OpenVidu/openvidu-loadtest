@@ -71,6 +71,7 @@ public class BrowserEmulatorClient {
     private ConcurrentHashMap<String, AtomicBoolean> participantConnecting = new ConcurrentHashMap<>();
     private Set<String> participantReconnecting = new CopyOnWriteArraySet<>();
     private ConcurrentHashMap<String, Calendar> userDisconnectTimestamps = new ConcurrentHashMap<>();
+    private Set<String> processingDisconnects = ConcurrentHashMap.newKeySet();
 
     private CreateParticipantResponse lastErrorReconnectingResponse;
 
@@ -102,7 +103,7 @@ public class BrowserEmulatorClient {
 
     public void addDisconnectTimestamp(String userId, String sessionId) {
         String key = userId + "-" + sessionId;
-        userDisconnectTimestamps.put(key, Calendar.getInstance());
+        userDisconnectTimestamps.putIfAbsent(key, Calendar.getInstance());
     }
 
     public Map<String, Calendar> getPerUserDisconnectTimestamps() {
@@ -182,12 +183,27 @@ public class BrowserEmulatorClient {
     public void addClientFailure(String workerUrl, String participant, String session, boolean waitForConnection,
             boolean reconnect) {
         if (this.isClean.get()) {
-            // Test finished
             return;
         }
+        String user = participant + "-" + session;
+        ConcurrentHashMap<String, Role> workerRoles = this.clientRoles.get(workerUrl);
+        if (workerRoles == null) {
+            log.debug("Worker {} has no roles map, ignoring disconnect for {}", workerUrl, user);
+            return;
+        }
+        if (!workerRoles.containsKey(user)) {
+            log.debug("Worker {} doesn't have participant {}, ignoring disconnect", workerUrl, user);
+            return;
+        }
+        if (!processingDisconnects.add(user)) {
+            log.debug("Already processing disconnect for {}, ignoring duplicate", user);
+            return;
+        }
+        log.info("Processing disconnect for {} on worker {}", user, workerUrl);
         log.debug("Adding client failure for participant {} in session {}", participant, session);
         log.debug("Wait for connection: {}", waitForConnection);
-        while (waitForConnection && this.participantConnecting.get(participant + "-" + session).get()) {
+        AtomicBoolean isConnecting = this.participantConnecting.get(user);
+        while (waitForConnection && isConnecting != null && isConnecting.get()) {
             if (endOfTest.get()) {
                 return;
             }
@@ -195,7 +211,6 @@ public class BrowserEmulatorClient {
         }
         ConcurrentHashMap<String, AtomicInteger> failures = this.clientFailures.computeIfAbsent(workerUrl,
                 key -> new ConcurrentHashMap<>());
-        String user = participant + "-" + session;
         AtomicInteger currentFailures = failures.computeIfAbsent(user, key -> new AtomicInteger(0));
         int newFailures = currentFailures.incrementAndGet();
         log.error("Participant {} in session {} failed {} times", participant, session, newFailures);
@@ -212,8 +227,8 @@ public class BrowserEmulatorClient {
                 log.debug("Stop reconnecting participant {} in session {}", participant, session);
                 this.lastErrorReconnectingResponse = new CreateParticipantResponse()
                         .setResponseOk(false)
-                        .setStopReason("Participant " + participant + " in session " + session + " failed "
-                                + newFailures + " times");
+                        .setStopReason("Participant " + participant + "-" + session + " failed after "
+                                + newFailures + " retries");
             }
         }
     }
@@ -248,30 +263,35 @@ public class BrowserEmulatorClient {
     private void afterDisconnect(String workerUrl, String participant, String session) {
         log.debug("After disconnect user {} session {} in {}", participant, session, workerUrl);
         String user = participant + "-" + session;
-        ConcurrentHashMap<String, Role> workerRoles = this.clientRoles.get(workerUrl);
-        if (workerRoles == null) {
-            // The connect request hasn't finished yet, wait for it
-            log.debug("Worker roles is null for {} in session {} in {}. Waiting ...", participant, session, workerUrl);
-            sleeper.sleep(WAIT_S, null);
-            this.afterDisconnect(workerUrl, participant, session);
-            return;
-        }
-        Role role = workerRoles.get(user);
-        // get user number from participant removing prefix
-        int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
-        // get session number from session removing prefix
-        int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
-        CreateParticipantResponse response = null;
-        if (role.equals(Role.PUBLISHER)) {
-            response = this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
-        } else {
-            response = this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
-        }
-        if (response.isResponseOk()) {
-            this.participantReconnecting.remove(user);
-        } else {
-            this.lastErrorReconnectingResponse = response;
-            log.error("Response status is not 200 OK. Exit");
+        try {
+            ConcurrentHashMap<String, Role> workerRoles = this.clientRoles.get(workerUrl);
+            if (workerRoles == null) {
+                log.debug("Worker roles is null for {} in session {} in {}. Waiting ...", participant, session, workerUrl);
+                sleeper.sleep(WAIT_S, null);
+                this.afterDisconnect(workerUrl, participant, session);
+                return;
+            }
+            Role role = workerRoles.get(user);
+            if (role == null) {
+                log.warn("Role is null for {} in session {} in {}. This worker may not have this participant.", participant, session, workerUrl);
+                return;
+            }
+            int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
+            int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
+            CreateParticipantResponse response = null;
+            if (role.equals(Role.PUBLISHER)) {
+                response = this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+            } else {
+                response = this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+            }
+            if (response.isResponseOk()) {
+                this.participantReconnecting.remove(user);
+            } else {
+                this.lastErrorReconnectingResponse = response;
+                log.error("Response status is not 200 OK. Exit");
+            }
+        } finally {
+            processingDisconnects.remove(user);
         }
     }
 
@@ -447,12 +467,15 @@ public class BrowserEmulatorClient {
                 log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
                 sleeper.sleep(WAIT_S, null);
                 if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures) || endOfTest.get()) {
+                    String reason = "Participant " + userId + "-" + sessionId + " failed after "
+                            + failures + " retries";
                     // Set lastErrorReconnectingResponse to trigger test termination
                     this.lastErrorReconnectingResponse = new CreateParticipantResponse()
                             .setResponseOk(false)
-                            .setStopReason("Participant " + userId + " in session " + sessionId + " failed "
-                                    + failures + " times");
-                    return cpr.setResponseOk(false);
+                            .setStopReason(reason);
+                    // Also set stopReason on the returned response to avoid race condition
+                    // where getLastResponse() may return this object before lastErrorReconnectingResponse is visible
+                    return cpr.setResponseOk(false).setStopReason(reason);
                 }
                 log.warn("Retrying");
                 return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
@@ -460,7 +483,7 @@ public class BrowserEmulatorClient {
                 this.participantConnecting.get(user).set(false);
                 this.saveParticipantData(workerUrl, testCase.isTeaching() ? Role.PUBLISHER : role);
             }
-            return processResponse(response);
+            return processResponse(response, workerUrl);
         } catch (Exception e) {
             CreateParticipantErrorContext ctx = new CreateParticipantErrorContext(
                     new UserInfo(workerUrl, userNumber, sessionNumber, role, userId, sessionId), testCase, cpr);
@@ -520,7 +543,7 @@ public class BrowserEmulatorClient {
         return okResponse;
     }
 
-    private CreateParticipantResponse processResponse(HttpResponse<String> response) {
+    private CreateParticipantResponse processResponse(HttpResponse<String> response, String workerUrl) {
         CreateParticipantResponse cpr = new CreateParticipantResponse();
         if (response != null && response.statusCode() == HTTP_STATUS_OK) {
             JsonObject jsonResponse = jsonUtils.getJson(response.body());
@@ -538,7 +561,8 @@ public class BrowserEmulatorClient {
             return cpr.setResponseOk(true).setConnectionId(connectionId)
                     .setUserId(userId).setSessionId(sessionId)
                     .setWorkerCpuPct(workerCpuPct).setStreamsInWorker(streamsInWorker)
-                    .setParticipantsInWorker(participantsInWorker);
+                    .setParticipantsInWorker(participantsInWorker)
+                    .setWorkerUrl(workerUrl);
         }
         if (response == null) {
             log.error("Error. Response is null");

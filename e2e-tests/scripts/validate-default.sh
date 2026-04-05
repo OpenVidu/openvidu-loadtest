@@ -96,7 +96,7 @@ if [ -f "$RESULTS_DIR/results.txt" ]; then
         
         if grep -q "User Connections" "$HTML_FILE"; then
             echo "✓ HTML contains 'User Connections'"
-            if grep -q "Join date" "$HTML_FILE" && grep -q "Disconnect Date" "$HTML_FILE" && grep -q "Retry Number" "$HTML_FILE"; then
+            if grep -q "Join Date" "$HTML_FILE" && grep -q "Disconnect Date" "$HTML_FILE" && grep -q "Retries" "$HTML_FILE"; then
                 echo "✓ HTML contains new table columns"
                 if grep -q "User1" "$HTML_FILE" && grep -q "User2" "$HTML_FILE"; then
                     echo "✓ HTML contains two user rows"

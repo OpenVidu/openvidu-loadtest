@@ -37,6 +37,7 @@ public class HtmlReportGenerator {
     private static final String KEY_METRIC = "metric";
     private static final String KEY_VALUE = "value";
     private static final String PERCENTAGE_FORMAT = "%.1f%%";
+    private static final int PAGE_SIZE = 50;
 
     private final Template reportTemplate;
 
@@ -87,18 +88,38 @@ public class HtmlReportGenerator {
 
     private Map<String, Object> buildTemplateContext(ResultReport result) {
         Map<String, Object> context = new HashMap<>();
-        context.put("generatedAt", formatDate(result.getStartTime()));
-        context.put("summaryRows", buildSummaryRows(result));
-
+        
+        // Build error rows FIRST to check if errors exist
         List<Map<String, String>> errorRows = buildErrorRows(result.getErrorCounts());
-        context.put("hasErrorRows", !errorRows.isEmpty());
+        boolean hasErrors = !errorRows.isEmpty();
+        
+        // Now add to context
+        context.put("generatedAt", formatDate(result.getStartTime()));
+        context.put("testDuration", getDuration(result));
+        context.put("numSessionsCreated", result.getNumSessionsCreated());
+        context.put("numSessionsCompleted", result.getNumSessionsCompleted());
+        context.put("totalParticipants", result.getTotalParticipants());
+        context.put("workersUsed", result.getWorkersUsed());
+        context.put("summaryRows", buildSummaryRows(result));
+        
+        context.put("hasErrorRows", hasErrors);
         context.put("errorRows", errorRows);
+        context.put("totalErrors", calculateTotalErrors(result.getErrorCounts()));
+        context.put("errorSeverityClass", getErrorSeverityClass(result.getErrorCounts(), result.getTotalParticipants()));
 
         List<Map<String, String>> cpuRows = buildCpuRows(result.getWorkerCpuAvg(), result.getWorkerCpuMax());
         context.put("hasCpuRows", !cpuRows.isEmpty());
         context.put("cpuRows", cpuRows);
 
-        context.put("userRows", buildUserRows(result));
+        List<Map<String, Object>> userRows = buildUserRows(result);
+        context.put("hasUsers", !userRows.isEmpty());
+        context.put("userRows", userRows);
+        context.put("userCount", userRows.size());
+        context.put("currentPage", 1);
+        context.put("totalPages", Math.max(1, (int) Math.ceil((double) userRows.size() / PAGE_SIZE)));
+        context.put("isLastPage", userRows.size() <= PAGE_SIZE);
+        context.put("pageSize", PAGE_SIZE);
+
         context.put("configurationRows", buildConfigurationRows(result));
 
         String kibanaUrl = result.getKibanaUrl();
@@ -110,6 +131,27 @@ public class HtmlReportGenerator {
         return context;
     }
 
+    private int calculateTotalErrors(Map<String, Integer> errorCounts) {
+        if (errorCounts == null || errorCounts.isEmpty()) {
+            return 0;
+        }
+        return errorCounts.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    private String getErrorSeverityClass(Map<String, Integer> errorCounts, int totalParticipants) {
+        int totalErrors = calculateTotalErrors(errorCounts);
+        if (totalErrors == 0) {
+            return "low";
+        }
+        double errorRate = totalParticipants > 0 ? (double) totalErrors / totalParticipants : 0;
+        if (errorRate > 0.2) {
+            return "high";
+        } else if (errorRate > 0.05) {
+            return "medium";
+        }
+        return "low";
+    }
+
     private List<Map<String, String>> buildSummaryRows(ResultReport result) {
         List<Map<String, String>> rows = new ArrayList<>();
         rows.add(stringRow(KEY_METRIC, "Test Duration", KEY_VALUE, getDuration(result)));
@@ -119,6 +161,9 @@ public class HtmlReportGenerator {
                         String.valueOf(result.getNumSessionsCompleted())));
         rows.add(stringRow(KEY_METRIC, "Total Participants", KEY_VALUE, String.valueOf(result.getTotalParticipants())));
         rows.add(stringRow(KEY_METRIC, "Workers Used", KEY_VALUE, String.valueOf(result.getWorkersUsed())));
+        if (result.getUsersPerWorker() > 0) {
+            rows.add(stringRow(KEY_METRIC, "Users per Worker", KEY_VALUE, String.valueOf(result.getUsersPerWorker())));
+        }
         rows.add(stringRow(KEY_METRIC, "Stop Reason", KEY_VALUE, safeString(result.getStopReason())));
         return rows;
     }
@@ -151,10 +196,19 @@ public class HtmlReportGenerator {
             String worker = cpuEntry.getKey();
             double avg = cpuEntry.getValue();
             double max = effectiveCpuMax.getOrDefault(worker, 0.0);
-            rows.add(stringRow("worker", safeString(worker), "avgCpu", String.format(PERCENTAGE_FORMAT, avg),
-                    "maxCpu", String.format(PERCENTAGE_FORMAT, max)));
+            String avgFormatted = String.format(PERCENTAGE_FORMAT, avg);
+            String maxFormatted = String.format(PERCENTAGE_FORMAT, max);
+            rows.add(stringRow("worker", safeString(worker), "avgCpu", avgFormatted,
+                    "maxCpu", maxFormatted, "avgCpuColor", getCpuColorClass(avg), "maxCpuColor", getCpuColorClass(max),
+                    "isAllWorkers", "All Workers".equals(worker) ? "true" : ""));
         }
         return rows;
+    }
+
+    private String getCpuColorClass(double cpu) {
+        if (cpu < 50) return "low";
+        if (cpu < 80) return "medium";
+        return "high";
     }
 
     private List<Map<String, Object>> buildUserRows(ResultReport result) {
@@ -253,12 +307,11 @@ public class HtmlReportGenerator {
         rows.add(stringRow(KEY_METRIC, "Participants per Session", KEY_VALUE,
                 safeString(result.getParticipantsPerSession())));
         rows.add(stringRow(KEY_METRIC, "Browser Recording", KEY_VALUE, String.valueOf(result.isBrowserRecording())));
-        rows.add(stringRow(KEY_METRIC, "OpenVidu Recording", KEY_VALUE, safeString(result.getOpenviduRecording())));
-        rows.add(stringRow(KEY_METRIC, "Manual Participant Allocation", KEY_VALUE,
-                String.valueOf(result.isManualParticipantAllocation())));
-        if (result.isManualParticipantAllocation()) {
-            rows.add(stringRow(KEY_METRIC, "Users per Worker", KEY_VALUE, String.valueOf(result.getUsersPerWorker())));
+        String openviduRecording = safeString(result.getOpenviduRecording());
+        if (!openviduRecording.contains("No recording set")) {
+            rows.add(stringRow(KEY_METRIC, "OpenVidu Recording", KEY_VALUE, openviduRecording));
         }
+        rows.add(stringRow(KEY_METRIC, "Users per Worker", KEY_VALUE, String.valueOf(result.getUsersPerWorker())));
         return rows;
     }
 

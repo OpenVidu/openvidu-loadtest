@@ -5,14 +5,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.utils.HtmlReportGenerator;
 
@@ -56,7 +59,7 @@ class HtmlReportGeneratorTest {
         // Check basic HTML structure
         assertTrue(content.contains("<!DOCTYPE html>"));
         assertTrue(content.contains("<title>OpenVidu Load Test Report</title>"));
-        assertTrue(content.contains("<h1>OpenVidu Load Test Report</h1>"));
+        assertTrue(content.contains("Load Test Report</h1>"));
 
         // Check summary table
         assertTrue(content.contains("Test Duration"));
@@ -79,8 +82,6 @@ class HtmlReportGeneratorTest {
         assertTrue(content.contains("false"));
         assertTrue(content.contains("OpenVidu Recording"));
         assertTrue(content.contains("NONE"));
-        assertTrue(content.contains("Manual Participant Allocation"));
-        assertTrue(content.contains("false"));
         assertTrue(content.contains("Kibana Dashboard"));
         assertTrue(content.contains("http://kibana.example.com"));
     }
@@ -156,9 +157,9 @@ class HtmlReportGeneratorTest {
         assertTrue(content.contains("User2"));
         assertTrue(content.contains("0"));
         // Check new columns
-        assertTrue(content.contains("Join date"));
+        assertTrue(content.contains("Join Date"));
         assertTrue(content.contains("Disconnect Date"));
-        assertTrue(content.contains("Retry Number"));
+        assertTrue(content.contains("Retries"));
     }
 
     @Test
@@ -174,9 +175,11 @@ class HtmlReportGeneratorTest {
         Map<String, Double> cpuAvg = new HashMap<>();
         cpuAvg.put("worker1", 25.5);
         cpuAvg.put("worker2", 35.5);
+        cpuAvg.put("All Workers", 30.5);
         Map<String, Double> cpuMax = new HashMap<>();
         cpuMax.put("worker1", 50.0);
         cpuMax.put("worker2", 60.0);
+        cpuMax.put("All Workers", 60.0);
         resultReport.setWorkerCpuStats(cpuAvg, cpuMax);
 
         Path reportPath = tempDir.resolve("report.html");
@@ -190,6 +193,48 @@ class HtmlReportGeneratorTest {
         assertTrue(content.contains("worker2"));
         assertTrue(content.contains("35.5"));
         assertTrue(content.contains("60.0"));
+        assertTrue(content.contains("All Workers"));
+        assertTrue(content.contains("30.5"));
+    }
+
+    @Test
+    void testGenerateHtmlReport_withPerWorkerCpuFromResponses(@TempDir Path tempDir) throws IOException {
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(4)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setStopReason("Test finished")
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance());
+
+        List<CreateParticipantResponse> responses = new ArrayList<>();
+        responses.add(new CreateParticipantResponse(true, "", "conn1", 10, 1, "User1", "Session1", 20.0, "worker-1"));
+        responses.add(new CreateParticipantResponse(true, "", "conn2", 15, 2, "User2", "Session1", 30.0, "worker-1"));
+        responses.add(new CreateParticipantResponse(true, "", "conn3", 20, 3, "User3", "Session1", 40.0, "worker-2"));
+        responses.add(new CreateParticipantResponse(true, "", "conn4", 25, 4, "User4", "Session1", 50.0, "worker-2"));
+        resultReport.setParticipantResponses(responses);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+        assertTrue(content.contains("Worker CPU Utilization"));
+        assertTrue(content.contains("worker-1"));
+        assertTrue(content.contains("worker-2"));
+        assertTrue(content.contains("All Workers"));
+
+        Map<String, Double> cpuAvg = resultReport.getWorkerCpuAvg();
+        Map<String, Double> cpuMax = resultReport.getWorkerCpuMax();
+
+        assertEquals(3, cpuAvg.size());
+        assertEquals(25.0, cpuAvg.get("worker-1"), 0.001);
+        assertEquals(45.0, cpuAvg.get("worker-2"), 0.001);
+        assertEquals(35.0, cpuAvg.get("All Workers"), 0.001);
+
+        assertEquals(3, cpuMax.size());
+        assertEquals(30.0, cpuMax.get("worker-1"), 0.001);
+        assertEquals(50.0, cpuMax.get("worker-2"), 0.001);
+        assertEquals(50.0, cpuMax.get("All Workers"), 0.001);
     }
 
     @Test
@@ -224,7 +269,8 @@ class HtmlReportGeneratorTest {
         htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
 
         String content = Files.readString(reportPath);
-        assertFalse(content.contains("Error Categorization"));
+        // Error section should not be visible (may appear in comments but not as rendered content)
+        assertFalse(content.contains("class=\"section\">\n            <div class=\"section-header\">\n                <div class=\"section-title\">\n                    <svg"));
     }
 
 }

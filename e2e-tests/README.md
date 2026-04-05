@@ -117,7 +117,7 @@ All smoke tests should:
 - "Sessions Created"
 - "Total Participants"
 - "User Connections" (mandatory)
-- Table columns: User, Session, Join date, Disconnect Date, Retry Number
+- Table columns: User, Session, Join Date, Disconnect Date, Retries
 - Two user rows (User1 and User2) present
 
 If validation fails, the result files are kept in the `results/` directory for debugging.

@@ -380,14 +380,9 @@ class AwsScaleIntegrationTest {
             if (metric.equals("Stop Reason")) {
                 foundStopReason = true;
                 log.info("Stop Reason: {}", value);
-                // Due to async timing, the stop reason might be "Test finished" even though a
-                // participant failed
-                // Check if it contains failure indicators OR if test completed normally (which
-                // is acceptable)
                 assertTrue(
-                        value.contains("failed") || value.contains("retry") || value.contains("reconnect")
-                                || value.contains("Test finished"),
-                        "Stop reason should indicate reconnection failure or test completion: " + value);
+                        value.contains("Participant User5-LoadTestSession40 failed after 5 retries"),
+                        "Stop reason should indicate reconnection failure");
             }
         }
         assertTrue(foundStopReason, "HTML report should contain Stop Reason");

@@ -360,6 +360,8 @@ public class LoadTestService {
                 .setTimePerRecordingWorker(shutdownOrchestrator.getRecordingWorkerTimes())
                 .setUserStartTimes(participantOrchestrator.getUserStartTimes())
                 .setUserSuccessTimestamps(userSuccessTimestamps)
+                .setParticipantResponses(participantOrchestrator.getAllParticipantResponses())
+                .setUserRetryCounts(browserEmulatorClient.getPerUserRetryCounts())
                 .build();
 
         io.exportResults(rr);

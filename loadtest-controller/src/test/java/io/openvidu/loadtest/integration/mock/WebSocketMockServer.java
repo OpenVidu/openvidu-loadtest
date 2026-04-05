@@ -1,5 +1,8 @@
 package io.openvidu.loadtest.integration.mock;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
@@ -38,10 +41,11 @@ public class WebSocketMockServer {
     private final int port;
     private Server server;
     private final AtomicBoolean running = new AtomicBoolean(false);
-    private final Set<Session> sessions = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final ConcurrentHashMap<Session, String> sessionToWorker = new ConcurrentHashMap<>();
     private final AtomicInteger connectionCount = new AtomicInteger(0);
     private X509Certificate certificate;
     private boolean useHttps = false;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public WebSocketMockServer(int port) {
         this.port = port;
@@ -123,6 +127,15 @@ public class WebSocketMockServer {
     }
 
     /**
+     * Register a worker URL for a WebSocket session.
+     * Called when the controller connects to the WebSocket endpoint.
+     */
+    public void registerWorker(Session session, String workerUrl) {
+        sessionToWorker.put(session, workerUrl);
+        log.debug("Registered worker {} for session {}", workerUrl, session.getRemoteAddress());
+    }
+
+    /**
      * Send a JSON message to all connected WebSocket clients.
      *
      * @param message the JSON message to send
@@ -133,7 +146,7 @@ public class WebSocketMockServer {
             return;
         }
 
-        for (Session session : sessions) {
+        for (Session session : sessionToWorker.keySet()) {
             if (session.isOpen()) {
                 try {
                     session.getRemote().sendString(message);
@@ -146,13 +159,47 @@ public class WebSocketMockServer {
     }
 
     /**
+     * Send a "sessionDisconnected" event for a specific participant to trigger reconnection.
+     * The message format matches what WebSocketClient.onMessage() expects to trigger handleError().
+     * Sends to only the first connected session to avoid duplicate processing across multiple workers.
+     */
+    public void sendDisconnected(String participant, String session) {
+        if (!running.get()) {
+            log.warn("Cannot send disconnected event: server is not running");
+            return;
+        }
+
+        try {
+            ObjectNode event = objectMapper.createObjectNode();
+            event.put("type", "sessionDisconnected");
+            event.put("participant", participant);
+            event.put("session", session);
+            event.put("timestamp", System.currentTimeMillis());
+
+            String eventJson = objectMapper.writeValueAsString(event);
+
+            // Send to only ONE WebSocket session to avoid duplicate processing
+            for (Session wsSession : sessionToWorker.keySet()) {
+                if (wsSession.isOpen()) {
+                    wsSession.getRemote().sendString(eventJson);
+                    log.info("Sent sessionDisconnected event for {} in {} to one worker", participant, session);
+                    return;
+                }
+            }
+            log.warn("No open WebSocket sessions to send disconnect event for {} in {}", participant, session);
+        } catch (Exception e) {
+            log.error("Failed to send sessionDisconnected event for {} in {}", participant, session, e);
+        }
+    }
+
+    /**
      * Stop the mock WebSocket server.
      */
     public void stop() {
         if (running.compareAndSet(true, false)) {
             log.info("Stopping WebSocketMockServer");
             try {
-                sessions.clear();
+                sessionToWorker.clear();
                 if (server != null) {
                     server.stop();
                 }
@@ -181,7 +228,7 @@ public class WebSocketMockServer {
      * Get the number of currently connected clients.
      */
     public int getActiveConnectionCount() {
-        return sessions.size();
+        return sessionToWorker.size();
     }
 
     /**
@@ -207,7 +254,7 @@ public class WebSocketMockServer {
 
         @OnWebSocketConnect
         public void onConnect(Session session) {
-            sessions.add(session);
+            sessionToWorker.put(session, "unknown");
             int count = connectionCount.incrementAndGet();
             log.info("WebSocket connection #{} established from {}", count, session.getRemoteAddress());
         }

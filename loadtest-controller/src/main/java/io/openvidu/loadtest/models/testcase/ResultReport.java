@@ -238,7 +238,8 @@ public class ResultReport {
                 errorCounts.merge(resp.getStopReason(), 1, Integer::sum);
             }
         }
-        // Compute average and max CPU across all successful responses
+        // Compute per-worker and global CPU stats
+        Map<String, List<Double>> cpuPerWorker = new TreeMap<>();
         double cpuSum = 0;
         int cpuCount = 0;
         double cpuMax = 0;
@@ -249,13 +250,28 @@ public class ResultReport {
                 cpuCount++;
                 if (cpu > cpuMax)
                     cpuMax = cpu;
+                String worker = resp.getWorkerUrl();
+                if (worker == null || worker.isEmpty()) {
+                    worker = "Unknown Worker";
+                }
+                cpuPerWorker.computeIfAbsent(worker, k -> new ArrayList<>()).add(cpu);
             }
         }
         if (cpuCount > 0) {
             Map<String, Double> avgMap = new TreeMap<>();
-            avgMap.put("all_workers", cpuSum / cpuCount);
             Map<String, Double> maxMap = new TreeMap<>();
-            maxMap.put("all_workers", cpuMax);
+            // Add per-worker stats
+            for (Map.Entry<String, List<Double>> entry : cpuPerWorker.entrySet()) {
+                String worker = entry.getKey();
+                List<Double> values = entry.getValue();
+                double workerAvg = values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+                double workerMax = values.stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
+                avgMap.put(worker, workerAvg);
+                maxMap.put(worker, workerMax);
+            }
+            // Add global "All Workers" stats
+            avgMap.put("All Workers", cpuSum / cpuCount);
+            maxMap.put("All Workers", cpuMax);
             workerCpuAvg = avgMap;
             workerCpuMax = maxMap;
         }
