@@ -32,7 +32,7 @@ testcases:
     participants:
       - "2"
     sessions: 1
-    browser: chrome
+    browser: emulated
 
 workers:
   urls: browser-emulator
