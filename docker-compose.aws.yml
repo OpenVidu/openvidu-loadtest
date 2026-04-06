@@ -1,0 +1,15 @@
+services:
+
+  loadtest-controller:
+    build:
+      context: ./loadtest-controller
+      dockerfile: Dockerfile
+    image: loadtest-controller:local
+    container_name: loadtest-controller
+    restart: no
+    environment:
+      LOADTEST_CONFIG: ${LOADTEST_CONFIG:-/config/config-aws.yaml}
+      RESULTS_DIR: /results
+    volumes:
+      - ./config:/config
+      - ./results:/results

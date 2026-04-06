@@ -2,15 +2,6 @@
 
 A distributed testing tool for performing load, stress and other performance tests against OpenVidu 3 deployments. Simulates realistic video conferencing scenarios with browser-emulated users.
 
-# **Table of Contents**
-
-1. [Quick Start](#quick-start)
-   - [Run your first test with Docker Compose](#run-your-first-test-with-docker-compose)
-   - [Large scale testing on AWS](#large-scale-testing-on-aws)
-2. [Project Architecture](#project-architecture)
-3. [Configuration](#configuration)
-4. [Advanced Options](#advanced-options)
-
 ## **Quick Start**
 
 ### Run your first test with Docker Compose
@@ -81,26 +72,136 @@ OpenVidu loadtest will execute the test cases and output results at `results/res
 
 For more detailed instructions on how to configure tests, see [Configuration](#configuration).
 
-### Large scale testing on AWS:
+### Large scale testing on AWS
 
-1. **Create browser-emulator AMI:**
+Large-scale tests can be executed on AWS using the provided AMI and the AWS-specific Docker Compose file. But first, let's go through the basic load test architecture:
 
-   ```bash
-   cd ./browser-emulator/aws/
-   ./createAMI.sh --help
-   ```
-
-2. **Create security group** with at least port 5000 open.
-
-3. **Configure** `config/config-aws.yaml`
-
-## **Project Architecture**
+#### **Project Architecture**
 
 ![Load test architecture](resources/diagram.png)
 
 - **Loadtest Controller**: Orchestrates the load test by coordinating browser-emulator workers. Reads configuration from `config/config.yaml` (see [Configuration](#configuration)).
 
-- **Browser-emulator**: Worker service that connects to OpenVidu rooms, sending and receiving WebRTC media. Launches Chrome/Firefox browsers via Selenium.
+- **Browser-emulator**: Worker service that connects to OpenVidu rooms, sending and receiving WebRTC media. Launches real or emulated browsers.
+
+#### How-to
+
+The steps below walk through preparing AWS resources, configuring the project, and starting the system with `docker-compose.aws.yml`.
+
+1. **Create browser-emulator AMI:**
+
+   The repository includes a helper script to build an AMI that contains the
+   browser-emulator worker runtime and its dependencies. The script uses a
+   CloudFormation template to provision an EC2 instance, installs the
+   required software and captures an AMI you can reuse for worker instances.
+
+   Prerequisites:
+   - Install and configure the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) (`aws configure`).
+   - Install `jq` (used by the script to parse CLI output).
+   - Ensure your IAM user has permissions to create CloudFormation stacks,
+     launch EC2 instances and create AMIs.
+
+   Usage:
+
+   ```bash
+   cd ./browser-emulator/aws/
+   ./createAMI.sh
+   ```
+
+   Important options (use `./createAMI.sh --help` for details):
+   - `--region <region>`: AWS region (default: `us-east-1`).
+   - `--git-ref <branch|tag>`: Git ref to checkout. You can use this to select a version to use by its tag (default: `v4.0.0`) or checkout a branch.
+   - `--cache-mediafiles[=<ARGS>]`: Select what media files will be pre-downloaded on the instance. By default it caches the files for the `BUNNY` video source at 640x480@30fps (see [Video configuration](#video) for more details on video configuration). Caching media files is recommended to speed up worker startup time, as the files will be available locally instead of being downloaded at runtime.
+
+   Example (create AMI in `eu-west-1` from `main` and cache default mediafiles):
+
+   ```bash
+   ./createAMI.sh --region eu-west-1 --git-ref main
+   ```
+
+   After the script finishes it prints the created AMI id (for example
+   `ami-0abcd...`). Use that `amiId` in `config/config-aws.yaml`.
+
+2. **Create security group** with at least port 5000 open.
+
+   The loadtest controller communicates with browser-emulator workers over the
+   worker HTTPS API (default port `5000`) and Websocket server (default port `5001`). Create a security group that allows
+   inbound TCP traffic on those ports from the controller's IP(s) or network.
+
+   Using the AWS Console:
+   - Create a Security Group in your target VPC.
+   - Add an inbound rule: `TCP 5000` with a source CIDR that limits access to
+     your controller or trusted networks.
+   - Add an inbound rule: `TCP 5001` with a source CIDR that limits access to
+     your controller or trusted networks.
+
+   Using the AWS CLI (replace `<vpc-id>`, `<sg-id>`, and `<controller-cidr>`):
+
+   ```bash
+   aws ec2 create-security-group --group-name openvidu-loadtest-sg \
+     --description "OpenVidu loadtest browser-emulator" \
+     --vpc-id <vpc-id>
+
+   # allow controller access on port 5000
+   aws ec2 authorize-security-group-ingress --group-id <sg-id> \
+     --protocol tcp --port 5000 --cidr <controller-cidr>
+
+   # optional: allow SSH for debugging (restrict CIDR)
+   aws ec2 authorize-security-group-ingress --group-id <sg-id> \
+     --protocol tcp --port 22 --cidr <your-admin-cidr>
+   ```
+
+   Notes:
+   - Ensure outbound rules allow the instance to reach the platform under
+     test (OpenVidu); by default outbound is allowed in AWS security groups.
+   - If you provide a `securityGroupId` in `config/config-aws.yaml`, the
+     controller will launch instances within that group.
+
+3. **Configure** `config/config-aws.yaml`
+
+In [config/config-aws.yaml](config/config-aws.yaml) you will see that the `workers` section no longer appears, instead there is an `aws` section. Use this section to set your AWS credentials and options such as:
+
+- `amiId` (required): The one provided by the AMI creation script
+- `securityGroupId` (required): The one created in the previous step
+- `instanceType` (required): Instance type of the instances. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) for details on resource consumption of the workers depending on browser configuration
+- `terminateWorkers` (optional, default: `true`): Whether to terminate EC2 instances after test completion. Set to `false` if you want to keep the instances stopped instead of terminated for debugging or other purposes after the test finishes.
+- `region` (required) and `availabilityZone` (optional): Where the instances will be launched
+- `keyPairName` (optional): The name of the key pair to use for SSH access if needed for debugging
+
+Example snippet:
+
+```yaml
+aws:
+  accessKey: your_access_key
+  secretAccessKey: your_secret_key
+  amiId: ami-xxxxxxxxxxxxx
+  instanceType: t3.medium
+  keyPairName: your-key-pair
+  securityGroupId: sg-xxxxxxxxxxxxx
+  region: us-east-1
+  availabilityZone: us-east-1a
+  workersAtStart: 10
+  rampUpWorkers: 10
+  terminateWorkers: true
+```
+
+4. **Start the system using the AWS docker compose file**
+
+```bash
+docker compose -f docker-compose.aws.yml up --build
+```
+
+5. **Run and monitor the test**
+
+- The controller will provision EC2 instances (using the AMI) and register browser-emulator workers according to the AWS section in the config.
+- Test results are generated under `results/results.html` as with local runs.
+
+6. **Cleanup**
+
+- If `terminateWorkers` is `true` in your config, EC2 instances will be terminated automatically after the test.
+- To manually clean up, terminate instances via the AWS console or use the scripts in [loadtest-controller/debug](loadtest-controller/debug).
+
+See [Configuration](#configuration) for more details on AWS settings and environment variable overrides.
 
 ## **Configuration**
 
@@ -192,6 +293,23 @@ Decide between the `emulated` worker mode and real browsers based on the trade-o
 - **Use real browsers (`chrome` / `firefox`) when**:
   - You need accurate end-to-end behaviour, QoE analysis, WebRTC stats or need to validate features that depend on actual browser APIs.
   - You are debugging issues that may be caused by rendering or browser implementation differences.
+
+Resource recommendations per participant:
+| Mode | CPU (vCPU) | Memory (GB) |
+| -------- | -------- | -------- |
+| `emulated` | 0.2 | 0.2 |
+| `chrome` or `firefox` | 1 | 1 |
+| `chrome` or `firefox` with full-screen recording | 2 | 2 |
+| `chrome` or `firefox` with Media Recorders for QoE Analysis | 4 | 8 |
+
+For example, if using AWS EC2 `c5.xlarge` instances for the workers (4 vCPU, 8GB RAM), you can set the `distribution.usersPerWorker` to the following values based on the mode:
+
+| Mode                                                        | Users per Worker |
+| ----------------------------------------------------------- | ---------------- |
+| `emulated`                                                  | 20               |
+| `chrome` or `firefox`                                       | 4                |
+| `chrome` or `firefox` with full-screen recording            | 2                |
+| `chrome` or `firefox` with Media Recorders for QoE Analysis | 1                |
 
 ### Workers
 
