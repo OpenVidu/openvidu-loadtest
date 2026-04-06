@@ -5,6 +5,7 @@ import java.net.http.HttpResponse;
 import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Calendar;
 import java.util.Map;
@@ -66,6 +67,7 @@ public class BrowserEmulatorClient {
     private WorkerUrlResolver workerUrlResolver;
 
     private ConcurrentHashMap<String, ConcurrentHashMap<String, AtomicInteger>> clientFailures = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, ConcurrentHashMap<String, List<RetryAttempt>>> clientRetryAttempts = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, ConcurrentHashMap<String, Role>> clientRoles = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, TestCase> participantTestCases = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, AtomicBoolean> participantConnecting = new ConcurrentHashMap<>();
@@ -81,6 +83,33 @@ public class BrowserEmulatorClient {
 
     private String httpProtocolPrefix;
 
+    public static class RetryAttempt {
+        private final int attemptNumber;
+        private final Calendar errorTimestamp;
+        private Calendar reconnectTimestamp;
+
+        public RetryAttempt(int attemptNumber, Calendar errorTimestamp) {
+            this.attemptNumber = attemptNumber;
+            this.errorTimestamp = errorTimestamp;
+        }
+
+        public void setReconnectTimestamp(Calendar reconnectTimestamp) {
+            this.reconnectTimestamp = reconnectTimestamp;
+        }
+
+        public int getAttemptNumber() {
+            return attemptNumber;
+        }
+
+        public Calendar getErrorTimestamp() {
+            return errorTimestamp;
+        }
+
+        public Calendar getReconnectTimestamp() {
+            return reconnectTimestamp;
+        }
+    }
+
     public BrowserEmulatorClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, JsonUtils jsonUtils,
             Sleeper sleeper, WorkerUrlResolver workerUrlResolver) {
         this.loadTestConfig = loadTestConfig;
@@ -94,6 +123,7 @@ public class BrowserEmulatorClient {
     public void clean() {
         this.isClean.set(true);
         this.clientFailures.clear();
+        this.clientRetryAttempts.clear();
         this.clientRoles.clear();
         this.participantTestCases.clear();
         this.participantConnecting.clear();
@@ -227,8 +257,7 @@ public class BrowserEmulatorClient {
                 log.debug("Stop reconnecting participant {} in session {}", participant, session);
                 this.lastErrorReconnectingResponse = new CreateParticipantResponse()
                         .setResponseOk(false)
-                        .setStopReason("Participant " + participant + "-" + session + " failed after "
-                                + newFailures + " retries");
+                        .setStopReason(this.buildParticipantFailureReason(participant, session, newFailures, true));
             }
         }
     }
@@ -266,23 +295,27 @@ public class BrowserEmulatorClient {
         try {
             ConcurrentHashMap<String, Role> workerRoles = this.clientRoles.get(workerUrl);
             if (workerRoles == null) {
-                log.debug("Worker roles is null for {} in session {} in {}. Waiting ...", participant, session, workerUrl);
+                log.debug("Worker roles is null for {} in session {} in {}. Waiting ...", participant, session,
+                        workerUrl);
                 sleeper.sleep(WAIT_S, null);
                 this.afterDisconnect(workerUrl, participant, session);
                 return;
             }
             Role role = workerRoles.get(user);
             if (role == null) {
-                log.warn("Role is null for {} in session {} in {}. This worker may not have this participant.", participant, session, workerUrl);
+                log.warn("Role is null for {} in session {} in {}. This worker may not have this participant.",
+                        participant, session, workerUrl);
                 return;
             }
             int userNumber = Integer.parseInt(participant.replace(loadTestConfig.getUserNamePrefix(), ""));
             int sessionNumber = Integer.parseInt(session.replace(loadTestConfig.getSessionNamePrefix(), ""));
             CreateParticipantResponse response = null;
             if (role.equals(Role.PUBLISHER)) {
-                response = this.createPublisher(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+                response = this.createPublisher(workerUrl, userNumber, sessionNumber,
+                        this.participantTestCases.get(user));
             } else {
-                response = this.createSubscriber(workerUrl, userNumber, sessionNumber, this.participantTestCases.get(user));
+                response = this.createSubscriber(workerUrl, userNumber, sessionNumber,
+                        this.participantTestCases.get(user));
             }
             if (response.isResponseOk()) {
                 this.participantReconnecting.remove(user);
@@ -464,22 +497,31 @@ public class BrowserEmulatorClient {
                         key -> new ConcurrentHashMap<>());
                 AtomicInteger userFailures = failuresMap.computeIfAbsent(user, key -> new AtomicInteger(0));
                 int failures = userFailures.incrementAndGet();
+
+                ConcurrentHashMap<String, List<RetryAttempt>> retryAttemptsMap = this.clientRetryAttempts
+                        .computeIfAbsent(workerUrl, key -> new ConcurrentHashMap<>());
+                List<RetryAttempt> userAttempts = retryAttemptsMap.computeIfAbsent(user, key -> new ArrayList<>());
+                Calendar errorTime = Calendar.getInstance();
+                userAttempts.add(new RetryAttempt(failures, errorTime));
                 log.error("Participant {} in session {} failed {} times", userId, sessionId, failures);
                 sleeper.sleep(WAIT_S, null);
                 if (!loadTestConfig.isRetryMode() || isResponseLimitReached(failures) || endOfTest.get()) {
-                    String reason = "Participant " + userId + "-" + sessionId + " failed after "
-                            + failures + " retries";
-                    // Set lastErrorReconnectingResponse to trigger test termination
+                    boolean isReconnecting = this.participantReconnecting.contains(user);
+                    String reason = this.buildParticipantFailureReason(userId, sessionId, failures, isReconnecting);
                     this.lastErrorReconnectingResponse = new CreateParticipantResponse()
                             .setResponseOk(false)
                             .setStopReason(reason);
-                    // Also set stopReason on the returned response to avoid race condition
-                    // where getLastResponse() may return this object before lastErrorReconnectingResponse is visible
                     return cpr.setResponseOk(false).setStopReason(reason);
                 }
                 log.warn("Retrying");
                 return this.createParticipant(workerUrl, userNumber, sessionNumber, testCase, role);
             } else {
+                ConcurrentHashMap<String, List<RetryAttempt>> retryAttemptsMap = this.clientRetryAttempts
+                        .computeIfAbsent(workerUrl, key -> new ConcurrentHashMap<>());
+                List<RetryAttempt> userAttempts = retryAttemptsMap.computeIfAbsent(user, key -> new ArrayList<>());
+                if (!userAttempts.isEmpty()) {
+                    userAttempts.get(userAttempts.size() - 1).setReconnectTimestamp(Calendar.getInstance());
+                }
                 this.participantConnecting.get(user).set(false);
                 this.saveParticipantData(workerUrl, testCase.isTeaching() ? Role.PUBLISHER : role);
             }
@@ -578,6 +620,15 @@ public class BrowserEmulatorClient {
 
     private boolean isResponseLimitReached(int failures) {
         return failures == loadTestConfig.getRetryTimes();
+    }
+
+    private String buildParticipantFailureReason(String participant, String session, int attempts,
+            boolean reconnecting) {
+        if (reconnecting) {
+            return "Participant " + participant + "-" + session + " failed to reconnect after " + attempts
+                    + " attempts";
+        }
+        return "Participant " + participant + "-" + session + " failed after " + attempts + " retries";
     }
 
     private CreateUserRequestBody generateRequestBody(int userNumber, String sessionNumber, Role role,
@@ -719,6 +770,22 @@ public class BrowserEmulatorClient {
             }
         }
         return counts;
+    }
+
+    public Map<String, List<RetryAttempt>> getPerUserRetryAttempts() {
+        Map<String, List<RetryAttempt>> result = new LinkedHashMap<>();
+        for (ConcurrentHashMap<String, List<RetryAttempt>> userAttempts : clientRetryAttempts.values()) {
+            for (Map.Entry<String, List<RetryAttempt>> entry : userAttempts.entrySet()) {
+                String userSession = entry.getKey();
+                List<RetryAttempt> attempts = entry.getValue();
+                result.merge(userSession, attempts, (existing, incoming) -> {
+                    existing.addAll(incoming);
+                    existing.sort((a, b) -> Integer.compare(a.getAttemptNumber(), b.getAttemptNumber()));
+                    return existing;
+                });
+            }
+        }
+        return result;
     }
 
     public void shutdownWorkers(List<String> workerUrls, boolean waitForResponse) {

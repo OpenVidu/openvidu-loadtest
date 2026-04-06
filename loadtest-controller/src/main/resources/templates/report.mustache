@@ -199,6 +199,52 @@
 
         .no-data { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; }
 
+        .retry-details-btn {
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .retry-details-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        .retry-details-row {
+            display: none;
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .retry-details-row td {
+            padding: 0;
+        }
+
+        .retry-details-wrap {
+            padding: 14px 18px;
+        }
+
+        .retry-attempts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .retry-attempts-table th,
+        .retry-attempts-table td {
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .retry-attempts-table th {
+            color: var(--text-secondary);
+            background: rgba(0, 0, 0, 0.2);
+            cursor: default;
+        }
+
         @media (max-width: 768px) {
             body { padding: 12px; }
             .header { padding: 16px; }
@@ -299,47 +345,14 @@
                             {{#summaryRows}}
                             <tr><td class="metric">{{metric}}</td><td class="value">{{value}}</td></tr>
                             {{/summaryRows}}
-                            {{#hasErrorRows}}
-                            <tr><td class="metric-key">Total Errors</td><td class="metric-value"><span class="error-count {{errorSeverityClass}}">{{totalErrors}}</span></td></tr>
-                            {{/hasErrorRows}}
+                            
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        {{#hasErrorRows}}
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 8v4M12 16h.01"/>
-                    </svg>
-                    Error Categorization
-                </div>
-                <div class="section-toggle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="section-content">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr><th onclick="sortTable(this, 0)">Error Reason <span class="sort-icon">↕</span></th><th onclick="sortTable(this, 1)">Count <span class="sort-icon">↕</span></th><th onclick="sortTable(this, 2)">Percentage <span class="sort-icon">↕</span></th></tr>
-                        </thead>
-                        <tbody>
-                            {{#errorRows}}
-                            <tr><td>{{reason}}</td><td><span class="error-count {{errorSeverityClass}}">{{count}}</span></td><td>{{percentage}}</td></tr>
-                            {{/errorRows}}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        {{/hasErrorRows}}
+        
 
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
@@ -469,16 +482,48 @@
                                 <th onclick="sortUserTable(this, 0)">User <span class="sort-icon">↕</span></th>
                                 <th onclick="sortUserTable(this, 1)">Session <span class="sort-icon">↕</span></th>
                                 <th onclick="sortUserTable(this, 2)">Join Date <span class="sort-icon">↕</span></th>
-                                <th onclick="sortUserTable(this, 3)">Disconnect Date <span class="sort-icon">↕</span></th>
-                                <th onclick="sortUserTable(this, 4)">Retries <span class="sort-icon">↕</span></th>
+                                <th onclick="sortUserTable(this, 3)">Retries <span class="sort-icon">↕</span></th>
+                                <th>Retry Details</th>
                             </tr>
                         </thead>
                         <tbody id="userTableBody">
                             {{#userRows}}
-                            <tr>
-                                <td>{{userId}}</td><td>{{sessionId}}</td><td>{{joinDate}}</td><td>{{disconnectDate}}</td>
+                            <tr class="user-row" data-detail-id="{{retryDetailId}}">
+                                <td>{{userId}}</td><td>{{sessionId}}</td><td>{{joinDate}}</td>
                                 <td>{{#ifRetriesGreaterThanZero}}<span class="error-count medium">{{retries}}</span>{{/ifRetriesGreaterThanZero}}{{^ifRetriesGreaterThanZero}}{{retries}}{{/ifRetriesGreaterThanZero}}</td>
+                                <td>
+                                    {{#hasRetryAttempts}}
+                                    <button class="retry-details-btn" data-detail-id="{{retryDetailId}}">Show</button>
+                                    {{/hasRetryAttempts}}
+                                    {{^hasRetryAttempts}}-{{/hasRetryAttempts}}
+                                </td>
                             </tr>
+                            {{#hasRetryAttempts}}
+                            <tr id="{{retryDetailId}}" class="retry-details-row">
+                                <td colspan="5">
+                                    <div class="retry-details-wrap">
+                                        <table class="retry-attempts-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Attempt</th>
+                                                    <th>Error Date</th>
+                                                    <th>Reconnect Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {{#retryAttempts}}
+                                                <tr>
+                                                    <td>{{attemptNumber}}</td>
+                                                    <td>{{errorDate}}</td>
+                                                    <td>{{reconnectDate}}</td>
+                                                </tr>
+                                                {{/retryAttempts}}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{/hasRetryAttempts}}
                             {{/userRows}}
                             {{^userRows}}
                             <tr><td colspan="5" class="no-data">No participants</td></tr>
@@ -520,12 +565,12 @@
 
         function sortUserTable(th, colIndex) {
             const tbody = document.getElementById('userTableBody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const rows = Array.from(tbody.querySelectorAll('tr.user-row'));
             sortDirection['user'] = !sortDirection['user'];
             const dir = sortDirection['user'] ? 1 : -1;
-            document.querySelectorAll('#userTable th').forEach(h => h.classList.remove('sorted'));
+            document.querySelectorAll('#user-connections-table th').forEach(h => h.classList.remove('sorted'));
             th.classList.add('sorted');
-            const dateColumns = [2, 3];
+            const dateColumns = [2];
             rows.sort((a, b) => {
                 const aVal = a.children[colIndex].textContent.trim();
                 const bVal = b.children[colIndex].textContent.trim();
@@ -541,20 +586,83 @@
                 if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * dir;
                 return aVal.localeCompare(bVal) * dir;
             });
-            rows.forEach(row => tbody.appendChild(row));
+            filteredUsers = rows;
+            currentPage = 1;
+            updatePagination();
         }
 
         let currentPage = 1;
-        const pageSize = 15;
+        const pageSize = {{pageSize}};
+        let allUserRows = [];
         let filteredUsers = [];
+        let detailRowsById = {};
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const userRows = document.querySelectorAll('#userTableBody tr');
-            if (userRows.length > 0) {
-                filteredUsers = Array.from(userRows);
+        function initUserTable() {
+            const tbody = document.getElementById('userTableBody');
+            const allRows = Array.from(tbody.querySelectorAll('tr'));
+            // Capture user rows and associated detail rows before we clear the tbody
+            for (let i = 0; i < allRows.length; i++) {
+                const r = allRows[i];
+                if (r.classList.contains('user-row')) {
+                    // If the next row is a retry-details-row, pair them
+                    const next = allRows[i + 1];
+                    if (next && next.classList.contains('retry-details-row') && next.id) {
+                        // store direct reference on the user row for robustness during pagination
+                        r._detailRow = next;
+                        detailRowsById[next.id] = next;
+                        i++; // skip the detail row in the outer loop
+                    }
+                    allUserRows.push(r);
+                } else if (r.classList.contains('retry-details-row') && r.id) {
+                    detailRowsById[r.id] = r;
+                }
+            }
+            if (allUserRows.length > 0) {
+                // Default sort: Join Date (oldest first)
+                // Join Date is the 3rd column (index 2) in the user-row cells
+                filteredUsers = [...allUserRows].sort((a, b) => {
+                    const aVal = a.children[2].textContent.trim();
+                    const bVal = b.children[2].textContent.trim();
+                    // Treat missing values as greater so they appear at the end for ascending order
+                    if (aVal === '-' || aVal === '') return 1;
+                    if (bVal === '-' || bVal === '') return -1;
+                    const aDate = new Date(aVal.replace(' ', 'T'));
+                    const bDate = new Date(bVal.replace(' ', 'T'));
+                    if (!isNaN(aDate) && !isNaN(bDate)) return aDate.getTime() - bDate.getTime();
+                    return aVal.localeCompare(bVal);
+                });
+                // Reflect sort state so subsequent user-initiated sorts toggle correctly
+                sortDirection['user'] = true; // true -> ascending (oldest first)
+                // Visually mark the Join Date header as sorted by default
+                const joinDateHeader = document.querySelectorAll('#user-connections-table th')[2];
+                if (joinDateHeader) joinDateHeader.classList.add('sorted');
                 updatePagination();
             }
-        });
+
+            // Delegate click handling for retry details buttons to avoid issues when rows are reparented
+            document.addEventListener('click', function(e) {
+                // Normalize to an Element in case the target is a text node
+                let el = e.target;
+                while (el && el.nodeType !== 1) el = el.parentNode;
+                if (!el) return;
+                const btn = el.closest('.retry-details-btn');
+                if (!btn) return;
+                const detailId = btn.getAttribute('data-detail-id') || btn.dataset.detailId;
+                if (!detailId) return;
+                // Debugging aid: log clicks to console so users can report if handler runs
+                if (window && window.console && window.console.debug) {
+                    console.debug('[report] retry-details clicked:', detailId, btn);
+                }
+                toggleRetryDetails(detailId, btn);
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initUserTable);
+        } else {
+            // Document already loaded, initialize immediately
+            initUserTable();
+        }
 
         function updatePagination() {
             const totalUsers = filteredUsers.length;
@@ -566,7 +674,30 @@
             const end = start + pageSize;
             const tbody = document.getElementById('userTableBody');
             tbody.innerHTML = '';
-            filteredUsers.slice(start, end).forEach(row => tbody.appendChild(row));
+            filteredUsers.slice(start, end).forEach(row => {
+                tbody.appendChild(row);
+                const detailId = row.getAttribute('data-detail-id');
+                // Prefer direct reference stored on the row, then mapping, then DOM lookup
+                const detailRow = row._detailRow || (detailId ? detailRowsById[detailId] || document.getElementById(detailId) : null);
+                if (detailRow && !row._detailRow) {
+                    row._detailRow = detailRow;
+                }
+                if (detailRow) {
+                    detailRow.style.display = 'none';
+                    const toggleBtn = row.querySelector('.retry-details-btn');
+                    if (toggleBtn) {
+                        toggleBtn.textContent = 'Show';
+                        // Ensure a direct click handler exists on the button to be robust across environments
+                        try {
+                            // Replace any existing onclick to avoid duplicate handlers
+                            toggleBtn.onclick = function(evt) { evt.stopPropagation(); toggleRetryDetails(detailId, this); };
+                        } catch (e) {
+                            // ignore environment where setting onclick may fail
+                        }
+                    }
+                    tbody.appendChild(detailRow);
+                }
+            });
         }
 
         function prevPage() { if (currentPage > 1) { currentPage--; updatePagination(); } }
@@ -574,10 +705,35 @@
 
         function filterUsers() {
             const searchTerm = document.getElementById('userSearch').value.toLowerCase();
-            const allRows = document.querySelectorAll('#userTableBody tr');
-            filteredUsers = Array.from(allRows).filter(row => row.textContent.toLowerCase().includes(searchTerm));
+            filteredUsers = allUserRows.filter(row => row.textContent.toLowerCase().includes(searchTerm));
             currentPage = 1;
             updatePagination();
+        }
+
+        function toggleRetryDetails(detailId, button) {
+            // Prefer the paired row reference stored on the button's user-row ancestor
+            let userRow = button && button.closest ? button.closest('tr.user-row') : null;
+            let detailRow = null;
+            if (userRow && userRow._detailRow) {
+                detailRow = userRow._detailRow;
+            }
+            if (!detailRow) {
+                detailRow = document.getElementById(detailId);
+            }
+            if (!detailRow) {
+                if (window && window.console && window.console.warn) {
+                    console.warn('[report] retry detail row not found for id:', detailId);
+                }
+                return;
+            }
+            // Use computed style to determine visibility in case stylesheet hides it
+            const computed = window.getComputedStyle(detailRow);
+            const isVisible = detailRow.style.display === 'table-row' || computed.display === 'table-row';
+            detailRow.style.display = isVisible ? 'none' : 'table-row';
+            if (window && window.console && window.console.debug) {
+                console.debug('[report] toggled detailRow', detailId, 'visible:', !isVisible);
+            }
+            button.textContent = isVisible ? 'Show' : 'Hide';
         }
     </script>
 </body>

@@ -10,7 +10,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Simulates participant reconnection failures for integration testing.
- * Supports registering specific participants to fail on creation or on reconnection.
+ * Supports registering specific participants to fail on creation or on
+ * reconnection.
  */
 public class ReconnectionFailureSimulator {
     private static final Logger log = LoggerFactory.getLogger(ReconnectionFailureSimulator.class);
@@ -44,7 +45,8 @@ public class ReconnectionFailureSimulator {
     }
 
     /**
-     * Register a participant to fail N times on initial HTTP creation, then succeed.
+     * Register a participant to fail N times on initial HTTP creation, then
+     * succeed.
      */
     public void addFailOnCreateNTimes(String userId, String sessionName, int n) {
         String completeUser = userId + "-" + sessionName;
@@ -64,11 +66,12 @@ public class ReconnectionFailureSimulator {
 
     /**
      * Check if this participant should fail on creation.
-     * Returns true if the participant is registered to fail and hasn't exceeded its failure limit.
+     * Returns true if the participant is registered to fail and hasn't exceeded its
+     * failure limit.
      */
     public boolean shouldFailOnCreate(String userId, String sessionName) {
         String completeUser = userId + "-" + sessionName;
-        
+
         // Check if registered for N-time failures
         Integer maxFailures = failOnCreateNTimes.get(completeUser);
         if (maxFailures != null) {
@@ -81,12 +84,12 @@ public class ReconnectionFailureSimulator {
             log.info("Creation for {} succeeded after {} failed attempts", completeUser, maxFailures);
             return false;
         }
-        
+
         // Check if registered for full MAX_RETRIES failures
         if (failOnCreateParticipants.contains(completeUser)) {
             return true;
         }
-        
+
         return false;
     }
 
@@ -100,9 +103,9 @@ public class ReconnectionFailureSimulator {
             return false;
         }
         AtomicInteger count = retryCounts.computeIfAbsent(completeUser, k -> new AtomicInteger(0));
-        int attempts = count.incrementAndGet();
-        if (attempts <= MAX_RETRIES) {
-            log.info("Reconnection failure for {} (attempt {}/{})", completeUser, attempts, MAX_RETRIES);
+        int attemptsSoFar = count.get();
+        if (attemptsSoFar < MAX_RETRIES) {
+            log.info("Reconnection failure for {} (attempt {}/{})", completeUser, attemptsSoFar + 1, MAX_RETRIES);
             return true;
         }
         log.info("Reconnection for {} succeeded after {} failed attempts", completeUser, MAX_RETRIES);

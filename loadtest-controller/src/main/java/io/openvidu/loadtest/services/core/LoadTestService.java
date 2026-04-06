@@ -362,6 +362,7 @@ public class LoadTestService {
                 .setUserSuccessTimestamps(userSuccessTimestamps)
                 .setParticipantResponses(participantOrchestrator.getAllParticipantResponses())
                 .setUserRetryCounts(browserEmulatorClient.getPerUserRetryCounts())
+                .setUserRetryAttempts(browserEmulatorClient.getPerUserRetryAttempts())
                 .build();
 
         io.exportResults(rr);

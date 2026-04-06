@@ -296,11 +296,12 @@ class LoadTestIntegrationTest {
         assertTrue(headers.stream().anyMatch(h -> h.contains("User")), "Should have User column: " + headers);
         assertTrue(headers.stream().anyMatch(h -> h.contains("Session")), "Should have Session column: " + headers);
         assertTrue(headers.stream().anyMatch(h -> h.contains("Join Date")), "Should have Join Date column: " + headers);
-        assertTrue(headers.stream().anyMatch(h -> h.contains("Disconnect Date")), "Should have Disconnect Date column: " + headers);
         assertTrue(headers.stream().anyMatch(h -> h.contains("Retries")), "Should have Retries column: " + headers);
+        assertTrue(headers.stream().anyMatch(h -> h.contains("Retry Details")), "Should have Retry Details column: " + headers);
+        assertFalse(headers.stream().anyMatch(h -> h.contains("Disconnect Date")), "Disconnect Date column should not be present: " + headers);
 
         // Get user data rows (exclude header row)
-        Elements userRows = userTable.select("tr:has(td)");
+        Elements userRows = userTable.select("tr.user-row");
 
         // Extract all user IDs from the table
         List<String> userIds = new ArrayList<>();
@@ -319,8 +320,8 @@ class LoadTestIntegrationTest {
             if (cells.size() >= 5) {
                 String session = cells.get(1).text();
                 String joinDate = cells.get(2).text();
-                String disconnectDate = cells.get(3).text();
-                String retryNumber = cells.get(4).text();
+                String retryNumber = cells.get(3).text();
+                String retryDetails = cells.get(4).text();
 
                 // Verify session name format
                 assertEquals("LoadTestSession1", session, "Session name should be LoadTestSession1");
@@ -331,8 +332,7 @@ class LoadTestIntegrationTest {
 
                 // Verify retry number is 0 (no reconnections)
                 assertEquals("0", retryNumber, "Retry number should be 0");
-
-                assertEquals("-", disconnectDate, "Disconnect date should be '-' for active users (no disconnects)");
+                assertEquals("-", retryDetails, "Retry details should be '-' for users without retry attempts");
             }
 
             // Verify it's valid HTML

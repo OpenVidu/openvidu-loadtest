@@ -40,8 +40,6 @@ class ResultReportTest {
         assertNull(resultReport.getEndTime());
         assertEquals("", resultReport.getS3BucketName());
         assertEquals("", resultReport.getStopReason());
-        assertNotNull(resultReport.getErrorCounts());
-        assertTrue(resultReport.getErrorCounts().isEmpty());
         assertNotNull(resultReport.getWorkerCpuAvg());
         assertTrue(resultReport.getWorkerCpuAvg().isEmpty());
         assertNotNull(resultReport.getWorkerCpuMax());
@@ -71,7 +69,6 @@ class ResultReportTest {
         resultReport.setParticipantResponses(responses);
 
         assertTrue(resultReport.getParticipantResponses().isEmpty());
-        assertTrue(resultReport.getErrorCounts().isEmpty());
         assertTrue(resultReport.getWorkerCpuAvg().isEmpty());
         assertTrue(resultReport.getWorkerCpuMax().isEmpty());
         // User start delays percentiles should be empty because userStartTimes is empty
@@ -88,7 +85,6 @@ class ResultReportTest {
         resultReport.setParticipantResponses(responses);
 
         assertEquals(3, resultReport.getParticipantResponses().size());
-        assertTrue(resultReport.getErrorCounts().isEmpty());
         assertEquals(3, resultReport.getWorkerCpuAvg().size());
         assertEquals(30.0, resultReport.getWorkerCpuAvg().get("worker1"), 0.001);
         assertEquals(45.0, resultReport.getWorkerCpuAvg().get("worker2"), 0.001);
@@ -101,16 +97,15 @@ class ResultReportTest {
     @Test
     void testSetParticipantResponses_withFailedResponses() {
         List<CreateParticipantResponse> responses = new ArrayList<>();
-        responses.add(new CreateParticipantResponse(false, "Connection refused", "conn1", -1, -1, "", "", 0, "worker1"));
-        responses.add(new CreateParticipantResponse(false, "Connection refused", "conn2", -1, -1, "", "", 0, "worker1"));
+        responses
+                .add(new CreateParticipantResponse(false, "Connection refused", "conn1", -1, -1, "", "", 0, "worker1"));
+        responses
+                .add(new CreateParticipantResponse(false, "Connection refused", "conn2", -1, -1, "", "", 0, "worker1"));
         responses.add(new CreateParticipantResponse(false, "Timeout", "conn3", -1, -1, "", "", 0, "worker2"));
 
         resultReport.setParticipantResponses(responses);
 
         assertEquals(3, resultReport.getParticipantResponses().size());
-        assertEquals(2, resultReport.getErrorCounts().size());
-        assertEquals(2, resultReport.getErrorCounts().get("Connection refused"));
-        assertEquals(1, resultReport.getErrorCounts().get("Timeout"));
         // CPU stats should be empty because no successful responses
         assertTrue(resultReport.getWorkerCpuAvg().isEmpty());
         assertTrue(resultReport.getWorkerCpuMax().isEmpty());
@@ -126,8 +121,6 @@ class ResultReportTest {
         resultReport.setParticipantResponses(responses);
 
         assertEquals(3, resultReport.getParticipantResponses().size());
-        assertEquals(1, resultReport.getErrorCounts().size());
-        assertEquals(1, resultReport.getErrorCounts().get("Timeout"));
         assertEquals(3, resultReport.getWorkerCpuAvg().size());
         assertEquals(20.0, resultReport.getWorkerCpuAvg().get("worker1"), 0.001);
         assertEquals(40.0, resultReport.getWorkerCpuAvg().get("worker2"), 0.001);
@@ -216,18 +209,7 @@ class ResultReportTest {
         assertEquals(60.0, resultReport.getWorkerCpuMax().get("worker2"), 0.001);
     }
 
-    @Test
-    void testSetErrorCounts() {
-        Map<String, Integer> errors = new HashMap<>();
-        errors.put("Timeout", 5);
-        errors.put("Connection refused", 3);
-
-        resultReport.setErrorCounts(errors);
-
-        assertEquals(2, resultReport.getErrorCounts().size());
-        assertEquals(5, resultReport.getErrorCounts().get("Timeout"));
-        assertEquals(3, resultReport.getErrorCounts().get("Connection refused"));
-    }
+    // Error counts deprecated and tests removed
 
     @Test
     void testGettersAndSetters() {

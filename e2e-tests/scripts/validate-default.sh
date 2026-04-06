@@ -96,8 +96,8 @@ if [ -f "$RESULTS_DIR/results.txt" ]; then
         
         if grep -q "User Connections" "$HTML_FILE"; then
             echo "✓ HTML contains 'User Connections'"
-            if grep -q "Join Date" "$HTML_FILE" && grep -q "Disconnect Date" "$HTML_FILE" && grep -q "Retries" "$HTML_FILE"; then
-                echo "✓ HTML contains new table columns"
+            if grep -q "Join Date" "$HTML_FILE" && grep -q "Retries" "$HTML_FILE" && grep -q "Retry Details" "$HTML_FILE"; then
+                echo "✓ HTML contains expected table columns"
                 if grep -q "User1" "$HTML_FILE" && grep -q "User2" "$HTML_FILE"; then
                     echo "✓ HTML contains two user rows"
                 else
@@ -105,7 +105,7 @@ if [ -f "$RESULTS_DIR/results.txt" ]; then
                     HTML_VALIDATION_PASSED=false
                 fi
             else
-                echo "✗ HTML missing new table columns"
+                echo "✗ HTML missing expected table columns (Join Date, Retries, Retry Details)"
                 HTML_VALIDATION_PASSED=false
             fi
         else

@@ -15,8 +15,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -27,6 +27,7 @@ import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
 
 import io.openvidu.loadtest.models.testcase.ResultReport;
+import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 
 @Component
 public class HtmlReportGenerator {
@@ -88,11 +89,7 @@ public class HtmlReportGenerator {
 
     private Map<String, Object> buildTemplateContext(ResultReport result) {
         Map<String, Object> context = new HashMap<>();
-        
-        // Build error rows FIRST to check if errors exist
-        List<Map<String, String>> errorRows = buildErrorRows(result.getErrorCounts());
-        boolean hasErrors = !errorRows.isEmpty();
-        
+
         // Now add to context
         context.put("generatedAt", formatDate(result.getStartTime()));
         context.put("testDuration", getDuration(result));
@@ -101,13 +98,10 @@ public class HtmlReportGenerator {
         context.put("totalParticipants", result.getTotalParticipants());
         context.put("workersUsed", result.getWorkersUsed());
         context.put("summaryRows", buildSummaryRows(result));
-        
-        context.put("hasErrorRows", hasErrors);
-        context.put("errorRows", errorRows);
-        context.put("totalErrors", calculateTotalErrors(result.getErrorCounts()));
-        context.put("errorSeverityClass", getErrorSeverityClass(result.getErrorCounts(), result.getTotalParticipants()));
 
-        List<Map<String, String>> cpuRows = buildCpuRows(result.getWorkerCpuAvg(), result.getWorkerCpuMax());
+        // Error categorization removed: single stop reason is used to stop tests
+
+        List<Map<String, Object>> cpuRows = buildCpuRows(result.getWorkerCpuAvg(), result.getWorkerCpuMax());
         context.put("hasCpuRows", !cpuRows.isEmpty());
         context.put("cpuRows", cpuRows);
 
@@ -131,27 +125,6 @@ public class HtmlReportGenerator {
         return context;
     }
 
-    private int calculateTotalErrors(Map<String, Integer> errorCounts) {
-        if (errorCounts == null || errorCounts.isEmpty()) {
-            return 0;
-        }
-        return errorCounts.values().stream().mapToInt(Integer::intValue).sum();
-    }
-
-    private String getErrorSeverityClass(Map<String, Integer> errorCounts, int totalParticipants) {
-        int totalErrors = calculateTotalErrors(errorCounts);
-        if (totalErrors == 0) {
-            return "low";
-        }
-        double errorRate = totalParticipants > 0 ? (double) totalErrors / totalParticipants : 0;
-        if (errorRate > 0.2) {
-            return "high";
-        } else if (errorRate > 0.05) {
-            return "medium";
-        }
-        return "low";
-    }
-
     private List<Map<String, String>> buildSummaryRows(ResultReport result) {
         List<Map<String, String>> rows = new ArrayList<>();
         rows.add(stringRow(KEY_METRIC, "Test Duration", KEY_VALUE, getDuration(result)));
@@ -168,46 +141,33 @@ public class HtmlReportGenerator {
         return rows;
     }
 
-    private List<Map<String, String>> buildErrorRows(Map<String, Integer> errorCounts) {
-        Map<String, Integer> effectiveErrorCounts = errorCounts != null ? errorCounts : Map.of();
-        if (effectiveErrorCounts.isEmpty()) {
-            return List.of();
-        }
-
-        int totalErrors = effectiveErrorCounts.values().stream().mapToInt(Integer::intValue).sum();
-        List<Map<String, String>> rows = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : effectiveErrorCounts.entrySet()) {
-            double percentage = totalErrors > 0 ? (double) entry.getValue() / totalErrors * 100 : 0.0;
-            rows.add(stringRow("reason", safeString(entry.getKey()), "count", String.valueOf(entry.getValue()),
-                    "percentage", String.format(PERCENTAGE_FORMAT, percentage)));
-        }
-        return rows;
-    }
-
-    private List<Map<String, String>> buildCpuRows(Map<String, Double> cpuAvg, Map<String, Double> cpuMax) {
+    private List<Map<String, Object>> buildCpuRows(Map<String, Double> cpuAvg, Map<String, Double> cpuMax) {
         Map<String, Double> effectiveCpuAvg = cpuAvg != null ? cpuAvg : Map.of();
         Map<String, Double> effectiveCpuMax = cpuMax != null ? cpuMax : Map.of();
         if (effectiveCpuAvg.isEmpty()) {
             return List.of();
         }
 
-        List<Map<String, String>> rows = new ArrayList<>();
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (Map.Entry<String, Double> cpuEntry : effectiveCpuAvg.entrySet()) {
             String worker = cpuEntry.getKey();
             double avg = cpuEntry.getValue();
             double max = effectiveCpuMax.getOrDefault(worker, 0.0);
             String avgFormatted = String.format(PERCENTAGE_FORMAT, avg);
             String maxFormatted = String.format(PERCENTAGE_FORMAT, max);
-            rows.add(stringRow("worker", safeString(worker), "avgCpu", avgFormatted,
+            boolean isAllWorkers = worker != null && worker.contains("All Workers");
+            rows.add(objectRow("worker", safeString(worker), "avgCpu", avgFormatted,
                     "maxCpu", maxFormatted, "avgCpuColor", getCpuColorClass(avg), "maxCpuColor", getCpuColorClass(max),
-                    "isAllWorkers", "All Workers".equals(worker) ? "true" : ""));
+                    "isAllWorkers", isAllWorkers));
         }
         return rows;
     }
 
     private String getCpuColorClass(double cpu) {
-        if (cpu < 50) return "low";
-        if (cpu < 80) return "medium";
+        if (cpu < 50)
+            return "low";
+        if (cpu < 80)
+            return "medium";
         return "high";
     }
 
@@ -219,18 +179,51 @@ public class HtmlReportGenerator {
 
         Map<String, Integer> userRetryCounts = result.getUserRetryCounts() != null ? result.getUserRetryCounts()
                 : Map.of();
-        Map<String, Calendar> userDisconnectTimestamps = result.getUserDisconnectTimestamps() != null
-                ? result.getUserDisconnectTimestamps()
+        Map<String, List<RetryAttempt>> userRetryAttempts = result.getUserRetryAttempts() != null
+                ? result.getUserRetryAttempts()
                 : Map.of();
-        List<UserRetryInfo> users = toSortedUserRetryInfoList(userSuccessTimestamps, userDisconnectTimestamps,
-                userRetryCounts);
+        List<UserRetryInfo> users = toSortedUserRetryInfoList(userSuccessTimestamps, userRetryCounts);
 
         List<Map<String, Object>> rows = new ArrayList<>();
+        // Track existing detail IDs to avoid collisions when sanitizing keys
+        Set<String> existingDetailIds = new java.util.HashSet<>();
         for (UserRetryInfo info : users) {
+            String key = info.userId + "-" + info.sessionId;
+            List<Map<String, String>> attempts = buildRetryAttemptRows(userRetryAttempts.getOrDefault(key, List.of()));
+            // Create a stable HTML id based on the user-session key. Replace
+            // non-alphanumeric chars with '-'
+            String sanitizedKey = key.replaceAll("[^A-Za-z0-9_-]", "-");
+            String baseId = "retry-details-" + sanitizedKey;
+            String retryDetailId = baseId;
+            int suffix = 0;
+            // Ensure uniqueness if sanitization caused collisions
+            while (existingDetailIds.contains(retryDetailId)) {
+                suffix++;
+                retryDetailId = baseId + "-" + suffix;
+            }
+            existingDetailIds.add(retryDetailId);
             rows.add(objectRow("userId", info.userId, "sessionId", info.sessionId,
                     "joinDate", formatDate(info.joinDate),
-                    "disconnectDate", info.disconnectDate != null ? formatDate(info.disconnectDate) : "-",
-                    "retries", info.retries));
+                    "retries", info.retries,
+                    "ifRetriesGreaterThanZero", info.retries > 0,
+                    "hasRetryAttempts", !attempts.isEmpty(),
+                    "retryDetailId", retryDetailId,
+                    "retryAttempts", attempts));
+        }
+        return rows;
+    }
+
+    private List<Map<String, String>> buildRetryAttemptRows(List<RetryAttempt> retryAttempts) {
+        if (retryAttempts == null || retryAttempts.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map<String, String>> rows = new ArrayList<>();
+        for (RetryAttempt retryAttempt : retryAttempts) {
+            rows.add(stringRow(
+                    "attemptNumber", String.valueOf(retryAttempt.getAttemptNumber()),
+                    "errorDate", formatDate(retryAttempt.getErrorTimestamp()),
+                    "reconnectDate", formatDate(retryAttempt.getReconnectTimestamp())));
         }
         return rows;
     }
@@ -274,17 +267,16 @@ public class HtmlReportGenerator {
     }
 
     private List<UserRetryInfo> toSortedUserRetryInfoList(Map<String, Calendar> userSuccessTimestamps,
-            Map<String, Calendar> userDisconnectTimestamps, Map<String, Integer> userRetryCounts) {
+            Map<String, Integer> userRetryCounts) {
         List<UserRetryInfo> users = new ArrayList<>();
         for (Map.Entry<String, Calendar> entry : userSuccessTimestamps.entrySet()) {
             String key = entry.getKey();
             Calendar joinDate = entry.getValue();
-            Calendar disconnectDate = userDisconnectTimestamps.get(key);
             int retries = userRetryCounts.getOrDefault(key, 0);
             String[] parts = key.split("-", 2);
             String userId = parts.length > 0 && !parts[0].isEmpty() ? parts[0] : "-";
             String sessionId = parts.length > 1 && !parts[1].isEmpty() ? parts[1] : "-";
-            users.add(new UserRetryInfo(userId, sessionId, joinDate, disconnectDate, retries));
+            users.add(new UserRetryInfo(userId, sessionId, joinDate, retries));
         }
 
         users.sort((a, b) -> {
@@ -372,14 +364,12 @@ public class HtmlReportGenerator {
         private final String userId;
         private final String sessionId;
         private final Calendar joinDate;
-        private final Calendar disconnectDate;
         private final int retries;
 
-        UserRetryInfo(String userId, String sessionId, Calendar joinDate, Calendar disconnectDate, int retries) {
+        UserRetryInfo(String userId, String sessionId, Calendar joinDate, int retries) {
             this.userId = userId;
             this.sessionId = sessionId;
             this.joinDate = joinDate;
-            this.disconnectDate = disconnectDate;
             this.retries = retries;
         }
     }

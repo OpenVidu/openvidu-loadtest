@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import java.util.LinkedHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 
 public class ResultReport {
 
@@ -42,7 +45,6 @@ public class ResultReport {
     private double retrySuccessRate = 0.0;
     private double avgRetriesPerParticipant = 0.0;
     private int maxRetriesInSingleParticipant = 0;
-    private Map<String, Integer> errorCounts = new TreeMap<>();
     private Map<String, Double> workerCpuAvg = new TreeMap<>();
     private Map<String, Double> workerCpuMax = new TreeMap<>();
     private Map<String, Integer> workerStreams = new TreeMap<>();
@@ -51,6 +53,7 @@ public class ResultReport {
     private Map<String, Calendar> userSuccessTimestamps = new TreeMap<>(); // key: "session-user"
     private Map<String, Integer> userRetryCounts = new TreeMap<>(); // key: "session-user"
     private Map<String, Calendar> userDisconnectTimestamps = new TreeMap<>(); // key: "session-user"
+    private Map<String, List<RetryAttempt>> userRetryAttempts = new LinkedHashMap<>(); // key: "session-user"
 
     public ResultReport() {
     }
@@ -63,9 +66,9 @@ public class ResultReport {
                 this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
                 this.userStartTimes, this.participantResponses, this.totalRetries, this.successfulRetries,
                 this.retrySuccessRate, this.avgRetriesPerParticipant, this.maxRetriesInSingleParticipant,
-                this.errorCounts, this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
+                this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
                 this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
-                this.userSuccessTimestamps, this.userRetryCounts);
+                this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts);
     }
 
     public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -188,11 +191,6 @@ public class ResultReport {
         return this;
     }
 
-    public ResultReport setErrorCounts(Map<String, Integer> errorCounts) {
-        this.errorCounts = errorCounts;
-        return this;
-    }
-
     public ResultReport setWorkerCpuStats(Map<String, Double> avg, Map<String, Double> max) {
         this.workerCpuAvg = avg;
         this.workerCpuMax = max;
@@ -230,14 +228,12 @@ public class ResultReport {
         return this;
     }
 
+    public ResultReport setUserRetryAttempts(Map<String, List<RetryAttempt>> userRetryAttempts) {
+        this.userRetryAttempts = userRetryAttempts;
+        return this;
+    }
+
     private void computeAggregates() {
-        // Compute error counts from participantResponses
-        errorCounts.clear();
-        for (CreateParticipantResponse resp : participantResponses) {
-            if (!resp.isResponseOk() && resp.getStopReason() != null) {
-                errorCounts.merge(resp.getStopReason(), 1, Integer::sum);
-            }
-        }
         // Compute per-worker and global CPU stats
         Map<String, List<Double>> cpuPerWorker = new TreeMap<>();
         double cpuSum = 0;
@@ -299,11 +295,6 @@ public class ResultReport {
         return sorted.get(index);
     }
 
-    // Getters for new fields
-    public Map<String, Integer> getErrorCounts() {
-        return errorCounts;
-    }
-
     public Map<String, Double> getWorkerCpuAvg() {
         return workerCpuAvg;
     }
@@ -326,6 +317,10 @@ public class ResultReport {
 
     public Map<String, Calendar> getUserDisconnectTimestamps() {
         return userDisconnectTimestamps;
+    }
+
+    public Map<String, List<RetryAttempt>> getUserRetryAttempts() {
+        return userRetryAttempts;
     }
 
     public int getTotalRetries() {
@@ -360,10 +355,11 @@ public class ResultReport {
             List<Long> timePerRecordingWorker, Map<Calendar, List<String>> userStartTimes,
             List<CreateParticipantResponse> participantResponses, int totalRetries, int successfulRetries,
             double retrySuccessRate, double avgRetriesPerParticipant, int maxRetriesInSingleParticipant,
-            Map<String, Integer> errorCounts, Map<String, Double> workerCpuAvg, Map<String, Double> workerCpuMax,
+            Map<String, Double> workerCpuAvg, Map<String, Double> workerCpuMax,
             Map<String, Integer> workerStreams, Map<String, Integer> workerParticipants,
             double[] userStartDelaysPercentiles, Map<String, Calendar> userDisconnectTimestamps,
-            Map<String, Calendar> userSuccessTimestamps, Map<String, Integer> userRetryCounts) {
+            Map<String, Calendar> userSuccessTimestamps, Map<String, Integer> userRetryCounts,
+            Map<String, List<RetryAttempt>> userRetryAttempts) {
         this.totalParticipants = totalParticipants;
         this.numSessionsCompleted = numSessionsCompleted;
         this.numSessionsCreated = numSessionsCreated;
@@ -389,7 +385,6 @@ public class ResultReport {
         this.retrySuccessRate = retrySuccessRate;
         this.avgRetriesPerParticipant = avgRetriesPerParticipant;
         this.maxRetriesInSingleParticipant = maxRetriesInSingleParticipant;
-        this.errorCounts = errorCounts;
         this.workerCpuAvg = workerCpuAvg;
         this.workerCpuMax = workerCpuMax;
         this.workerStreams = workerStreams;
@@ -398,6 +393,7 @@ public class ResultReport {
         this.userDisconnectTimestamps = userDisconnectTimestamps;
         this.userSuccessTimestamps = userSuccessTimestamps;
         this.userRetryCounts = userRetryCounts;
+        this.userRetryAttempts = userRetryAttempts;
     }
 
     private String getDuration() {

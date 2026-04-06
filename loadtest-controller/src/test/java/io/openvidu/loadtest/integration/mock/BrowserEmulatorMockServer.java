@@ -53,6 +53,9 @@ public class BrowserEmulatorMockServer {
     private ReconnectionFailureSimulator failureSimulator;
     private final CopyOnWriteArrayList<ParticipantCreationListener> creationListeners = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<String, String> participantToWorker = new ConcurrentHashMap<>();
+    
+    private int maxParticipantsThreshold = -1;
+    private Runnable onMaxParticipantsReached;
 
     /**
      * Track which worker a participant belongs to.
@@ -110,6 +113,52 @@ public class BrowserEmulatorMockServer {
      */
     public void setWebSocketServer(WebSocketMockServer webSocketServer) {
         this.webSocketServer = webSocketServer;
+    }
+
+    /**
+     * Set a threshold for maximum participants. When this threshold is reached,
+     * the provided callback will be invoked to stop the test.
+     * @param maxParticipants the maximum number of participants before test stops (-1 to disable)
+     * @param onMaxReached callback to execute when threshold is reached
+     */
+    public void setMaxParticipantsThreshold(int maxParticipants, Runnable onMaxReached) {
+        this.maxParticipantsThreshold = maxParticipants;
+        this.onMaxParticipantsReached = onMaxReached;
+        log.info("Max participants threshold set to {}", maxParticipants);
+    }
+
+    /**
+     * Get the current participant count.
+     */
+    public int getParticipantCount() {
+        return participantCounter.get();
+    }
+
+    /**
+     * Signal the controller to stop the test by sending a sessionDisconnected event
+     * for a participant. This triggers the reconnection flow which will eventually
+     * cause the test to terminate.
+     * @param userId the user ID to disconnect
+     * @param sessionName the session name
+     */
+    public void signalTestStop(String userId, String sessionName) {
+        if (webSocketServer != null && webSocketServer.isRunning()) {
+            webSocketServer.sendDisconnected(userId, sessionName);
+            log.info("Sent test stop signal via sessionDisconnected for {}-{}", userId, sessionName);
+        } else {
+            log.warn("Cannot send test stop signal - WebSocket server not available");
+        }
+    }
+
+    /**
+     * Force an immediate test termination by causing all subsequent participant
+     * creation requests to fail with a special error that signals test termination.
+     * This is more reliable than the async callback approach.
+     */
+    public void triggerTestTermination() {
+        log.info("Triggering test termination - all subsequent participant creations will fail");
+        // Setting maxParticipantsThreshold to 0 triggers immediate termination on next request
+        this.maxParticipantsThreshold = 0;
     }
 
     /**
@@ -397,6 +446,18 @@ public class BrowserEmulatorMockServer {
                         }
                     }
 
+                    // Check if termination has been triggered
+                    if (maxParticipantsThreshold == 0) {
+                        log.info("Test termination triggered - returning error response");
+                        String errorResponse = "{\"error\": \"Test terminated\"}";
+                        exchange.getResponseHeaders().set("Content-Type", "application/json");
+                        exchange.sendResponseHeaders(503, errorResponse.length());
+                        try (OutputStream os = exchange.getResponseBody()) {
+                            os.write(errorResponse.getBytes());
+                        }
+                        return;
+                    }
+
                     // Calculate streams and participants based on role
                     int streams = "PUBLISHER".equals(role) ? 2 : 1;
                     int participants = 1;
@@ -425,6 +486,15 @@ public class BrowserEmulatorMockServer {
                     int userNum = extractUserNumber(userId);
                     for (ParticipantCreationListener listener : creationListeners) {
                         listener.onParticipantCreated(userId, sessionName, userNum);
+                    }
+
+                    // Check if max participants threshold reached
+                    int currentCount = participantCounter.incrementAndGet();
+                    if (maxParticipantsThreshold > 0 && currentCount >= maxParticipantsThreshold) {
+                        log.info("Max participants threshold reached ({}). Triggering test stop.", currentCount);
+                        if (onMaxParticipantsReached != null) {
+                            onMaxParticipantsReached.run();
+                        }
                     }
                 } catch (ClassCastException e) {
                     log.error("Invalid JSON structure in request body: {}", requestBody, e);
