@@ -10,6 +10,13 @@ We are going to launch a simple smoke test with 2 participants in a single sessi
 
 To start, you will need an OpenVidu deployment. You can use your own deployment, [or quickly start a local development installation](https://openvidu.io/latest/docs/self-hosting/local/).
 
+First, clone this repository and navigate to the project directory:
+
+```bash
+git clone https://github.com/openvidu/openvidu-loadtest
+cd openvidu-loadtest
+```
+
 Here's the configuration we will be using for this test. You can find it in `config/config.yaml`. Next, we will walk through the configuration file to understand each option.
 
 ```yaml
