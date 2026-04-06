@@ -50,7 +50,6 @@ export class OpenViduBrowserController {
 		try {
 			const request = req.body;
 
-			// Validate browser is present and valid
 			if (
 				!request.properties?.browser ||
 				!['chrome', 'firefox', 'emulated'].includes(
@@ -69,7 +68,6 @@ export class OpenViduBrowserController {
 
 				request.properties.frameRate =
 					request.properties.frameRate || 30;
-				// Setting default role for publisher properties
 				request.properties.role =
 					request.properties.role || Role.PUBLISHER;
 

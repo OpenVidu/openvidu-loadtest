@@ -71,7 +71,6 @@ export class InstanceController {
 
 			await this.instanceService.ensureDockerNetworkExists();
 			const promises = [];
-			// Set up file service if possible now so that it doesn't have to be initialized later when needed
 			this.setupRemotePersistenceService(request);
 			promises.push(
 				this.localFilesService
@@ -153,8 +152,6 @@ export class InstanceController {
 		if (request.s3Host) {
 			host = request.s3Host;
 			if (request.s3HostAccessKey && request.s3HostSecretAccessKey) {
-				// Overwrite accessKey and secretAccessKey if s3Host is provided with its own credentials,
-				// as they should be used instead of AWS credentials to connect to the provided s3Host
 				accessKey = request.s3HostAccessKey;
 				secretAccessKey = request.s3HostSecretAccessKey;
 			}

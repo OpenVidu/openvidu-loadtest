@@ -8,6 +8,21 @@ This app provides a simple **REST API** that will be used by **loadtest-controll
 
 This services also is listening for a **WebSocket communication**. It will send information from the clients to the loadtest-controller.
 
+## API Documentation
+
+The REST and WebSocket APIs are documented in the following files:
+
+- **OpenAPI spec**: [docs/openapi.yaml](docs/openapi.yaml)
+- **HTML documentation**: [docs/index.html](docs/index.html)
+
+You can view the HTML docs directly in a browser or host them statically. For GitHub integration, you can use [raw.githubusercontent.com](https://raw.githubusercontent.com) to serve the HTML file.
+
+To regenerate the docs after changes to the API:
+
+```bash
+pnpm run docs
+```
+
 # Browser Emulator development
 
 ## Development Requirements and Constraints

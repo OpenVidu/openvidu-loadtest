@@ -24,7 +24,6 @@ export class QoeController {
 	}
 
 	private setupRoutes(): void {
-		// Used by browser to upload recordings to browseremulator's file system
 		this.router.post(
 			'/qoeRecordings',
 			this.upload.single('file'),
@@ -37,11 +36,6 @@ export class QoeController {
 		);
 	}
 
-	/*
-	 * This endpoint is used to upload QoE recordings from the browser to the browser emulator's file system.
-	 * The recordings are sent in chunks, so this endpoint appends the received chunk to the corresponding file in the file system.
-	 * The file is stored in the QOE_RECORDING_DIR directory with the original name of the uploaded file.
-	 */
 	private handleQoeRecordingsUpload(
 		req: QoeRecordingRequest,
 		res: Response,

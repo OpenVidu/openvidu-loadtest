@@ -1,0 +1,519 @@
+openapi: 3.0.3
+info:
+  title: Browser Emulator API
+  version: 4.0.0
+  description: |
+    REST and WebSocket API for the Browser Emulator load testing worker.
+    Used by the Loadtest Controller and client websites.
+    
+    ## Authentication
+    No authentication required for internal APIs.
+    
+    ## Base URLs
+    - HTTP: http://localhost:5000
+    - HTTPS: https://localhost:5000
+    
+    ## WebSocket Events
+    The WebSocket endpoint at ws://localhost:5001/events streams browser events.
+    Connect with a WebSocket client and listen for JSON messages in the BrowserEvent format.
+servers:
+  - url: http://localhost:5000
+    description: REST API (HTTP)
+  - url: https://localhost:5000
+    description: REST API (HTTPS)
+  - url: ws://localhost:5001
+    description: WebSocket server for events
+tags:
+  - name: Events
+    description: Browser event and stats endpoints
+  - name: Stream Manager
+    description: Browser stream management
+  - name: Instance
+    description: Instance lifecycle management
+  - name: QoE
+    description: Quality of Experience analysis
+paths:
+  /webrtcStats:
+    post:
+      tags:
+        - Events
+      summary: Submit WebRTC statistics
+      operationId: postWebRtcStats
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebRtcStatsRequest'
+      responses:
+        '200':
+          description: Stats saved successfully
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+  /events:
+    post:
+      tags:
+        - Events
+      summary: Submit browser event
+      operationId: postEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrowserEvent'
+      responses:
+        '200':
+          description: Event received successfully
+        '500':
+          description: Internal server error
+  /events/errors:
+    post:
+      tags:
+        - Events
+      summary: Submit browser error event
+      operationId: postEventError
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrowserEvent'
+      responses:
+        '200':
+          description: Error event received successfully
+        '500':
+          description: Internal server error
+  /openvidu-browser/streamManager:
+    post:
+      tags:
+        - Stream Manager
+      summary: Create a new browser participant
+      operationId: createStreamManager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserBrowser'
+      responses:
+        '200':
+          description: Stream manager created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUserBrowserResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Internal server error
+    delete:
+      tags:
+        - Stream Manager
+      summary: Delete all participants
+      operationId: deleteAllStreamManagers
+      responses:
+        '200':
+          description: All participants deleted successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+  /openvidu-browser/streamManager/connection/{connectionId}:
+    delete:
+      tags:
+        - Stream Manager
+      summary: Delete participant by connection ID
+      operationId: deleteStreamManagerByConnection
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Connection deleted successfully
+        '400':
+          description: Invalid connection ID
+        '500':
+          description: Internal server error
+  /openvidu-browser/streamManager/session/{sessionId}/user/{userId}:
+    delete:
+      tags:
+        - Stream Manager
+      summary: Delete participant by session and user ID
+      operationId: deleteStreamManagerBySessionUser
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session user deleted successfully
+        '400':
+          description: Invalid session ID or user ID
+        '500':
+          description: Internal server error
+  /instance/ping:
+    get:
+      tags:
+        - Instance
+      summary: Check if instance is ready
+      operationId: pingInstance
+      responses:
+        '200':
+          description: Instance is ready
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Pong
+        '500':
+          description: Instance is not ready
+  /instance/initialize:
+    post:
+      tags:
+        - Instance
+      summary: Initialize the browser emulator instance
+      operationId: initializeInstance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitializePost'
+      responses:
+        '200':
+          description: Instance initialized successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+  /instance/shutdown:
+    delete:
+      tags:
+        - Instance
+      summary: Shutdown the browser emulator instance
+      operationId: shutdownInstance
+      responses:
+        '200':
+          description: Shutdown initiated
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+  /qoe/qoeRecordings:
+    post:
+      tags:
+        - QoE
+      summary: Upload QoE recording file
+      operationId: uploadQoeRecording
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File uploaded successfully
+        '400':
+          description: No file uploaded
+        '500':
+          description: Internal server error
+  /qoe/analysis:
+    post:
+      tags:
+        - QoE
+      summary: Start QoE analysis
+      operationId: startQoeAnalysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QoeAnalysisRequest'
+      responses:
+        '200':
+          description: Analysis started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+  /qoe/analysis/status:
+    get:
+      tags:
+        - QoE
+      summary: Get QoE analysis status
+      operationId: getQoeAnalysisStatus
+      responses:
+        '200':
+          description: Status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QoeAnalysisStatus'
+components:
+  schemas:
+    WebRtcStatsRequest:
+      type: object
+      required:
+        - timestamp
+        - user
+        - session
+        - webrtcStats
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        user:
+          type: string
+        session:
+          type: string
+        webrtcStats:
+          type: object
+          additionalProperties: true
+    BrowserEvent:
+      type: object
+      required:
+        - participant
+        - session
+        - timestamp
+      properties:
+        participant:
+          type: string
+        session:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        event:
+          type: string
+        connectionId:
+          type: string
+        connection:
+          type: string
+          enum:
+            - local
+            - remote
+        reason:
+          type: string
+        name:
+          type: string
+        # Additional dynamic properties allowed
+        additionalProperties:
+          type: object
+    CreateUserBrowser:
+      type: object
+      required:
+        - openviduUrl
+        - properties
+      properties:
+        openviduUrl:
+          type: string
+          format: uri
+        token:
+          type: string
+        properties:
+          $ref: '#/components/schemas/UserJoinProperties'
+    UserJoinProperties:
+      type: object
+      required:
+        - userId
+        - sessionName
+        - role
+        - audio
+        - video
+        - resolution
+        - frameRate
+        - browser
+      properties:
+        userId:
+          type: string
+        sessionName:
+          type: string
+        role:
+          type: string
+          enum:
+            - PUBLISHER
+            - SUBSCRIBER
+        audio:
+          type: boolean
+        video:
+          type: boolean
+        resolution:
+          type: string
+          enum:
+            - 640x480
+            - 1280x720
+            - 1920x1080
+        frameRate:
+          type: integer
+          minimum: 1
+          maximum: 60
+        browser:
+          type: string
+          enum:
+            - chrome
+            - firefox
+            - emulated
+        recording:
+          type: boolean
+        showVideoElements:
+          type: boolean
+        headless:
+          type: boolean
+        recordingMetadata:
+          type: string
+        mediaRecorders:
+          type: boolean
+    CreateUserBrowserResponse:
+      type: object
+      properties:
+        connectionId:
+          type: string
+        streams:
+          type: integer
+        participants:
+          type: integer
+        workerCpuUsage:
+          type: number
+        sessionId:
+          type: string
+        userId:
+          type: string
+    InitializePost:
+      type: object
+      properties:
+        browserVideo:
+          type: object
+          description: Browser video configuration
+          oneOf:
+            - $ref: '#/components/schemas/BrowserVideoCustom'
+            - $ref: '#/components/schemas/BrowserVideoPreset'
+        vnc:
+          type: boolean
+        awsAccessKey:
+          type: string
+        awsSecretAccessKey:
+          type: string
+        s3BucketName:
+          type: string
+        s3Region:
+          type: string
+        s3Host:
+          type: string
+        s3HostAccessKey:
+          type: string
+        s3HostSecretAccessKey:
+          type: string
+        legacyMode:
+          type: boolean
+        elasticSearchHost:
+          type: string
+        elasticSearchUserName:
+          type: string
+        elasticSearchPassword:
+          type: string
+        elasticSearchIndex:
+          type: string
+    BrowserVideoCustom:
+      type: object
+      required:
+        - videoType
+        - customVideo
+      properties:
+        videoType:
+          type: string
+          enum:
+            - custom
+        customVideo:
+          type: object
+          properties:
+            videoUrl:
+              type: string
+              format: uri
+            audioUrl:
+              type: string
+              format: uri
+    BrowserVideoPreset:
+      type: object
+      required:
+        - videoType
+        - videoInfo
+      properties:
+        videoType:
+          type: string
+          enum:
+            - bunny
+            - interview
+            - game
+        videoInfo:
+          type: object
+          properties:
+            width:
+              type: integer
+            height:
+              type: integer
+            fps:
+              type: integer
+    QoeAnalysisRequest:
+      type: object
+      required:
+        - fragmentDuration
+        - paddingDuration
+      properties:
+        fragmentDuration:
+          type: integer
+          description: Fragment duration in seconds
+        paddingDuration:
+          type: integer
+          description: Padding duration in seconds
+        presenterVideoProperties:
+          type: object
+          properties:
+            width:
+              type: integer
+            height:
+              type: integer
+            frameRate:
+              type: integer
+        qoeConfig:
+          type: object
+          additionalProperties: true
+    QoeAnalysisStatus:
+      type: object
+      properties:
+        remainingFiles:
+          type: integer

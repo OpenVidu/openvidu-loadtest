@@ -178,6 +178,17 @@ When modifying browser-emulator code:
 - Update `AGENTS.md` if new commands, build steps, or conventions are introduced
 - Document new configuration options in README or docs/
 
+#### API Documentation (browser-emulator)
+
+The browser-emulator exposes a REST and WebSocket API used by:
+- loadtest-controller
+- Client websites in `public/` and `public-lk/`
+
+When adding, removing, or modifying API endpoints:
+
+1. **Update `docs/openapi.yaml`** with the new/changed endpoint and schema
+2. **Regenerate HTML docs**: Run `pnpm run docs` to update `docs/index.html`
+
 ### 5. Pre-commit Checklist
 
 Before finalizing any task:
