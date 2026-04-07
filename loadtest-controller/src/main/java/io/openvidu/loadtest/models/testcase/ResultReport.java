@@ -54,21 +54,22 @@ public class ResultReport {
     private Map<String, Integer> userRetryCounts = new TreeMap<>(); // key: "session-user"
     private Map<String, Calendar> userDisconnectTimestamps = new TreeMap<>(); // key: "session-user"
     private Map<String, List<RetryAttempt>> userRetryAttempts = new LinkedHashMap<>(); // key: "session-user"
+    private Map<String, String> roleByUser = new TreeMap<>();
 
     public ResultReport() {
     }
 
     public ResultReport build() {
         return new ResultReport(this.totalParticipants, this.numSessionsCompleted, this.numSessionsCreated,
-                this.workersUsed, this.streamsPerWorker, this.sessionTopology,
-                this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
-                this.usersPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
-                this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
-                this.userStartTimes, this.participantResponses, this.totalRetries, this.successfulRetries,
-                this.retrySuccessRate, this.avgRetriesPerParticipant, this.maxRetriesInSingleParticipant,
-                this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
-                this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
-                this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts);
+            this.workersUsed, this.streamsPerWorker, this.sessionTopology,
+            this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
+            this.usersPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
+            this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
+            this.userStartTimes, this.participantResponses, this.totalRetries, this.successfulRetries,
+            this.retrySuccessRate, this.avgRetriesPerParticipant, this.maxRetriesInSingleParticipant,
+            this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
+            this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
+            this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts, this.roleByUser);
     }
 
     public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -233,6 +234,15 @@ public class ResultReport {
         return this;
     }
 
+    public ResultReport setRoleByUser(Map<String, String> roleByUser) {
+        this.roleByUser = roleByUser != null ? roleByUser : new TreeMap<>();
+        return this;
+    }
+
+    public Map<String, String> getRoleByUser() {
+        return roleByUser;
+    }
+
     private void computeAggregates() {
         // Compute per-worker and global CPU stats
         Map<String, List<Double>> cpuPerWorker = new TreeMap<>();
@@ -347,7 +357,7 @@ public class ResultReport {
         return participantResponses;
     }
 
-    private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
+        private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
             List<Integer> streamsPerWorker, String sessionTopology,
             String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
             int usersPerWorker, String participantsPerSession, String stopReason, Calendar startTime,
@@ -359,7 +369,7 @@ public class ResultReport {
             Map<String, Integer> workerStreams, Map<String, Integer> workerParticipants,
             double[] userStartDelaysPercentiles, Map<String, Calendar> userDisconnectTimestamps,
             Map<String, Calendar> userSuccessTimestamps, Map<String, Integer> userRetryCounts,
-            Map<String, List<RetryAttempt>> userRetryAttempts) {
+            Map<String, List<RetryAttempt>> userRetryAttempts, Map<String, String> roleByUser) {
         this.totalParticipants = totalParticipants;
         this.numSessionsCompleted = numSessionsCompleted;
         this.numSessionsCreated = numSessionsCreated;
@@ -394,6 +404,7 @@ public class ResultReport {
         this.userSuccessTimestamps = userSuccessTimestamps;
         this.userRetryCounts = userRetryCounts;
         this.userRetryAttempts = userRetryAttempts;
+        this.roleByUser = roleByUser != null ? roleByUser : new TreeMap<>();
     }
 
     private String getDuration() {

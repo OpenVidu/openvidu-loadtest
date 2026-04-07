@@ -1,5 +1,7 @@
 package io.openvidu.loadtest.models.testcase;
 
+import io.openvidu.loadtest.models.testcase.Role;
+
 public class CreateParticipantResponse {
     private boolean responseOk;
     private String stopReason;
@@ -10,6 +12,7 @@ public class CreateParticipantResponse {
     private String userId;
     private String sessionId;
     private String workerUrl;
+    private Role role;
 
     public CreateParticipantResponse() {
     }
@@ -108,12 +111,21 @@ public class CreateParticipantResponse {
         return this;
     }
 
+    public Role getRole() {
+        return role;
+    }
+
+    public CreateParticipantResponse setRole(Role role) {
+        this.role = role;
+        return this;
+    }
+
     @Override
     public String toString() {
         return "CreateParticipantResponse [responseOk=" + responseOk + ", stopReason=" + stopReason + ", connectionId="
-                + connectionId + ", workerCpuPct=" + workerCpuPct + ", streamsInWorker=" + streamsInWorker
-                + ", participantsInWorker=" + participantsInWorker + ", userId=" + userId + ", sessionId=" + sessionId
-                + ", workerUrl=" + workerUrl + "]";
+            + connectionId + ", workerCpuPct=" + workerCpuPct + ", streamsInWorker=" + streamsInWorker
+            + ", participantsInWorker=" + participantsInWorker + ", userId=" + userId + ", sessionId=" + sessionId
+            + ", workerUrl=" + workerUrl + ", role=" + role + "]";
     }
 
 }

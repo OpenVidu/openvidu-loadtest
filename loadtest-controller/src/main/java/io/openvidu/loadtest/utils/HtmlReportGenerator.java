@@ -28,6 +28,7 @@ import com.samskivert.mustache.Template;
 
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
+import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 
 @Component
 public class HtmlReportGenerator {
@@ -139,6 +140,25 @@ public class HtmlReportGenerator {
             return List.of();
         }
 
+        // Build a map of user-session -> role (PUBLISHER/SUBSCRIBER).
+        // Prefer precomputed roles from the ResultReport if present, otherwise
+        // fall back to participant responses.
+        Map<String, String> roleByUser = new java.util.HashMap<>();
+        if (result.getRoleByUser() != null) {
+            roleByUser.putAll(result.getRoleByUser());
+        }
+        List<CreateParticipantResponse> participantResponses = result.getParticipantResponses() != null
+                ? result.getParticipantResponses()
+                : List.of();
+        for (CreateParticipantResponse r : participantResponses) {
+            if (r.getUserId() != null && r.getSessionId() != null) {
+                String k = r.getUserId() + "-" + r.getSessionId();
+                if (r.getRole() != null) {
+                    roleByUser.putIfAbsent(k, r.getRole().getLabel());
+                }
+            }
+        }
+
         Map<String, Integer> userRetryCounts = result.getUserRetryCounts() != null ? result.getUserRetryCounts()
                 : Map.of();
         Map<String, List<RetryAttempt>> userRetryAttempts = result.getUserRetryAttempts() != null
@@ -164,7 +184,9 @@ public class HtmlReportGenerator {
                 retryDetailId = baseId + "-" + suffix;
             }
             existingDetailIds.add(retryDetailId);
-            rows.add(objectRow("userId", info.userId, "sessionId", info.sessionId,
+                String roleLabel = roleByUser.getOrDefault(key, "-");
+                rows.add(objectRow("userId", info.userId, "sessionId", info.sessionId,
+                    "type", roleLabel,
                     "joinDate", formatDate(info.joinDate),
                     "retries", info.retries,
                     "ifRetriesGreaterThanZero", info.retries > 0,

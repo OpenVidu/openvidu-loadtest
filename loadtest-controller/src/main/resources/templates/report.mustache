@@ -675,15 +675,16 @@
                                 <tr>
                                     <th onclick="sortUserTable(this, 0, {{index}})">User <span class="sort-icon">↕</span></th>
                                     <th onclick="sortUserTable(this, 1, {{index}})">Session <span class="sort-icon">↕</span></th>
-                                    <th onclick="sortUserTable(this, 2, {{index}})">Join Date <span class="sort-icon">↕</span></th>
-                                    <th onclick="sortUserTable(this, 3, {{index}})">Retries <span class="sort-icon">↕</span></th>
+                                    <th onclick="sortUserTable(this, 2, {{index}})">Type <span class="sort-icon">↕</span></th>
+                                    <th onclick="sortUserTable(this, 3, {{index}})">Join Date <span class="sort-icon">↕</span></th>
+                                    <th onclick="sortUserTable(this, 4, {{index}})">Retries <span class="sort-icon">↕</span></th>
                                     <th>Retry Details</th>
                                 </tr>
                             </thead>
                             <tbody id="userTableBody-{{index}}">
                                 {{#userRows}}
                                 <tr class="user-row" data-detail-id="{{retryDetailId}}">
-                                    <td>{{userId}}</td><td>{{sessionId}}</td><td>{{joinDate}}</td>
+                                    <td>{{userId}}</td><td>{{sessionId}}</td><td>{{type}}</td><td>{{joinDate}}</td>
                                     <td>{{#ifRetriesGreaterThanZero}}<span class="error-count medium">{{retries}}</span>{{/ifRetriesGreaterThanZero}}{{^ifRetriesGreaterThanZero}}{{retries}}{{/ifRetriesGreaterThanZero}}</td>
                                     <td>
                                         {{#hasRetryAttempts}}
@@ -694,7 +695,7 @@
                                 </tr>
                                 {{#hasRetryAttempts}}
                                 <tr id="{{retryDetailId}}" class="retry-details-row">
-                                    <td colspan="5">
+                                    <td colspan="6">
                                         <div class="retry-details-wrap">
                                             <table class="retry-attempts-table">
                                                 <thead>
@@ -720,7 +721,7 @@
                                 {{/hasRetryAttempts}}
                                 {{/userRows}}
                                 {{^userRows}}
-                                <tr><td colspan="5" class="no-data">No participants</td></tr>
+                                <tr><td colspan="6" class="no-data">No participants</td></tr>
                                 {{/userRows}}
                             </tbody>
                         </table>
@@ -767,7 +768,7 @@
             const dir = sortDirection[key] ? 1 : -1;
             document.querySelectorAll('#user-connections-table-' + tabIdx + ' th').forEach(h => h.classList.remove('sorted'));
             th.classList.add('sorted');
-            const dateColumns = [2];
+            const dateColumns = [3];
             rows.sort((a, b) => {
                 const aVal = a.children[colIndex].textContent.trim();
                 const bVal = b.children[colIndex].textContent.trim();
@@ -820,8 +821,8 @@
             }
             if (s.allUserRows.length > 0) {
                 s.filteredUsers = [...s.allUserRows].sort((a, b) => {
-                    const aVal = a.children[2].textContent.trim();
-                    const bVal = b.children[2].textContent.trim();
+                    const aVal = a.children[3].textContent.trim();
+                    const bVal = b.children[3].textContent.trim();
                     if (aVal === '-' || aVal === '') return 1;
                     if (bVal === '-' || bVal === '') return -1;
                     const aDate = new Date(aVal.replace(' ', 'T'));
@@ -830,7 +831,7 @@
                     return aVal.localeCompare(bVal);
                 });
                 sortDirection['user-' + tabIdx] = true;
-                const joinDateHeader = document.querySelectorAll('#user-connections-table-' + tabIdx + ' th')[2];
+                const joinDateHeader = document.querySelectorAll('#user-connections-table-' + tabIdx + ' th')[3];
                 if (joinDateHeader) joinDateHeader.classList.add('sorted');
                 updatePagination(tabIdx);
             }

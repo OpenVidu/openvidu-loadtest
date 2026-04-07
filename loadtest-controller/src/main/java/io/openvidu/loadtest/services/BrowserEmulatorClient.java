@@ -530,7 +530,11 @@ public class BrowserEmulatorClient {
                 this.participantConnecting.get(user).set(false);
                 this.saveParticipantData(workerUrl, testCase.isTeaching() ? Role.PUBLISHER : role);
             }
-            return processResponse(response, workerUrl);
+            CreateParticipantResponse processed = processResponse(response, workerUrl);
+            if (processed != null) {
+                processed.setRole(role);
+            }
+            return processed;
         } catch (Exception e) {
             CreateParticipantErrorContext ctx = new CreateParticipantErrorContext(
                     new UserInfo(workerUrl, userNumber, sessionNumber, role, userId, sessionId), testCase, cpr);
@@ -788,6 +792,19 @@ public class BrowserEmulatorClient {
                     existing.sort((a, b) -> Integer.compare(a.getAttemptNumber(), b.getAttemptNumber()));
                     return existing;
                 });
+            }
+        }
+        return result;
+    }
+
+    public Map<String, Role> getPerUserRoles() {
+        Map<String, Role> result = new HashMap<>();
+        for (ConcurrentHashMap<String, Role> workerRoles : clientRoles.values()) {
+            if (workerRoles == null) {
+                continue;
+            }
+            for (Map.Entry<String, Role> entry : workerRoles.entrySet()) {
+                result.put(entry.getKey(), entry.getValue());
             }
         }
         return result;

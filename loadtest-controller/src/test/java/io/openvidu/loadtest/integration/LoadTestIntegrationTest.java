@@ -263,12 +263,13 @@ class LoadTestIntegrationTest {
         assertFalse(userTable.isEmpty(), "User Connections table should exist");
 
         Elements userHeaders = userTable.select("th");
-        assertTrue(userHeaders.size() >= 5, "User Connections table should have at least 5 columns");
+        assertTrue(userHeaders.size() >= 6, "User Connections table should have at least 6 columns");
 
         // Verify all required column headers are present
         List<String> headers = userHeaders.eachText();
         assertTrue(headers.stream().anyMatch(h -> h.contains("User")), "Should have User column: " + headers);
         assertTrue(headers.stream().anyMatch(h -> h.contains("Session")), "Should have Session column: " + headers);
+        assertTrue(headers.stream().anyMatch(h -> h.contains("Type")), "Should have Type column: " + headers);
         assertTrue(headers.stream().anyMatch(h -> h.contains("Join Date")), "Should have Join Date column: " + headers);
         assertTrue(headers.stream().anyMatch(h -> h.contains("Retries")), "Should have Retries column: " + headers);
         assertTrue(headers.stream().anyMatch(h -> h.contains("Retry Details")),
@@ -293,11 +294,15 @@ class LoadTestIntegrationTest {
         assertTrue(userIds.contains("User2"), "User2 should be present, found: " + userIds);
         for (var row : userRows) {
             Elements cells = row.select("td");
-            if (cells.size() >= 5) {
+                if (cells.size() >= 6) {
                 String session = cells.get(1).text();
-                String joinDate = cells.get(2).text();
-                String retryNumber = cells.get(3).text();
-                String retryDetails = cells.get(4).text();
+                String type = cells.get(2).text();
+                String joinDate = cells.get(3).text();
+                String retryNumber = cells.get(4).text();
+                String retryDetails = cells.get(5).text();
+
+                // For N:N topology (smoke test) all users should be PUBLISHER
+                assertEquals("PUBLISHER", type, "Type should be PUBLISHER for N:N topology");
 
                 // Verify session name format
                 assertEquals("LoadTestSession1", session, "Session name should be LoadTestSession1");

@@ -356,6 +356,30 @@ public class LoadTestService {
             log.warn("After fallback, userSuccessTimestamps size: {}", userSuccessTimestamps.size());
         }
 
+        // Build mapping of user-session -> role (label)
+        Map<String, String> roleByUserMap = new HashMap<>();
+        List<CreateParticipantResponse> allResponses = participantOrchestrator.getAllParticipantResponses();
+        for (CreateParticipantResponse r : allResponses) {
+            if (r.getUserId() != null && r.getSessionId() != null && r.getRole() != null) {
+                roleByUserMap.put(r.getUserId() + "-" + r.getSessionId(), r.getRole().getLabel());
+            }
+        }
+        // Merge any roles tracked in BrowserEmulatorClient internal maps
+        Map<String, io.openvidu.loadtest.models.testcase.Role> clientRoles = browserEmulatorClient.getPerUserRoles();
+        if (clientRoles != null) {
+            for (Map.Entry<String, io.openvidu.loadtest.models.testcase.Role> e : clientRoles.entrySet()) {
+                if (e.getValue() != null) {
+                    roleByUserMap.putIfAbsent(e.getKey(), e.getValue().getLabel());
+                }
+            }
+        }
+        // Fallback: if topology is N:N, assume PUBLISHER for any missing entries
+        if (testCase != null && testCase.getTopology() != null && testCase.getTopology().toString().startsWith("N:N")) {
+            for (String key : userSuccessTimestamps.keySet()) {
+                roleByUserMap.putIfAbsent(key, "PUBLISHER");
+            }
+        }
+
         ResultReport rr = new ResultReport().setTotalParticipants(participantOrchestrator.getTotalParticipants())
                 .setNumSessionsCompleted(participantOrchestrator.getSessionsCompleted())
                 .setNumSessionsCreated(participantOrchestrator.getSessionNumber())
@@ -373,6 +397,7 @@ public class LoadTestService {
                 .setUserStartTimes(participantOrchestrator.getUserStartTimes())
                 .setUserSuccessTimestamps(userSuccessTimestamps)
                 .setParticipantResponses(participantOrchestrator.getAllParticipantResponses())
+                .setRoleByUser(roleByUserMap)
                 .setUserRetryCounts(browserEmulatorClient.getPerUserRetryCounts())
                 .setUserRetryAttempts(browserEmulatorClient.getPerUserRetryAttempts())
                 .build();

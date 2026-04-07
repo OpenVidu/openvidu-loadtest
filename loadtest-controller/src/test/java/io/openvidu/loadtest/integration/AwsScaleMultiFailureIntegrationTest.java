@@ -509,11 +509,13 @@ class AwsScaleMultiFailureIntegrationTest {
         Map<String, Element> userRowsByKey = new HashMap<>();
         for (Element row : userRows) {
             Elements cells = row.select("td");
-            if (cells.size() >= 5) {
+            // After adding the 'Type' column the table now has at least 6 columns
+            if (cells.size() >= 6) {
                 String userId = cells.get(0).text().trim();
                 String sessionId = cells.get(1).text().trim();
                 String userKey = userId + "-" + sessionId;
-                userRetries.put(userKey, parseRetriesFromCell(cells.get(3), userKey));
+                // Retries column shifted from index 3 -> 4 due to inserted 'Type' column
+                userRetries.put(userKey, parseRetriesFromCell(cells.get(4), userKey));
                 userRowsByKey.put(userKey, row);
             }
         }

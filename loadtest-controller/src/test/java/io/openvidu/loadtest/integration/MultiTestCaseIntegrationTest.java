@@ -272,6 +272,60 @@ class MultiTestCaseIntegrationTest {
                     idx++;
                 }
             }
+
+            // Additional validation: for N:M topology test cases, verify per-session
+            // types: N publishers and M subscribers per session
+            for (int tcIdx = 0; tcIdx < testcases.size(); tcIdx++) {
+                Map<String, Object> tc = testcases.get(tcIdx);
+                    String topology = tc.get("topology") != null ? tc.get("topology").toString() : "";
+                if ("N:M".equals(topology)) {
+                    int tabIndex = tcIdx + 1; // template uses 1-based index for tabs
+                    Elements nmUserTable = doc.select("#user-connections-table-" + tabIndex);
+                    assertFalse(nmUserTable.isEmpty(), "User Connections table should exist for N:M test (tab " + tabIndex + ")");
+                    Elements nmUserRows = nmUserTable.select("tbody tr.user-row");
+
+                    // Count publishers/subscribers per session
+                    java.util.Map<String, Integer> publishersBySession = new java.util.HashMap<>();
+                    java.util.Map<String, Integer> subscribersBySession = new java.util.HashMap<>();
+                    for (var row : nmUserRows) {
+                        Elements cells = row.select("td");
+                        if (cells.size() >= 6) {
+                            String sessionId = cells.get(1).text().trim();
+                            String type = cells.get(2).text().trim();
+                            if ("PUBLISHER".equals(type)) {
+                                publishersBySession.merge(sessionId, 1, Integer::sum);
+                            } else if ("SUBSCRIBER".equals(type)) {
+                                subscribersBySession.merge(sessionId, 1, Integer::sum);
+                            }
+                        }
+                    }
+
+                    // Derive expected N and M from participants spec
+                    List<String> participantsList = (List<String>) tc.get("participants");
+                    String participantsSpec = participantsList.get(0);
+                    int expectedN = 0;
+                    int expectedM = 0;
+                    if (participantsSpec.contains(":")) {
+                        String[] parts = participantsSpec.split(":");
+                        expectedN = Integer.parseInt(parts[0].trim());
+                        expectedM = Integer.parseInt(parts[1].trim());
+                    } else {
+                        // Not an N:M spec; skip
+                        continue;
+                    }
+
+                    java.util.Set<String> allSessions = new java.util.HashSet<>();
+                    allSessions.addAll(publishersBySession.keySet());
+                    allSessions.addAll(subscribersBySession.keySet());
+                    assertFalse(allSessions.isEmpty(), "N:M user table should contain sessions");
+                    for (String session : allSessions) {
+                        int pubCount = publishersBySession.getOrDefault(session, 0);
+                        int subCount = subscribersBySession.getOrDefault(session, 0);
+                        assertEquals(expectedN, pubCount, "Expected " + expectedN + " publishers in session " + session);
+                        assertEquals(expectedM, subCount, "Expected " + expectedM + " subscribers in session " + session);
+                    }
+                }
+            }
         }
 
         boolean hasOverviewActive = false;
