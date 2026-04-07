@@ -39,6 +39,8 @@ public class TestCase {
         this.resolution = testCase.resolution;
         this.frameRate = testCase.frameRate;
         this.openviduRecordingMode = testCase.openviduRecordingMode;
+        // Ensure browser is copied when creating a defensive copy of TestCase
+        this.browser = testCase.browser;
         this.browserRecording = testCase.browserRecording;
         this.headlessBrowser = testCase.headlessBrowser;
         this.showBrowserVideoElements = testCase.showBrowserVideoElements;

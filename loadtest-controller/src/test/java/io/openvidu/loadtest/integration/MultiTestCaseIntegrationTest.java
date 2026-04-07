@@ -15,6 +15,12 @@ import java.util.Set;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -178,14 +184,93 @@ class MultiTestCaseIntegrationTest {
         assertTrue(comparisonRows.size() >= 3,
                 "Comparison table should have at least 3 rows (one per test case), found: " + comparisonRows.size());
 
-        // Log all test case results for visibility
-        for (var row : comparisonRows) {
-            Elements cells = row.select("td");
-            if (cells.size() >= 6) {
-                String label = cells.get(1).text();
-                String sessions = cells.get(4).text();
-                String participants = cells.get(5).text();
-                log.info("Test case '{}': sessions={}, participants={}", label, sessions, participants);
+        // Parse the YAML test config to know expected participants for each test case
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        try (InputStream is = getClass().getClassLoader()
+                .getResourceAsStream("integration/config/multi-test-config.yaml")) {
+            Map<String, Object> cfg = mapper.readValue(is, new TypeReference<Map<String, Object>>() {
+            });
+            List<Map<String, Object>> testcases = (List<Map<String, Object>>) cfg.get("testcases");
+
+            // Global capacity: distribution.usersPerWorker (if present)
+            int usersPerWorkerFromCfg = 0;
+            Object distributionObj = cfg.get("distribution");
+            if (distributionObj instanceof Map) {
+                Object upw = ((Map<?, ?>) distributionObj).get("usersPerWorker");
+                if (upw instanceof Number) {
+                    usersPerWorkerFromCfg = ((Number) upw).intValue();
+                } else if (upw != null) {
+                    usersPerWorkerFromCfg = Integer.parseInt(upw.toString());
+                }
+            }
+
+            // For each overview row, assert the participants column matches the expected
+            // total
+            int idx = 0;
+            // Explicit expected totals for the 3 test cases in this config
+            int[] explicitExpected = new int[] { 25, 215, 303 };
+            for (var row : comparisonRows) {
+                Elements cells = row.select("td");
+                if (cells.size() >= 7 && idx < testcases.size()) {
+                    String label = cells.get(1).text();
+                    String sessionsCell = cells.get(4).text();
+                    String participantsCell = cells.get(5).text();
+                    String workersCell = cells.get(6).text();
+                    // Stop reason is the last column in the overview table
+                    String stopReasonCell = cells.size() >= 9 ? cells.get(8).text() : "";
+                    log.info("Test case '{}': sessions={}, participants={}, workers={}, stopReason={}", label,
+                            sessionsCell, participantsCell, workersCell, stopReasonCell);
+
+                    // Expected participants per session is declared in config under 'participants'
+                    Map<String, Object> tc = testcases.get(idx);
+                    List<String> participantsList = (List<String>) tc.get("participants");
+                    // We only support single-entry participants in the test config for this
+                    // assertion
+                    String participantsSpec = participantsList.get(0);
+
+                    // Compute expected per-session participants: sum parts if "a:b" or single
+                    // integer
+                    int expectedPerSession = 0;
+                    if (participantsSpec.contains(":")) {
+                        String[] parts = participantsSpec.split(":");
+                        for (String p : parts) {
+                            expectedPerSession += Integer.parseInt(p.trim());
+                        }
+                    } else {
+                        expectedPerSession = Integer.parseInt(participantsSpec.trim());
+                    }
+
+                    String[] sessionsParts = sessionsCell.split("/");
+                    int sessionsCreated = Integer.parseInt(sessionsParts[0].trim());
+                    int expectedTotalParticipants = expectedPerSession * sessionsCreated;
+
+                    // Apply capacity cap if distribution.usersPerWorker is configured
+                    int workersUsed = Integer.parseInt(workersCell.trim());
+                    if (usersPerWorkerFromCfg > 0 && workersUsed > 0) {
+                        expectedTotalParticipants = Math.min(expectedTotalParticipants,
+                                usersPerWorkerFromCfg * workersUsed);
+                    }
+
+                    try {
+                        int actualTotal = Integer.parseInt(participantsCell.trim());
+                        assertEquals(expectedTotalParticipants, actualTotal,
+                                "Total participants for test case does not match expected for: " + label);
+
+                        // Additional explicit checks requested:
+                        if (idx < explicitExpected.length) {
+                            assertEquals(explicitExpected[idx], actualTotal,
+                                    "Explicit total participants expected for test case does not match: " + label);
+                        }
+
+                        // Assert stop reason is exactly "Test finished"
+                        assertEquals("Test finished", stopReasonCell,
+                                "Stop reason should be 'Test finished' for test case: " + label);
+                    } catch (NumberFormatException nfe) {
+                        fail("Participants cell is not a number for test case: " + label + " value: "
+                                + participantsCell);
+                    }
+                    idx++;
+                }
             }
         }
 

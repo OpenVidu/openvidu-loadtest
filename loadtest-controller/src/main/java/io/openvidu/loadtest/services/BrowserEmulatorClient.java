@@ -129,6 +129,10 @@ public class BrowserEmulatorClient {
         this.participantConnecting.clear();
         this.participantReconnecting.clear();
         this.userDisconnectTimestamps.clear();
+        // Clear static collections that hold per-worker state so subsequent test
+        // cases don't observe accumulated data from previous runs.
+        BrowserEmulatorClient.publishersAndSubscribersInWorker.clear();
+        BrowserEmulatorClient.recordingParticipantCreated.clear();
         this.isClean.set(false);
     }
 

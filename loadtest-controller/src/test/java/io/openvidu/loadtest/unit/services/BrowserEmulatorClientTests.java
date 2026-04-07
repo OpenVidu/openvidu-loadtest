@@ -645,4 +645,57 @@ class BrowserEmulatorClientTests {
         assertTrue(cpr.isResponseOk(), "Participant creation should succeed after multiple clean() calls");
     }
 
+    @Test
+    void cleanClearsStaticWorkerStateTest() throws Exception {
+        // Prepare a simple test case and a successful HTTP response to populate
+        // the static per-worker collections
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("connectionId", "connectionId");
+        responseBody.addProperty("workerCpuUsage", 0.0);
+        responseBody.addProperty("streams", 2);
+        responseBody.addProperty("participants", 1);
+        responseBody.addProperty("userId", "UserX");
+        responseBody.addProperty("sessionId", "LoadTestSession0");
+        String responseString = responseBody.toString();
+        when(response.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+
+        // Return the same successful response for all create calls
+        when(this.httpClientMock.sendPost(anyString(), any(), any(), any())).thenReturn(response);
+
+        // Create participants that will update the static collections
+        this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
+        this.browserEmulatorClient.createSubscriber("localhost", 1, 0, testCase);
+        this.browserEmulatorClient.createExternalRecordingPublisher("localhost", 2, 0, testCase, "meta");
+
+        // Verify the static-backed accessors reflect populated state
+        assertTrue(this.browserEmulatorClient.isRecordingParticipantCreated(0));
+        int pubs = this.browserEmulatorClient.getRoleInWorker("localhost",
+                io.openvidu.loadtest.models.testcase.Role.PUBLISHER);
+        int subs = this.browserEmulatorClient.getRoleInWorker("localhost",
+                io.openvidu.loadtest.models.testcase.Role.SUBSCRIBER);
+        assertTrue(pubs > 0, "There should be at least one publisher recorded for the worker");
+        assertTrue(subs > 0, "There should be at least one subscriber recorded for the worker");
+
+        // Now clean and ensure the static collections were cleared
+        this.browserEmulatorClient.clean();
+
+        assertFalse(this.browserEmulatorClient.isRecordingParticipantCreated(0),
+                "Recording flag should be cleared after clean()");
+        int pubsAfter = this.browserEmulatorClient.getRoleInWorker("localhost",
+                io.openvidu.loadtest.models.testcase.Role.PUBLISHER);
+        int subsAfter = this.browserEmulatorClient.getRoleInWorker("localhost",
+                io.openvidu.loadtest.models.testcase.Role.SUBSCRIBER);
+        // After clean the counts should report zero
+        assertEquals(0, pubsAfter);
+        assertEquals(0, subsAfter);
+    }
+
 }

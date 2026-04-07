@@ -34,7 +34,7 @@ workers:
     - localhost
 
 distribution:
-  usersPerWorker: 150
+  usersPerWorker: 500
 
 advanced:
   reportOutput:
