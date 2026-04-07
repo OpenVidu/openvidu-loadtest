@@ -83,46 +83,8 @@ public class HtmlReportGenerator {
     }
 
     private String renderHtmlContent(ResultReport result) {
-        Map<String, Object> context = buildTemplateContext(result);
+        Map<String, Object> context = buildMultiReportContext(List.of(result));
         return reportTemplate.execute(context);
-    }
-
-    private Map<String, Object> buildTemplateContext(ResultReport result) {
-        Map<String, Object> context = new HashMap<>();
-
-        // Now add to context
-        context.put("generatedAt", formatDate(result.getStartTime()));
-        context.put("testDuration", getDuration(result));
-        context.put("numSessionsCreated", result.getNumSessionsCreated());
-        context.put("numSessionsCompleted", result.getNumSessionsCompleted());
-        context.put("totalParticipants", result.getTotalParticipants());
-        context.put("workersUsed", result.getWorkersUsed());
-        context.put("summaryRows", buildSummaryRows(result));
-
-        // Error categorization removed: single stop reason is used to stop tests
-
-        List<Map<String, Object>> cpuRows = buildCpuRows(result.getWorkerCpuAvg(), result.getWorkerCpuMax());
-        context.put("hasCpuRows", !cpuRows.isEmpty());
-        context.put("cpuRows", cpuRows);
-
-        List<Map<String, Object>> userRows = buildUserRows(result);
-        context.put("hasUsers", !userRows.isEmpty());
-        context.put("userRows", userRows);
-        context.put("userCount", userRows.size());
-        context.put("currentPage", 1);
-        context.put("totalPages", Math.max(1, (int) Math.ceil((double) userRows.size() / PAGE_SIZE)));
-        context.put("isLastPage", userRows.size() <= PAGE_SIZE);
-        context.put("pageSize", PAGE_SIZE);
-
-        context.put("configurationRows", buildConfigurationRows(result));
-
-        String kibanaUrl = result.getKibanaUrl();
-        boolean showKibana = kibanaUrl != null && !kibanaUrl.trim().isEmpty() && !kibanaUrl.contains("not found");
-        context.put("kibanaUrl", safeString(kibanaUrl));
-        context.put("kibanaAsLink", showKibana && isHttpUrl(kibanaUrl));
-        context.put("kibanaAsText", showKibana && !isHttpUrl(kibanaUrl));
-
-        return context;
     }
 
     private List<Map<String, String>> buildSummaryRows(ResultReport result) {
@@ -358,6 +320,158 @@ public class HtmlReportGenerator {
             row.put(String.valueOf(keyValuePairs[i]), keyValuePairs[i + 1]);
         }
         return row;
+    }
+
+    public void generateMultiReport(List<ResultReport> reports, String fileName) throws IOException {
+        if (reports == null || reports.isEmpty()) {
+            log.warn("No reports to generate");
+            return;
+        }
+        String resultsDir = System.getenv("RESULTS_DIR");
+        log.debug("RESULTS_DIR env: {}", resultsDir);
+        if (resultsDir == null || resultsDir.isBlank()) {
+            resultsDir = System.getProperty("RESULTS_DIR");
+            log.debug("RESULTS_DIR sysprop: {}", resultsDir);
+        }
+        String resultPath;
+
+        if (resultsDir != null && !resultsDir.isBlank()) {
+            File dir = new File(resultsDir);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            resultPath = new File(dir, fileName).getAbsolutePath();
+        } else {
+            resultPath = new FileSystemResource(fileName).getFile().getAbsolutePath();
+        }
+
+        log.debug("Writing multi HTML report to: {}", resultPath);
+        try (FileWriter fw = new FileWriter(resultPath);
+                BufferedWriter bw = new BufferedWriter(fw)) {
+            bw.write(renderMultiHtmlContent(reports));
+        }
+        log.info("Saved multi HTML report in {}", resultPath);
+    }
+
+    private String renderMultiHtmlContent(List<ResultReport> reports) {
+        Map<String, Object> context = buildMultiReportContext(reports);
+        return reportTemplate.execute(context);
+    }
+
+    private Map<String, Object> buildMultiReportContext(List<ResultReport> reports) {
+        Map<String, Object> context = new HashMap<>();
+        boolean hasMultipleTestCases = reports.size() > 1;
+        context.put("hasMultipleTestCases", hasMultipleTestCases);
+
+        List<Map<String, Object>> testCases = new ArrayList<>();
+        List<Map<String, Object>> overviewRows = new ArrayList<>();
+
+        int totalSessionsCreated = 0;
+        int totalSessionsCompleted = 0;
+        int totalParticipants = 0;
+        long totalDurationMs = 0;
+
+        for (int i = 0; i < reports.size(); i++) {
+            ResultReport result = reports.get(i);
+            int index = i + 1;
+
+            Map<String, Object> singleContext = buildSingleTestCaseContext(result, index);
+            testCases.add(singleContext);
+
+            totalSessionsCreated += result.getNumSessionsCreated();
+            totalSessionsCompleted += result.getNumSessionsCompleted();
+            totalParticipants += result.getTotalParticipants();
+            if (result.getStartTime() != null && result.getEndTime() != null) {
+                totalDurationMs += Math.abs(result.getEndTime().getTime().getTime() - result.getStartTime().getTime().getTime());
+            }
+
+            Map<String, Object> overviewRow = new LinkedHashMap<>();
+            overviewRow.put("index", String.valueOf(index));
+            overviewRow.put("name", singleContext.get("tabName").toString());
+            overviewRow.put("label", singleContext.get("tabLabel").toString());
+            overviewRow.put("topology", safeString(result.getSessionTopology()));
+            overviewRow.put("participantsPerSession", safeString(result.getParticipantsPerSession()));
+            overviewRow.put("sessionsCreated", String.valueOf(result.getNumSessionsCreated()));
+            overviewRow.put("sessionsCompleted", String.valueOf(result.getNumSessionsCompleted()));
+            overviewRow.put("totalParticipants", String.valueOf(result.getTotalParticipants()));
+            overviewRow.put("workersUsed", String.valueOf(result.getWorkersUsed()));
+            overviewRow.put("duration", getDuration(result));
+            overviewRow.put("stopReason", safeString(result.getStopReason()));
+            overviewRows.add(overviewRow);
+        }
+
+        context.put("testCases", testCases);
+        context.put("overviewRows", overviewRows);
+        context.put("overviewTotalSessionsCreated", totalSessionsCreated);
+        context.put("overviewTotalSessionsCompleted", totalSessionsCompleted);
+        context.put("overviewTotalParticipants", totalParticipants);
+
+        long totalSeconds = totalDurationMs / 1000;
+        long totalMinutes = totalSeconds / 60;
+        long totalHours = totalMinutes / 60;
+        totalSeconds %= 60;
+        totalMinutes %= 60;
+        context.put("overviewTotalDuration", String.format("%dh %dm %ds", totalHours, totalMinutes, totalSeconds));
+
+        if (!hasMultipleTestCases) {
+            context.putAll(buildSingleTestCaseContext(reports.get(0), 1));
+        } else {
+            ResultReport firstReport = reports.get(0);
+            context.put("generatedAt", formatDate(firstReport.getStartTime()));
+        }
+
+        return context;
+    }
+
+    private Map<String, Object> buildSingleTestCaseContext(ResultReport result, int index) {
+        Map<String, Object> ctx = new HashMap<>();
+
+        ctx.put("index", index);
+        ctx.put("tabName", "Test Case " + index);
+
+        String topology = safeString(result.getSessionTopology());
+        String participants = safeString(result.getParticipantsPerSession());
+        String label = topology;
+        if (!participants.isEmpty()) {
+            label += " \u2014 " + participants + " participant" + (!"1".equals(participants) ? "s" : "");
+        }
+        ctx.put("tabLabel", label);
+
+        String description = "";
+        if (result.getStopReason() != null && !result.getStopReason().equals("Test finished")) {
+            description = result.getStopReason();
+        }
+        ctx.put("tabDescription", description);
+
+        ctx.put("generatedAt", formatDate(result.getStartTime()));
+        ctx.put("testDuration", getDuration(result));
+        ctx.put("numSessionsCreated", result.getNumSessionsCreated());
+        ctx.put("numSessionsCompleted", result.getNumSessionsCompleted());
+        ctx.put("totalParticipants", result.getTotalParticipants());
+        ctx.put("workersUsed", result.getWorkersUsed());
+        ctx.put("summaryRows", buildSummaryRows(result));
+        ctx.put("configurationRows", buildConfigurationRows(result));
+
+        List<Map<String, Object>> cpuRows = buildCpuRows(result.getWorkerCpuAvg(), result.getWorkerCpuMax());
+        ctx.put("hasCpuRows", !cpuRows.isEmpty());
+        ctx.put("cpuRows", cpuRows);
+
+        List<Map<String, Object>> userRows = buildUserRows(result);
+        ctx.put("hasUsers", !userRows.isEmpty());
+        ctx.put("userRows", userRows);
+        ctx.put("userCount", userRows.size());
+        ctx.put("currentPage", 1);
+        ctx.put("totalPages", Math.max(1, (int) Math.ceil((double) userRows.size() / PAGE_SIZE)));
+        ctx.put("isLastPage", userRows.size() <= PAGE_SIZE);
+        ctx.put("pageSize", PAGE_SIZE);
+
+        String kibanaUrl = result.getKibanaUrl();
+        boolean showKibana = kibanaUrl != null && !kibanaUrl.trim().isEmpty() && !kibanaUrl.contains("not found");
+        ctx.put("kibanaUrl", safeString(kibanaUrl));
+        ctx.put("kibanaAsLink", showKibana && isHttpUrl(kibanaUrl));
+        ctx.put("kibanaAsText", showKibana && !isHttpUrl(kibanaUrl));
+
+        return ctx;
     }
 
     private static class UserRetryInfo {

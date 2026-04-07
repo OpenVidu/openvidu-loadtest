@@ -3,6 +3,7 @@ package io.openvidu.loadtest.services.core;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +61,7 @@ public class LoadTestService {
     private List<Instance> awsWorkersList = new ArrayList<>();
     private List<String> devWorkersList = new ArrayList<>();
     private List<Instance> recordingWorkersList = new ArrayList<>();
+    private final List<ResultReport> allReports = Collections.synchronizedList(new ArrayList<>());
 
     private Calendar startTime;
     private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -92,7 +94,7 @@ public class LoadTestService {
         this.participantOrchestrator = new LoadTestParticipantOrchestrator(this, browserEmulatorClient, esClient,
                 loadTestConfig, sleeper);
         this.topologyOrchestrator = new LoadTestTopologyOrchestrator(this, loadTestConfig, kibanaClient,
-                browserEmulatorClient, workerUrlResolver);
+                browserEmulatorClient, workerUrlResolver, dataIO);
 
         prodMode = loadTestConfig.getWorkerUrlList().isEmpty();
         devWorkersList = loadTestConfig.getWorkerUrlList();
@@ -181,6 +183,12 @@ public class LoadTestService {
         this.startTime = Calendar.getInstance();
     }
 
+    void resetForNewTestCase() {
+        this.startTime = Calendar.getInstance();
+        participantOrchestrator.cleanup();
+        browserEmulatorClient.clean();
+    }
+
     void completeTestAndSave(TestCase testCase, String participantsBySession, CreateParticipantResponse lastCPR) {
         browserEmulatorClient.setEndOfTest(true);
         sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
@@ -208,6 +216,10 @@ public class LoadTestService {
 
     List<Instance> getRecordingWorkersList() {
         return recordingWorkersList;
+    }
+
+    List<ResultReport> getAllReports() {
+        return allReports;
     }
 
     List<String> getDevWorkersList() {
@@ -365,7 +377,9 @@ public class LoadTestService {
                 .setUserRetryAttempts(browserEmulatorClient.getPerUserRetryAttempts())
                 .build();
 
-        io.exportResults(rr);
+        allReports.add(rr);
+
+        io.exportResultsTxtOnly(rr);
 
     }
 

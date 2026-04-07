@@ -245,6 +245,70 @@
             cursor: default;
         }
 
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            border-bottom: 2px solid var(--border-color);
+            padding: 0 24px;
+            background: var(--bg-secondary);
+            border-radius: 12px 12px 0 0;
+            margin-bottom: 0;
+        }
+
+        .tab-btn {
+            padding: 14px 20px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            white-space: nowrap;
+            transition: color 0.2s, border-color 0.2s;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .tab-subtitle {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .overview-table tr:hover {
+            cursor: pointer;
+        }
+
+        .overview-table tr[data-tc-index]:hover td {
+            background: rgba(59, 130, 246, 0.15);
+        }
+
         @media (max-width: 768px) {
             body { padding: 12px; }
             .header { padding: 16px; }
@@ -252,6 +316,8 @@
             .stats-bar { grid-template-columns: 1fr 1fr; }
             .stat-value { font-size: 18px; }
             .section-content { padding: 16px; }
+            .tab-bar { padding: 0 12px; }
+            .tab-btn { padding: 12px 14px; font-size: 13px; }
         }
     </style>
 </head>
@@ -267,272 +333,402 @@
                         <span class="meta-label">Generated</span>
                         <span class="meta-value">{{generatedAt}}</span>
                     </div>
+                    {{#hasMultipleTestCases}}
+                    <div class="meta-item">
+                        <span class="meta-label">Test Cases</span>
+                        <span class="meta-value">{{testCases.size}}</span>
+                    </div>
+                    {{/hasMultipleTestCases}}
                 </div>
             </div>
         </div>
 
-        <div class="stats-bar">
-            <div class="stat-card">
-                <div class="stat-icon sessions">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                        <path d="M9 9h6M9 15h6"/>
-                    </svg>
-                </div>
-                <div class="stat-info">
-                    <div class="stat-label">Sessions</div>
-                    <div class="stat-value">{{numSessionsCompleted}}<span style="font-size:14px;color:var(--text-muted)">/ {{numSessionsCreated}}</span></div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon participants">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                </div>
-                <div class="stat-info">
-                    <div class="stat-label">Participants</div>
-                    <div class="stat-value">{{totalParticipants}}</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon workers">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <rect x="2" y="3" width="20" height="14" rx="2"/>
-                        <path d="M8 21h8M12 17v4"/>
-                    </svg>
-                </div>
-                <div class="stat-info">
-                    <div class="stat-label">Workers</div>
-                    <div class="stat-value">{{workersUsed}}</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon duration">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 6v6l4 2"/>
-                    </svg>
-                </div>
-                <div class="stat-info">
-                    <div class="stat-label">Duration</div>
-                    <div class="stat-value">{{testDuration}}</div>
-                </div>
+        {{#hasMultipleTestCases}}
+        <div class="section" style="margin-bottom: 0; border-radius: 12px 12px 0 0;">
+            <div class="tab-bar" id="tabBar">
+                <button class="tab-btn active" data-tab="overview">
+                    <span class="tab-label">Overview</span>
+                </button>
+                {{#testCases}}
+                <button class="tab-btn" data-tab="tc-{{index}}">
+                    <span class="tab-label">{{tabName}}: {{tabLabel}}</span>
+                    {{#tabDescription}}<span class="tab-subtitle">{{tabDescription}}</span>{{/tabDescription}}
+                </button>
+                {{/testCases}}
             </div>
         </div>
+        {{/hasMultipleTestCases}}
 
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
-                    </svg>
-                    Summary
-                </div>
-                <div class="section-toggle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="section-content">
-                <div class="table-container">
-                    <table id="summary-table">
-                        <tbody>
-                            {{#summaryRows}}
-                            <tr><td class="metric">{{metric}}</td><td class="value">{{value}}</td></tr>
-                            {{/summaryRows}}
-                            
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        
-
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                    </svg>
-                    Configuration
-                </div>
-                <div class="section-toggle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="section-content">
-                <div class="table-container">
-                    <table id="configuration-table">
-                        <tbody>
-                            {{#configurationRows}}
-                            <tr><td class="metric">{{metric}}</td><td class="value">{{value}}</td></tr>
-                            {{/configurationRows}}
-                            {{#kibanaAsLink}}
-                            <tr><td class="metric-key">Kibana Dashboard</td><td class="metric-value"><a href="{{kibanaUrl}}" target="_blank" class="kibana-link">Open Dashboard</a></td></tr>
-                            {{/kibanaAsLink}}
-                            {{#kibanaAsText}}
-                            <tr><td class="metric-key">Kibana Dashboard</td><td class="metric-value">{{kibanaUrl}}</td></tr>
-                            {{/kibanaAsText}}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        {{#hasCpuRows}}
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="4" y="4" width="16" height="16" rx="2"/>
-                        <rect x="9" y="9" width="6" height="6"/>
-                        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
-                    </svg>
-                    Worker CPU Utilization
-                </div>
-                <div class="section-toggle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="section-content">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr><th>Worker</th><th>Average CPU</th><th>Max CPU</th></tr>
-                        </thead>
-                        <tbody>
-                            {{#cpuRows}}
-                            <tr{{#isAllWorkers}} class="all-workers"{{/isAllWorkers}}>
-                                <td>{{worker}}</td>
-                                <td>
-                                    <div class="cpu-bar-container">
-                                        <div class="cpu-bar"><div class="cpu-bar-fill {{avgCpuColor}}" style="width: {{avgCpu}}"></div></div>
-                                        <span class="cpu-text">{{avgCpu}}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="cpu-bar-container">
-                                        <div class="cpu-bar"><div class="cpu-bar-fill {{maxCpuColor}}" style="width: {{maxCpu}}"></div></div>
-                                        <span class="cpu-text">{{maxCpu}}</span>
-                                    </div>
-                                </td>
-                            </tr>
-                            {{/cpuRows}}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        {{/hasCpuRows}}
-
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    User Connections
-                    {{#hasUsers}}
-                    <span style="font-size:13px;font-weight:400;color:var(--text-muted)">({{userCount}} total)</span>
-                    {{/hasUsers}}
-                </div>
-                <div class="section-toggle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="section-content">
-                {{#hasUsers}}
-                <div class="table-controls">
-                    <div class="search-box">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        {{#hasMultipleTestCases}}
+        <div class="tab-content active" id="tab-overview">
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="stat-icon sessions">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <path d="M9 9h6M9 15h6"/>
                         </svg>
-                        <input type="text" id="userSearch" placeholder="Search users or sessions..." oninput="filterUsers()">
                     </div>
-                    <div class="pagination">
-                        <button class="pagination-btn" onclick="prevPage()" id="prevBtn" disabled>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-                        </button>
-                        <span class="pagination-info" id="pageInfo">Page {{currentPage}} of {{totalPages}}</span>
-                        <button class="pagination-btn" onclick="nextPage()" id="nextBtn" {{#isLastPage}}disabled{{/isLastPage}}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-                        </button>
+                    <div class="stat-info">
+                        <div class="stat-label">Total Sessions</div>
+                        <div class="stat-value">{{overviewTotalSessionsCompleted}}<span style="font-size:14px;color:var(--text-muted)">/ {{overviewTotalSessionsCreated}}</span></div>
                     </div>
                 </div>
-                {{/hasUsers}}
-                <div class="table-container">
-                    <table id="user-connections-table">
-                        <thead>
-                            <tr>
-                                <th onclick="sortUserTable(this, 0)">User <span class="sort-icon">↕</span></th>
-                                <th onclick="sortUserTable(this, 1)">Session <span class="sort-icon">↕</span></th>
-                                <th onclick="sortUserTable(this, 2)">Join Date <span class="sort-icon">↕</span></th>
-                                <th onclick="sortUserTable(this, 3)">Retries <span class="sort-icon">↕</span></th>
-                                <th>Retry Details</th>
-                            </tr>
-                        </thead>
-                        <tbody id="userTableBody">
-                            {{#userRows}}
-                            <tr class="user-row" data-detail-id="{{retryDetailId}}">
-                                <td>{{userId}}</td><td>{{sessionId}}</td><td>{{joinDate}}</td>
-                                <td>{{#ifRetriesGreaterThanZero}}<span class="error-count medium">{{retries}}</span>{{/ifRetriesGreaterThanZero}}{{^ifRetriesGreaterThanZero}}{{retries}}{{/ifRetriesGreaterThanZero}}</td>
-                                <td>
-                                    {{#hasRetryAttempts}}
-                                    <button class="retry-details-btn" data-detail-id="{{retryDetailId}}">Show</button>
-                                    {{/hasRetryAttempts}}
-                                    {{^hasRetryAttempts}}-{{/hasRetryAttempts}}
-                                </td>
-                            </tr>
-                            {{#hasRetryAttempts}}
-                            <tr id="{{retryDetailId}}" class="retry-details-row">
-                                <td colspan="5">
-                                    <div class="retry-details-wrap">
-                                        <table class="retry-attempts-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Attempt</th>
-                                                    <th>Error Date</th>
-                                                    <th>Reconnect Date</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {{#retryAttempts}}
-                                                <tr>
-                                                    <td>{{attemptNumber}}</td>
-                                                    <td>{{errorDate}}</td>
-                                                    <td>{{reconnectDate}}</td>
-                                                </tr>
-                                                {{/retryAttempts}}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </td>
-                            </tr>
-                            {{/hasRetryAttempts}}
-                            {{/userRows}}
-                            {{^userRows}}
-                            <tr><td colspan="5" class="no-data">No participants</td></tr>
-                            {{/userRows}}
-                        </tbody>
-                    </table>
+                <div class="stat-card">
+                    <div class="stat-icon participants">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Total Participants</div>
+                        <div class="stat-value">{{overviewTotalParticipants}}</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon workers">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                            <path d="M8 21h8M12 17v4"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Test Cases Run</div>
+                        <div class="stat-value">{{testCases.size}}</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon duration">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Total Duration</div>
+                        <div class="stat-value">{{overviewTotalDuration}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 3v18h18"/>
+                            <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                        </svg>
+                        Comparison Table
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="table-container">
+                        <table class="overview-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Test Case</th>
+                                    <th>Topology</th>
+                                    <th>Per Session</th>
+                                    <th>Sessions (Created/Completed)</th>
+                                    <th>Participants</th>
+                                    <th>Workers</th>
+                                    <th>Duration</th>
+                                    <th>Stop Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{#overviewRows}}
+                                <tr data-tc-index="{{index}}" onclick="switchToTab('tc-{{index}}')">
+                                    <td>{{index}}</td>
+                                    <td>{{label}}</td>
+                                    <td>{{topology}}</td>
+                                    <td>{{participantsPerSession}}</td>
+                                    <td>{{sessionsCreated}}/{{sessionsCompleted}}</td>
+                                    <td>{{totalParticipants}}</td>
+                                    <td>{{workersUsed}}</td>
+                                    <td>{{duration}}</td>
+                                    <td>{{stopReason}}</td>
+                                </tr>
+                                {{/overviewRows}}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
+        {{/hasMultipleTestCases}}
+
+        {{#testCases}}
+        <div class="tab-content{{^hasMultipleTestCases}} active{{/hasMultipleTestCases}}" id="tab-tc-{{index}}">
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="stat-icon sessions">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <path d="M9 9h6M9 15h6"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Sessions</div>
+                        <div class="stat-value">{{numSessionsCompleted}}<span style="font-size:14px;color:var(--text-muted)">/ {{numSessionsCreated}}</span></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon participants">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Participants</div>
+                        <div class="stat-value">{{totalParticipants}}</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon workers">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                            <path d="M8 21h8M12 17v4"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Workers</div>
+                        <div class="stat-value">{{workersUsed}}</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon duration">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Duration</div>
+                        <div class="stat-value">{{testDuration}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                        </svg>
+                        Summary
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="table-container">
+                        <table id="summary-table-{{index}}">
+                            <tbody>
+                                {{#summaryRows}}
+                                <tr><td class="metric">{{metric}}</td><td class="value">{{value}}</td></tr>
+                                {{/summaryRows}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                        </svg>
+                        Configuration
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="table-container">
+                        <table id="configuration-table-{{index}}">
+                            <tbody>
+                                {{#configurationRows}}
+                                <tr><td class="metric">{{metric}}</td><td class="value">{{value}}</td></tr>
+                                {{/configurationRows}}
+                                {{#kibanaAsLink}}
+                                <tr><td class="metric-key">Kibana Dashboard</td><td class="metric-value"><a href="{{kibanaUrl}}" target="_blank" class="kibana-link">Open Dashboard</a></td></tr>
+                                {{/kibanaAsLink}}
+                                {{#kibanaAsText}}
+                                <tr><td class="metric-key">Kibana Dashboard</td><td class="metric-value">{{kibanaUrl}}</td></tr>
+                                {{/kibanaAsText}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {{#hasCpuRows}}
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                            <rect x="9" y="9" width="6" height="6"/>
+                            <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
+                        </svg>
+                        Worker CPU Utilization
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Worker</th><th>Average CPU</th><th>Max CPU</th></tr>
+                            </thead>
+                            <tbody>
+                                {{#cpuRows}}
+                                <tr{{#isAllWorkers}} class="all-workers"{{/isAllWorkers}}>
+                                    <td>{{worker}}</td>
+                                    <td>
+                                        <div class="cpu-bar-container">
+                                            <div class="cpu-bar"><div class="cpu-bar-fill {{avgCpuColor}}" style="width: {{avgCpu}}"></div></div>
+                                            <span class="cpu-text">{{avgCpu}}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="cpu-bar-container">
+                                            <div class="cpu-bar"><div class="cpu-bar-fill {{maxCpuColor}}" style="width: {{maxCpu}}"></div></div>
+                                            <span class="cpu-text">{{maxCpu}}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {{/cpuRows}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {{/hasCpuRows}}
+
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        User Connections
+                        {{#hasUsers}}
+                        <span style="font-size:13px;font-weight:400;color:var(--text-muted)">({{userCount}} total)</span>
+                        {{/hasUsers}}
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    {{#hasUsers}}
+                    <div class="table-controls">
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                            </svg>
+                            <input type="text" id="userSearch-{{index}}" placeholder="Search users or sessions..." oninput="filterUsers({{index}})">
+                        </div>
+                        <div class="pagination">
+                            <button class="pagination-btn" onclick="prevPage({{index}})" id="prevBtn-{{index}}" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                            </button>
+                            <span class="pagination-info" id="pageInfo-{{index}}">Page {{currentPage}} of {{totalPages}}</span>
+                            <button class="pagination-btn" onclick="nextPage({{index}})" id="nextBtn-{{index}}" {{#isLastPage}}disabled{{/isLastPage}}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    {{/hasUsers}}
+                    <div class="table-container">
+                        <table id="user-connections-table-{{index}}">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortUserTable(this, 0, {{index}})">User <span class="sort-icon">↕</span></th>
+                                    <th onclick="sortUserTable(this, 1, {{index}})">Session <span class="sort-icon">↕</span></th>
+                                    <th onclick="sortUserTable(this, 2, {{index}})">Join Date <span class="sort-icon">↕</span></th>
+                                    <th onclick="sortUserTable(this, 3, {{index}})">Retries <span class="sort-icon">↕</span></th>
+                                    <th>Retry Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody-{{index}}">
+                                {{#userRows}}
+                                <tr class="user-row" data-detail-id="{{retryDetailId}}">
+                                    <td>{{userId}}</td><td>{{sessionId}}</td><td>{{joinDate}}</td>
+                                    <td>{{#ifRetriesGreaterThanZero}}<span class="error-count medium">{{retries}}</span>{{/ifRetriesGreaterThanZero}}{{^ifRetriesGreaterThanZero}}{{retries}}{{/ifRetriesGreaterThanZero}}</td>
+                                    <td>
+                                        {{#hasRetryAttempts}}
+                                        <button class="retry-details-btn" data-detail-id="{{retryDetailId}}">Show</button>
+                                        {{/hasRetryAttempts}}
+                                        {{^hasRetryAttempts}}-{{/hasRetryAttempts}}
+                                    </td>
+                                </tr>
+                                {{#hasRetryAttempts}}
+                                <tr id="{{retryDetailId}}" class="retry-details-row">
+                                    <td colspan="5">
+                                        <div class="retry-details-wrap">
+                                            <table class="retry-attempts-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Attempt</th>
+                                                        <th>Error Date</th>
+                                                        <th>Reconnect Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {{#retryAttempts}}
+                                                    <tr>
+                                                        <td>{{attemptNumber}}</td>
+                                                        <td>{{errorDate}}</td>
+                                                        <td>{{reconnectDate}}</td>
+                                                    </tr>
+                                                    {{/retryAttempts}}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {{/hasRetryAttempts}}
+                                {{/userRows}}
+                                {{^userRows}}
+                                <tr><td colspan="5" class="no-data">No participants</td></tr>
+                                {{/userRows}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{/testCases}}
     </div>
 
     <script>
@@ -563,12 +759,13 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
-        function sortUserTable(th, colIndex) {
-            const tbody = document.getElementById('userTableBody');
+        function sortUserTable(th, colIndex, tabIdx) {
+            const tbody = document.getElementById('userTableBody-' + tabIdx);
             const rows = Array.from(tbody.querySelectorAll('tr.user-row'));
-            sortDirection['user'] = !sortDirection['user'];
-            const dir = sortDirection['user'] ? 1 : -1;
-            document.querySelectorAll('#user-connections-table th').forEach(h => h.classList.remove('sorted'));
+            const key = 'user-' + tabIdx;
+            sortDirection[key] = !sortDirection[key];
+            const dir = sortDirection[key] ? 1 : -1;
+            document.querySelectorAll('#user-connections-table-' + tabIdx + ' th').forEach(h => h.classList.remove('sorted'));
             th.classList.add('sorted');
             const dateColumns = [2];
             rows.sort((a, b) => {
@@ -586,44 +783,45 @@
                 if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * dir;
                 return aVal.localeCompare(bVal) * dir;
             });
-            filteredUsers = rows;
-            currentPage = 1;
-            updatePagination();
+            state[tabIdx].filteredUsers = rows;
+            state[tabIdx].currentPage = 1;
+            updatePagination(tabIdx);
         }
 
-        let currentPage = 1;
-        const pageSize = {{pageSize}};
-        let allUserRows = [];
-        let filteredUsers = [];
-        let detailRowsById = {};
+        const state = {};
+        {{#testCases}}
+        state[{{index}}] = {
+            currentPage: 1,
+            pageSize: {{pageSize}},
+            allUserRows: [],
+            filteredUsers: [],
+            detailRowsById: {}
+        };
+        {{/testCases}}
 
-        function initUserTable() {
-            const tbody = document.getElementById('userTableBody');
+        function initUserTable(tabIdx) {
+            const tbody = document.getElementById('userTableBody-' + tabIdx);
+            if (!tbody) return;
             const allRows = Array.from(tbody.querySelectorAll('tr'));
-            // Capture user rows and associated detail rows before we clear the tbody
+            const s = state[tabIdx];
             for (let i = 0; i < allRows.length; i++) {
                 const r = allRows[i];
                 if (r.classList.contains('user-row')) {
-                    // If the next row is a retry-details-row, pair them
                     const next = allRows[i + 1];
                     if (next && next.classList.contains('retry-details-row') && next.id) {
-                        // store direct reference on the user row for robustness during pagination
                         r._detailRow = next;
-                        detailRowsById[next.id] = next;
-                        i++; // skip the detail row in the outer loop
+                        s.detailRowsById[next.id] = next;
+                        i++;
                     }
-                    allUserRows.push(r);
+                    s.allUserRows.push(r);
                 } else if (r.classList.contains('retry-details-row') && r.id) {
-                    detailRowsById[r.id] = r;
+                    s.detailRowsById[r.id] = r;
                 }
             }
-            if (allUserRows.length > 0) {
-                // Default sort: Join Date (oldest first)
-                // Join Date is the 3rd column (index 2) in the user-row cells
-                filteredUsers = [...allUserRows].sort((a, b) => {
+            if (s.allUserRows.length > 0) {
+                s.filteredUsers = [...s.allUserRows].sort((a, b) => {
                     const aVal = a.children[2].textContent.trim();
                     const bVal = b.children[2].textContent.trim();
-                    // Treat missing values as greater so they appear at the end for ascending order
                     if (aVal === '-' || aVal === '') return 1;
                     if (bVal === '-' || bVal === '') return -1;
                     const aDate = new Date(aVal.replace(' ', 'T'));
@@ -631,17 +829,13 @@
                     if (!isNaN(aDate) && !isNaN(bDate)) return aDate.getTime() - bDate.getTime();
                     return aVal.localeCompare(bVal);
                 });
-                // Reflect sort state so subsequent user-initiated sorts toggle correctly
-                sortDirection['user'] = true; // true -> ascending (oldest first)
-                // Visually mark the Join Date header as sorted by default
-                const joinDateHeader = document.querySelectorAll('#user-connections-table th')[2];
+                sortDirection['user-' + tabIdx] = true;
+                const joinDateHeader = document.querySelectorAll('#user-connections-table-' + tabIdx + ' th')[2];
                 if (joinDateHeader) joinDateHeader.classList.add('sorted');
-                updatePagination();
+                updatePagination(tabIdx);
             }
 
-            // Delegate click handling for retry details buttons to avoid issues when rows are reparented
-            document.addEventListener('click', function(e) {
-                // Normalize to an Element in case the target is a text node
+            tbody.addEventListener('click', function(e) {
                 let el = e.target;
                 while (el && el.nodeType !== 1) el = el.parentNode;
                 if (!el) return;
@@ -649,36 +843,30 @@
                 if (!btn) return;
                 const detailId = btn.getAttribute('data-detail-id') || btn.dataset.detailId;
                 if (!detailId) return;
-                // Debugging aid: log clicks to console so users can report if handler runs
-                if (window && window.console && window.console.debug) {
-                    console.debug('[report] retry-details clicked:', detailId, btn);
-                }
                 toggleRetryDetails(detailId, btn);
             });
         }
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initUserTable);
-        } else {
-            // Document already loaded, initialize immediately
-            initUserTable();
-        }
-
-        function updatePagination() {
-            const totalUsers = filteredUsers.length;
-            const totalPages = Math.ceil(totalUsers / pageSize) || 1;
-            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
-            document.getElementById('prevBtn').disabled = currentPage === 1;
-            document.getElementById('nextBtn').disabled = currentPage === totalPages || totalUsers === 0;
-            const start = (currentPage - 1) * pageSize;
-            const end = start + pageSize;
-            const tbody = document.getElementById('userTableBody');
+        function updatePagination(tabIdx) {
+            const s = state[tabIdx];
+            if (!s) return;
+            const totalUsers = s.filteredUsers.length;
+            const totalPages = Math.ceil(totalUsers / s.pageSize) || 1;
+            const pageInfo = document.getElementById('pageInfo-' + tabIdx);
+            const prevBtn = document.getElementById('prevBtn-' + tabIdx);
+            const nextBtn = document.getElementById('nextBtn-' + tabIdx);
+            if (pageInfo) pageInfo.textContent = 'Page ' + s.currentPage + ' of ' + totalPages;
+            if (prevBtn) prevBtn.disabled = s.currentPage === 1;
+            if (nextBtn) nextBtn.disabled = s.currentPage === totalPages || totalUsers === 0;
+            const start = (s.currentPage - 1) * s.pageSize;
+            const end = start + s.pageSize;
+            const tbody = document.getElementById('userTableBody-' + tabIdx);
+            if (!tbody) return;
             tbody.innerHTML = '';
-            filteredUsers.slice(start, end).forEach(row => {
+            s.filteredUsers.slice(start, end).forEach(row => {
                 tbody.appendChild(row);
                 const detailId = row.getAttribute('data-detail-id');
-                // Prefer direct reference stored on the row, then mapping, then DOM lookup
-                const detailRow = row._detailRow || (detailId ? detailRowsById[detailId] || document.getElementById(detailId) : null);
+                const detailRow = row._detailRow || (detailId ? s.detailRowsById[detailId] || document.getElementById(detailId) : null);
                 if (detailRow && !row._detailRow) {
                     row._detailRow = detailRow;
                 }
@@ -687,31 +875,36 @@
                     const toggleBtn = row.querySelector('.retry-details-btn');
                     if (toggleBtn) {
                         toggleBtn.textContent = 'Show';
-                        // Ensure a direct click handler exists on the button to be robust across environments
                         try {
-                            // Replace any existing onclick to avoid duplicate handlers
                             toggleBtn.onclick = function(evt) { evt.stopPropagation(); toggleRetryDetails(detailId, this); };
-                        } catch (e) {
-                            // ignore environment where setting onclick may fail
-                        }
+                        } catch (e) {}
                     }
                     tbody.appendChild(detailRow);
                 }
             });
         }
 
-        function prevPage() { if (currentPage > 1) { currentPage--; updatePagination(); } }
-        function nextPage() { const totalPages = Math.ceil(filteredUsers.length / pageSize); if (currentPage < totalPages) { currentPage++; updatePagination(); } }
+        function prevPage(tabIdx) {
+            const s = state[tabIdx];
+            if (s && s.currentPage > 1) { s.currentPage--; updatePagination(tabIdx); }
+        }
+        function nextPage(tabIdx) {
+            const s = state[tabIdx];
+            if (!s) return;
+            const totalPages = Math.ceil(s.filteredUsers.length / s.pageSize);
+            if (s.currentPage < totalPages) { s.currentPage++; updatePagination(tabIdx); }
+        }
 
-        function filterUsers() {
-            const searchTerm = document.getElementById('userSearch').value.toLowerCase();
-            filteredUsers = allUserRows.filter(row => row.textContent.toLowerCase().includes(searchTerm));
-            currentPage = 1;
-            updatePagination();
+        function filterUsers(tabIdx) {
+            const s = state[tabIdx];
+            if (!s) return;
+            const searchTerm = document.getElementById('userSearch-' + tabIdx).value.toLowerCase();
+            s.filteredUsers = s.allUserRows.filter(row => row.textContent.toLowerCase().includes(searchTerm));
+            s.currentPage = 1;
+            updatePagination(tabIdx);
         }
 
         function toggleRetryDetails(detailId, button) {
-            // Prefer the paired row reference stored on the button's user-row ancestor
             let userRow = button && button.closest ? button.closest('tr.user-row') : null;
             let detailRow = null;
             if (userRow && userRow._detailRow) {
@@ -720,20 +913,41 @@
             if (!detailRow) {
                 detailRow = document.getElementById(detailId);
             }
-            if (!detailRow) {
-                if (window && window.console && window.console.warn) {
-                    console.warn('[report] retry detail row not found for id:', detailId);
-                }
-                return;
-            }
-            // Use computed style to determine visibility in case stylesheet hides it
+            if (!detailRow) return;
             const computed = window.getComputedStyle(detailRow);
             const isVisible = detailRow.style.display === 'table-row' || computed.display === 'table-row';
             detailRow.style.display = isVisible ? 'none' : 'table-row';
-            if (window && window.console && window.console.debug) {
-                console.debug('[report] toggled detailRow', detailId, 'visible:', !isVisible);
-            }
             button.textContent = isVisible ? 'Show' : 'Hide';
+        }
+
+        function switchToTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const btn = document.querySelector('.tab-btn[data-tab="' + tabId + '"]');
+            if (btn) btn.classList.add('active');
+            const content = document.getElementById('tab-' + tabId);
+            if (content) content.classList.add('active');
+        }
+
+        document.addEventListener('click', function(e) {
+            let el = e.target;
+            while (el && el.nodeType !== 1) el = el.parentNode;
+            if (!el) return;
+            const tabBtn = el.closest('.tab-btn');
+            if (!tabBtn) return;
+            switchToTab(tabBtn.dataset.tab);
+        });
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                {{#testCases}}
+                initUserTable({{index}});
+                {{/testCases}}
+            });
+        } else {
+            {{#testCases}}
+            initUserTable({{index}});
+            {{/testCases}}
         }
     </script>
 </body>

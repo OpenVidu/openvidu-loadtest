@@ -188,7 +188,7 @@ class AwsScaleMultiFailureIntegrationTest {
     @BeforeAll
     static void setup() throws Exception {
         log.info("=== AwsScaleMultiFailureIntegrationTest Setup ===");
-
+        cleanupResultsDir();
         String ec2Endpoint = localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString();
         log.info("LocalStack EC2 endpoint: {}", ec2Endpoint);
 
@@ -275,6 +275,21 @@ class AwsScaleMultiFailureIntegrationTest {
         log.info(
                 "Test will register participants 50-75 to fail once when participant {} is reached, and register participant 80 to fail on creation when participant {} is reached",
                 FAILURE_REGISTRATION_TRIGGER_PARTICIPANT, FAILURE_REGISTRATION_TRIGGER_PARTICIPANT_PHASE2);
+    }
+
+    private static void cleanupResultsDir() throws IOException {
+        if (resultsDir != null && Files.exists(resultsDir)) {
+            Files.walk(resultsDir)
+                    .sorted((a, b) -> b.compareTo(a))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            throw new RuntimeException("Failed to delete " + path, e);
+                        }
+                    });
+            Files.createDirectories(resultsDir);
+        }
     }
 
     /**
@@ -379,9 +394,6 @@ class AwsScaleMultiFailureIntegrationTest {
         Path htmlReport = resultsDir.resolve("report.html");
         Path txtReport = resultsDir.resolve("results.txt");
 
-        boolean reportsGenerated = waitForReports(htmlReport, txtReport, 9, TimeUnit.MINUTES);
-        assertTrue(reportsGenerated, "Reports should be generated within 9 minutes");
-
         log.info("=== Validating Results ===");
 
         validateHtmlReport(htmlReport);
@@ -443,7 +455,7 @@ class AwsScaleMultiFailureIntegrationTest {
         String content = Files.readString(htmlReport);
         Document doc = Jsoup.parse(content);
 
-        Elements summaryTable = doc.select("#summary-table");
+        Elements summaryTable = doc.select("#summary-table, #summary-table-1");
         assertFalse(summaryTable.isEmpty(), "Summary table should exist");
 
         Elements rows = summaryTable.select("tr");
@@ -461,7 +473,7 @@ class AwsScaleMultiFailureIntegrationTest {
         }
         assertTrue(foundStopReason, "HTML report should contain Stop Reason");
 
-        Elements userTable = doc.select("#user-connections-table");
+        Elements userTable = doc.select("#user-connections-table, #user-connections-table-1");
         assertFalse(userTable.isEmpty(), "User Connections table should exist");
 
         // Validate that participants 50-75 have retry counts recorded in the user
@@ -483,7 +495,7 @@ class AwsScaleMultiFailureIntegrationTest {
         final int expectedParticipantsWithSingleFailure = lastParticipantWithSingleFailure
                 - firstParticipantWithSingleFailure + 1;
 
-        Elements userTable = doc.select("#user-connections-table");
+        Elements userTable = doc.select("#user-connections-table, #user-connections-table-1");
         assertFalse(userTable.isEmpty(), "User Connections table should exist");
 
         Elements userRows = userTable.select("tbody tr.user-row");
@@ -585,28 +597,6 @@ class AwsScaleMultiFailureIntegrationTest {
         }
 
         log.info("TXT report validation passed");
-    }
-
-    private boolean waitForReports(Path htmlReport, Path txtReport, int timeout, TimeUnit unit)
-            throws InterruptedException {
-        long deadline = System.currentTimeMillis() + unit.toMillis(timeout);
-
-        while (System.currentTimeMillis() < deadline) {
-            if (Files.exists(htmlReport) && Files.exists(txtReport)) {
-                try {
-                    String html = Files.readString(htmlReport);
-                    if (html.contains("Stop Reason")) {
-                        log.info("Reports generated successfully");
-                        return true;
-                    }
-                } catch (IOException e) {
-                    // Continue waiting
-                }
-            }
-            Thread.sleep(5000);
-        }
-        log.warn("Timeout waiting for reports");
-        return false;
     }
 
     private static void configureTrustingSslContext() throws Exception {

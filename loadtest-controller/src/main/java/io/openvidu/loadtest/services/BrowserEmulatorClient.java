@@ -129,6 +129,7 @@ public class BrowserEmulatorClient {
         this.participantConnecting.clear();
         this.participantReconnecting.clear();
         this.userDisconnectTimestamps.clear();
+        this.isClean.set(false);
     }
 
     public void addDisconnectTimestamp(String userId, String sessionId) {

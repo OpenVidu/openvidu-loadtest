@@ -36,15 +36,16 @@ public class DataIO {
 
     private final Environment environment;
     private final ResultExporter resultExporter;
-    @Autowired
-    private LoadTestConfig loadTestConfig;
-    @Autowired
-    private HtmlReportGenerator htmlReportGenerator;
+    private final LoadTestConfig loadTestConfig;
+    private final HtmlReportGenerator htmlReportGenerator;
 
     // Constructor for tests or explicit wiring
-    public DataIO(Environment environment, ResultExporter resultExporter) {
+    public DataIO(Environment environment, ResultExporter resultExporter, LoadTestConfig loadTestConfig,
+            HtmlReportGenerator htmlReportGenerator) {
         this.environment = environment;
         this.resultExporter = resultExporter;
+        this.loadTestConfig = loadTestConfig;
+        this.htmlReportGenerator = htmlReportGenerator;
     }
 
     @SuppressWarnings("unchecked")
@@ -89,10 +90,9 @@ public class DataIO {
         return convertMapListToTestCasesList(testCasesList);
     }
 
-    public void exportResults(ResultReport result) {
-        log.debug("exportResults called");
+    public void exportResultsTxtOnly(ResultReport result) {
+        log.debug("exportResultsTxtOnly called");
         List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
-        log.debug("reportOutput = {}", reportOutput);
         if (reportOutput.contains("txt")) {
             try {
                 this.resultExporter.export(result, REPORT_FILE_RESULT);
@@ -100,9 +100,14 @@ public class DataIO {
                 log.error("Could not save results to file", e);
             }
         }
+    }
+
+    public void exportAllResults(List<ResultReport> reports) {
+        log.debug("exportAllResults called with {} reports", reports.size());
+        List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
         if (reportOutput.contains("html")) {
             try {
-                htmlReportGenerator.generateHtmlReport(result, "report.html");
+                htmlReportGenerator.generateMultiReport(reports, "report.html");
             } catch (IOException e) {
                 log.error("Could not save HTML report to file", e);
             }

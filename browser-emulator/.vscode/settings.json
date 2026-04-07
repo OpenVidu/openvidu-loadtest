@@ -20,8 +20,5 @@
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	},
 	"typescript.tsdk": "node_modules/typescript/lib",
-	"typescript.enablePromptUseWorkspaceTsdk": true,
-	"yaml.schemas": {
-		"https://www.artillery.io/schema.json": []
-	}
+	"typescript.enablePromptUseWorkspaceTsdk": true
 }

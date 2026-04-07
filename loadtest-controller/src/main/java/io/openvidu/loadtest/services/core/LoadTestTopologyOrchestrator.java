@@ -13,6 +13,7 @@ import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.WorkerUrlResolver;
+import io.openvidu.loadtest.utils.DataIO;
 
 class LoadTestTopologyOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(LoadTestTopologyOrchestrator.class);
@@ -31,15 +32,17 @@ class LoadTestTopologyOrchestrator {
     private final KibanaClient kibanaClient;
     private final BrowserEmulatorClient browserEmulatorClient;
     private final WorkerUrlResolver workerUrlResolver;
+    private final DataIO dataIO;
 
     LoadTestTopologyOrchestrator(LoadTestService loadTestService, LoadTestConfig loadTestConfig,
             KibanaClient kibanaClient, BrowserEmulatorClient browserEmulatorClient,
-            WorkerUrlResolver workerUrlResolver) {
+            WorkerUrlResolver workerUrlResolver, DataIO dataIO) {
         this.loadTestService = loadTestService;
         this.loadTestConfig = loadTestConfig;
         this.kibanaClient = kibanaClient;
         this.browserEmulatorClient = browserEmulatorClient;
         this.workerUrlResolver = workerUrlResolver;
+        this.dataIO = dataIO;
     }
 
     void startLoadTests(List<TestCase> testCasesList) {
@@ -52,6 +55,8 @@ class LoadTestTopologyOrchestrator {
         }
 
         testCasesList.forEach(this::runTestCase);
+
+        dataIO.exportAllResults(loadTestService.getAllReports());
 
         // Signal workers to cleanup and exit if configured
         if (loadTestConfig.isExitOnEnd()) {
@@ -78,7 +83,13 @@ class LoadTestTopologyOrchestrator {
         }
     }
 
+    private boolean firstTestCase = true;
+
     private void runTestCase(TestCase testCase) {
+        if (!firstTestCase) {
+            loadTestService.resetForNewTestCase();
+        }
+        firstTestCase = false;
         if (testCase.isNxN()) {
             runNxNCase(testCase);
         } else if (testCase.isNxM() || testCase.isTeaching()) {

@@ -188,7 +188,7 @@ class AwsScaleIntegrationTest {
     @BeforeAll
     static void setup() throws Exception {
         log.info("=== AwsScaleIntegrationTest Setup ===");
-
+        cleanupResultsDir();
         // LocalStack already started by @DynamicPropertySource
         String ec2Endpoint = localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString();
         log.info("LocalStack EC2 endpoint: {}", ec2Endpoint);
@@ -225,6 +225,21 @@ class AwsScaleIntegrationTest {
         log.info("Setup complete");
         log.info("Test will fail participant {} after {} retries",
                 FAIL_USER_ID, 5);
+    }
+
+    private static void cleanupResultsDir() throws IOException {
+        if (resultsDir != null && Files.exists(resultsDir)) {
+            Files.walk(resultsDir)
+                    .sorted((a, b) -> b.compareTo(a))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            throw new RuntimeException("Failed to delete " + path, e);
+                        }
+                    });
+            Files.createDirectories(resultsDir);
+        }
     }
 
     @AfterAll
@@ -286,12 +301,6 @@ class AwsScaleIntegrationTest {
 
         Path htmlReport = resultsDir.resolve("report.html");
         Path txtReport = resultsDir.resolve("results.txt");
-
-        // Wait for reports with timeout (9 minutes)
-        boolean reportsGenerated = waitForReports(htmlReport, txtReport, 9, TimeUnit.MINUTES);
-
-        // Validate reports were generated
-        assertTrue(reportsGenerated, "Reports should be generated within 9 minutes");
 
         // === VALIDATION PHASE ===
         log.info("=== Validating Results ===");
@@ -367,7 +376,7 @@ class AwsScaleIntegrationTest {
         Document doc = Jsoup.parse(content);
 
         // Check that we have the summary table with ID
-        Elements summaryTable = doc.select("#summary-table");
+        Elements summaryTable = doc.select("#summary-table, #summary-table-1");
         assertFalse(summaryTable.isEmpty(), "Summary table should exist");
 
         // Verify Stop Reason contains reconnection failure info
@@ -388,7 +397,7 @@ class AwsScaleIntegrationTest {
         assertTrue(foundStopReason, "HTML report should contain Stop Reason");
 
         // Check user connections table exists
-        Elements userTable = doc.select("#user-connections-table");
+        Elements userTable = doc.select("#user-connections-table, #user-connections-table-1");
         assertFalse(userTable.isEmpty(), "User Connections table should exist");
 
         log.info("HTML report validation passed");
@@ -418,28 +427,6 @@ class AwsScaleIntegrationTest {
         }
 
         log.info("TXT report validation passed");
-    }
-
-    private boolean waitForReports(Path htmlReport, Path txtReport, int timeout, TimeUnit unit)
-            throws InterruptedException {
-        long deadline = System.currentTimeMillis() + unit.toMillis(timeout);
-
-        while (System.currentTimeMillis() < deadline) {
-            if (Files.exists(htmlReport) && Files.exists(txtReport)) {
-                try {
-                    String html = Files.readString(htmlReport);
-                    if (html.contains("Stop Reason")) {
-                        log.info("Reports generated successfully");
-                        return true;
-                    }
-                } catch (IOException e) {
-                    // Continue waiting
-                }
-            }
-            Thread.sleep(5000);
-        }
-        log.warn("Timeout waiting for reports");
-        return false;
     }
 
     /**

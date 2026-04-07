@@ -297,26 +297,352 @@ class BrowserEmulatorClientTests {
         responseBody.addProperty("workerCpuUsage", 0.0);
         responseBody.addProperty("streams", 2);
         responseBody.addProperty("participants", 1);
-        responseBody.add("userId", null);  // null JsonElement
+        responseBody.add("userId", null); // null JsonElement
         responseBody.add("sessionId", null); // null JsonElement
         String responseString = responseBody.toString();
         when(response.body()).thenReturn(responseString);
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
-        
+
         TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
                 true, Browser.CHROME);
-        
+
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-        JsonObject expectedBody = new JsonObject();
         when(this.httpClientMock.sendPost(anyString(), any(), any(), any())).thenReturn(response);
-        
+
         CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
-        
+
         // Should still be successful but userId and sessionId should be empty strings
         assertTrue(cpr.isResponseOk());
         assertEquals("", cpr.getUserId());
         assertEquals("", cpr.getSessionId());
     }
+
+    @Test
+    void createSubscriberTest() throws IOException, InterruptedException {
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Content-Type", "application/json");
+
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+        JsonObject expectedBody = new JsonObject();
+        expectedBody.addProperty("openviduUrl", "https://localhost:8080");
+        expectedBody.addProperty("livekitApiKey", "devkey");
+        expectedBody.addProperty("livekitApiSecret", "secret");
+        JsonObject properties = new JsonObject();
+        properties.addProperty("userId", "User0");
+        properties.addProperty("sessionName", "LoadTestSession0");
+        properties.addProperty("role", "SUBSCRIBER");
+        properties.addProperty("audio", true);
+        properties.addProperty("video", true);
+        properties.addProperty("resolution", "640x480");
+        properties.addProperty("frameRate", 30);
+        properties.addProperty("recording", false);
+        properties.addProperty("showVideoElements", true);
+        properties.addProperty("headless", false);
+        properties.addProperty("browser", "chrome");
+        properties.addProperty("mediaRecorders", false);
+        expectedBody.add("properties", properties);
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("connectionId", "connectionId");
+        responseBody.addProperty("workerCpuUsage", 0.0);
+        responseBody.addProperty("streams", 2);
+        responseBody.addProperty("participants", 1);
+        responseBody.addProperty("userId", "User0");
+        responseBody.addProperty("sessionId", "LoadTestSession0");
+        String responseString = responseBody.toString();
+        when(response.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+                headers)).thenReturn(response);
+
+        CreateParticipantResponse cpr = this.browserEmulatorClient.createSubscriber("localhost", 0, 0, testCase);
+
+        assertTrue(cpr.isResponseOk());
+        verify(this.httpClientMock, times(1)).sendPost("https://localhost:5000/openvidu-browser/streamManager",
+                expectedBody, null, headers);
+    }
+
+    @Test
+    void isRecordingParticipantCreatedTest() {
+        // Test when not created
+        boolean result = this.browserEmulatorClient.isRecordingParticipantCreated(1);
+        assertFalse(result);
+    }
+
+    @Test
+    void getRoleInWorkerPublisherTest() {
+        // Test getRoleInWorker for PUBLISHER
+        when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
+        when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
+
+        int publishers = this.browserEmulatorClient.getRoleInWorker("worker1",
+                io.openvidu.loadtest.models.testcase.Role.PUBLISHER);
+        assertEquals(0, publishers);
+    }
+
+    @Test
+    void getRoleInWorkerSubscriberTest() {
+        when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
+        when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
+
+        int subscribers = this.browserEmulatorClient.getRoleInWorker("worker1",
+                io.openvidu.loadtest.models.testcase.Role.SUBSCRIBER);
+        assertEquals(0, subscribers);
+    }
+
+    @Test
+    void addDisconnectTimestampTest() {
+        this.browserEmulatorClient.addDisconnectTimestamp("User1", "LoadTestSession1");
+        Map<String, java.util.Calendar> timestamps = this.browserEmulatorClient.getPerUserDisconnectTimestamps();
+        assertTrue(timestamps.containsKey("User1-LoadTestSession1"));
+    }
+
+    @Test
+    void isAnyParticipantReconnectingTest() {
+        boolean result = this.browserEmulatorClient.isAnyParticipantReconnecting();
+        assertFalse(result);
+    }
+
+    @Test
+    void getLastErrorReconnectingResponseTest() {
+        CreateParticipantResponse result = this.browserEmulatorClient.getLastErrorReconnectingResponse();
+        assertNull(result);
+    }
+
+    @Test
+    void setEndOfTestTest() {
+        this.browserEmulatorClient.setEndOfTest(true);
+    }
+
+    @Test
+    void getRetryStatisticsTest() {
+        int[] stats = this.browserEmulatorClient.getRetryStatistics();
+        assertEquals(0, stats[0]);
+        assertEquals(0, stats[1]);
+    }
+
+    @Test
+    void getMaxRetriesPerParticipantTest() {
+        int max = this.browserEmulatorClient.getMaxRetriesPerParticipant();
+        assertEquals(0, max);
+    }
+
+    @Test
+    void getPerUserRetryCountsTest() {
+        Map<String, Integer> counts = this.browserEmulatorClient.getPerUserRetryCounts();
+        assertTrue(counts.isEmpty());
+    }
+
+    @Test
+    void getPerUserRetryAttemptsTest() {
+        Map<String, java.util.List<BrowserEmulatorClient.RetryAttempt>> attempts = this.browserEmulatorClient
+                .getPerUserRetryAttempts();
+        assertTrue(attempts.isEmpty());
+    }
+
+    @Test
+    void createParticipantWithIOExceptionTest() throws IOException, InterruptedException {
+        // Test with generic IOException - simplified to avoid complex mock setup
+        when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
+        when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
+
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+
+        when(this.httpClientMock.sendPost(anyString(), any(), any(), any()))
+                .thenThrow(new IOException("Connection failed"));
+
+        // This should handle the exception and return false
+        CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
+        assertFalse(cpr.isResponseOk());
+    }
+
+    @Test
+    void createParticipantWithTimeoutExceptionTest() throws IOException, InterruptedException {
+        when(this.loadTestConfigMock.getUserNamePrefix()).thenReturn("User");
+        when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
+        when(this.loadTestConfigMock.isRetryMode()).thenReturn(true);
+        when(this.loadTestConfigMock.getRetryTimes()).thenReturn(5);
+
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+
+        // First call throws timeout, second call succeeds
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> successResponse = mock(HttpResponse.class);
+        when(successResponse.statusCode()).thenReturn(200);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("connectionId", "connectionId");
+        responseBody.addProperty("workerCpuUsage", 0.0);
+        responseBody.addProperty("streams", 2);
+        responseBody.addProperty("participants", 1);
+        String responseString = responseBody.toString();
+        when(successResponse.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+
+        when(this.httpClientMock.sendPost(anyString(), any(), any(), any()))
+                .thenThrow(new IOException("Read timed out"))
+                .thenReturn(successResponse);
+
+        CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
+        // Should succeed after retry
+        assertTrue(cpr.isResponseOk());
+    }
+
+    @Test
+    void createParticipantTeachingModeTest() throws IOException, InterruptedException {
+        // Test case with teaching mode
+        TestCase testCase = new TestCase("TEACHING", Arrays.asList("1", "2"), 1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("connectionId", "connectionId");
+        responseBody.addProperty("workerCpuUsage", 0.0);
+        responseBody.addProperty("streams", 2);
+        responseBody.addProperty("participants", 1);
+        responseBody.addProperty("userId", "User0");
+        responseBody.addProperty("sessionId", "LoadTestSession0");
+        String responseString = responseBody.toString();
+        when(response.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+        when(this.httpClientMock.sendPost(anyString(), any(), any(), any())).thenReturn(response);
+
+        CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
+
+        assertTrue(cpr.isResponseOk());
+    }
+
+    @Test
+    void disconnectAllTest() throws Exception {
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Content-Type", "application/json");
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("deleted");
+
+        when(this.httpClientMock.sendDelete(anyString(), any())).thenReturn(response);
+
+        this.browserEmulatorClient.disconnectAll(Arrays.asList("worker1", "worker2"));
+
+        verify(this.httpClientMock, times(2)).sendDelete(anyString(), any());
+    }
+
+    @Test
+    void cleanResetsIsCleanFlagTest() throws IOException, InterruptedException {
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Content-Type", "application/json");
+
+        JsonObject expectedBody = new JsonObject();
+        expectedBody.addProperty("openviduUrl", "https://localhost:8080");
+        expectedBody.addProperty("livekitApiKey", "devkey");
+        expectedBody.addProperty("livekitApiSecret", "secret");
+        JsonObject properties = new JsonObject();
+        properties.addProperty("userId", "User0");
+        properties.addProperty("sessionName", "LoadTestSession0");
+        properties.addProperty("role", "PUBLISHER");
+        properties.addProperty("audio", true);
+        properties.addProperty("video", true);
+        properties.addProperty("resolution", "640x480");
+        properties.addProperty("frameRate", 30);
+        properties.addProperty("recording", false);
+        properties.addProperty("showVideoElements", true);
+        properties.addProperty("headless", false);
+        properties.addProperty("browser", "chrome");
+        properties.addProperty("mediaRecorders", false);
+        expectedBody.add("properties", properties);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("connectionId", "connectionId");
+        responseBody.addProperty("workerCpuUsage", 0.0);
+        responseBody.addProperty("streams", 2);
+        responseBody.addProperty("participants", 1);
+        responseBody.addProperty("userId", "User0");
+        responseBody.addProperty("sessionId", "LoadTestSession0");
+        String responseString = responseBody.toString();
+        when(response.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+                headers)).thenReturn(response);
+
+        this.browserEmulatorClient.clean();
+
+        CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
+
+        assertTrue(cpr.isResponseOk(), "Participant creation should succeed after clean() resets isClean flag");
+    }
+
+    @Test
+    void multipleCleanCallsAllowParticipantCreationTest() throws IOException, InterruptedException {
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.CHROME);
+
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Content-Type", "application/json");
+
+        JsonObject expectedBody = new JsonObject();
+        expectedBody.addProperty("openviduUrl", "https://localhost:8080");
+        expectedBody.addProperty("livekitApiKey", "devkey");
+        expectedBody.addProperty("livekitApiSecret", "secret");
+        JsonObject properties = new JsonObject();
+        properties.addProperty("userId", "User0");
+        properties.addProperty("sessionName", "LoadTestSession0");
+        properties.addProperty("role", "PUBLISHER");
+        properties.addProperty("audio", true);
+        properties.addProperty("video", true);
+        properties.addProperty("resolution", "640x480");
+        properties.addProperty("frameRate", 30);
+        properties.addProperty("recording", false);
+        properties.addProperty("showVideoElements", true);
+        properties.addProperty("headless", false);
+        properties.addProperty("browser", "chrome");
+        properties.addProperty("mediaRecorders", false);
+        expectedBody.add("properties", properties);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("connectionId", "connectionId");
+        responseBody.addProperty("workerCpuUsage", 0.0);
+        responseBody.addProperty("streams", 2);
+        responseBody.addProperty("participants", 1);
+        responseBody.addProperty("userId", "User0");
+        responseBody.addProperty("sessionId", "LoadTestSession0");
+        String responseString = responseBody.toString();
+        when(response.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+                headers)).thenReturn(response);
+
+        this.browserEmulatorClient.clean();
+        this.browserEmulatorClient.clean();
+        this.browserEmulatorClient.clean();
+
+        CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
+
+        assertTrue(cpr.isResponseOk(), "Participant creation should succeed after multiple clean() calls");
+    }
+
 }

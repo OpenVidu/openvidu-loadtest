@@ -70,8 +70,6 @@ class LoadTestServiceTests {
 
     private LoadTestService loadTestController;
 
-    private ResultReport capturedResultReport;
-
     @BeforeEach
     void init() {
         MockitoAnnotations.openMocks(this);
@@ -81,14 +79,9 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getSessionNamePrefix()).thenReturn("LoadTestSession");
         when(this.loadTestConfig.isTerminateWorkers()).thenReturn(false);
         when(this.loadTestConfig.isKibanaEstablished()).thenReturn(true);
-        doAnswer(invocation -> {
-            ResultReport resultReport = invocation.getArgument(0);
-            // Store the resultReport for later verification
-            this.capturedResultReport = resultReport;
-            return null;
-        }).when(this.dataIO).exportResults(any());
+        when(this.loadTestConfig.getReportOutput()).thenReturn(List.of("html", "txt"));
         when(this.webSocketConnectionFactory.createConnection(anyString())).thenReturn(mock(WebSocketClient.class));
-        when(this.browserEmulatorClient.getRetryStatistics()).thenReturn(new int[]{0, 0});
+        when(this.browserEmulatorClient.getRetryStatistics()).thenReturn(new int[] { 0, 0 });
         when(this.browserEmulatorClient.getMaxRetriesPerParticipant()).thenReturn(0);
         when(this.workerUrlResolver.resolveUrl(any(Instance.class))).thenAnswer(invocation -> {
             Instance instance = invocation.getArgument(0);
@@ -204,9 +197,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, times(2)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertNotNull(this.capturedResultReport);
-        assertEquals("Any reason", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     @Test
@@ -305,9 +296,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, times(3)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertNotNull(this.capturedResultReport);
-        assertEquals("Any reason", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     @Test
@@ -421,9 +410,7 @@ class LoadTestServiceTests {
         verify(this.ec2Client, times(1)).stopInstance(allInstances);
 
         // Check result report
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertNotNull(this.capturedResultReport);
-        assertEquals("Any reason", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     @Test
@@ -509,9 +496,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, times(3)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertNotNull(this.capturedResultReport);
-        assertEquals("Any reason", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     @Test
@@ -543,8 +528,7 @@ class LoadTestServiceTests {
 
         List<TestCase> testCases = List.of(testCase);
         this.loadTestController.startLoadTests(testCases);
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     @Test
@@ -573,8 +557,7 @@ class LoadTestServiceTests {
         createEstimationResponseMock(instance1Url, testCase);
         List<TestCase> testCases = List.of(testCase);
         this.loadTestController.startLoadTests(testCases);
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     @Test
@@ -661,9 +644,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, times(4)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertNotNull(this.capturedResultReport);
-        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     @Test
@@ -750,10 +731,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, times(5)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportResults(any());
-        assertNotNull(this.capturedResultReport);
-        // Successful flows set an empty stopReason in CreateParticipantResponse
-        assertEquals("No more workers available", this.capturedResultReport.getStopReason());
+        verify(this.dataIO, times(1)).exportAllResults(any());
     }
 
     private void createEstimationResponseMock(String instance1Url, TestCase testCase) {

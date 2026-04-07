@@ -116,6 +116,16 @@ public class BrowserEmulatorMockServer {
     }
 
     /**
+     * Reset the mock server state for a new test case.
+     */
+    public void reset() {
+        participantCounter.set(0);
+        maxParticipantsThreshold = -1;
+        onMaxParticipantsReached = null;
+        log.info("BrowserEmulatorMockServer reset for new test case");
+    }
+
+    /**
      * Set a threshold for maximum participants. When this threshold is reached,
      * the provided callback will be invoked to stop the test.
      * @param maxParticipants the maximum number of participants before test stops (-1 to disable)

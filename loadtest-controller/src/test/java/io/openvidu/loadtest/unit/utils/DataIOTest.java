@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -47,18 +46,9 @@ class DataIOTest {
     private DataIO dataIO;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
-        dataIO = new DataIO(env, resultExporter);
-        // Inject the remaining mocks via reflection
-        setField(dataIO, "loadTestConfig", loadTestConfig);
-        setField(dataIO, "htmlReportGenerator", htmlReportGenerator);
-    }
-
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        dataIO = new DataIO(env, resultExporter, loadTestConfig, htmlReportGenerator);
     }
 
     @Test
@@ -135,7 +125,7 @@ class DataIOTest {
                 .setNumSessionsCreated(2)
                 .setStartTime(Calendar.getInstance())
                 .setEndTime(Calendar.getInstance());
-        dataIO.exportResults(report);
+        dataIO.exportResultsTxtOnly(report);
 
         Path resultFile = tempDir.resolve("results.txt");
         assertTrue(Files.exists(resultFile), "results.txt should be created in RESULTS_DIR");
@@ -144,25 +134,6 @@ class DataIOTest {
         assertTrue(content.contains("Number of participants created: 5"), "Content should include participants count");
         verify(resultExporter).export(report, "results.txt");
         verify(htmlReportGenerator, never()).generateHtmlReport(any(), anyString());
-    }
-
-    @Test
-    void testExportResults_generatesHtmlReportWhenEnabled(@TempDir Path tempDir) throws IOException {
-        when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn("nonexistent.yaml");
-        when(loadTestConfig.getReportOutput()).thenReturn(Arrays.asList("html", "txt"));
-
-        when(resultExporter.export(any(), anyString())).thenReturn(tempDir.resolve("results.txt").toString());
-
-        ResultReport report = new ResultReport()
-                .setTotalParticipants(5)
-                .setNumSessionsCreated(2)
-                .setStartTime(Calendar.getInstance())
-                .setEndTime(Calendar.getInstance());
-        dataIO.exportResults(report);
-
-        verify(loadTestConfig).getReportOutput(); // ensure it was called
-        verify(resultExporter).export(report, "results.txt");
-        verify(htmlReportGenerator).generateHtmlReport(report, "report.html");
     }
 
     @Test
@@ -177,7 +148,7 @@ class DataIOTest {
                 .setNumSessionsCreated(2)
                 .setStartTime(Calendar.getInstance())
                 .setEndTime(Calendar.getInstance());
-        dataIO.exportResults(report);
+        dataIO.exportResultsTxtOnly(report);
 
         verify(resultExporter).export(report, "results.txt");
         verify(htmlReportGenerator, never()).generateHtmlReport(any(), anyString());

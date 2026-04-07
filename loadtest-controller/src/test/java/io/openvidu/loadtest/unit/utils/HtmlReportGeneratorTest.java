@@ -330,10 +330,195 @@ class HtmlReportGeneratorTest {
         htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
 
         String content = Files.readString(reportPath);
-        // Error section should not be visible (may appear in comments but not as
-        // rendered content)
         assertFalse(content.contains(
                 "class=\"section\">\n            <div class=\"section-header\">\n                <div class=\"section-title\">\n                    <svg"));
+    }
+
+    @Test
+    void testGenerateMultiReport_singleTestCase(@TempDir Path tempDir) throws IOException {
+        Calendar startTime = Calendar.getInstance();
+        Calendar endTime = Calendar.getInstance();
+        endTime.add(Calendar.SECOND, 100);
+
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(10)
+                .setNumSessionsCreated(2)
+                .setNumSessionsCompleted(2)
+                .setWorkersUsed(1)
+                .setSessionTopology("N:N")
+                .setParticipantsPerSession("5")
+                .setBrowserRecording(false)
+                .setOpenviduRecording("NONE")
+                .setManualParticipantAllocation(false)
+                .setStopReason("Test finished")
+                .setStartTime(startTime)
+                .setEndTime(endTime)
+                .setKibanaUrl("http://kibana.example.com")
+                .setS3BucketName("bucket");
+
+        List<ResultReport> reports = new ArrayList<>();
+        reports.add(resultReport);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateMultiReport(reports, reportPath.toString());
+
+        assertTrue(Files.exists(reportPath));
+        String content = Files.readString(reportPath);
+
+        assertTrue(content.contains("<!DOCTYPE html>"), "Should contain DOCTYPE");
+        assertTrue(content.contains("OpenVidu Load Test Report"), "Should contain title");
+        assertTrue(content.contains("Session Topology"), "Should show topology in configuration");
+        assertTrue(content.contains("Summary"), "Should contain summary section");
+        assertTrue(content.contains("Configuration"), "Should contain configuration section");
+    }
+
+    @Test
+    void testGenerateMultiReport_multipleTestCases(@TempDir Path tempDir) throws IOException {
+        Calendar startTime1 = Calendar.getInstance();
+        Calendar endTime1 = Calendar.getInstance();
+        endTime1.add(Calendar.SECOND, 60);
+
+        ResultReport report1 = new ResultReport()
+                .setTotalParticipants(10)
+                .setNumSessionsCreated(2)
+                .setNumSessionsCompleted(2)
+                .setWorkersUsed(1)
+                .setSessionTopology("N:N")
+                .setParticipantsPerSession("5")
+                .setBrowserRecording(false)
+                .setOpenviduRecording("NONE")
+                .setManualParticipantAllocation(false)
+                .setStopReason("Test finished")
+                .setStartTime(startTime1)
+                .setEndTime(endTime1)
+                .setKibanaUrl("")
+                .setS3BucketName("bucket");
+
+        Calendar startTime2 = Calendar.getInstance();
+        startTime2.add(Calendar.MINUTE, 10);
+        Calendar endTime2 = (Calendar) startTime2.clone();
+        endTime2.add(Calendar.SECOND, 120);
+
+        ResultReport report2 = new ResultReport()
+                .setTotalParticipants(20)
+                .setNumSessionsCreated(4)
+                .setNumSessionsCompleted(3)
+                .setWorkersUsed(2)
+                .setSessionTopology("N:M")
+                .setParticipantsPerSession("10")
+                .setBrowserRecording(true)
+                .setOpenviduRecording("COMPOSED")
+                .setManualParticipantAllocation(false)
+                .setStopReason("Timeout reached")
+                .setStartTime(startTime2)
+                .setEndTime(endTime2)
+                .setKibanaUrl("")
+                .setS3BucketName("bucket2");
+
+        List<ResultReport> reports = new ArrayList<>();
+        reports.add(report1);
+        reports.add(report2);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateMultiReport(reports, reportPath.toString());
+
+        assertTrue(Files.exists(reportPath));
+        String content = Files.readString(reportPath);
+
+        assertTrue(content.contains("tab-bar"), "Tab bar should be present for multiple test cases");
+        assertTrue(content.contains("Overview"), "Overview tab should be present");
+        assertTrue(content.contains("Test Case 1"));
+        assertTrue(content.contains("Test Case 2"));
+        assertTrue(content.contains("N:N"));
+        assertTrue(content.contains("N:M"));
+        assertTrue(content.contains("5 participant"));
+        assertTrue(content.contains("10 participants"));
+        assertTrue(content.contains("Timeout reached"), "Stop reason should appear as subtitle");
+
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(content);
+        org.jsoup.select.Elements tabButtons = doc.select(".tab-btn");
+        assertEquals(3, tabButtons.size(), "Should have Overview + 2 test case tabs");
+
+        org.jsoup.select.Elements tabContents = doc.select(".tab-content");
+        assertEquals(3, tabContents.size(), "Should have Overview + 2 test case content panels");
+
+        assertTrue(content.contains("overviewTotalSessionsCreated") || content.contains("6"),
+                "Overview should show aggregated session count");
+        assertTrue(content.contains("overviewTotalParticipants") || content.contains("30"),
+                "Overview should show aggregated participant count");
+    }
+
+    @Test
+    void testGenerateMultiReport_tabContentIsolation(@TempDir Path tempDir) throws IOException {
+        Calendar startTime1 = Calendar.getInstance();
+        Calendar endTime1 = Calendar.getInstance();
+        endTime1.add(Calendar.SECOND, 60);
+
+        ResultReport report1 = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setWorkersUsed(1)
+                .setSessionTopology("N:N")
+                .setParticipantsPerSession("5")
+                .setStopReason("Test finished")
+                .setStartTime(startTime1)
+                .setEndTime(endTime1)
+                .setKibanaUrl("")
+                .setS3BucketName("");
+
+        Calendar startTime2 = Calendar.getInstance();
+        startTime2.add(Calendar.MINUTE, 5);
+        Calendar endTime2 = (Calendar) startTime2.clone();
+        endTime2.add(Calendar.SECOND, 90);
+
+        ResultReport report2 = new ResultReport()
+                .setTotalParticipants(15)
+                .setNumSessionsCreated(3)
+                .setNumSessionsCompleted(3)
+                .setWorkersUsed(2)
+                .setSessionTopology("N:M")
+                .setParticipantsPerSession("10")
+                .setStopReason("Test finished")
+                .setStartTime(startTime2)
+                .setEndTime(endTime2)
+                .setKibanaUrl("")
+                .setS3BucketName("");
+
+        List<ResultReport> reports = new ArrayList<>();
+        reports.add(report1);
+        reports.add(report2);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateMultiReport(reports, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(content);
+
+        org.jsoup.select.Elements tab1Content = doc.select("#tab-tc-1");
+        assertFalse(tab1Content.isEmpty(), "Tab content for test case 1 should exist");
+        assertTrue(tab1Content.text().contains("5"), "Tab 1 should contain participant count from report 1");
+        assertTrue(tab1Content.text().contains("N:N"), "Tab 1 should contain topology from report 1");
+
+        org.jsoup.select.Elements tab2Content = doc.select("#tab-tc-2");
+        assertFalse(tab2Content.isEmpty(), "Tab content for test case 2 should exist");
+        assertTrue(tab2Content.text().contains("15"), "Tab 2 should contain participant count from report 2");
+        assertTrue(tab2Content.text().contains("N:M"), "Tab 2 should contain topology from report 2");
+
+        org.jsoup.select.Elements overviewTable = doc.select(".overview-table");
+        assertFalse(overviewTable.isEmpty(), "Overview comparison table should exist");
+        org.jsoup.select.Elements overviewRows = doc.select(".overview-table tbody tr");
+        assertEquals(2, overviewRows.size(), "Overview table should have 2 rows");
+    }
+
+    @Test
+    void testGenerateMultiReport_emptyList(@TempDir Path tempDir) throws IOException {
+        List<ResultReport> reports = new ArrayList<>();
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateMultiReport(reports, reportPath.toString());
+
+        assertFalse(Files.exists(reportPath), "No report should be generated for empty list");
     }
 
 }
