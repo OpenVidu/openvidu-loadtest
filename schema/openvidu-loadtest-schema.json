@@ -83,20 +83,20 @@
                 "type": "object",
                 "required": [
                     "topology",
-                    "participants",
-                    "sessions"
+                    "participants"
                 ],
                 "properties": {
-                    "topology": {
-                        "type": "string",
-                        "enum": [
-                            "N:N",
-                            "N:M",
-                            "TEACHING",
-                            "ONE_SESSION"
-                        ],
-                        "description": "Topology type: N:N (all publish/subscribe), N:M (N publishers, M subscribers), TEACHING (publisher with audio-only subscribers), ONE_SESSION (single session with N participants)"
-                    },
+                     "topology": {
+                         "type": "string",
+                         "enum": [
+                             "N:N",
+                             "N:M",
+                             "TEACHING",
+                             "ONE_SESSION_NXN",
+                             "ONE_SESSION_NXM"
+                         ],
+                         "description": "Topology type: N:N (all publish/subscribe), N:M (N publishers, M subscribers), TEACHING (publisher with audio-only subscribers), ONE_SESSION_NXN (one session filled with N publishers), ONE_SESSION_NXM (one session with N publishers filled with M subscribers)"
+                     },
                     "participants": {
                         "type": "array",
                         "items": {
@@ -118,7 +118,7 @@
                                 ]
                             }
                         ],
-                        "description": "Number of sessions to create, or 'infinite' to run until platform fails"
+                        "description": "Number of sessions to create, or 'infinite' to run until platform fails. Required for N:N, N:M, and TEACHING topologies. Ignored for ONE_SESSION_NXN and ONE_SESSION_NXM topologies (which always use exactly one session)."
                     },
                     "browser": {
                         "type": "string",

@@ -8,7 +8,9 @@ public enum Topology {
 
     TEACHING("TEACHING", "TEACHING"),
 
-    ONE_SESSION("ONE_SESSION", "One session with N publishers or X:M subscribers");
+    ONE_SESSION_NXN("ONE_SESSION_NXN", "One session filled with N publishers"),
+
+    ONE_SESSION_NXM("ONE_SESSION_NXM", "One session with N publishers filled with M subscribers");
 
     private String value;
     private String description;

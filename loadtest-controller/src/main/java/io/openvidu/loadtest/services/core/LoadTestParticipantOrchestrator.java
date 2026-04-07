@@ -71,25 +71,43 @@ class LoadTestParticipantOrchestrator {
         LoadTestParticipantRunState state = createParticipantRunState(testCase);
         sessionNumber.set(1);
         log.info("Starting session '1'");
+        int participantCount = testCase.getParticipantCount(0);
+        log.info("One session will be filled with {} publishers", participantCount);
         try (ExecutorService executorService = Executors.newFixedThreadPool(state.getMaxRequestsInFlight())) {
-            return runUnboundedPhase(testCase, executorService, state, Role.PUBLISHER, "N-N_ONE", false);
+            String recordingMetadata = "N-N_ONE";
+            boolean isLastSession = true; // For ONE_SESSION topologies, there's only one session
+            CreateParticipantResponse phaseResponse = runBoundedPhase(testCase, executorService, state,
+                    new ParticipantPhase(Role.PUBLISHER, participantCount, isLastSession,
+                            recordingMetadata, true));
+            if (phaseResponse != null) {
+                return phaseResponse;
+            }
+            return state.getLastResponse();
         }
     }
 
-    CreateParticipantResponse startOneSessionXxNTest(int publishers, TestCase testCase)
+    CreateParticipantResponse startOneSessionNxmTest(int publishers, TestCase testCase)
             throws NoWorkersAvailableException {
         LoadTestParticipantRunState state = createParticipantRunState(testCase);
         sessionNumber.set(1);
         log.info("Starting session '1'");
-        String recordingMetadata = "X-M_" + publishers + "_ONE";
+        int subscribers = testCase.getSubscriberCount(0);
+        log.info("One session will be filled with {} publishers and {} subscribers", publishers, subscribers);
+        String recordingMetadata = "N-M_" + publishers + "_" + subscribers + "_ONE";
 
         try (ExecutorService executorService = Executors.newFixedThreadPool(state.getMaxRequestsInFlight())) {
+            boolean isLastSession = true; // For ONE_SESSION topologies, there's only one session
             CreateParticipantResponse publishersResponse = runBoundedPhase(testCase, executorService, state,
-                    new ParticipantPhase(Role.PUBLISHER, publishers, false, recordingMetadata, true));
+                    new ParticipantPhase(Role.PUBLISHER, publishers, isLastSession, recordingMetadata, true));
             if (publishersResponse != null) {
                 return publishersResponse;
             }
-            return runUnboundedPhase(testCase, executorService, state, Role.SUBSCRIBER, recordingMetadata, true);
+            CreateParticipantResponse subscribersResponse = runBoundedPhase(testCase, executorService, state,
+                    new ParticipantPhase(Role.SUBSCRIBER, subscribers, isLastSession, recordingMetadata, true));
+            if (subscribersResponse != null) {
+                return subscribersResponse;
+            }
+            return state.getLastResponse();
         }
     }
 

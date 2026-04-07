@@ -61,15 +61,15 @@ public class ResultReport {
 
     public ResultReport build() {
         return new ResultReport(this.totalParticipants, this.numSessionsCompleted, this.numSessionsCreated,
-            this.workersUsed, this.streamsPerWorker, this.sessionTopology,
-            this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
-            this.usersPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
-            this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
-            this.userStartTimes, this.participantResponses, this.totalRetries, this.successfulRetries,
-            this.retrySuccessRate, this.avgRetriesPerParticipant, this.maxRetriesInSingleParticipant,
-            this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
-            this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
-            this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts, this.roleByUser);
+                this.workersUsed, this.streamsPerWorker, this.sessionTopology,
+                this.openviduRecording, this.browserRecording, this.isManualParticipantAllocation,
+                this.usersPerWorker, this.participantsPerSession, this.stopReason, this.startTime, this.endTime,
+                this.kibanaUrl, this.s3BucketName, this.timePerWorker, this.timePerRecordingWorker,
+                this.userStartTimes, this.participantResponses, this.totalRetries, this.successfulRetries,
+                this.retrySuccessRate, this.avgRetriesPerParticipant, this.maxRetriesInSingleParticipant,
+                this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
+                this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
+                this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts, this.roleByUser);
     }
 
     public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -357,7 +357,7 @@ public class ResultReport {
         return participantResponses;
     }
 
-        private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
+    private ResultReport(int totalParticipants, int numSessionsCompleted, int numSessionsCreated, int workersUsed,
             List<Integer> streamsPerWorker, String sessionTopology,
             String openviduRecording, boolean browserRecording, boolean manualParticipantsAllocation,
             int usersPerWorker, String participantsPerSession, String stopReason, Calendar startTime,

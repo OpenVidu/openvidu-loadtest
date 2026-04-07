@@ -447,9 +447,9 @@ class LoadTestServiceTests {
             webSocketMocks.put(instanceUrl, mockWebSocket(instanceUrl));
         }
 
-        List<String> participants = List.of("1:N");
+        List<String> participants = List.of("1:10");
 
-        TestCase testCase = new TestCase("ONE_SESSION", participants, -1,
+        TestCase testCase = new TestCase("ONE_SESSION_NXM", participants, -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.CHROME);
         testCase.setStartingParticipants(30);
         List<TestCase> testCases = List.of(testCase);
@@ -521,8 +521,8 @@ class LoadTestServiceTests {
         }
         when(this.ec2Client.launchAndCleanInitialInstances()).thenReturn(instances);
         when(this.ec2Client.launchAndCleanInitialRecordingInstances()).thenReturn(new ArrayList<>(1));
-        List<String> participants = List.of("1:N");
-        TestCase testCase = new TestCase("ONE_SESSION", participants, -1,
+        List<String> participants = List.of("1:10");
+        TestCase testCase = new TestCase("ONE_SESSION_NXM", participants, -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false, true, Browser.FIREFOX);
         createEstimationResponseMock(null, testCase);
 

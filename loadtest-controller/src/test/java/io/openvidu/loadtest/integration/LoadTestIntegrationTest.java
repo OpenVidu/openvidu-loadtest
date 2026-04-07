@@ -294,7 +294,7 @@ class LoadTestIntegrationTest {
         assertTrue(userIds.contains("User2"), "User2 should be present, found: " + userIds);
         for (var row : userRows) {
             Elements cells = row.select("td");
-                if (cells.size() >= 6) {
+            if (cells.size() >= 6) {
                 String session = cells.get(1).text();
                 String type = cells.get(2).text();
                 String joinDate = cells.get(3).text();

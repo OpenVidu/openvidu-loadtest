@@ -60,8 +60,18 @@ public class TestCase {
         return this.topology.getValue().equals(Topology.TEACHING.getValue());
     }
 
+    public boolean isOneSessionNxn() {
+        return this.topology.getValue().equals(Topology.ONE_SESSION_NXN.getValue());
+    }
+
+    public boolean isOneSessionNxm() {
+        return this.topology.getValue().equals(Topology.ONE_SESSION_NXM.getValue());
+    }
+
+    @Deprecated
     public boolean isOneSession() {
-        return this.topology.getValue().equals(Topology.ONE_SESSION.getValue());
+        return this.topology.getValue().equals(Topology.ONE_SESSION_NXN.getValue()) ||
+               this.topology.getValue().equals(Topology.ONE_SESSION_NXM.getValue());
     }
 
     public Topology getTopology() {
@@ -70,6 +80,58 @@ public class TestCase {
 
     public List<String> getParticipants() {
         return participants;
+    }
+
+    /**
+     * Gets the participant count for N:N topology tests.
+     * Returns Integer.MAX_VALUE if the participant string is "infinite" (case-insensitive).
+     * 
+     * @param index The index of the participant string to get
+     * @return The participant count or Integer.MAX_VALUE for infinite
+     */
+    public int getParticipantCount(int index) {
+        String participantStr = participants.get(index);
+        if ("infinite".equalsIgnoreCase(participantStr)) {
+            return Integer.MAX_VALUE;
+        }
+        return Integer.parseInt(participantStr);
+    }
+
+    /**
+     * Gets the publisher count for N:M or ONE_SESSION_NXM topology tests.
+     * Returns Integer.MAX_VALUE if the participant string is "infinite" (case-insensitive).
+     * 
+     * @param index The index of the participant string to get
+     * @return The publisher count or Integer.MAX_VALUE for infinite
+     */
+    public int getPublisherCount(int index) {
+        String participantStr = participants.get(index);
+        String[] parts = participantStr.split(":");
+        String publisherStr = parts[0];
+        if ("infinite".equalsIgnoreCase(publisherStr)) {
+            return Integer.MAX_VALUE;
+        }
+        return Integer.parseInt(publisherStr);
+    }
+
+    /**
+     * Gets the subscriber count for N:M or ONE_SESSION_NXM topology tests.
+     * Returns Integer.MAX_VALUE if the participant string is "infinite" (case-insensitive).
+     * 
+     * @param index The index of the participant string to get
+     * @return The subscriber count or Integer.MAX_VALUE for infinite
+     */
+    public int getSubscriberCount(int index) {
+        String participantStr = participants.get(index);
+        String[] parts = participantStr.split(":");
+        if (parts.length < 2) {
+            return 0; // Default to 0 if no subscriber count specified
+        }
+        String subscriberStr = parts[1];
+        if ("infinite".equalsIgnoreCase(subscriberStr)) {
+            return Integer.MAX_VALUE;
+        }
+        return Integer.parseInt(subscriberStr);
     }
 
     public void setParticipants(List<String> participants) {

@@ -94,8 +94,10 @@ class LoadTestTopologyOrchestrator {
             runNxNCase(testCase);
         } else if (testCase.isNxM() || testCase.isTeaching()) {
             runNxMCase(testCase);
-        } else if (testCase.isOneSession()) {
-            runOneSessionCase(testCase);
+        } else if (testCase.isOneSessionNxn()) {
+            runOneSessionNxNCase(testCase);
+        } else if (testCase.isOneSessionNxm()) {
+            runOneSessionNxMCase(testCase);
         } else {
             log.error("Test case has wrong topology, SKIPPED.");
         }
@@ -104,7 +106,7 @@ class LoadTestTopologyOrchestrator {
     private void runNxNCase(TestCase testCase) {
         for (String participants : testCase.getParticipants()) {
             try {
-                int participantsBySession = Integer.parseInt(participants);
+                int participantsBySession = testCase.getParticipantCount(0); // Always use first (and only) participant spec for N:N
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
                 boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, participantsBySession, 0,
                         false);
@@ -132,8 +134,8 @@ class LoadTestTopologyOrchestrator {
     private void runNxMCase(TestCase testCase) {
         for (String participants : testCase.getParticipants()) {
             try {
-                int publishers = Integer.parseInt(participants.split(":")[0]);
-                int subscribers = Integer.parseInt(participants.split(":")[1]);
+                int publishers = testCase.getPublisherCount(0); // Always use first (and only) participant spec for N:M
+                int subscribers = testCase.getSubscriberCount(0); // Always use first (and only) participant spec for N:M
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
                 boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, publishers, subscribers,
                         false);
@@ -158,15 +160,12 @@ class LoadTestTopologyOrchestrator {
         }
     }
 
-    private void runOneSessionCase(TestCase testCase) {
+    private void runOneSessionNxNCase(TestCase testCase) {
         for (String participants : testCase.getParticipants()) {
             try {
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
-                if (participants.contains(":")) {
-                    runOneSessionXxN(testCase, participants, instancesInitialized);
-                } else {
-                    runOneSessionNxN(testCase, participants, instancesInitialized);
-                }
+                int participantCount = "infinite".equalsIgnoreCase(participants) ? Integer.MAX_VALUE : Integer.parseInt(participants);
+                runOneSessionNxN(testCase, participants, instancesInitialized, participantCount);
             } catch (Exception e) {
                 log.error("Error occurred while running test case", e);
             } finally {
@@ -175,28 +174,44 @@ class LoadTestTopologyOrchestrator {
         }
     }
 
-    private void runOneSessionXxN(TestCase testCase, String participants, boolean instancesInitialized) {
-        int publishers = Integer.parseInt(participants.split(":")[0]);
-        boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, publishers, Integer.MAX_VALUE,
-                false);
+    private void runOneSessionNxMCase(TestCase testCase) {
+        for (String participants : testCase.getParticipants()) {
+            try {
+                boolean instancesInitialized = loadTestService.launchInitialInstances();
+                int publishers = testCase.getPublisherCount(0); // Always use first (and only) participant spec for ONE_SESSION_NXM
+                int subscriberCount = testCase.getSubscriberCount(0); // Always use first (and only) participant spec for ONE_SESSION_NXM
+                runOneSessionNxM(testCase, participants, instancesInitialized, publishers, subscriberCount);
+            } catch (Exception e) {
+                log.error("Error occurred while running test case", e);
+            } finally {
+                loadTestService.cleanupAfterParticipantConfiguration();
+            }
+        }
+    }
+
+    private void runOneSessionNxM(TestCase testCase, String participants, boolean instancesInitialized, int publishers, int subscriberCount) {
+        String[] parts = participants.split(":");
+        boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, publishers, subscriberCount, false);
         if (noEstimateError) {
             boolean continueTest = loadTestService.checkEnoughWorkers(-1, -1);
             if (!continueTest) {
                 log.warn(TEST_CASE_SKIPPED);
                 return;
             }
-            log.info("Starting test with one session {}:N topology", publishers);
+            log.info("Starting test with one session {}:{} topology", publishers, subscriberCount);
             log.info(
-                    "{} Publisher will be added to one session, and then it will be filled with Subscribers",
-                    publishers);
-            executeAndSave(testCase, participants, () -> loadTestService.startOneSessionXxNTest(publishers, testCase));
+                    "{} Publishers will be added to one session, and then it will be filled with {} Subscribers",
+                    publishers, subscriberCount);
+            executeAndSave(testCase, participants, () -> loadTestService.startOneSessionNxmTest(publishers, testCase));
         } else {
             log.error(ERROR_WHILE_ESTIMATING);
         }
     }
 
-    private void runOneSessionNxN(TestCase testCase, String participants, boolean instancesInitialized) {
-        boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, Integer.MAX_VALUE, 0, true);
+    private void runOneSessionNxN(TestCase testCase, String participants, boolean instancesInitialized, int participantCount) {
+        boolean forceOneBrowserPerWorkerInDevOneSession = participantCount == Integer.MAX_VALUE;
+        boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, participantCount, 0,
+                forceOneBrowserPerWorkerInDevOneSession);
         if (noEstimateError) {
             log.info("Starting test with one session N:N topology");
             log.info("One session will be filled with Pubscribers");

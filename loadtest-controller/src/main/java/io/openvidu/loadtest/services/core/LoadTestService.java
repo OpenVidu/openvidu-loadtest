@@ -148,9 +148,9 @@ public class LoadTestService {
         return participantOrchestrator.startOneSessionNxNTest(testCase);
     }
 
-    CreateParticipantResponse startOneSessionXxNTest(int publishers, TestCase testCase)
+    CreateParticipantResponse startOneSessionNxmTest(int publishers, TestCase testCase)
             throws NoWorkersAvailableException {
-        return participantOrchestrator.startOneSessionXxNTest(publishers, testCase);
+        return participantOrchestrator.startOneSessionNxmTest(publishers, testCase);
     }
 
     CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase)

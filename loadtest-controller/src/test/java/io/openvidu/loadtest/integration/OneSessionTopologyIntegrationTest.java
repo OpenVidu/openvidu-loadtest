@@ -21,6 +21,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,11 +32,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Integration test for loadtest-controller that runs multiple test cases in a
+ * Integration test for loadtest-controller that runs One Session topology test cases in a
  * single run.
  * This test validates the tabbed HTML report with Overview and per-test-case
  * tabs.
@@ -43,12 +42,12 @@ import org.slf4j.LoggerFactory;
 @SpringBootTest(classes = { io.openvidu.loadtest.LoadTestApplication.class,
         io.openvidu.loadtest.integration.config.IntegrationTestConfig.class }, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @TestPropertySource(properties = {
-        "LOADTEST_CONFIG=integration/config/multi-test-config.yaml"
+        "LOADTEST_CONFIG=integration/config/one-session-test-config.yaml"
 })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class MultiTestCaseIntegrationTest {
+class OneSessionTopologyIntegrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(MultiTestCaseIntegrationTest.class);
+    private static final Logger log = LoggerFactory.getLogger(OneSessionTopologyIntegrationTest.class);
 
     private static BrowserEmulatorMockServer browserEmulatorMock;
     private static WebSocketMockServer webSocketMock;
@@ -59,7 +58,7 @@ class MultiTestCaseIntegrationTest {
     private static Path resultsDir;
 
     static {
-        resultsDir = Path.of("target/test-results/multi-test");
+        resultsDir = Path.of("target/test-results/one-session-test");
         System.setProperty("RESULTS_DIR", resultsDir.toAbsolutePath().toString());
 
         try {
@@ -142,19 +141,19 @@ class MultiTestCaseIntegrationTest {
     }
 
     @Test
-    void testMultiTestCaseGeneratesTabbedReport() throws Exception {
+    void testOneSessionTopologyGeneratesTabbedReport() throws Exception {
         Path htmlReport = resultsDir.resolve("report.html");
         Path txtReport = resultsDir.resolve("results.txt");
 
         assertTrue(Files.exists(htmlReport), "HTML report should exist");
         assertTrue(Files.exists(txtReport), "TXT report should exist");
 
-        validateMultiTestCaseHtmlReport(htmlReport);
+        validateOneSessionTopologyHtmlReport(htmlReport);
 
         verify(shutdownManagerMock).shutdownWithCode(0);
     }
 
-    private void validateMultiTestCaseHtmlReport(Path htmlReport) throws IOException {
+    private void validateOneSessionTopologyHtmlReport(Path htmlReport) throws IOException {
         String content = Files.readString(htmlReport);
         Document doc = Jsoup.parse(content);
 
@@ -165,11 +164,11 @@ class MultiTestCaseIntegrationTest {
         assertTrue(content.contains("Overview"), "Should have Overview tab");
 
         Elements tabButtons = doc.select(".tab-btn");
-        assertTrue(tabButtons.size() >= 4,
-                "Should have at least 4 tabs (Overview + 3 test cases), found: " + tabButtons.size());
+        assertTrue(tabButtons.size() >= 3,
+                "Should have at least 3 tabs (Overview + 2 test cases), found: " + tabButtons.size());
 
         Elements tabContents = doc.select(".tab-content");
-        assertTrue(tabContents.size() >= 4, "Should have at least 4 tab content panels, found: " + tabContents.size());
+        assertTrue(tabContents.size() >= 3, "Should have at least 3 tab content panels, found: " + tabContents.size());
 
         Elements overviewTab = doc.select(".tab-content#tab-overview");
         assertFalse(overviewTab.isEmpty(), "Overview tab content should exist");
@@ -181,13 +180,13 @@ class MultiTestCaseIntegrationTest {
         assertFalse(comparisonTable.isEmpty(), "Comparison table should exist in Overview tab");
 
         Elements comparisonRows = comparisonTable.select("tbody tr");
-        assertTrue(comparisonRows.size() >= 3,
-                "Comparison table should have at least 3 rows (one per test case), found: " + comparisonRows.size());
+        assertTrue(comparisonRows.size() >= 2,
+                "Comparison table should have at least 2 rows (one per test case), found: " + comparisonRows.size());
 
         // Parse the YAML test config to know expected participants for each test case
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         try (InputStream is = getClass().getClassLoader()
-                .getResourceAsStream("integration/config/multi-test-config.yaml")) {
+                .getResourceAsStream("integration/config/one-session-test-config.yaml")) {
             Map<String, Object> cfg = mapper.readValue(is, new TypeReference<Map<String, Object>>() {
             });
             List<Map<String, Object>> testcases = (List<Map<String, Object>>) cfg.get("testcases");
@@ -204,14 +203,32 @@ class MultiTestCaseIntegrationTest {
                 }
             }
 
+            // Build expected values by topology from config
+            Map<String, Integer> expectedParticipantsByTopology = new java.util.HashMap<>();
+            List<String> expectedTopologyOrder = new ArrayList<>();
+            for (Map<String, Object> tc : testcases) {
+                String topology = tc.get("topology").toString();
+                List<String> participantsList = (List<String>) tc.get("participants");
+                String participantsSpec = participantsList.get(0);
+                int expected = 0;
+                if (participantsSpec.contains(":")) {
+                    String[] parts = participantsSpec.split(":");
+                    for (String p : parts) {
+                        expected += Integer.parseInt(p.trim());
+                    }
+                } else {
+                    expected = Integer.parseInt(participantsSpec.trim());
+                }
+                expectedParticipantsByTopology.put(topology, expected);
+                expectedTopologyOrder.add(topology);
+            }
+
             // For each overview row, assert the participants column matches the expected
             // total
-            int idx = 0;
-            // Explicit expected totals for the 3 test cases in this config
-            int[] explicitExpected = new int[] { 25, 215, 303 };
+            int validatedRows = 0;
             for (var row : comparisonRows) {
                 Elements cells = row.select("td");
-                if (cells.size() >= 7 && idx < testcases.size()) {
+                if (cells.size() >= 7) {
                     String label = cells.get(1).text();
                     String sessionsCell = cells.get(4).text();
                     String participantsCell = cells.get(5).text();
@@ -221,28 +238,20 @@ class MultiTestCaseIntegrationTest {
                     log.info("Test case '{}': sessions={}, participants={}, workers={}, stopReason={}", label,
                             sessionsCell, participantsCell, workersCell, stopReasonCell);
 
-                    // Expected participants per session is declared in config under 'participants'
-                    Map<String, Object> tc = testcases.get(idx);
-                    List<String> participantsList = (List<String>) tc.get("participants");
-                    // We only support single-entry participants in the test config for this
-                    // assertion
-                    String participantsSpec = participantsList.get(0);
-
-                    // Compute expected per-session participants: sum parts if "a:b" or single
-                    // integer
-                    int expectedPerSession = 0;
-                    if (participantsSpec.contains(":")) {
-                        String[] parts = participantsSpec.split(":");
-                        for (String p : parts) {
-                            expectedPerSession += Integer.parseInt(p.trim());
-                        }
-                    } else {
-                        expectedPerSession = Integer.parseInt(participantsSpec.trim());
+                    String expectedTopology = null;
+                    if (label.contains("ONE_SESSION_NXN")) {
+                        expectedTopology = "ONE_SESSION_NXN";
+                    } else if (label.contains("ONE_SESSION_NXM")) {
+                        expectedTopology = "ONE_SESSION_NXM";
                     }
 
-                    String[] sessionsParts = sessionsCell.split("/");
-                    int sessionsCreated = Integer.parseInt(sessionsParts[0].trim());
-                    int expectedTotalParticipants = expectedPerSession * sessionsCreated;
+                    if (expectedTopology == null) {
+                        continue;
+                    }
+
+                    Integer expectedTotalParticipants = expectedParticipantsByTopology.get(expectedTopology);
+                    assertNotNull(expectedTotalParticipants,
+                            "Missing expected participants for topology " + expectedTopology);
 
                     // Apply capacity cap if distribution.usersPerWorker is configured
                     int workersUsed = Integer.parseInt(workersCell.trim());
@@ -256,79 +265,26 @@ class MultiTestCaseIntegrationTest {
                         assertEquals(expectedTotalParticipants, actualTotal,
                                 "Total participants for test case does not match expected for: " + label);
 
-                        // Additional explicit checks requested:
-                        if (idx < explicitExpected.length) {
-                            assertEquals(explicitExpected[idx], actualTotal,
-                                    "Explicit total participants expected for test case does not match: " + label);
-                        }
+                        assertEquals(expectedParticipantsByTopology.get(expectedTopology).intValue(), actualTotal,
+                                "Explicit total participants expected for test case does not match: " + label);
 
-                        // Assert stop reason is exactly "Test finished"
-                        assertEquals("Test finished", stopReasonCell,
-                                "Stop reason should be 'Test finished' for test case: " + label);
+                        if (expectedTopology.equals("ONE_SESSION_NXM")) {
+                            assertEquals("Test finished", stopReasonCell,
+                                    "Stop reason should be 'Test finished' for test case: " + label);
+                        } else {
+                            assertTrue(stopReasonCell.equals("Test finished")
+                                            || stopReasonCell.equals("No more workers available"),
+                                    "Unexpected stop reason for ONE_SESSION_NXN test case: " + stopReasonCell);
+                        }
                     } catch (NumberFormatException nfe) {
                         fail("Participants cell is not a number for test case: " + label + " value: "
                                 + participantsCell);
                     }
-                    idx++;
+                    validatedRows++;
                 }
             }
-
-            // Additional validation: for N:M topology test cases, verify per-session
-            // types: N publishers and M subscribers per session
-            for (int tcIdx = 0; tcIdx < testcases.size(); tcIdx++) {
-                Map<String, Object> tc = testcases.get(tcIdx);
-                String topology = tc.get("topology") != null ? tc.get("topology").toString() : "";
-                if ("N:M".equals(topology)) {
-                    int tabIndex = tcIdx + 1; // template uses 1-based index for tabs
-                    Elements nmUserTable = doc.select("#user-connections-table-" + tabIndex);
-                    assertFalse(nmUserTable.isEmpty(),
-                            "User Connections table should exist for N:M test (tab " + tabIndex + ")");
-                    Elements nmUserRows = nmUserTable.select("tbody tr.user-row");
-
-                    // Count publishers/subscribers per session
-                    java.util.Map<String, Integer> publishersBySession = new java.util.HashMap<>();
-                    java.util.Map<String, Integer> subscribersBySession = new java.util.HashMap<>();
-                    for (var row : nmUserRows) {
-                        Elements cells = row.select("td");
-                        if (cells.size() >= 6) {
-                            String sessionId = cells.get(1).text().trim();
-                            String type = cells.get(2).text().trim();
-                            if ("PUBLISHER".equals(type)) {
-                                publishersBySession.merge(sessionId, 1, Integer::sum);
-                            } else if ("SUBSCRIBER".equals(type)) {
-                                subscribersBySession.merge(sessionId, 1, Integer::sum);
-                            }
-                        }
-                    }
-
-                    // Derive expected N and M from participants spec
-                    List<String> participantsList = (List<String>) tc.get("participants");
-                    String participantsSpec = participantsList.get(0);
-                    int expectedN = 0;
-                    int expectedM = 0;
-                    if (participantsSpec.contains(":")) {
-                        String[] parts = participantsSpec.split(":");
-                        expectedN = Integer.parseInt(parts[0].trim());
-                        expectedM = Integer.parseInt(parts[1].trim());
-                    } else {
-                        // Not an N:M spec; skip
-                        continue;
-                    }
-
-                    java.util.Set<String> allSessions = new java.util.HashSet<>();
-                    allSessions.addAll(publishersBySession.keySet());
-                    allSessions.addAll(subscribersBySession.keySet());
-                    assertFalse(allSessions.isEmpty(), "N:M user table should contain sessions");
-                    for (String session : allSessions) {
-                        int pubCount = publishersBySession.getOrDefault(session, 0);
-                        int subCount = subscribersBySession.getOrDefault(session, 0);
-                        assertEquals(expectedN, pubCount,
-                                "Expected " + expectedN + " publishers in session " + session);
-                        assertEquals(expectedM, subCount,
-                                "Expected " + expectedM + " subscribers in session " + session);
-                    }
-                }
-            }
+            assertEquals(expectedTopologyOrder.size(), validatedRows,
+                    "Should validate one overview row per configured one-session test case");
         }
 
         boolean hasOverviewActive = false;

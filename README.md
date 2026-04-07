@@ -261,13 +261,17 @@ Naming and timing configuration for test sessions.
 
 ### Test Cases
 
-Define multiple test scenarios that run sequentially. Each test case can have the following properties:
+Define multiple test scenarios that run sequentially. The configurations available depend on the topology chosen for each test case. The main types of topologies are:
+
+#### Multiple Session Topologies (N:N, N:M, TEACHING)
+
+These topologies create multiple sessions with a specified number of participants per session:
 
 | Property                   | Required | Default   | Description                                                                                                                       |
 | -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `topology`                 | **Yes**  | -         | `N:N`, `N:M`, `TEACHING`, or `ONE_SESSION`                                                                                        |
-| `participants`             | **Yes**  | -         | List of participant counts (e.g., `["2", "10"]`). Each element of the list will create a new test scenario                        |
-| `sessions`                 | **Yes**  | -         | Number of sessions or `infinite`                                                                                                  |
+| `topology`                 | **Yes**  | -         | `N:N`, `N:M`, or `TEACHING`                                                                                                       |
+| `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
+| `sessions`                 | **Yes**  | -         | Number of sessions or `infinite` for creating sessions until an error occurs the number of retry times configured.                |
 | `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, or `emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
@@ -276,14 +280,32 @@ Define multiple test scenarios that run sequentially. Each test case can have th
 | `browserRecording`         | No       | `false`   | Record browser output                                                                                                             |
 | `showBrowserVideoElements` | No       | `true`    | Show video elements in browser. Only usable with real browsers.                                                                   |
 
-**Topology Types:**
+| Topology   | Description                                                                  | Format                                                                            |
+| ---------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `N:N`      | All participants publish video/audio and subscribe to all other participants | Number of publishers per session (e.g. `"10"`)                                    |
+| `N:M`      | N publishers, M subscribers                                                  | Number of publishers:Number of subscribers per session (e.g. `"5:50"`)            |
+| `TEACHING` | Publisher with audio-only subscribers                                        | Number of publishers:Number of audio-only subscribers per session (e.g. `"2:30"`) |
 
-| Topology      | Description                            | Format   |
-| ------------- | -------------------------------------- | -------- |
-| `N:N`         | All participants publish and subscribe | `"10"`   |
-| `N:M`         | N publishers, M subscribers            | `"5:50"` |
-| `TEACHING`    | Publisher with audio-only subscribers  | `"2:30"` |
-| `ONE_SESSION` | Single session with N participants     | `"100"`  |
+#### Single Session Topologies (ONE_SESSION_NX)
+
+These topologies create a single session and fill it with users:
+
+| Property                   | Required | Default   | Description                                                                                                                       |
+| -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `topology`                 | **Yes**  | -         | `ONE_SESSION_NXN`, or `ONE_SESSION_NXM`                                                                                           |
+| `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, or `emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) |
+| `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
+| `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
+| `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
+| `headlessBrowser`          | No       | `false`   | Run browser in headless mode. Only usable with real browsers.                                                                     |
+| `browserRecording`         | No       | `false`   | Record browser output                                                                                                             |
+| `showBrowserVideoElements` | No       | `true`    | Show video elements in browser. Only usable with real browsers.                                                                   |
+
+| Topology          | Description                                                              | Format                                                                                                                                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ONE_SESSION_NXN` | One session filled with N publishers (all publish and subscribe)         | Number for adding a specific number of participants and stopping the test when reached (e.g. `"100"`) or `"infinite"` for adding participants until an error occurs                                                                                                             |
+| `ONE_SESSION_NXM` | One session with N publishers and M subscribers (N publish, M subscribe) | Number of publishers:Number of subscribers for adding a specific number of participants and stopping the test when reached (e.g. `"10:50"`) or Number of publishers:`"infinite"` for adding subscribers to the number of publishers until an error occurs (e.g. `"2:infinite"`) |
 
 ### Choosing Emulated vs Real Browsers
 

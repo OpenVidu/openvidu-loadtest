@@ -31,7 +31,7 @@ This is a distributed load testing system for OpenVidu video conferencing platfo
 1. Loadtest Controller reads `config/config.yaml`
 2. Controller distributes test cases to browser-emulator workers via WebSocket
 3. Browser-emulator launches Selenium-controlled browsers
-4. Browsers connect to OpenVidu and execute test scenarios (N:N, N:M, TEACHING, ONE_SESSION)
+4. Browsers connect to OpenVidu and execute test scenarios (N:N, N:M, TEACHING, ONE_SESSION_NXN, ONE_SESSION_NXM)
 5. Results collected in `/results/` directory
 
 ### Docker Support

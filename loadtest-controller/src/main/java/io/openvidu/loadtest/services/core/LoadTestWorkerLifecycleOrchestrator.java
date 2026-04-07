@@ -93,7 +93,7 @@ class LoadTestWorkerLifecycleOrchestrator {
 
     private String getNextDevWorker(String actualCurrentWorkerUrl) throws NoWorkersAvailableException {
         List<String> devWorkers = loadTestService.getDevWorkersList();
-        workersUsed = devWorkers.size();
+        workersUsed++;
 
         if (actualCurrentWorkerUrl.isBlank()) {
             return devWorkers.get(0);

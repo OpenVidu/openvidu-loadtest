@@ -184,8 +184,8 @@ public class HtmlReportGenerator {
                 retryDetailId = baseId + "-" + suffix;
             }
             existingDetailIds.add(retryDetailId);
-                String roleLabel = roleByUser.getOrDefault(key, "-");
-                rows.add(objectRow("userId", info.userId, "sessionId", info.sessionId,
+            String roleLabel = roleByUser.getOrDefault(key, "-");
+            rows.add(objectRow("userId", info.userId, "sessionId", info.sessionId,
                     "type", roleLabel,
                     "joinDate", formatDate(info.joinDate),
                     "retries", info.retries,
@@ -404,7 +404,8 @@ public class HtmlReportGenerator {
             totalSessionsCompleted += result.getNumSessionsCompleted();
             totalParticipants += result.getTotalParticipants();
             if (result.getStartTime() != null && result.getEndTime() != null) {
-                totalDurationMs += Math.abs(result.getEndTime().getTime().getTime() - result.getStartTime().getTime().getTime());
+                totalDurationMs += Math
+                        .abs(result.getEndTime().getTime().getTime() - result.getStartTime().getTime().getTime());
             }
 
             Map<String, Object> overviewRow = new LinkedHashMap<>();
