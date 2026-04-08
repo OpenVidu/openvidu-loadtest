@@ -112,6 +112,9 @@ public class WebSocketClient extends Endpoint {
             if (message.contains("exception") || message.contains("Exception")) {
                 log.error("Received exception from {}: {}", this.wsEndpoint, message);
                 this.handleError(message, true);
+            } else if (message.contains("EMULATED_PARTICIPANT_HEALTH_ERROR")) {
+                log.error("Received emulated participant health error from {}: {}", this.wsEndpoint, message);
+                this.handleError(message, true);
             } else if (message.contains("error") || message.contains("Error")) {
                 log.warn("Received message from {}: {}", this.wsEndpoint, message);
             } else if (message.contains("Disconnected") && !message.contains("ParticipantDisconnected")) {

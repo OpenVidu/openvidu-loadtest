@@ -1,5 +1,6 @@
 import type { DockerService } from '../../docker.service.ts';
 import type { ConfigService } from '../../config.service.ts';
+import type { WsService } from '../../ws.service.ts';
 import type { LocalFilesRepository } from '../../../repositories/files/local-files.repository.ts';
 import {
 	Role,
@@ -8,6 +9,11 @@ import {
 } from '../../../types/create-user.type.ts';
 import type { LKCreateUserBrowser } from '../../../types/com-modules/livekit.ts';
 import { EmulatedFilePublishStreamService } from './emulated-file-publish-stream.service.ts';
+import type { JsonValue } from '../../../types/json.type.ts';
+import {
+	ERRORS_FILE,
+	addSaveStatsToFileToQueue,
+} from '../../../utils/stats-files.ts';
 import * as fs from 'node:fs/promises';
 
 interface EmulatedContainerInfo {
@@ -27,9 +33,12 @@ interface FailedParticipantCreationContext extends Partial<EmulatedContainerInfo
 export class EmulatedBrowserService {
 	// Track container IDs for cleanup (browser-specific info)
 	private readonly containerMap = new Map<string, EmulatedContainerInfo>();
+	private readonly healthCheckIntervals = new Map<string, NodeJS.Timeout>();
+	private readonly reportedHealthErrors = new Set<string>();
 
 	private readonly dockerService: DockerService;
 	private readonly configService: ConfigService;
+	private readonly wsService: WsService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
 
@@ -37,15 +46,19 @@ export class EmulatedBrowserService {
 	private readonly ROOM_EMPTY_TIMEOUT = 600; // 10 minutes
 	private readonly CREATE_PARTICIPANT_MAX_ATTEMPTS = 3;
 	private readonly CREATE_PARTICIPANT_RETRY_DELAY_MS = 1000;
+	private readonly LIVEKIT_HEALTHCHECK_INTERVAL_MS = 5000;
+	private readonly MAX_ERROR_LOG_CHARS = 3000;
 
 	constructor(
 		dockerService: DockerService,
 		configService: ConfigService,
+		wsService: WsService,
 		localFilesRepository: LocalFilesRepository,
 		emulatedFilePublishStreamService: EmulatedFilePublishStreamService,
 	) {
 		this.dockerService = dockerService;
 		this.configService = configService;
+		this.wsService = wsService;
 		this.localFilesRepository = localFilesRepository;
 		this.emulatedFilePublishStreamService =
 			emulatedFilePublishStreamService;
@@ -67,16 +80,38 @@ export class EmulatedBrowserService {
 		const streamingFilesExist =
 			await this.localFilesRepository.existStreamingMediaFiles();
 		if (!streamingFilesExist) {
+			this.saveErrorToStats(userId, sessionName, {
+				event: 'EMULATED_PARTICIPANT_CREATION_ERROR',
+				source: 'emulated-browser-service',
+				participant: userId,
+				session: sessionName,
+				timestamp: new Date().toISOString(),
+				reason: 'streaming-media-files-missing',
+				error: 'Streaming media files (.h264, .ogg) not found.',
+			});
 			throw new Error(
 				'Streaming media files (.h264, .ogg) not found. Run prepare_scripts/generate-streaming-media.sh first.',
 			);
 		}
 
-		// Ensure LiveKit CLI image is available
-		await this.ensureLivekitCliImage();
+		try {
+			// Ensure LiveKit CLI image is available
+			await this.ensureLivekitCliImage();
 
-		// Create room if it doesn't exist
-		await this.createRoomIfNeeded(lkRequest, sessionName);
+			// Create room if it doesn't exist
+			await this.createRoomIfNeeded(lkRequest, sessionName);
+		} catch (error) {
+			this.saveErrorToStats(userId, sessionName, {
+				event: 'EMULATED_PARTICIPANT_CREATION_ERROR',
+				source: 'emulated-browser-service',
+				participant: userId,
+				session: sessionName,
+				timestamp: new Date().toISOString(),
+				reason: 'creation-preparation-failed',
+				error: String(error),
+			});
+			throw error;
+		}
 
 		let lastError: unknown;
 
@@ -94,6 +129,17 @@ export class EmulatedBrowserService {
 				);
 			} catch (error) {
 				lastError = error;
+				this.saveErrorToStats(userId, sessionName, {
+					event: 'EMULATED_PARTICIPANT_CREATION_ERROR',
+					source: 'emulated-browser-service',
+					participant: userId,
+					session: sessionName,
+					timestamp: new Date().toISOString(),
+					reason: 'creation-attempt-failed',
+					attempt,
+					maxAttempts: this.CREATE_PARTICIPANT_MAX_ATTEMPTS,
+					error: String(error),
+				});
 				console.warn(
 					`Emulated participant join attempt ${attempt}/${this.CREATE_PARTICIPANT_MAX_ATTEMPTS} failed for ${sessionName}/${userId}: ${String(error)}`,
 				);
@@ -189,6 +235,8 @@ export class EmulatedBrowserService {
 				participantId,
 			);
 
+			this.startParticipantHealthCheck(connectionId);
+
 			console.log(
 				`Emulated participant created: connectionId=${connectionId}, containerId=${containerId}`,
 			);
@@ -212,6 +260,7 @@ export class EmulatedBrowserService {
 		containerInfo: FailedParticipantCreationContext,
 	): Promise<void> {
 		if (containerInfo.connectionId) {
+			this.stopParticipantHealthCheck(containerInfo.connectionId);
 			this.containerMap.delete(containerInfo.connectionId);
 		}
 
@@ -386,6 +435,8 @@ export class EmulatedBrowserService {
 			return;
 		}
 
+		this.stopParticipantHealthCheck(connectionId);
+
 		// Stop and remove join container
 		try {
 			await this.dockerService.stopContainer(containerInfo.containerId);
@@ -484,6 +535,178 @@ export class EmulatedBrowserService {
 		return this.containerMap.get(connectionId)?.containerId;
 	}
 
+	private startParticipantHealthCheck(connectionId: string): void {
+		this.stopParticipantHealthCheck(connectionId);
+		this.reportedHealthErrors.delete(connectionId);
+
+		const interval = setInterval(() => {
+			void this.runParticipantHealthCheck(connectionId);
+		}, this.LIVEKIT_HEALTHCHECK_INTERVAL_MS);
+
+		this.healthCheckIntervals.set(connectionId, interval);
+	}
+
+	private stopParticipantHealthCheck(connectionId: string): void {
+		const interval = this.healthCheckIntervals.get(connectionId);
+		if (interval) {
+			clearInterval(interval);
+			this.healthCheckIntervals.delete(connectionId);
+		}
+	}
+
+	private async runParticipantHealthCheck(
+		connectionId: string,
+	): Promise<void> {
+		if (this.reportedHealthErrors.has(connectionId)) {
+			return;
+		}
+
+		const containerInfo = this.containerMap.get(connectionId);
+		if (!containerInfo) {
+			this.stopParticipantHealthCheck(connectionId);
+			return;
+		}
+
+		try {
+			const [isRunning, streamFailed] = await Promise.all([
+				this.dockerService.isContainerRunning(
+					containerInfo.containerId,
+				),
+				Promise.resolve(
+					this.emulatedFilePublishStreamService.isParticipantFailed(
+						containerInfo.participantId,
+					),
+				),
+			]);
+
+			if (!isRunning) {
+				const logs = await this.getContainerLogsSafely(
+					containerInfo.containerId,
+				);
+				await this.handleUnhealthyParticipant(
+					connectionId,
+					'container-not-running',
+					logs,
+				);
+				return;
+			}
+
+			if (streamFailed) {
+				await this.handleUnhealthyParticipant(
+					connectionId,
+					'socket-stream-failed',
+				);
+				return;
+			}
+
+			const logs = await this.getContainerLogsSafely(
+				containerInfo.containerId,
+			);
+			if (logs && this.hasFatalJoinIndicators(logs)) {
+				await this.handleUnhealthyParticipant(
+					connectionId,
+					'fatal-log-indicator',
+					logs,
+				);
+			}
+		} catch (error) {
+			await this.handleUnhealthyParticipant(
+				connectionId,
+				'healthcheck-execution-failed',
+				String(error),
+			);
+		}
+	}
+
+	private async handleUnhealthyParticipant(
+		connectionId: string,
+		reason: string,
+		logs?: string,
+	): Promise<void> {
+		if (this.reportedHealthErrors.has(connectionId)) {
+			return;
+		}
+
+		this.reportedHealthErrors.add(connectionId);
+		this.stopParticipantHealthCheck(connectionId);
+
+		const containerInfo = this.containerMap.get(connectionId);
+		if (containerInfo) {
+			this.reportHealthError(containerInfo, connectionId, reason, logs);
+		}
+
+		await this.deleteStreamManagerWithConnectionId(connectionId).catch(
+			error => {
+				console.error(
+					`Error cleaning unhealthy participant ${connectionId}:`,
+					error,
+				);
+			},
+		);
+	}
+
+	private reportHealthError(
+		containerInfo: EmulatedContainerInfo,
+		connectionId: string,
+		reason: string,
+		logs?: string,
+	): void {
+		const payload: Record<string, string> = {
+			event: 'EMULATED_PARTICIPANT_HEALTH_ERROR',
+			source: 'livekit-cli-healthcheck',
+			participant: containerInfo.userName,
+			session: containerInfo.sessionName,
+			timestamp: new Date().toISOString(),
+			connectionId,
+			participantId: containerInfo.participantId,
+			containerId: containerInfo.containerId,
+			reason,
+		};
+
+		if (logs) {
+			payload.logs = this.truncateLogs(logs);
+		}
+
+		this.wsService.send(JSON.stringify(payload));
+		this.saveErrorToStats(
+			containerInfo.userName,
+			containerInfo.sessionName,
+			payload,
+		);
+		console.error(
+			`Healthcheck error reported for ${connectionId}: ${reason}`,
+		);
+	}
+
+	private saveErrorToStats(
+		participant: string,
+		session: string,
+		errorData: Record<string, JsonValue>,
+	): void {
+		addSaveStatsToFileToQueue(participant, session, ERRORS_FILE, errorData);
+	}
+
+	private async getContainerLogsSafely(
+		containerId: string,
+	): Promise<string | undefined> {
+		try {
+			return await this.dockerService.getLogsFromContainer(containerId);
+		} catch (error) {
+			console.warn(
+				`Failed to read logs from container ${containerId}: ${String(error)}`,
+			);
+			return undefined;
+		}
+	}
+
+	private truncateLogs(logs: string): string {
+		if (logs.length <= this.MAX_ERROR_LOG_CHARS) {
+			return logs;
+		}
+
+		return logs.slice(-this.MAX_ERROR_LOG_CHARS);
+	}
+
 	private async checkConnectionIsAliveAndCorrect(
 		properties: UserJoinProperties,
 		joinContainerName: string,
@@ -576,5 +799,21 @@ export class EmulatedBrowserService {
 		);
 
 		return hasConnectedToRoom || (hasIceConnected && hasPeerConnected);
+	}
+
+	private hasFatalJoinIndicators(joinLogs: string): boolean {
+		const normalizedLogs = this.normalizeContainerLogs(joinLogs);
+		const fatalPatterns = [
+			'peer connection state changed: failed',
+			'ice connection state changed: failed',
+			'failed to join',
+			'panic:',
+			'fatal',
+			'disconnected from room',
+			'unpublished track',
+			'could not get sample from provider',
+		];
+
+		return fatalPatterns.some(pattern => normalizedLogs.includes(pattern));
 	}
 }

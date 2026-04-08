@@ -27,6 +27,10 @@ const mockConfigService = {
 	getServerPort: vi.fn().mockReturnValue(5000),
 };
 
+const mockWsService = {
+	send: vi.fn(),
+};
+
 const mockLocalFilesRepository = {
 	existMediaFiles: vi.fn().mockResolvedValue(true),
 	existStreamingMediaFiles: vi.fn().mockResolvedValue(true),
@@ -85,9 +89,15 @@ vi.mock('../../src/services/streaming/socket-writer-health.service.js', () => ({
 		.mockImplementation(() => mockSocketWriterHealthService),
 }));
 
+vi.mock('../../src/utils/stats-files.js', () => ({
+	ERRORS_FILE: 'errors.json',
+	addSaveStatsToFileToQueue: vi.fn(),
+}));
+
 import { EmulatedBrowserService } from '../../src/services/browser/emulated/emulated-browser.service.js';
 import { EmulatedFilePublishStreamService } from '../../src/services/browser/emulated/emulated-file-publish-stream.service.js';
 import { Role } from '../../src/types/create-user.type.js';
+import { addSaveStatsToFileToQueue } from '../../src/utils/stats-files.js';
 
 describe('EmulatedBrowserService', () => {
 	let service: EmulatedBrowserService;
@@ -104,6 +114,7 @@ describe('EmulatedBrowserService', () => {
 		service = new EmulatedBrowserService(
 			mockDockerService as never,
 			mockConfigService as never,
+			mockWsService as never,
 			mockLocalFilesRepository as never,
 			emulatedFilePublishStreamService as never,
 		);
@@ -146,6 +157,7 @@ describe('EmulatedBrowserService', () => {
 			service = new EmulatedBrowserService(
 				mockDockerService as never,
 				mockConfigService as never,
+				mockWsService as never,
 				failingLocalFilesRepository,
 				emulatedFailStreamService as never,
 			);
@@ -153,6 +165,16 @@ describe('EmulatedBrowserService', () => {
 			await expect(
 				service.createEmulatedParticipant(baseRequest as never),
 			).rejects.toThrow('Streaming media files');
+
+			expect(addSaveStatsToFileToQueue).toHaveBeenCalledWith(
+				'test-user',
+				'test-session',
+				'errors.json',
+				expect.objectContaining({
+					event: 'EMULATED_PARTICIPANT_CREATION_ERROR',
+					reason: 'streaming-media-files-missing',
+				}),
+			);
 		});
 
 		it('should retry participant creation after transient startup error', async () => {
@@ -247,6 +269,42 @@ describe('EmulatedBrowserService', () => {
 
 			expect(result).toContain('test-session_test-user_');
 			expect(result).toContain('containe'); // container-id-123 sliced to 8 chars
+		});
+
+		it('should report healthcheck errors through websocket when join container stops', async () => {
+			vi.useFakeTimers();
+			try {
+				const connectionId = await service.createEmulatedParticipant(
+					baseRequest as never,
+				);
+				mockDockerService.isContainerRunning.mockResolvedValueOnce(
+					false,
+				);
+
+				await vi.advanceTimersByTimeAsync(6000);
+
+				expect(mockWsService.send).toHaveBeenCalled();
+				const firstSendArg = mockWsService.send.mock.calls[0]?.[0];
+
+				const payload = JSON.parse(
+					String(firstSendArg ?? '{}'),
+				) as Record<string, string>;
+				expect(payload.event).toBe('EMULATED_PARTICIPANT_HEALTH_ERROR');
+				expect(payload.reason).toBe('container-not-running');
+				expect(payload.connectionId).toBe(connectionId);
+
+				expect(addSaveStatsToFileToQueue).toHaveBeenCalledWith(
+					'test-user',
+					'test-session',
+					'errors.json',
+					expect.objectContaining({
+						event: 'EMULATED_PARTICIPANT_HEALTH_ERROR',
+						reason: 'container-not-running',
+					}),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
 		});
 	});
 

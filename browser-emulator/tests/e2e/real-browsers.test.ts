@@ -39,17 +39,17 @@ describe('Browser-emulator - Real browsers', () => {
 			},
 		);
 
-		// it(
-		// 	'LiveKit basic workflow (Firefox only)',
-		// 	{ repeats: 10 },
-		// 	async () => {
-		// 		const sessionName = await run2BrowserTest(
-		// 			app,
-		// 			'livekit',
-		// 			'firefox',
-		// 		);
-		// 		await assertSessionStats(sessionName);
-		// 	},
-		// );
+		it(
+			'LiveKit basic workflow (Firefox only)',
+			{ repeats: 10 },
+			async () => {
+				const sessionName = await run2BrowserTest(
+					app,
+					'livekit',
+					'firefox',
+				);
+				await assertSessionStats(sessionName);
+			},
+		);
 	});
 });
