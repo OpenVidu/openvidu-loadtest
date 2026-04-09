@@ -140,7 +140,72 @@ public class LoadTestService {
         return true;
     }
 
-    public void startLoadTests(List<TestCase> testCasesList) {
+    public void startLoadTests(List<TestCase> testCasesList)
+            throws io.openvidu.loadtest.exceptions.NoWorkersAvailableException {
+        // Early validation: when workers are limited, ensure configured capacity
+        // (usersPerWorker * numberOfWorkers) is enough for each test case.
+        boolean prod = this.prodMode;
+        int workersAvailable = prod ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+        int workersRumpUp = loadTestConfig.getWorkersRumpUp();
+        boolean workersConfiguredManually = !loadTestConfig.getWorkerUrlList().isEmpty();
+        boolean workersLimited = workersConfiguredManually || (prod && workersRumpUp == 0);
+
+        if (workersLimited) {
+            int usersPerWorker = loadTestConfig.getUsersPerWorker();
+            long capacity = (long) Math.max(0, usersPerWorker) * Math.max(0, workersAvailable);
+
+            for (TestCase tc : testCasesList) {
+                List<String> participantsList = tc.getParticipants();
+                for (int i = 0; i < participantsList.size(); i++) {
+                    long expectedParticipants = 0;
+
+                    if (tc.isOneSessionNxn()) {
+                        int p = tc.getParticipantCount(i);
+                        expectedParticipants = p == Integer.MAX_VALUE ? Integer.MAX_VALUE : p;
+                    } else if (tc.isOneSessionNxm()) {
+                        int pubs = tc.getPublisherCount(i);
+                        int subs = tc.getSubscriberCount(i);
+                        if (pubs == Integer.MAX_VALUE || subs == Integer.MAX_VALUE) {
+                            expectedParticipants = Integer.MAX_VALUE;
+                        } else {
+                            expectedParticipants = (long) pubs + subs;
+                        }
+                    } else if (tc.isNxN()) {
+                        int p = tc.getParticipantCount(i);
+                        int sessions = tc.getSessions();
+                        if (sessions == -1 || p == Integer.MAX_VALUE) {
+                            expectedParticipants = Integer.MAX_VALUE;
+                        } else {
+                            expectedParticipants = (long) p * sessions;
+                        }
+                    } else if (tc.isNxM() || tc.isTeaching()) {
+                        int pubs = tc.getPublisherCount(i);
+                        int subs = tc.getSubscriberCount(i);
+                        int sessions = tc.getSessions();
+                        if (sessions == -1 || pubs == Integer.MAX_VALUE || subs == Integer.MAX_VALUE) {
+                            expectedParticipants = Integer.MAX_VALUE;
+                        } else {
+                            expectedParticipants = (long) (pubs + subs) * sessions;
+                        }
+                    } else {
+                        // Unknown topology - skip check
+                        continue;
+                    }
+
+                    if (expectedParticipants == Integer.MAX_VALUE) {
+                        throw new NoWorkersAvailableException(
+                                "Test case requires infinite participants but workers are limited (no ramp-up or manual workers configured)");
+                    }
+
+                    if (expectedParticipants > capacity) {
+                        throw new NoWorkersAvailableException(
+                                "Not enough worker capacity for test case (required=" + expectedParticipants
+                                        + ", capacity=" + capacity + ")");
+                    }
+                }
+            }
+        }
+
         topologyOrchestrator.startLoadTests(testCasesList);
     }
 

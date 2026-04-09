@@ -54,6 +54,14 @@ class LoadTestParticipantTask implements Supplier<CreateParticipantResponse> {
                         this.userInfo.getUserNumber(), this.userInfo.getSessionNumber(), testCase);
             }
         }
+        if (response == null) {
+            log.error("BrowserEmulatorClient returned null response for user {} in session {}",
+                    this.userInfo.getUserNumber(), this.userInfo.getSessionNumber());
+            response = new CreateParticipantResponse().setResponseOk(false)
+                    .setStopReason("Null response from BrowserEmulatorClient")
+                    .setWorkerUrl(this.userInfo.getWorkerUrl());
+        }
+
         if (response.isResponseOk()) {
             Calendar startTime = Calendar.getInstance();
             this.loadTestParticipantOrchestrator.incrementAndGetTotalParticipants();

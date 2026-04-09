@@ -76,6 +76,10 @@ class LoadTestWorkerLifecycleOrchestrator {
         String workerTypeValue = workerType.getValue();
 
         if (actualCurrentWorkerUrl.isBlank()) {
+            if (workerList.isEmpty()) {
+                return launchAndInitializeWorker(workerType, workerTypeValue, workerList,
+                        workerStartTimesForType);
+            }
             String workerUrl = workerUrlResolver.resolveUrl(workerList.get(0));
             log.info("Getting new {} already launched: {}", workerTypeValue, workerUrl);
             return workerUrl;
@@ -115,6 +119,10 @@ class LoadTestWorkerLifecycleOrchestrator {
 
         log.info("Launching a new Ec2 instance... ");
         List<Instance> nextInstanceList = ec2Client.launchInstance(loadTestConfig.getWorkersRumpUp(), workerType);
+        if (nextInstanceList == null || nextInstanceList.isEmpty()) {
+            log.error("EC2 client returned no instances when launching new workers");
+            throwNoMoreWorkersAvailable();
+        }
         initializeInstances(nextInstanceList);
 
         workerList.addAll(nextInstanceList);
