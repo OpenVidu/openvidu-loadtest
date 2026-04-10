@@ -29,10 +29,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.testcontainers.containers.localstack.LocalStackContainer;
+import io.floci.testcontainers.FlociContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -80,18 +79,16 @@ class AwsScaleIntegrationTest {
 
     @SuppressWarnings("resource")
     @Container
-    private static final LocalStackContainer localstack = new LocalStackContainer(
-            DockerImageName.parse("localstack/localstack:4.14.0"))
-            .withServices(LocalStackContainer.Service.EC2);
+    private static final FlociContainer floci = new FlociContainer();
 
     @DynamicPropertySource
     static void configureEc2Properties(DynamicPropertyRegistry registry) {
         // @Testcontainers ensures the container is started before this method is called
-        String ec2Endpoint = localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString();
+        String ec2Endpoint = floci.getEndpoint() + "/";
         registry.add("aws.endpointOverride", () -> ec2Endpoint);
         log.info("Configured EC2 endpoint override: {}", ec2Endpoint);
 
-        // Create EC2 client for LocalStack resource setup
+        // Create EC2 client for Floci resource setup
         software.amazon.awssdk.services.ec2.Ec2Client setupClient = software.amazon.awssdk.services.ec2.Ec2Client
                 .builder()
                 .region(Region.US_EAST_1)
@@ -180,7 +177,7 @@ class AwsScaleIntegrationTest {
     private static WebSocketMockServer webSocketMockServer;
     private static ReconnectionFailureSimulator failureSimulator;
     private static Path resultsDir;
-    private static software.amazon.awssdk.services.ec2.Ec2Client localstackEc2Client;
+    private static software.amazon.awssdk.services.ec2.Ec2Client flociEc2Client;
 
     @MockitoBean
     private ShutdownManager shutdownManagerMock;
@@ -189,12 +186,12 @@ class AwsScaleIntegrationTest {
     static void setup() throws Exception {
         log.info("=== AwsScaleIntegrationTest Setup ===");
         cleanupResultsDir();
-        // LocalStack already started by @DynamicPropertySource
-        String ec2Endpoint = localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString();
-        log.info("LocalStack EC2 endpoint: {}", ec2Endpoint);
+        // Floci already started by @Testcontainers
+        String ec2Endpoint = floci.getEndpoint() + "/";
+        log.info("Floci EC2 endpoint: {}", ec2Endpoint);
 
-        // Create EC2 client for LocalStack
-        localstackEc2Client = software.amazon.awssdk.services.ec2.Ec2Client.builder()
+        // Create EC2 client for Floci
+        flociEc2Client = software.amazon.awssdk.services.ec2.Ec2Client.builder()
                 .region(Region.US_EAST_1)
                 .endpointOverride(java.net.URI.create(ec2Endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(
@@ -253,11 +250,11 @@ class AwsScaleIntegrationTest {
             webSocketMockServer.stop();
         }
 
-        // Clean up LocalStack resources
-        if (localstackEc2Client != null) {
+        // Clean up Floci resources
+        if (flociEc2Client != null) {
             try {
                 // Terminate all instances with our tag
-                DescribeInstancesResponse response = localstackEc2Client.describeInstances(
+                DescribeInstancesResponse response = flociEc2Client.describeInstances(
                         DescribeInstancesRequest.builder()
                                 .filters(Filter.builder()
                                         .name("tag:Type")
@@ -273,7 +270,7 @@ class AwsScaleIntegrationTest {
                 }
 
                 if (!instanceIds.isEmpty()) {
-                    localstackEc2Client.terminateInstances(
+                    flociEc2Client.terminateInstances(
                             TerminateInstancesRequest.builder()
                                     .instanceIds(instanceIds)
                                     .build());
@@ -282,11 +279,11 @@ class AwsScaleIntegrationTest {
             } catch (Exception e) {
                 log.warn("Error cleaning up EC2 instances: {}", e.getMessage());
             }
-            localstackEc2Client.close();
+            flociEc2Client.close();
         }
 
-        if (localstack != null) {
-            localstack.stop();
+        if (floci != null) {
+            floci.stop();
         }
 
         System.clearProperty("RESULTS_DIR");
@@ -313,7 +310,7 @@ class AwsScaleIntegrationTest {
 
         // 3. Note: Mock server request count may be 0 if application doesn't fully run
         // test cases
-        // The important thing is that LocalStack integration works
+        // The important thing is that Floci integration works
         int requestCount = browserEmulatorMock.getRequestCount();
         log.info("Total requests received by mock server: {}", requestCount);
 
@@ -331,7 +328,7 @@ class AwsScaleIntegrationTest {
 
         for (int retry = 0; retry <= MAX_ALIVE_CHECK_RETRIES; retry++) {
             try {
-                DescribeInstancesResponse response = localstackEc2Client.describeInstances(
+                DescribeInstancesResponse response = flociEc2Client.describeInstances(
                         DescribeInstancesRequest.builder()
                                 .filters(Filter.builder()
                                         .name("tag:Type")

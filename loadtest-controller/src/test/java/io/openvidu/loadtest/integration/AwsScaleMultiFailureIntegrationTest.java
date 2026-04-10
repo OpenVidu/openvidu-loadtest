@@ -32,7 +32,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.testcontainers.containers.localstack.LocalStackContainer;
+import io.floci.testcontainers.FlociContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -100,13 +100,11 @@ class AwsScaleMultiFailureIntegrationTest {
 
     @SuppressWarnings("resource")
     @Container
-    private static final LocalStackContainer localstack = new LocalStackContainer(
-            DockerImageName.parse("localstack/localstack:4.14.0"))
-            .withServices(LocalStackContainer.Service.EC2);
+    private static final FlociContainer floci = new FlociContainer();
 
     @DynamicPropertySource
     static void configureEc2Properties(DynamicPropertyRegistry registry) {
-        String ec2Endpoint = localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString();
+        String ec2Endpoint = floci.getEndpoint() + "/";
         registry.add("aws.endpointOverride", () -> ec2Endpoint);
         log.info("Configured EC2 endpoint override: {}", ec2Endpoint);
 
@@ -178,7 +176,7 @@ class AwsScaleMultiFailureIntegrationTest {
     private static WebSocketMockServer webSocketMockServer;
     private static ReconnectionFailureSimulator failureSimulator;
     private static Path resultsDir;
-    private static software.amazon.awssdk.services.ec2.Ec2Client localstackEc2Client;
+    private static software.amazon.awssdk.services.ec2.Ec2Client flociEc2Client;
     private static volatile boolean failureTriggered = false;
     private static volatile boolean failureTriggeredPhase2 = false;
 
@@ -189,10 +187,10 @@ class AwsScaleMultiFailureIntegrationTest {
     static void setup() throws Exception {
         log.info("=== AwsScaleMultiFailureIntegrationTest Setup ===");
         cleanupResultsDir();
-        String ec2Endpoint = localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString();
-        log.info("LocalStack EC2 endpoint: {}", ec2Endpoint);
+        String ec2Endpoint = floci.getEndpoint() + "/";
+        log.info("Floci EC2 endpoint: {}", ec2Endpoint);
 
-        localstackEc2Client = software.amazon.awssdk.services.ec2.Ec2Client.builder()
+        flociEc2Client = software.amazon.awssdk.services.ec2.Ec2Client.builder()
                 .region(Region.US_EAST_1)
                 .endpointOverride(java.net.URI.create(ec2Endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(
@@ -348,9 +346,9 @@ class AwsScaleMultiFailureIntegrationTest {
             webSocketMockServer.stop();
         }
 
-        if (localstackEc2Client != null) {
+        if (flociEc2Client != null) {
             try {
-                DescribeInstancesResponse response = localstackEc2Client.describeInstances(
+                DescribeInstancesResponse response = flociEc2Client.describeInstances(
                         DescribeInstancesRequest.builder()
                                 .filters(Filter.builder()
                                         .name("tag:Type")
@@ -366,7 +364,7 @@ class AwsScaleMultiFailureIntegrationTest {
                 }
 
                 if (!instanceIds.isEmpty()) {
-                    localstackEc2Client.terminateInstances(
+                    flociEc2Client.terminateInstances(
                             TerminateInstancesRequest.builder()
                                     .instanceIds(instanceIds)
                                     .build());
@@ -375,11 +373,11 @@ class AwsScaleMultiFailureIntegrationTest {
             } catch (Exception e) {
                 log.warn("Error cleaning up EC2 instances: {}", e.getMessage());
             }
-            localstackEc2Client.close();
+            flociEc2Client.close();
         }
 
-        if (localstack != null) {
-            localstack.stop();
+        if (floci != null) {
+            floci.stop();
         }
 
         System.clearProperty("RESULTS_DIR");
@@ -412,7 +410,7 @@ class AwsScaleMultiFailureIntegrationTest {
 
         for (int retry = 0; retry <= MAX_ALIVE_CHECK_RETRIES; retry++) {
             try {
-                DescribeInstancesResponse response = localstackEc2Client.describeInstances(
+                DescribeInstancesResponse response = flociEc2Client.describeInstances(
                         DescribeInstancesRequest.builder()
                                 .filters(Filter.builder()
                                         .name("tag:Type")

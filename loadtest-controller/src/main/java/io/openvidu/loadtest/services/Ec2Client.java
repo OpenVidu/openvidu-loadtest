@@ -73,7 +73,7 @@ public class Ec2Client {
     }
 
     /**
-     * Set endpoint override for testing (e.g., LocalStack).
+     * Set endpoint override for testing (e.g., Floci).
      * This must be called before init() or the client needs to be reinitialized.
      */
     public void setEndpointOverride(String endpoint) {
@@ -101,7 +101,7 @@ public class Ec2Client {
                     .region(Region.of(instanceRegion))
                     .credentialsProvider(StaticCredentialsProvider.create(awsCreds));
 
-            // Apply endpoint override if set (for LocalStack testing)
+            // Apply endpoint override if set (for Floci testing)
             // First check static field (for programmatic override), then config
             String effectiveEndpoint = endpointOverride != null ? endpointOverride
                     : this.loadTestConfig.getEndpointOverride();
