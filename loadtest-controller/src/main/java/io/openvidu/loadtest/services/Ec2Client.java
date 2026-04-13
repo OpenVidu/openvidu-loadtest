@@ -405,7 +405,13 @@ public class Ec2Client {
         boolean needsWait = true;
 
         if (instanceState.name().equals(finalState)) {
-            needsWait = finalState.equals(InstanceStateName.RUNNING) && instance.publicDnsName().isBlank();
+            String publicDns = instance.publicDnsName();
+            String privateIp = instance.privateIpAddress();
+            boolean dnsBlank = (publicDns == null || publicDns.isBlank());
+            boolean privateIpBlank = (privateIp == null || privateIp.isBlank());
+            // If final state is RUNNING, wait only if neither public DNS nor private IP is
+            // available
+            needsWait = finalState.equals(InstanceStateName.RUNNING) && dnsBlank && privateIpBlank;
         }
 
         if (needsWait) {
@@ -414,7 +420,14 @@ public class Ec2Client {
             return waitUntilInstanceState(instanceId, finalState);
         }
 
-        log.info("Instance {} is {}", instance.publicDnsName(), finalState);
+        String publicDnsSafe = instance.publicDnsName();
+        if (publicDnsSafe == null || publicDnsSafe.isBlank()) {
+            publicDnsSafe = instance.privateIpAddress();
+        }
+        if (publicDnsSafe == null || publicDnsSafe.isBlank()) {
+            publicDnsSafe = instance.instanceId();
+        }
+        log.info("Instance {} is {}", publicDnsSafe, finalState);
         return instance;
     }
 

@@ -93,6 +93,8 @@ class LoadTestServiceTests {
         });
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(8);
         when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(1);
+        when(this.loadTestConfig.getWorkerHttpPort()).thenReturn(5000);
+        when(this.loadTestConfig.getWorkerWebsocketPort()).thenReturn(5001);
     }
 
     private Instance generateRandomInstance() {
@@ -175,7 +177,8 @@ class LoadTestServiceTests {
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection(
+                    "ws://" + instanceUrl + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -270,7 +273,8 @@ class LoadTestServiceTests {
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection(
+                    "ws://" + instanceUrl + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -386,7 +390,8 @@ class LoadTestServiceTests {
         for (Instance instance : allInstances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection(
+                    "ws://" + instanceUrl + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -478,7 +483,8 @@ class LoadTestServiceTests {
         for (Instance instance : instances) {
             String instanceUrl = instance.publicDnsName();
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection(
+                    "ws://" + instanceUrl + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
             verify(webSocketMocks.get(instance.publicDnsName()), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -617,7 +623,8 @@ class LoadTestServiceTests {
         verify(this.kibanaClient, times(1)).importDashboards();
         for (String instanceUrl : devWorkers) {
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection(
+                    "ws://" + instanceUrl + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
             verify(webSocketMocks.get(instanceUrl), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -693,7 +700,8 @@ class LoadTestServiceTests {
         verify(this.kibanaClient, times(1)).importDashboards();
         for (String instanceUrl : devWorkers) {
             verify(this.browserEmulatorClient, times(1)).ping(instanceUrl);
-            verify(this.webSocketConnectionFactory, times(1)).createConnection("ws://" + instanceUrl + ":5001/events");
+            verify(this.webSocketConnectionFactory, times(1)).createConnection(
+                    "ws://" + instanceUrl + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
             verify(webSocketMocks.get(instanceUrl), times(1)).close();
             verify(this.browserEmulatorClient, times(1)).initializeInstance(instanceUrl);
         }
@@ -772,7 +780,9 @@ class LoadTestServiceTests {
 
     private WebSocketClient mockWebSocket(String url) {
         WebSocketClient session = mock(WebSocketClient.class);
-        when(this.webSocketConnectionFactory.createConnection("ws://" + url + ":5001/events")).thenReturn(session);
+        when(this.webSocketConnectionFactory
+                .createConnection("ws://" + url + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events"))
+                .thenReturn(session);
         return session;
     }
 }

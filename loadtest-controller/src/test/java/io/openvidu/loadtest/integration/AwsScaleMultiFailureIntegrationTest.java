@@ -35,12 +35,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import io.floci.testcontainers.FlociContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import io.openvidu.loadtest.integration.mock.BrowserEmulatorMockServer;
-import io.openvidu.loadtest.integration.mock.BrowserEmulatorMockServer.ParticipantCreationListener;
 import io.openvidu.loadtest.integration.mock.ReconnectionFailureSimulator;
 import io.openvidu.loadtest.integration.mock.WebSocketMockServer;
 import io.openvidu.loadtest.utils.ShutdownManager;
@@ -104,72 +102,8 @@ class AwsScaleMultiFailureIntegrationTest {
 
     @DynamicPropertySource
     static void configureEc2Properties(DynamicPropertyRegistry registry) {
-        String ec2Endpoint = floci.getEndpoint() + "/";
-        registry.add("aws.endpointOverride", () -> ec2Endpoint);
-        log.info("Configured EC2 endpoint override: {}", ec2Endpoint);
-
-        software.amazon.awssdk.services.ec2.Ec2Client setupClient = software.amazon.awssdk.services.ec2.Ec2Client
-                .builder()
-                .region(Region.US_EAST_1)
-                .endpointOverride(java.net.URI.create(ec2Endpoint))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create("test", "test")))
-                .build();
-
-        try {
-            CreateSecurityGroupResponse sgResponse = setupClient.createSecurityGroup(
-                    CreateSecurityGroupRequest.builder()
-                            .groupName("test-security-group-multi")
-                            .description("Test security group for OpenVidu load testing (multi-failure)")
-                            .build());
-            createdSecurityGroupId = sgResponse.groupId();
-            log.info("Created security group: {}", createdSecurityGroupId);
-
-            setupClient.authorizeSecurityGroupIngress(
-                    AuthorizeSecurityGroupIngressRequest.builder()
-                            .groupId(createdSecurityGroupId)
-                            .ipPermissions(
-                                    IpPermission.builder()
-                                            .ipProtocol("tcp")
-                                            .fromPort(5000)
-                                            .toPort(5000)
-                                            .ipRanges(IpRange.builder().cidrIp("0.0.0.0/0").build())
-                                            .build())
-                            .build());
-
-            setupClient.authorizeSecurityGroupIngress(
-                    AuthorizeSecurityGroupIngressRequest.builder()
-                            .groupId(createdSecurityGroupId)
-                            .ipPermissions(
-                                    IpPermission.builder()
-                                            .ipProtocol("tcp")
-                                            .fromPort(5001)
-                                            .toPort(5001)
-                                            .ipRanges(IpRange.builder().cidrIp("0.0.0.0/0").build())
-                                            .build())
-                            .build());
-        } catch (Exception e) {
-            log.warn("Security group setup failed: {}", e.getMessage());
-            createdSecurityGroupId = "sg-default";
-        }
-        registry.add("aws.securityGroupId", () -> createdSecurityGroupId);
-
-        try {
-            RegisterImageResponse amiResponse = setupClient.registerImage(
-                    RegisterImageRequest.builder()
-                            .name("test-ami-multi")
-                            .rootDeviceName("/dev/sda1")
-                            .virtualizationType("hvm")
-                            .build());
-            createdAmiId = amiResponse.imageId();
-            log.info("Registered AMI: {}", createdAmiId);
-        } catch (Exception e) {
-            log.warn("AMI setup failed: {}", e.getMessage());
-            createdAmiId = "ami-default";
-        }
-        registry.add("aws.amiId", () -> createdAmiId);
-
-        setupClient.close();
+        IntegrationTestEnvironment.configureFlociAndStartMocks(registry, floci, "test-security-group-multi",
+                "test-ami-multi", null, null);
     }
 
     private static BrowserEmulatorMockServer browserEmulatorMock;
@@ -202,19 +136,19 @@ class AwsScaleMultiFailureIntegrationTest {
         Files.createDirectories(resultsDir);
 
         configureTrustingSslContext();
+        // Ensure mock servers are running and available; copy shared refs to locals
+        IntegrationTestEnvironment.startMocksIfNeeded(floci, "test-security-group-multi", "test-ami-multi",
+                null, null);
 
-        // Initialize failure simulator with no pre-registered failures
-        failureSimulator = new ReconnectionFailureSimulator();
-
-        // Start browser emulator mock server on port 5000 (HTTPS)
-        browserEmulatorMock = new BrowserEmulatorMockServer(5000, failureSimulator);
-        browserEmulatorMock.startHttps();
-        log.info("Browser emulator mock server started on HTTPS port 5000");
-
-        // Start WebSocket mock server on port 5001
-        webSocketMockServer = new WebSocketMockServer(5001);
-        webSocketMockServer.start();
-        browserEmulatorMock.setWebSocketServer(webSocketMockServer);
+        // Assign local references from shared environment
+        browserEmulatorMock = IntegrationTestEnvironment.browserEmulatorMock;
+        webSocketMockServer = IntegrationTestEnvironment.webSocketMockServer;
+        failureSimulator = IntegrationTestEnvironment.failureSimulator;
+        createdSecurityGroupId = IntegrationTestEnvironment.createdSecurityGroupId;
+        createdAmiId = IntegrationTestEnvironment.createdAmiId;
+        log.info("Mock servers ports: http={}, websocket={}",
+                browserEmulatorMock != null ? browserEmulatorMock.getPort() : -1,
+                webSocketMockServer != null ? webSocketMockServer.getPort() : -1);
 
         // Register participant creation listener to trigger failure registration
         browserEmulatorMock.addParticipantCreationListener((userId, sessionName, participantNum) -> {
@@ -264,7 +198,7 @@ class AwsScaleMultiFailureIntegrationTest {
         // reconnection
         // Use 220 participants: enough to reach global 150 (Phase 2 trigger) + allow
         // full 5 reconnection attempts for participant 80 to complete + buffer
-        browserEmulatorMock.setMaxParticipantsThreshold(220, () -> {
+        browserEmulatorMock.setMaxParticipantsThreshold(170, () -> {
             log.info("Max participants threshold reached - triggering test termination");
             browserEmulatorMock.triggerTestTermination();
         });

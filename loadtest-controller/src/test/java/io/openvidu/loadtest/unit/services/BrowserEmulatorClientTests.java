@@ -80,6 +80,10 @@ class BrowserEmulatorClientTests {
         when(this.loadTestConfigMock.getSessionNamePrefix()).thenReturn("LoadTestSession");
         when(this.loadTestConfigMock.isHttpsDisabled()).thenReturn(false);
 
+        // Ensure mocked config returns default ports used in assertions
+        when(this.loadTestConfigMock.getWorkerHttpPort()).thenReturn(5000);
+        when(this.loadTestConfigMock.getWorkerWebsocketPort()).thenReturn(5001);
+
         this.browserEmulatorClient = new BrowserEmulatorClient(this.loadTestConfigMock, this.httpClientMock,
                 this.jsonUtilsMock, this.sleeper, this.workerUrlResolver);
     }
@@ -108,7 +112,9 @@ class BrowserEmulatorClientTests {
         videoInfo.addProperty("fps", 30);
         video.add("videoInfo", videoInfo);
         expectedBody.add("browserVideo", video);
-        verify(this.httpClientMock, times(1)).sendPost("https://localhost:5000/instance/initialize", expectedBody, null,
+        verify(this.httpClientMock, times(1)).sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/instance/initialize",
+                expectedBody, null,
                 headers);
     }
 
@@ -151,13 +157,16 @@ class BrowserEmulatorClientTests {
         String responseString = responseBody.toString();
         when(response.body()).thenReturn(responseString);
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
-        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+        when(this.httpClientMock.sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
+                expectedBody, null,
                 headers)).thenReturn(response);
 
         CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
 
         assertTrue(cpr.isResponseOk());
-        verify(this.httpClientMock, times(1)).sendPost("https://localhost:5000/openvidu-browser/streamManager",
+        verify(this.httpClientMock, times(1)).sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
                 expectedBody, null, headers);
     }
 
@@ -175,7 +184,8 @@ class BrowserEmulatorClientTests {
         when(response.statusCode()).thenReturn(200);
         when(
                 this.httpClientMock.sendDelete(
-                        "https://localhost:5000/openvidu-browser/streamManager/session/" + session + "/user/"
+                        "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort()
+                                + "/openvidu-browser/streamManager/session/" + session + "/user/"
                                 + participant,
                         headers))
                 .thenReturn(response);
@@ -217,7 +227,9 @@ class BrowserEmulatorClientTests {
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
         when(publishResponse.body()).thenReturn(responseString);
         when(publishResponse.statusCode()).thenReturn(200);
-        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+        when(this.httpClientMock.sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
+                expectedBody, null,
                 headers)).thenReturn(publishResponse);
 
         CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", participantId,
@@ -226,7 +238,8 @@ class BrowserEmulatorClientTests {
         this.browserEmulatorClient.addClientFailure("localhost", participant, session);
 
         assertTrue(cpr.isResponseOk());
-        verify(this.httpClientMock, times(3)).sendPost("https://localhost:5000/openvidu-browser/streamManager",
+        verify(this.httpClientMock, times(3)).sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
                 expectedBody, null, headers);
     }
 
@@ -273,7 +286,9 @@ class BrowserEmulatorClientTests {
         HttpResponse<String> errorResponse = mock(HttpResponse.class);
         when(errorResponse.statusCode()).thenReturn(500);
         when(errorResponse.body()).thenReturn("error");
-        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+        when(this.httpClientMock.sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
+                expectedBody, null,
                 headers))
                 .thenReturn(errorResponse)
                 .thenReturn(errorResponse)
@@ -282,7 +297,8 @@ class BrowserEmulatorClientTests {
         CreateParticipantResponse cpr = this.browserEmulatorClient.createPublisher("localhost", 0, 0, testCase);
 
         assertTrue(cpr.isResponseOk());
-        verify(this.httpClientMock, times(3)).sendPost("https://localhost:5000/openvidu-browser/streamManager",
+        verify(this.httpClientMock, times(3)).sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
                 expectedBody, null, headers);
     }
 
@@ -358,13 +374,16 @@ class BrowserEmulatorClientTests {
         String responseString = responseBody.toString();
         when(response.body()).thenReturn(responseString);
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
-        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+        when(this.httpClientMock.sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
+                expectedBody, null,
                 headers)).thenReturn(response);
 
         CreateParticipantResponse cpr = this.browserEmulatorClient.createSubscriber("localhost", 0, 0, testCase);
 
         assertTrue(cpr.isResponseOk());
-        verify(this.httpClientMock, times(1)).sendPost("https://localhost:5000/openvidu-browser/streamManager",
+        verify(this.httpClientMock, times(1)).sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
                 expectedBody, null, headers);
     }
 
@@ -582,7 +601,9 @@ class BrowserEmulatorClientTests {
         String responseString = responseBody.toString();
         when(response.body()).thenReturn(responseString);
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
-        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+        when(this.httpClientMock.sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
+                expectedBody, null,
                 headers)).thenReturn(response);
 
         this.browserEmulatorClient.clean();
@@ -633,7 +654,9 @@ class BrowserEmulatorClientTests {
         String responseString = responseBody.toString();
         when(response.body()).thenReturn(responseString);
         when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
-        when(this.httpClientMock.sendPost("https://localhost:5000/openvidu-browser/streamManager", expectedBody, null,
+        when(this.httpClientMock.sendPost(
+                "https://localhost:" + this.loadTestConfigMock.getWorkerHttpPort() + "/openvidu-browser/streamManager",
+                expectedBody, null,
                 headers)).thenReturn(response);
 
         this.browserEmulatorClient.clean();

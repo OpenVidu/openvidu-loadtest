@@ -48,12 +48,13 @@ public class BrowserEmulatorMockServer {
     private final AtomicInteger participantCounter = new AtomicInteger(0);
     private X509Certificate certificate;
     private final int port;
+    private int actualPort = -1;
     private boolean useHttps = false;
     private WebSocketMockServer webSocketServer;
     private ReconnectionFailureSimulator failureSimulator;
     private final CopyOnWriteArrayList<ParticipantCreationListener> creationListeners = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<String, String> participantToWorker = new ConcurrentHashMap<>();
-    
+
     private int maxParticipantsThreshold = -1;
     private Runnable onMaxParticipantsReached;
 
@@ -128,8 +129,10 @@ public class BrowserEmulatorMockServer {
     /**
      * Set a threshold for maximum participants. When this threshold is reached,
      * the provided callback will be invoked to stop the test.
-     * @param maxParticipants the maximum number of participants before test stops (-1 to disable)
-     * @param onMaxReached callback to execute when threshold is reached
+     * 
+     * @param maxParticipants the maximum number of participants before test stops
+     *                        (-1 to disable)
+     * @param onMaxReached    callback to execute when threshold is reached
      */
     public void setMaxParticipantsThreshold(int maxParticipants, Runnable onMaxReached) {
         this.maxParticipantsThreshold = maxParticipants;
@@ -148,7 +151,8 @@ public class BrowserEmulatorMockServer {
      * Signal the controller to stop the test by sending a sessionDisconnected event
      * for a participant. This triggers the reconnection flow which will eventually
      * cause the test to terminate.
-     * @param userId the user ID to disconnect
+     * 
+     * @param userId      the user ID to disconnect
      * @param sessionName the session name
      */
     public void signalTestStop(String userId, String sessionName) {
@@ -167,7 +171,8 @@ public class BrowserEmulatorMockServer {
      */
     public void triggerTestTermination() {
         log.info("Triggering test termination - all subsequent participant creations will fail");
-        // Setting maxParticipantsThreshold to 0 triggers immediate termination on next request
+        // Setting maxParticipantsThreshold to 0 triggers immediate termination on next
+        // request
         this.maxParticipantsThreshold = 0;
     }
 
@@ -192,7 +197,18 @@ public class BrowserEmulatorMockServer {
         sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         // Create HTTPS server
-        this.httpsServer = HttpsServer.create(new InetSocketAddress(port), 0);
+        try {
+            this.httpsServer = HttpsServer.create(new InetSocketAddress(port), 0);
+        } catch (java.net.BindException be) {
+            log.warn("Port {} already in use when attempting to start HTTPS server", port);
+            // If an existing server is responding on the expected ping endpoint, reuse it
+            if (isServerResponding(port, true)) {
+                log.info("Existing server detected on port {} - reusing it", port);
+                useHttps = true;
+                return;
+            }
+            throw be;
+        }
         this.httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
             @Override
             public void configure(HttpsParameters params) {
@@ -211,6 +227,14 @@ public class BrowserEmulatorMockServer {
 
         // Start the server
         httpsServer.start();
+        // Determine actual bound port (in case port was 0 / ephemeral)
+        try {
+            if (this.httpsServer.getAddress() != null) {
+                this.actualPort = this.httpsServer.getAddress().getPort();
+            }
+        } catch (Exception e) {
+            log.debug("Could not determine HTTPS server bound port", e);
+        }
         useHttps = true;
         log.info("BrowserEmulatorMockServer started successfully on HTTPS port {}", port);
     }
@@ -222,7 +246,17 @@ public class BrowserEmulatorMockServer {
         log.info("Starting BrowserEmulatorMockServer on HTTP port {}", port);
 
         // Create HTTP server
-        this.httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+        try {
+            this.httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+        } catch (java.net.BindException be) {
+            log.warn("Port {} already in use when attempting to start HTTP server", port);
+            if (isServerResponding(port, false)) {
+                log.info("Existing server detected on port {} - reusing it", port);
+                useHttps = false;
+                return;
+            }
+            throw be;
+        }
         this.httpServer.setExecutor(Executors.newCachedThreadPool());
 
         // Register handlers
@@ -230,8 +264,71 @@ public class BrowserEmulatorMockServer {
 
         // Start the server
         httpServer.start();
+        // Determine actual bound port (in case port was 0 / ephemeral)
+        try {
+            if (this.httpServer.getAddress() != null) {
+                this.actualPort = this.httpServer.getAddress().getPort();
+            }
+        } catch (Exception e) {
+            log.debug("Could not determine HTTP server bound port", e);
+        }
         useHttps = false;
         log.info("BrowserEmulatorMockServer started successfully on HTTP port {}", port);
+    }
+
+    /**
+     * Probe the given port for an existing mock server by performing a GET
+     * /instance/ping.
+     * If tls is true, attempt HTTPS with a permissive SSL context to accept
+     * self-signed certs.
+     */
+    private boolean isServerResponding(int portToCheck, boolean tls) {
+        try {
+            String scheme = tls ? "https" : "http";
+            java.net.URI uri = new java.net.URI(scheme + "://localhost:" + portToCheck + "/instance/ping");
+
+            java.net.http.HttpClient client;
+            if (tls) {
+                // Trust all certificates for the probe
+                javax.net.ssl.TrustManager[] trustAllCerts = new javax.net.ssl.TrustManager[] {
+                        new javax.net.ssl.X509TrustManager() {
+                            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                                return null;
+                            }
+
+                            public void checkClientTrusted(java.security.cert.X509Certificate[] certs,
+                                    String authType) {
+                            }
+
+                            public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
+                                    String authType) {
+                            }
+                        }
+                };
+                javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                client = java.net.http.HttpClient.newBuilder()
+                        .sslContext(sc)
+                        .connectTimeout(java.time.Duration.ofSeconds(2))
+                        .build();
+            } else {
+                client = java.net.http.HttpClient.newBuilder()
+                        .connectTimeout(java.time.Duration.ofSeconds(2))
+                        .build();
+            }
+
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(uri)
+                    .GET()
+                    .timeout(java.time.Duration.ofSeconds(2))
+                    .build();
+
+            java.net.http.HttpResponse<String> resp = client.send(req,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            return resp.statusCode() == 200 && "Pong".equals(resp.body());
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     private void registerHandlers(HttpServer server) {
@@ -274,7 +371,7 @@ public class BrowserEmulatorMockServer {
      * Get the port the server is running on.
      */
     public int getPort() {
-        return port;
+        return actualPort != -1 ? actualPort : port;
     }
 
     /**
@@ -309,7 +406,8 @@ public class BrowserEmulatorMockServer {
      * Extract the numeric part from a userId like "User42" -> 42.
      */
     private static int extractUserNumber(String userId) {
-        if (userId == null) return 0;
+        if (userId == null)
+            return 0;
         String prefix = "User";
         if (userId.startsWith(prefix)) {
             try {
@@ -389,11 +487,20 @@ public class BrowserEmulatorMockServer {
                 log.error("Thread interrupted");
             }
             try {
-                // Read request body
-                int length = exchange.getRequestBody().available();
-                byte[] input = new byte[length];
-                exchange.getRequestBody().read(input);
+                // Read request body fully
+                byte[] input = exchange.getRequestBody().readAllBytes();
                 String requestBody = new String(input);
+
+                if (requestBody == null || requestBody.trim().isEmpty()) {
+                    log.error("Empty request body for streamManager");
+                    String errorResponse = "{\"error\": \"Invalid JSON structure\"}";
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(400, errorResponse.length());
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(errorResponse.getBytes());
+                    }
+                    return;
+                }
 
                 // Parse JSON to extract userId and sessionName
                 try {
@@ -433,7 +540,8 @@ public class BrowserEmulatorMockServer {
                         return;
                     }
 
-                    // Check if this participant should fail on reconnection (after WebSocket disconnect)
+                    // Check if this participant should fail on reconnection (after WebSocket
+                    // disconnect)
                     if (failureSimulator != null && failureSimulator.shouldFailOnReconnect(userId, sessionName)) {
                         String completeUser = userId + "-" + sessionName;
                         int attempt = failureSimulator.recordFailure(completeUser);
@@ -571,8 +679,10 @@ public class BrowserEmulatorMockServer {
     }
 
     /**
-     * Handler for DELETE /openvidu-browser/streamManager/session/{session}/user/{participant}
-     * Used by the reconnect flow to disconnect a participant before re-creating them.
+     * Handler for DELETE
+     * /openvidu-browser/streamManager/session/{session}/user/{participant}
+     * Used by the reconnect flow to disconnect a participant before re-creating
+     * them.
      */
     private class DisconnectHandler implements HttpHandler {
         @Override

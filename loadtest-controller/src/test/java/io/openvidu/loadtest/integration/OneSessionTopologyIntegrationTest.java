@@ -26,6 +26,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,7 +36,8 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * Integration test for loadtest-controller that runs One Session topology test cases in a
+ * Integration test for loadtest-controller that runs One Session topology test
+ * cases in a
  * single run.
  * This test validates the tabbed HTML report with Overview and per-test-case
  * tabs.
@@ -91,20 +94,31 @@ class OneSessionTopologyIntegrationTest {
     }
 
     private static void setupMockServers() throws Exception {
-        webSocketMock = new WebSocketMockServer(5001);
+        webSocketMock = new WebSocketMockServer(0);
         webSocketMock.start();
 
-        browserEmulatorMock = new BrowserEmulatorMockServer(5000);
+        browserEmulatorMock = new BrowserEmulatorMockServer(0);
         browserEmulatorMock.setWebSocketServer(webSocketMock);
         browserEmulatorMock.startHttps();
+
+    }
+
+    @DynamicPropertySource
+    static void registerWorkerPorts(DynamicPropertyRegistry registry) {
+        try {
+            setupMockServers();
+            registry.add("workers.http.port", () -> browserEmulatorMock.getPort());
+            registry.add("workers.websocket.port", () -> webSocketMock.getPort());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to start mock servers for tests", e);
+        }
     }
 
     @BeforeAll
     static void setUpEnvironmentAndStartMockServers() throws Exception {
         Files.createDirectories(resultsDir);
         cleanupResultsDir();
-        setupMockServers();
-        Thread.sleep(500);
+        // Mock servers started in @DynamicPropertySource
     }
 
     private static void cleanupResultsDir() throws IOException {
@@ -273,7 +287,7 @@ class OneSessionTopologyIntegrationTest {
                                     "Stop reason should be 'Test finished' for test case: " + label);
                         } else {
                             assertTrue(stopReasonCell.equals("Test finished")
-                                            || stopReasonCell.equals("No more workers available"),
+                                    || stopReasonCell.equals("No more workers available"),
                                     "Unexpected stop reason for ONE_SESSION_NXN test case: " + stopReasonCell);
                         }
                     } catch (NumberFormatException nfe) {

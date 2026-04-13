@@ -39,6 +39,7 @@ public class WebSocketMockServer {
     private static final Logger log = LoggerFactory.getLogger(WebSocketMockServer.class);
 
     private final int port;
+    private int actualPort = -1;
     private Server server;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final ConcurrentHashMap<Session, String> sessionToWorker = new ConcurrentHashMap<>();
@@ -92,10 +93,39 @@ public class WebSocketMockServer {
         // Setup servlet context and WebSocket
         setupWebSocketEndpoint();
 
-        server.start();
+        try {
+            server.start();
+        } catch (java.net.BindException be) {
+            log.warn("Port {} already in use when attempting to start WebSocket HTTPS server", port);
+            if (isServerResponding(port, true)) {
+                log.info("Existing server detected on port {} - reusing it", port);
+                running.set(true);
+                useHttps = true;
+                return;
+            }
+            throw be;
+        }
         running.set(true);
         useHttps = true;
         log.info("WebSocketMockServer started successfully on HTTPS port {}", port);
+        // Determine actual bound port (in case port was 0 / ephemeral)
+        try {
+            org.eclipse.jetty.server.Connector[] connectors = server.getConnectors();
+            if (connectors != null && connectors.length > 0) {
+                for (org.eclipse.jetty.server.Connector c : connectors) {
+                    if (c instanceof ServerConnector sc) {
+                        int p = sc.getLocalPort();
+                        if (p <= 0) {
+                            p = sc.getPort();
+                        }
+                        this.actualPort = p;
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not determine WebSocket HTTPS bound port", e);
+        }
     }
 
     /**
@@ -107,10 +137,129 @@ public class WebSocketMockServer {
         server = new Server(port);
         setupWebSocketEndpoint();
 
-        server.start();
+        try {
+            server.start();
+        } catch (java.net.BindException be) {
+            log.warn("Port {} already in use when attempting to start WebSocket HTTP server", port);
+            if (isServerResponding(port, false)) {
+                log.info("Existing server detected on port {} - reusing it", port);
+                running.set(true);
+                useHttps = false;
+                return;
+            }
+            throw be;
+        }
         running.set(true);
         useHttps = false;
         log.info("WebSocketMockServer started successfully on HTTP port {}", port);
+        // Determine actual bound port (in case port was 0 / ephemeral)
+        try {
+            org.eclipse.jetty.server.Connector[] connectors = server.getConnectors();
+            if (connectors != null && connectors.length > 0) {
+                for (org.eclipse.jetty.server.Connector c : connectors) {
+                    if (c instanceof ServerConnector sc) {
+                        int p = sc.getLocalPort();
+                        if (p <= 0) {
+                            p = sc.getPort();
+                        }
+                        this.actualPort = p;
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not determine WebSocket HTTP bound port", e);
+        }
+    }
+
+    private boolean isServerResponding(int portToCheck, boolean tls) {
+        try {
+            // First try a lightweight WebSocket handshake to /events
+            try {
+                String wsScheme = tls ? "wss" : "ws";
+                java.net.URI wsUri = new java.net.URI(wsScheme + "://localhost:" + portToCheck + "/events");
+                java.net.http.WebSocket.Builder wsBuilder = java.net.http.HttpClient.newBuilder()
+                        .connectTimeout(java.time.Duration.ofSeconds(2))
+                        .build()
+                        .newWebSocketBuilder();
+
+                if (tls) {
+                    javax.net.ssl.TrustManager[] trustAllCerts = new javax.net.ssl.TrustManager[] {
+                            new javax.net.ssl.X509TrustManager() {
+                                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                                    return null;
+                                }
+
+                                public void checkClientTrusted(java.security.cert.X509Certificate[] certs,
+                                        String authType) {
+                                }
+
+                                public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
+                                        String authType) {
+                                }
+                            }
+                    };
+                    javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+                    sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                    wsBuilder = java.net.http.HttpClient.newBuilder().sslContext(sc).build().newWebSocketBuilder();
+                }
+
+                java.util.concurrent.CompletableFuture<java.net.http.WebSocket> connectFuture = wsBuilder.buildAsync(
+                        wsUri,
+                        new java.net.http.WebSocket.Listener() {
+                        });
+                java.net.http.WebSocket webSocket = connectFuture.orTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                        .join();
+                webSocket.abort();
+                return true;
+            } catch (Throwable wsEx) {
+                // Fallback to HTTP GET probe
+                String scheme = tls ? "https" : "http";
+                java.net.URI uri = new java.net.URI(scheme + "://localhost:" + portToCheck + "/");
+
+                java.net.http.HttpClient client;
+                if (tls) {
+                    javax.net.ssl.TrustManager[] trustAllCerts = new javax.net.ssl.TrustManager[] {
+                            new javax.net.ssl.X509TrustManager() {
+                                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                                    return null;
+                                }
+
+                                public void checkClientTrusted(java.security.cert.X509Certificate[] certs,
+                                        String authType) {
+                                }
+
+                                public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
+                                        String authType) {
+                                }
+                            }
+                    };
+                    javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+                    sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                    client = java.net.http.HttpClient.newBuilder()
+                            .sslContext(sc)
+                            .connectTimeout(java.time.Duration.ofSeconds(2))
+                            .build();
+                } else {
+                    client = java.net.http.HttpClient.newBuilder()
+                            .connectTimeout(java.time.Duration.ofSeconds(2))
+                            .build();
+                }
+
+                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                        .uri(uri)
+                        .GET()
+                        .timeout(java.time.Duration.ofSeconds(2))
+                        .build();
+
+                java.net.http.HttpResponse<String> resp = client.send(req,
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+                int code = resp.statusCode();
+                return code >= 200 && code < 500;
+            }
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     private void setupWebSocketEndpoint() throws Exception {
@@ -159,9 +308,12 @@ public class WebSocketMockServer {
     }
 
     /**
-     * Send a "sessionDisconnected" event for a specific participant to trigger reconnection.
-     * The message format matches what WebSocketClient.onMessage() expects to trigger handleError().
-     * Sends to only the first connected session to avoid duplicate processing across multiple workers.
+     * Send a "sessionDisconnected" event for a specific participant to trigger
+     * reconnection.
+     * The message format matches what WebSocketClient.onMessage() expects to
+     * trigger handleError().
+     * Sends to only the first connected session to avoid duplicate processing
+     * across multiple workers.
      */
     public void sendDisconnected(String participant, String session) {
         if (!running.get()) {
@@ -215,6 +367,14 @@ public class WebSocketMockServer {
      */
     public boolean isRunning() {
         return running.get();
+    }
+
+    /**
+     * Get the port the server is running on (actual bound port if ephemeral
+     * chosen).
+     */
+    public int getPort() {
+        return actualPort != -1 ? actualPort : port;
     }
 
     /**

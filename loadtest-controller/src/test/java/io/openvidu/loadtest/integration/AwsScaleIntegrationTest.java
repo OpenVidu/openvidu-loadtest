@@ -83,94 +83,8 @@ class AwsScaleIntegrationTest {
 
     @DynamicPropertySource
     static void configureEc2Properties(DynamicPropertyRegistry registry) {
-        // @Testcontainers ensures the container is started before this method is called
-        String ec2Endpoint = floci.getEndpoint() + "/";
-        registry.add("aws.endpointOverride", () -> ec2Endpoint);
-        log.info("Configured EC2 endpoint override: {}", ec2Endpoint);
-
-        // Create EC2 client for Floci resource setup
-        software.amazon.awssdk.services.ec2.Ec2Client setupClient = software.amazon.awssdk.services.ec2.Ec2Client
-                .builder()
-                .region(Region.US_EAST_1)
-                .endpointOverride(java.net.URI.create(ec2Endpoint))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create("test", "test")))
-                .build();
-
-        // Create security group with ports 5000 and 5001 open
-        try {
-            CreateSecurityGroupResponse sgResponse = setupClient.createSecurityGroup(
-                    CreateSecurityGroupRequest.builder()
-                            .groupName("test-security-group")
-                            .description("Test security group for OpenVidu load testing")
-                            .build());
-            createdSecurityGroupId = sgResponse.groupId();
-            log.info("Created security group: {}", createdSecurityGroupId);
-
-            // Authorize inbound traffic on port 5000 (browser emulator HTTP)
-            setupClient.authorizeSecurityGroupIngress(
-                    AuthorizeSecurityGroupIngressRequest.builder()
-                            .groupId(createdSecurityGroupId)
-                            .ipPermissions(
-                                    IpPermission.builder()
-                                            .ipProtocol("tcp")
-                                            .fromPort(5000)
-                                            .toPort(5000)
-                                            .ipRanges(IpRange.builder().cidrIp("0.0.0.0/0").build())
-                                            .build())
-                            .build());
-            log.info("Authorized inbound traffic on port 5000");
-
-            // Authorize inbound traffic on port 5001 (WebSocket events)
-            setupClient.authorizeSecurityGroupIngress(
-                    AuthorizeSecurityGroupIngressRequest.builder()
-                            .groupId(createdSecurityGroupId)
-                            .ipPermissions(
-                                    IpPermission.builder()
-                                            .ipProtocol("tcp")
-                                            .fromPort(5001)
-                                            .toPort(5001)
-                                            .ipRanges(IpRange.builder().cidrIp("0.0.0.0/0").build())
-                                            .build())
-                            .build());
-            log.info("Authorized inbound traffic on port 5001");
-        } catch (Exception e) {
-            log.warn("Security group setup failed: {}", e.getMessage());
-            createdSecurityGroupId = "sg-default";
-        }
-        registry.add("aws.securityGroupId", () -> createdSecurityGroupId);
-        log.info("Configured aws.securityGroupId: {}", createdSecurityGroupId);
-
-        // Create key pair
-        try {
-            setupClient.createKeyPair(
-                    CreateKeyPairRequest.builder()
-                            .keyName("test-key-pair")
-                            .keyType(KeyType.RSA)
-                            .build());
-            log.info("Created key pair: test-key-pair");
-        } catch (Exception e) {
-            log.warn("Key pair setup failed: {}", e.getMessage());
-        }
-
-        // Register AMI
-        try {
-            RegisterImageResponse amiResponse = setupClient.registerImage(
-                    RegisterImageRequest.builder()
-                            .name("test-ami")
-                            .rootDeviceName("/dev/sda1")
-                            .virtualizationType("hvm")
-                            .build());
-            createdAmiId = amiResponse.imageId();
-            log.info("Registered AMI: {}", createdAmiId);
-        } catch (Exception e) {
-            log.warn("AMI setup failed: {}", e.getMessage());
-            createdAmiId = "ami-default";
-        }
-        registry.add("aws.amiId", () -> createdAmiId);
-        log.info("Configured aws.amiId: {}", createdAmiId);
-
-        setupClient.close();
+        IntegrationTestEnvironment.configureFlociAndStartMocks(registry, floci, "test-security-group", "test-ami",
+                "User5", "LoadTestSession40");
     }
 
     private static BrowserEmulatorMockServer browserEmulatorMock;
@@ -206,18 +120,16 @@ class AwsScaleIntegrationTest {
         // Configure SSL to trust all certificates
         configureTrustingSslContext();
 
-        // Initialize failure simulator
-        failureSimulator = new ReconnectionFailureSimulator("User5", "LoadTestSession40");
+        // Ensure mocks are initialized (DynamicPropertySource may have run earlier).
+        IntegrationTestEnvironment.startMocksIfNeeded(floci, "test-security-group", "test-ami",
+                "User5", "LoadTestSession40");
 
-        // Start browser emulator mock server on port 5000 (HTTPS)
-        browserEmulatorMock = new BrowserEmulatorMockServer(5000, failureSimulator);
-        browserEmulatorMock.startHttps();
-        log.info("Browser emulator mock server started on HTTPS port 5000");
-
-        // Start WebSocket mock server on port 5001
-        webSocketMockServer = new WebSocketMockServer(5001);
-        webSocketMockServer.start();
-        browserEmulatorMock.setWebSocketServer(webSocketMockServer);
+        // Assign local references from shared environment
+        browserEmulatorMock = IntegrationTestEnvironment.browserEmulatorMock;
+        webSocketMockServer = IntegrationTestEnvironment.webSocketMockServer;
+        failureSimulator = IntegrationTestEnvironment.failureSimulator;
+        createdSecurityGroupId = IntegrationTestEnvironment.createdSecurityGroupId;
+        createdAmiId = IntegrationTestEnvironment.createdAmiId;
 
         log.info("Setup complete");
         log.info("Test will fail participant {} after {} retries",

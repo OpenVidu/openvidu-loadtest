@@ -9,8 +9,6 @@ import io.openvidu.loadtest.utils.ShutdownManager;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
-import java.util.Set;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -23,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -31,8 +31,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Integration test for loadtest-controller that runs multiple test cases in a
@@ -92,20 +90,29 @@ class MultiTestCaseIntegrationTest {
     }
 
     private static void setupMockServers() throws Exception {
-        webSocketMock = new WebSocketMockServer(5001);
+        webSocketMock = new WebSocketMockServer(0);
         webSocketMock.start();
 
-        browserEmulatorMock = new BrowserEmulatorMockServer(5000);
+        browserEmulatorMock = new BrowserEmulatorMockServer(0);
         browserEmulatorMock.setWebSocketServer(webSocketMock);
         browserEmulatorMock.startHttps();
+    }
+
+    @DynamicPropertySource
+    static void registerWorkerPorts(DynamicPropertyRegistry registry) {
+        try {
+            setupMockServers();
+            registry.add("workers.http.port", () -> browserEmulatorMock.getPort());
+            registry.add("workers.websocket.port", () -> webSocketMock.getPort());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to start mock servers for tests", e);
+        }
     }
 
     @BeforeAll
     static void setUpEnvironmentAndStartMockServers() throws Exception {
         Files.createDirectories(resultsDir);
         cleanupResultsDir();
-        setupMockServers();
-        Thread.sleep(500);
     }
 
     private static void cleanupResultsDir() throws IOException {

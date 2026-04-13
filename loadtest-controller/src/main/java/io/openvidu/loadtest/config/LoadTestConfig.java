@@ -127,6 +127,9 @@ public abstract class LoadTestConfig {
 
     private boolean disableHttps;
 
+    private int workerHttpPort;
+    private int workerWebsocketPort;
+
     public boolean isWaitCompletion() {
         return waitCompletion;
     }
@@ -214,6 +217,14 @@ public abstract class LoadTestConfig {
 
     public List<String> getWorkerUrlList() {
         return this.workerUrlList;
+    }
+
+    public int getWorkerHttpPort() {
+        return this.workerHttpPort;
+    }
+
+    public int getWorkerWebsocketPort() {
+        return this.workerWebsocketPort;
     }
 
     public String getWorkerAmiId() {
@@ -419,6 +430,9 @@ public abstract class LoadTestConfig {
         // Default exitOnEnd to true
         Boolean exitOnEndConfig = yamlConfig.getBooleanOrNull("workers.exitOnEnd");
         exitOnEnd = exitOnEndConfig != null ? exitOnEndConfig : true;
+        // Worker ports (optional)
+        workerHttpPort = defaultIfMinusOne(asInt("workers.http.port"), 5000);
+        workerWebsocketPort = defaultIfMinusOne(asInt("workers.websocket.port"), 5001);
     }
 
     private void initAwsAndRecordingConfig() {
@@ -508,6 +522,8 @@ public abstract class LoadTestConfig {
         log.info("");
         log.info("--- WORKER PARAMETERS ---");
         log.info("");
+        log.debug("Worker HTTP port: {}", workerHttpPort);
+        log.debug("Worker WebSocket port: {}", workerWebsocketPort);
         if (this.disableHttps) {
             log.info("HTTPS is disabled for worker URLs.");
         }

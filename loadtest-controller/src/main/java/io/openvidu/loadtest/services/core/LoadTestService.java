@@ -66,8 +66,6 @@ public class LoadTestService {
     private Calendar startTime;
     private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    private static final int WEBSOCKET_PORT = 5001;
-
     private boolean prodMode = false;
 
     // TODO: Reimplement calculation of streams per worker
@@ -108,7 +106,7 @@ public class LoadTestService {
     void initializeInstance(String url) {
         browserEmulatorClient.ping(url);
         WebSocketClient ws = webSocketConnectionFactory
-                .createConnection("ws://" + url + ":" + LoadTestService.WEBSOCKET_PORT + "/events");
+                .createConnection("ws://" + url + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
         shutdownOrchestrator.addWebSocketSession(ws);
         browserEmulatorClient.initializeInstance(url);
     }

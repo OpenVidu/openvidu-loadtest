@@ -10,7 +10,16 @@ import software.amazon.awssdk.services.ec2.model.Instance;
 public class WorkerUrlResolver {
 
     public String resolveUrl(Instance instance) {
-        return instance.publicDnsName();
+        String publicDns = instance.publicDnsName();
+        if (publicDns != null && !publicDns.isBlank()) {
+            return publicDns;
+        }
+        String privateIp = instance.privateIpAddress();
+        if (privateIp != null && !privateIp.isBlank()) {
+            return privateIp;
+        }
+        // Fallback to instance id if no DNS or IP available
+        return instance.instanceId();
     }
 
     public List<String> resolveUrls(List<Instance> instances) {

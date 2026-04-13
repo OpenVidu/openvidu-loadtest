@@ -22,7 +22,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
-import org.junit.jupiter.api.Test;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
@@ -108,22 +109,33 @@ class LoadTestIntegrationTest {
      * data.
      */
     private static void setupMockServers() throws Exception {
-        // Start WebSocket mock server with plain HTTP (ws://)
-        webSocketMock = new WebSocketMockServer(5001);
+        // Start WebSocket mock server with plain HTTP (ws://) on ephemeral port
+        webSocketMock = new WebSocketMockServer(0);
         webSocketMock.start();
 
-        // Start HTTP mock server with HTTPS
-        browserEmulatorMock = new BrowserEmulatorMockServer(5000);
+        // Start HTTP mock server with HTTPS on ephemeral port
+        browserEmulatorMock = new BrowserEmulatorMockServer(0);
         browserEmulatorMock.setWebSocketServer(webSocketMock);
         browserEmulatorMock.startHttps();
+
+    }
+
+    @DynamicPropertySource
+    static void registerWorkerPorts(DynamicPropertyRegistry registry) {
+        try {
+            setupMockServers();
+            registry.add("workers.http.port", () -> browserEmulatorMock.getPort());
+            registry.add("workers.websocket.port", () -> webSocketMock.getPort());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to start mock servers for tests", e);
+        }
     }
 
     @BeforeAll
     static void setUpEnvironmentAndStartMockServers() throws Exception {
         cleanupResultsDir();
         Files.createDirectories(resultsDir);
-        setupMockServers();
-        Thread.sleep(500);
+        // Mock servers started in @DynamicPropertySource
     }
 
     @AfterAll

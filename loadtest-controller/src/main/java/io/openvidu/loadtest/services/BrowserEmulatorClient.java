@@ -48,7 +48,6 @@ public class BrowserEmulatorClient {
     private static final String CONTENT_TYPE_APPLICATION_JSON = "application/json";
     private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorClient.class);
     private static final int HTTP_STATUS_OK = 200;
-    private static final int WORKER_PORT = 5000;
     public static final String LOADTEST_INDEX = "loadtest-webrtc-stats-" + System.currentTimeMillis();
     private static Set<Integer> recordingParticipantCreated = new CopyOnWriteArraySet<>();
     private static Map<String, int[]> publishersAndSubscribersInWorker = new ConcurrentHashMap<>();
@@ -154,54 +153,78 @@ public class BrowserEmulatorClient {
     }
 
     public void ping(String workerUrl) {
-        try {
-            String pingUrl = this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/ping";
-            log.info("Pinging to {} ...", pingUrl);
-            HttpResponse<String> response = this.httpClient.sendGet(pingUrl, getHeaders());
-            if (response.statusCode() != HTTP_STATUS_OK) {
+        String pingUrl = this.httpProtocolPrefix + workerUrl + ":" + this.loadTestConfig.getWorkerHttpPort()
+                + "/instance/ping";
+        log.info("Pinging to {} ...", pingUrl);
+
+        int attempts = 0;
+        while (true) {
+            if (endOfTest.get()) {
+                log.warn("End of test set - aborting ping to {}", workerUrl);
+                return;
+            }
+            try {
+                HttpResponse<String> response = this.httpClient.sendGet(pingUrl, getHeaders());
+                if (response.statusCode() == HTTP_STATUS_OK && "Pong".equals(response.body())) {
+                    if (log.isInfoEnabled()) {
+                        log.info("Ping success. Response {}", response.body());
+                    }
+                    return;
+                } else {
+                    log.error("Error doing ping. Retry... status={}", response.statusCode());
+                    if (log.isInfoEnabled()) {
+                        log.info("Ping response body: {}", response.body());
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Ping interrupted: {}", e.getMessage());
+                return;
+            } catch (Exception e) {
+                if (e.getMessage() != null) {
+                    log.error(e.getMessage());
+                } else {
+                    log.debug("Error doing ping", e);
+                }
                 log.error("Error doing ping. Retry...");
-                log.info("Ping response status code: {}", response.statusCode());
-                if (log.isInfoEnabled()) {
-                    log.info("Ping response body: {}", response.body());
-                }
-                sleeper.sleep(WAIT_S, null);
-                ping(workerUrl);
-            } else {
-                if (log.isInfoEnabled()) {
-                    log.info("Ping success. Response {}", response.body());
-                }
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Ping interrupted: {}", e.getMessage());
-        } catch (Exception e) {
-            if (e.getMessage() != null) {
-                log.error(e.getMessage());
-            } else {
-                log.debug("Error doing ping", e);
+            attempts++;
+            // sleep between attempts to avoid tight loop
+            sleeper.sleep(WAIT_S, null);
+            // safety cap to avoid infinite loop in CI; abort after many attempts
+            if (attempts > 120) {
+                String errMsg = "Giving up ping to " + workerUrl + " after " + attempts + " attempts";
+                log.error(errMsg);
+                throw new IllegalStateException(errMsg);
             }
-            log.error("Error doing ping. Retry...");
-            ping(workerUrl);
         }
     }
 
     public HttpResponse<String> initializeInstance(String workerUrl) {
         JsonObject body = new InitializeRequestBody(this.loadTestConfig, LOADTEST_INDEX).toJson();
-        try {
-            log.info("Initialize worker {}", workerUrl);
-            return this.httpClient.sendPost(
-                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/initialize", body,
-                    null, getHeaders());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error(e.getMessage());
-            return null;
-        } catch (IOException e) {
-            log.error(e.getMessage());
-            sleeper.sleep(WAIT_S, "Error initializing worker " + workerUrl);
-            if (e.getMessage() != null && e.getMessage().contains("received no bytes")) {
-                log.warn("Retrying");
-                return this.initializeInstance(workerUrl);
+        int attempts = 0;
+        final int maxAttempts = 5;
+        while (attempts < maxAttempts) {
+            try {
+                log.info("Initialize worker {} (attempt {})", workerUrl, attempts + 1);
+                return this.httpClient.sendPost(
+                        this.httpProtocolPrefix + workerUrl + ":" + this.loadTestConfig.getWorkerHttpPort()
+                                + "/instance/initialize",
+                        body,
+                        null, getHeaders());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error(e.getMessage());
+                return null;
+            } catch (IOException e) {
+                log.error(e.getMessage());
+                sleeper.sleep(WAIT_S, "Error initializing worker " + workerUrl);
+                attempts++;
+                if (e.getMessage() != null && e.getMessage().contains("received no bytes") && attempts < maxAttempts) {
+                    log.warn("Retrying initialization for {} (attempt {})", workerUrl, attempts + 1);
+                    continue;
+                }
+                break;
             }
         }
         return null;
@@ -339,7 +362,8 @@ public class BrowserEmulatorClient {
             Map<String, String> headers = new HashMap<>();
             headers.put(CONTENT_TYPE_HEADER, CONTENT_TYPE_APPLICATION_JSON);
             HttpResponse<String> response = this.httpClient.sendDelete(
-                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager/session/"
+                    this.httpProtocolPrefix + workerUrl + ":" + this.loadTestConfig.getWorkerHttpPort()
+                            + "/openvidu-browser/streamManager/session/"
                             + session
                             + "/user/" + participant,
                     headers);
@@ -451,7 +475,8 @@ public class BrowserEmulatorClient {
             Map<String, String> headers = new HashMap<>();
             headers.put(CONTENT_TYPE_HEADER, CONTENT_TYPE_APPLICATION_JSON);
             HttpResponse<String> response = this.httpClient.sendDelete(
-                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager",
+                    this.httpProtocolPrefix + workerUrl + ":" + this.loadTestConfig.getWorkerHttpPort()
+                            + "/openvidu-browser/streamManager",
                     headers);
             log.info("Participants in worker {} deleted", workerUrl);
             return response.body();
@@ -482,7 +507,8 @@ public class BrowserEmulatorClient {
             log.info("Selected worker: {}", workerUrl);
             log.info("Creating participant {} in session {}", userNumber, sessionSuffix);
             HttpResponse<String> response = this.httpClient.sendPost(
-                    this.httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/openvidu-browser/streamManager",
+                    this.httpProtocolPrefix + workerUrl + ":" + this.loadTestConfig.getWorkerHttpPort()
+                            + "/openvidu-browser/streamManager",
                     body.toJson(), null,
                     getHeaders());
             if (log.isDebugEnabled()) {
@@ -676,7 +702,8 @@ public class BrowserEmulatorClient {
                     @Override
                     public String call() throws Exception {
                         return httpClient.sendPost(
-                                httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/qoe/analysis",
+                                httpProtocolPrefix + workerUrl + ":" + loadTestConfig.getWorkerHttpPort()
+                                        + "/qoe/analysis",
                                 new QoeAnalysisBody(loadTestConfig).toJson(), null,
                                 getHeaders()).body();
                     }
@@ -702,7 +729,8 @@ public class BrowserEmulatorClient {
                         @Override
                         public String call() throws Exception {
                             return httpClient.sendGet(
-                                    httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/qoe/analysis/status",
+                                    httpProtocolPrefix + workerUrl + ":" + loadTestConfig.getWorkerHttpPort()
+                                            + "/qoe/analysis/status",
                                     getHeaders())
                                     .body();
                         }
@@ -822,7 +850,8 @@ public class BrowserEmulatorClient {
                 Callable<Void> callable = () -> {
                     try {
                         httpClient.sendDelete(
-                                httpProtocolPrefix + workerUrl + ":" + WORKER_PORT + "/instance/shutdown",
+                                httpProtocolPrefix + workerUrl + ":" + this.loadTestConfig.getWorkerHttpPort()
+                                        + "/instance/shutdown",
                                 getHeaders());
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
