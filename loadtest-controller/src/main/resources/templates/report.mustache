@@ -248,16 +248,17 @@
         .tab-bar {
             display: flex;
             gap: 4px;
-            overflow-x: auto;
-            border-bottom: 2px solid var(--border-color);
             padding: 0 24px;
             background: var(--bg-secondary);
             border-radius: 12px 12px 0 0;
-            margin-bottom: 0;
+            margin-bottom: 4px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-gutter: stable;
         }
 
         .tab-btn {
-            padding: 14px 20px;
+            padding: 12px 20px;
             cursor: pointer;
             border: none;
             background: transparent;
@@ -295,7 +296,7 @@
 
         .tab-content {
             display: none;
-        }
+                    }
 
         .tab-content.active {
             display: block;
@@ -725,11 +726,11 @@
                                 {{/userRows}}
                             </tbody>
                         </table>
-                    </div>
                 </div>
             </div>
         </div>
-        {{/testCases}}
+        </div>
+    {{/testCases}}
     </div>
 
     <script>
