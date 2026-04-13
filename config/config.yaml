@@ -5,7 +5,7 @@
 # Quick start configuration for testing with a local worker. See the first quick start example in the README for more details.
 
 platform:
-  url: https://172-31-224-178.openvidu-local.dev:7443
+  url: https://your-openvidu-url.io
   apiKey: devkey
   apiSecret: secret
 
@@ -16,19 +16,9 @@ testcases:
     sessions: 1
     browser: emulated
     description: "Basic N:N topology test"
-  - topology: N:M
-    participants:
-      - "1:5"
-    sessions: 1
-    browser: emulated
-    description: "Basic N:M topology test"
 workers:
   urls: 
     - browser-emulator
 
 distribution:
-  usersPerWorker: 6
-
-advanced:
-  batches:
-    enabled: false
+  usersPerWorker: 10
