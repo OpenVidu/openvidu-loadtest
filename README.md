@@ -81,7 +81,7 @@ For more detailed instructions on how to configure tests, see [Configuration](#c
 
 ### Large scale testing on AWS
 
-Large-scale tests can be executed on AWS using the provided AMI and the AWS-specific Docker Compose file. But first, let's go through the basic load test architecture:
+Large-scale tests can be executed on AWS using the provided setup script and AWS-specific Docker Compose file.
 
 #### **Project Architecture**
 
@@ -91,124 +91,45 @@ Large-scale tests can be executed on AWS using the provided AMI and the AWS-spec
 
 - **Browser-emulator**: Worker service that connects to OpenVidu rooms, sending and receiving WebRTC media. Launches real or emulated browsers.
 
-#### How-to
+#### AWS Quick Start
 
-The steps below walk through preparing AWS resources, configuring the project, and starting the system with `docker-compose.aws.yml`.
+The `aws-setup/setup-aws-workers.sh` script automates AWS infrastructure setup. It creates an AMI with the browser-emulator and necessary dependencies, sets up a security group, and updates the configuration file with the created resources.
 
-1. **Create browser-emulator AMI:**
+**Prerequisites:**
 
-   The repository includes a helper script to build an AMI that contains the
-   browser-emulator worker runtime and its dependencies. The script uses a
-   CloudFormation template to provision an EC2 instance, installs the
-   required software and captures an AMI you can reuse for worker instances.
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and configured
+- `jq` installed
+- IAM user with permissions for CloudFormation, EC2, and IAM (see script help for details)
 
-   Prerequisites:
-   - Install and configure the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) (`aws configure`).
-   - Install `jq` (used by the script to parse CLI output).
-   - Ensure your IAM user has permissions to create CloudFormation stacks,
-     launch EC2 instances and create AMIs.
+**Usage:**
 
-   Usage:
+```bash
+# Create AMI in default region (us-east-1) with defaults
+./aws-setup/setup-aws-workers.sh
 
-   ```bash
-   cd ./browser-emulator/aws/
-   ./createAMI.sh
-   ```
+# Create AMI in specific region from main branch
+./aws-setup/setup-aws-workers.sh --region eu-west-1 --git-ref main
 
-   Important options (use `./createAMI.sh --help` for details):
-   - `--region <region>`: AWS region (default: `us-east-1`).
-   - `--git-ref <branch|tag>`: Git ref to checkout. You can use this to select a version to use by its tag (default: `v4.0.0`) or checkout a branch.
-   - `--cache-mediafiles[=<ARGS>]`: Select what media files will be pre-downloaded on the instance. By default it caches the files for the `BUNNY` video source at 640x480@30fps (see [Video configuration](#video) for more details on video configuration). Caching media files is recommended to speed up worker startup time, as the files will be available locally instead of being downloaded at runtime.
-
-   Example (create AMI in `eu-west-1` from `main` and cache default mediafiles):
-
-   ```bash
-   ./createAMI.sh --region eu-west-1 --git-ref main
-   ```
-
-   After the script finishes it prints the created AMI id (for example
-   `ami-0abcd...`). Use that `amiId` in `config/config-aws.yaml`.
-
-2. **Create security group** with at least port 5000 open.
-
-   The loadtest controller communicates with browser-emulator workers over the
-   worker HTTPS API (default port `5000`) and Websocket server (default port `5001`). Create a security group that allows
-   inbound TCP traffic on those ports from the controller's IP(s) or network.
-
-   Using the AWS Console:
-   - Create a Security Group in your target VPC.
-   - Add an inbound rule: `TCP 5000` with a source CIDR that limits access to
-     your controller or trusted networks.
-   - Add an inbound rule: `TCP 5001` with a source CIDR that limits access to
-     your controller or trusted networks.
-
-   Using the AWS CLI (replace `<vpc-id>`, `<sg-id>`, and `<controller-cidr>`):
-
-   ```bash
-   aws ec2 create-security-group --group-name openvidu-loadtest-sg \
-     --description "OpenVidu loadtest browser-emulator" \
-     --vpc-id <vpc-id>
-
-   # allow controller access on port 5000
-   aws ec2 authorize-security-group-ingress --group-id <sg-id> \
-     --protocol tcp --port 5000 --cidr <controller-cidr>
-
-   # optional: allow SSH for debugging (restrict CIDR)
-   aws ec2 authorize-security-group-ingress --group-id <sg-id> \
-     --protocol tcp --port 22 --cidr <your-admin-cidr>
-   ```
-
-   Notes:
-   - Ensure outbound rules allow the instance to reach the platform under
-     test (OpenVidu); by default outbound is allowed in AWS security groups.
-   - If you provide a `securityGroupId` in `config/config-aws.yaml`, the
-     controller will launch instances within that group.
-
-3. **Configure** `config/config-aws.yaml`
-
-In [config/config-aws.yaml](config/config-aws.yaml) you will see that the `workers` section no longer appears, instead there is an `aws` section. Use this section to set your AWS credentials and options such as:
-
-- `amiId` (required): The one provided by the AMI creation script
-- `securityGroupId` (required): The one created in the previous step
-- `instanceType` (required): Instance type of the instances. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) for details on resource consumption of the workers depending on browser configuration
-- `terminateWorkers` (optional, default: `true`): Whether to terminate EC2 instances after test completion. Set to `false` if you want to keep the instances stopped instead of terminated for debugging or other purposes after the test finishes.
-- `region` (required) and `availabilityZone` (optional): Where the instances will be launched
-- `keyPairName` (optional): The name of the key pair to use for SSH access if needed for debugging
-
-Example snippet:
-
-```yaml
-aws:
-  accessKey: your_access_key
-  secretAccessKey: your_secret_key
-  amiId: ami-xxxxxxxxxxxxx
-  instanceType: t3.medium
-  keyPairName: your-key-pair
-  securityGroupId: sg-xxxxxxxxxxxxx
-  region: us-east-1
-  availabilityZone: us-east-1a
-  workersAtStart: 10
-  rampUpWorkers: 10
-  terminateWorkers: true
+# View all options
+./aws-setup/setup-aws-workers.sh --help
 ```
 
-4. **Start the system using the AWS docker compose file**
+The script will:
+
+1. Validate AWS credentials and permissions
+2. Create/verify security group with ports 5000, 5001
+3. Create AMI using CloudFormation
+4. Update `config/config-aws.yaml` with AMI ID, security group, and region
+
+Note that you will still need to set the AWS access key and secret in the configuration file or as environment variables before running the test, as well as the platform configurations.
+
+**Run the test:**
 
 ```bash
 docker compose -f docker-compose.aws.yml up --build
 ```
 
-5. **Run and monitor the test**
-
-- The controller will provision EC2 instances (using the AMI) and register browser-emulator workers according to the AWS section in the config.
-- Test results are generated under `results/results.html` as with local runs.
-
-6. **Cleanup**
-
-- If `terminateWorkers` is `true` in your config, EC2 instances will be terminated automatically after the test.
-- To manually clean up, terminate instances via the AWS console or use the scripts in [loadtest-controller/debug](loadtest-controller/debug).
-
-See [Configuration](#configuration) for more details on AWS settings and environment variable overrides.
+For detailed configuration options, see [Configuration](#configuration) below.
 
 ## **Configuration**
 

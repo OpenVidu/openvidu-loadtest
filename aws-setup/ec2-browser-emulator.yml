@@ -36,7 +36,6 @@ Resources:
             Tags:
                 - Key: Name
                   Value: !Ref AWS::StackName
-            # Add KeyName: [your ssh key] to be able to access this instance
             BlockDeviceMappings:
                 - DeviceName: '/dev/sda1'
                   Ebs:
