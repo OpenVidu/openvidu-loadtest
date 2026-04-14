@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -22,9 +24,7 @@ import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.Topology;
 import io.openvidu.loadtest.config.LoadTestConfig;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class DataIO {
@@ -32,7 +32,11 @@ public class DataIO {
     private static final Logger log = LoggerFactory.getLogger(DataIO.class);
     private static final String DEFAULT_CONFIG = "config/config.yaml";
     private static final String CONFIG_ENV_VAR = "LOADTEST_CONFIG";
-    private static final String REPORT_FILE_RESULT = "results.txt";
+    private static final String TIMESTAMP_PATTERN = "yyyy-MM-dd_HH-mm-ss";
+
+    public static String generateTimestamp() {
+        return new SimpleDateFormat(TIMESTAMP_PATTERN).format(new Date());
+    }
 
     private final Environment environment;
     private final ResultExporter resultExporter;
@@ -90,24 +94,26 @@ public class DataIO {
         return convertMapListToTestCasesList(testCasesList);
     }
 
-    public void exportResultsTxtOnly(ResultReport result) {
+    public void exportResultsTxtOnly(ResultReport result, String timestamp) {
         log.debug("exportResultsTxtOnly called");
         List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
         if (reportOutput.contains("txt")) {
             try {
-                this.resultExporter.export(result, REPORT_FILE_RESULT);
+                String fileName = "results-" + timestamp + ".txt";
+                this.resultExporter.export(result, fileName);
             } catch (IOException e) {
                 log.error("Could not save results to file", e);
             }
         }
     }
 
-    public void exportAllResults(List<ResultReport> reports) {
+    public void exportAllResults(List<ResultReport> reports, String timestamp) {
         log.debug("exportAllResults called with {} reports", reports.size());
         List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
         if (reportOutput.contains("html")) {
             try {
-                htmlReportGenerator.generateMultiReport(reports, "report.html");
+                String fileName = "report-" + timestamp + ".html";
+                htmlReportGenerator.generateMultiReport(reports, fileName);
             } catch (IOException e) {
                 log.error("Could not save HTML report to file", e);
             }

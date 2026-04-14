@@ -57,6 +57,7 @@ public class LoadTestService {
     private final LoadTestTopologyOrchestrator topologyOrchestrator;
 
     private DataIO io;
+    private String timestamp;
 
     private List<Instance> awsWorkersList = new ArrayList<>();
     private List<String> devWorkersList = new ArrayList<>();
@@ -244,6 +245,10 @@ public class LoadTestService {
 
     void setStartTimeNow() {
         this.startTime = Calendar.getInstance();
+    }
+
+    void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
     }
 
     void resetForNewTestCase() {
@@ -467,7 +472,7 @@ public class LoadTestService {
 
         allReports.add(rr);
 
-        io.exportResultsTxtOnly(rr);
+        io.exportResultsTxtOnly(rr, timestamp);
 
     }
 

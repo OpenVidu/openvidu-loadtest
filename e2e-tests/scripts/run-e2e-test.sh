@@ -43,7 +43,7 @@ export SCRIPTS_LOGS_HOST_DIR="$E2E_TEST_DIR/../browser-emulator/logs"
 export METRICBEAT_CONFIG="$E2E_TEST_DIR/../browser-emulator/src/assets/metricbeat-config/metricbeat.yml"
 
 # Clean previous results to avoid false positives
-rm -f "$LOCAL_RESULTS_DIR/results.txt" "$LOCAL_RESULTS_DIR/report.html" "$LOCAL_RESULTS_DIR/docker-compose.log"
+rm -f $LOCAL_RESULTS_DIR/results-*.txt $LOCAL_RESULTS_DIR/report-*.html $LOCAL_RESULTS_DIR/docker-compose.log
 
 # Start services
 echo "Starting services with docker compose..."
@@ -54,7 +54,9 @@ MAX_WAIT=120
 ELAPSED=0
 while [ $ELAPSED -lt $MAX_WAIT ]; do
     # Check if loadtest-controller has finished (results and HTML report exist)
-    if [ -f "$LOCAL_RESULTS_DIR/results.txt" ] && [ -f "$LOCAL_RESULTS_DIR/report.html" ]; then
+    TXT_REPORT=$(ls -t $LOCAL_RESULTS_DIR/results-*.txt 2>/dev/null | head -1)
+    HTML_REPORT=$(ls -t $LOCAL_RESULTS_DIR/report-*.html 2>/dev/null | head -1)
+    if [ -n "$TXT_REPORT" ] && [ -n "$HTML_REPORT" ]; then
         echo "Results and HTML report found. Test appears to be complete."
         break
     fi
@@ -79,7 +81,8 @@ if [ $ELAPSED -ge $MAX_WAIT ]; then
 fi
 
 # If results exist, wait for both containers to stop (max 30 seconds)
-if [ -f "$LOCAL_RESULTS_DIR/results.txt" ]; then
+TXT_REPORT=$(ls -t $LOCAL_RESULTS_DIR/results-*.txt 2>/dev/null | head -1)
+if [ -n "$TXT_REPORT" ]; then
     echo "Waiting for containers to stop..."
     TIMEOUT=30
     ELAPSED=0

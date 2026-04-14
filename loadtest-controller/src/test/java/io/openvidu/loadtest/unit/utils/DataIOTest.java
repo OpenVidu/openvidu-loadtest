@@ -125,14 +125,15 @@ class DataIOTest {
                 .setNumSessionsCreated(2)
                 .setStartTime(Calendar.getInstance())
                 .setEndTime(Calendar.getInstance());
-        dataIO.exportResultsTxtOnly(report);
+        String timestamp = "2026-04-14_10-30-00";
+        dataIO.exportResultsTxtOnly(report, timestamp);
 
-        Path resultFile = tempDir.resolve("results.txt");
+        Path resultFile = tempDir.resolve("results-" + timestamp + ".txt");
         assertTrue(Files.exists(resultFile), "results.txt should be created in RESULTS_DIR");
 
         String content = Files.readString(resultFile);
         assertTrue(content.contains("Number of participants created: 5"), "Content should include participants count");
-        verify(resultExporter).export(report, "results.txt");
+        verify(resultExporter).export(report, "results-2026-04-14_10-30-00.txt");
         verify(htmlReportGenerator, never()).generateHtmlReport(any(), anyString());
     }
 
@@ -141,16 +142,17 @@ class DataIOTest {
         when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn("nonexistent.yaml");
         when(loadTestConfig.getReportOutput()).thenReturn(Arrays.asList("txt"));
 
-        when(resultExporter.export(any(), anyString())).thenReturn(tempDir.resolve("results.txt").toString());
+        when(resultExporter.export(any(), anyString())).thenReturn(tempDir.resolve("results-2026-04-14_10-30-00.txt").toString());
 
         ResultReport report = new ResultReport()
                 .setTotalParticipants(5)
                 .setNumSessionsCreated(2)
                 .setStartTime(Calendar.getInstance())
                 .setEndTime(Calendar.getInstance());
-        dataIO.exportResultsTxtOnly(report);
+        String timestamp = "2026-04-14_10-30-00";
+        dataIO.exportResultsTxtOnly(report, timestamp);
 
-        verify(resultExporter).export(report, "results.txt");
+        verify(resultExporter).export(report, "results-2026-04-14_10-30-00.txt");
         verify(htmlReportGenerator, never()).generateHtmlReport(any(), anyString());
     }
 

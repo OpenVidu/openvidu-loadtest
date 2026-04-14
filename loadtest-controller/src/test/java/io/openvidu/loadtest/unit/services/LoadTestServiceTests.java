@@ -203,7 +203,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, atLeast(1)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     @Test
@@ -304,7 +304,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, atLeast(1)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     @Test
@@ -419,7 +419,7 @@ class LoadTestServiceTests {
         verify(this.ec2Client, times(1)).stopInstance(allInstances);
 
         // Check result report
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     @Test
@@ -501,7 +501,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, atLeast(1)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     @Test
@@ -533,7 +533,7 @@ class LoadTestServiceTests {
 
         List<TestCase> testCases = List.of(testCase);
         this.loadTestController.startLoadTests(testCases);
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     @Test
@@ -562,7 +562,7 @@ class LoadTestServiceTests {
         createEstimationResponseMock(instance1Url, testCase);
         List<TestCase> testCases = List.of(testCase);
         this.loadTestController.startLoadTests(testCases);
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     @Test
@@ -638,7 +638,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, atLeast(1)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     @Test
@@ -727,7 +727,7 @@ class LoadTestServiceTests {
         verify(this.sleeper, atLeast(1)).sleep(eq(5), anyString());
 
         // Check result report
-        verify(this.dataIO, times(1)).exportAllResults(any());
+        verify(this.dataIO, times(1)).exportAllResults(any(), anyString());
     }
 
     private void createEstimationResponseMock(String instance1Url, TestCase testCase) {

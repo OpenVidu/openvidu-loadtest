@@ -34,7 +34,7 @@ public class ResultExporter {
             resultPath = new FileSystemResource(fileName).getFile().getAbsolutePath();
         }
 
-        try (FileWriter fw = new FileWriter(resultPath, true);
+        try (FileWriter fw = new FileWriter(resultPath);
                 BufferedWriter bw = new BufferedWriter(fw)) {
             bw.write(result.toString());
             bw.newLine();

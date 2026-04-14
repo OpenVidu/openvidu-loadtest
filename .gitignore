@@ -65,4 +65,4 @@ browser-emulator/.awsconfig/
 
 docker/browser-emulator/browser-emulator/
 
-report.html
+report*.html

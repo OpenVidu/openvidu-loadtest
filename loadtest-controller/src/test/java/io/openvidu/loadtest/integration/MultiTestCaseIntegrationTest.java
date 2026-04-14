@@ -7,6 +7,7 @@ import io.openvidu.loadtest.integration.mock.WebSocketMockServer;
 import io.openvidu.loadtest.utils.ShutdownManager;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -150,8 +151,8 @@ class MultiTestCaseIntegrationTest {
 
     @Test
     void testMultiTestCaseGeneratesTabbedReport() throws Exception {
-        Path htmlReport = resultsDir.resolve("report.html");
-        Path txtReport = resultsDir.resolve("results.txt");
+        Path htmlReport = findLatestFile(resultsDir, "report-*.html");
+        Path txtReport = findLatestFile(resultsDir, "results-*.txt");
 
         assertTrue(Files.exists(htmlReport), "HTML report should exist");
         assertTrue(Files.exists(txtReport), "TXT report should exist");
@@ -159,6 +160,20 @@ class MultiTestCaseIntegrationTest {
         validateMultiTestCaseHtmlReport(htmlReport);
 
         verify(shutdownManagerMock).shutdownWithCode(0);
+    }
+
+    private Path findLatestFile(Path directory, String pattern) throws IOException {
+        Path latest = null;
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(directory, pattern)) {
+            for (Path candidate : files) {
+                if (latest == null
+                        || Files.getLastModifiedTime(candidate).compareTo(Files.getLastModifiedTime(latest)) > 0) {
+                    latest = candidate;
+                }
+            }
+        }
+        assertNotNull(latest, "No file matching pattern '" + pattern + "' in " + directory);
+        return latest;
     }
 
     private void validateMultiTestCaseHtmlReport(Path htmlReport) throws IOException {

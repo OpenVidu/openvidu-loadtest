@@ -96,22 +96,22 @@ All smoke tests should:
 - Start both loadtest-controller and browser-emulator services
 - Create a single session with 2 participants in N:N topology
 - Generate results in the `results/` directory:
-  - `results.txt` (text summary)
-  - `report.html` (HTML report)
+  - `results-{timestamp}.txt` (text summary)
+  - `report-{timestamp}.html` (HTML report)
 - Complete successfully and shut down cleanly
 
 ### Validation Checks (Default)
 
-**results.txt validation:**
+**results-{timestamp}.txt validation:**
 
-- "Test Case Report"
-- "Number of sessions created: 1"
-- "Number of participants created: 2"
-- "Stop reason: Test finished"
-- "User start times:"
-- User start time lines in the format: "Day Mon DD HH:MM:SS TZ YYYY | LoadTestSessionX | UserY"
+- \"Test Case Report\"
+- \"Number of sessions created: 1\"
+- \"Number of participants created: 2\"
+- \"Stop reason: Test finished\"
+- \"User start times:\"
+- User start time lines in the format: \"Day Mon DD HH:MM:SS TZ YYYY | LoadTestSessionX | UserY\"
 
-**report.html validation:**
+**report-{timestamp}.html validation:**
 
 - "OpenVidu Load Test Report"
 - "Sessions Created"

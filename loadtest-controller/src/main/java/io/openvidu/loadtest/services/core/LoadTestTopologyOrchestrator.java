@@ -47,6 +47,8 @@ class LoadTestTopologyOrchestrator {
 
     void startLoadTests(List<TestCase> testCasesList) {
 
+        String timestamp = DataIO.generateTimestamp();
+
         kibanaClient.importDashboards();
 
         if (!loadTestService.hasInitialWorkersAvailable()) {
@@ -54,9 +56,11 @@ class LoadTestTopologyOrchestrator {
             return;
         }
 
+        loadTestService.setTimestamp(timestamp);
+
         testCasesList.forEach(this::runTestCase);
 
-        dataIO.exportAllResults(loadTestService.getAllReports());
+        dataIO.exportAllResults(loadTestService.getAllReports(), timestamp);
 
         // Signal workers to cleanup and exit if configured
         if (loadTestConfig.isExitOnEnd()) {

@@ -7,6 +7,7 @@ import io.openvidu.loadtest.integration.mock.WebSocketMockServer;
 import io.openvidu.loadtest.utils.ShutdownManager;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -183,8 +184,8 @@ class LoadTestIntegrationTest {
         // The test runs automatically via @EventListener in LoadTestApplication
         // Wait for test completion - both HTML and TXT reports should be generated
 
-        Path htmlReport = resultsDir.resolve("report.html");
-        Path txtReport = resultsDir.resolve("results.txt");
+        Path txtReport = findLatestFile(resultsDir, "results-*.txt");
+        Path htmlReport = findLatestFile(resultsDir, "report-*.html");
 
         // Validate HTML report
         validateHtmlReport(htmlReport);
@@ -193,6 +194,20 @@ class LoadTestIntegrationTest {
         validateTxtReport(txtReport);
 
         verify(shutdownManagerMock).shutdownWithCode(0);
+    }
+
+    private Path findLatestFile(Path dir, String pattern) throws IOException {
+        var matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+        Path latest = null;
+        try (var stream = Files.list(dir)) {
+            for (Path path : stream.toList()) {
+                if (matcher.matches(path.getFileName()) && (latest == null || Files.getLastModifiedTime(path).toMillis() > Files.getLastModifiedTime(latest).toMillis())) {
+                    latest = path;
+                }
+            }
+        }
+        assert latest != null : "No file matching pattern " + pattern + " found in " + dir;
+        return latest;
     }
 
     private void validateHtmlReport(Path htmlReport) throws IOException {

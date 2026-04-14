@@ -3,6 +3,7 @@ package io.openvidu.loadtest.integration;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
@@ -208,8 +209,8 @@ class AwsScaleIntegrationTest {
         log.info("=== Starting Scale Test with Reconnection Failure ===");
         log.info("Test will create sessions with 5 participants each until participant {} fails", FAIL_USER_ID);
 
-        Path htmlReport = resultsDir.resolve("report.html");
-        Path txtReport = resultsDir.resolve("results.txt");
+        Path htmlReport = findLatestFile(resultsDir, "report-*.html");
+        Path txtReport = findLatestFile(resultsDir, "results-*.txt");
 
         // === VALIDATION PHASE ===
         log.info("=== Validating Results ===");
@@ -230,6 +231,20 @@ class AwsScaleIntegrationTest {
         verifyNoInstancesAlive();
 
         log.info("=== Scale Test with Reconnection Failure Completed Successfully ===");
+    }
+
+    private Path findLatestFile(Path directory, String pattern) throws IOException {
+        Path latest = null;
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(directory, pattern)) {
+            for (Path candidate : files) {
+                if (latest == null
+                        || Files.getLastModifiedTime(candidate).compareTo(Files.getLastModifiedTime(latest)) > 0) {
+                    latest = candidate;
+                }
+            }
+        }
+        assertNotNull(latest, "No file matching pattern '" + pattern + "' in " + directory);
+        return latest;
     }
 
     /**
