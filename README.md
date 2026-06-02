@@ -389,6 +389,8 @@ See [Advanced Configuration Options](docs/advanced-options.md) for:
 - Custom video sources
 - Storage configuration for saving recordings and raw statistics
 
+For monitoring the OpenVidu deployment itself (media and master nodes), see [Monitoring OpenVidu media and master nodes with Metricbeat](docs/ov-monitoring.md).
+
 ---
 
 # Acknowledgments
