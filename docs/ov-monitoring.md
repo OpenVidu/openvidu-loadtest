@@ -22,7 +22,7 @@ Download the configuration file directly from the repository. The example below 
 
 ```bash
 wget -O ~/metricbeat.yml \
-  https://raw.githubusercontent.com/openvidu/openvidu-loadtest/main/server-resources/metricbeat-configs/metricbeat.yml
+  https://raw.githubusercontent.com/openvidu/openvidu-loadtest/master/server-resources/metricbeat-configs/metricbeat.yml
 ```
 
 ### 2. Start Metricbeat with the provided configuration
