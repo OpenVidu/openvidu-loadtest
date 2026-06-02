@@ -29,7 +29,7 @@ wget -O ~/metricbeat.yml \
 
 #### As a Docker container (recommended)
 
-The image, bind mounts and entrypoint match what the browser-emulator uses for its workers ([`browser-emulator/src/services/instance.service.ts`](../browser-emulator/src/services/instance.service.ts)), so the on-host metric collection stays in sync with the worker configuration. The container is launched with the same arguments, adapted to use the `NODE_TYPE` and `NODE_ID` variables defined above instead of the worker `WORKER_UUID`.
+To launch a metricbeat container with the provided configuration, run the following command, replacing the environment variable values as needed (see [Configuration Variables](#configuration-variables)):
 
 ```bash
 docker run -d \
