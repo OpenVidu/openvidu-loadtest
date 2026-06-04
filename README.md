@@ -70,6 +70,13 @@ To run the test, use the following command:
 docker compose up --build
 ```
 
+> [!NOTE]
+> The loadtest-controller container runs as user `1000:1000` so the files written to `results/` are owned by the host user. If your user is not `1000:1000` (check with `id -u` and `id -g`), run it as:
+>
+> ```bash
+> HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up --build
+> ```
+
 The docker compose file will start two services:
 
 - **Browser-emulator**: The worker that launches Chrome browsers to connect to rooms
