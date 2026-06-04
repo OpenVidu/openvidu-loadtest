@@ -21,6 +21,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,20 +61,23 @@ public class ElasticSearchClient {
             URI uri = URI.create(elasticsearchHost);
             HttpHost httpHost = new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme());
 
-            RestClient restClient;
+            RestClientBuilder restClientBuilder = RestClient.builder(httpHost);
+            // Keep the URL path (e.g. https://host/elasticsearch) when Elasticsearch
+            // is served behind a reverse proxy with a path prefix
+            String pathPrefix = uri.getPath();
+            if (pathPrefix != null && !pathPrefix.isEmpty() && !"/".equals(pathPrefix)) {
+                restClientBuilder.setPathPrefix(pathPrefix);
+            }
             if (loadTestConfig.isElasticSearchSecured()) {
                 BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
                 String esUserName = loadTestConfig.getElasticsearchUserName();
                 String esPassword = loadTestConfig.getElasticsearchPassword();
                 credentialsProvider.setCredentials(AuthScope.ANY,
                         new UsernamePasswordCredentials(esUserName, esPassword));
-                restClient = RestClient.builder(httpHost)
-                        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
-                                .setDefaultCredentialsProvider(credentialsProvider))
-                        .build();
-            } else {
-                restClient = RestClient.builder(httpHost).build();
+                restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                        .setDefaultCredentialsProvider(credentialsProvider));
             }
+            RestClient restClient = restClientBuilder.build();
 
             ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
             this.client = new ElasticsearchClient(transport);
