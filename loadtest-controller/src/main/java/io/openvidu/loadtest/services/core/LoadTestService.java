@@ -23,7 +23,9 @@ import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.WorkerType;
+import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
+import io.openvidu.loadtest.monitoring.GrafanaPrometheusClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
@@ -46,6 +48,7 @@ public class LoadTestService {
     private LoadTestConfig loadTestConfig;
     private KibanaClient kibanaClient;
     private ElasticSearchClient esClient;
+    private GrafanaPrometheusClient grafanaClient;
     private Ec2Client ec2Client;
     private Sleeper sleeper;
     private WebSocketConnectionFactory webSocketConnectionFactory;
@@ -72,13 +75,15 @@ public class LoadTestService {
     // TODO: Reimplement calculation of streams per worker
 
     public LoadTestService(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
-            KibanaClient kibanaClient, ElasticSearchClient esClient, Ec2Client ec2Client,
+            KibanaClient kibanaClient, ElasticSearchClient esClient, GrafanaPrometheusClient grafanaClient,
+            Ec2Client ec2Client,
             WebSocketConnectionFactory webSocketConnectionFactory, DataIO dataIO, Sleeper sleeper,
             WorkerUrlResolver workerUrlResolver) {
         this.browserEmulatorClient = browserEmulatorClient;
         this.loadTestConfig = loadTestConfig;
         this.kibanaClient = kibanaClient;
         this.esClient = esClient;
+        this.grafanaClient = grafanaClient;
         this.ec2Client = ec2Client;
         this.webSocketConnectionFactory = webSocketConnectionFactory;
         this.io = dataIO;
@@ -369,6 +374,11 @@ public class LoadTestService {
         String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T") + "Z";
         String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T") + "Z";
         String kibanaUrl = kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
+
+        List<PlatformMetric> platformMetrics = grafanaClient.collectPlatformMetrics(startTimeStr, endTimeStr);
+        if (!platformMetrics.isEmpty()) {
+            esClient.indexPlatformMetrics(platformMetrics);
+        }
         String stopReason = lastCPR.getStopReason();
         if (stopReason == null) {
             stopReason = "Test finished";
@@ -468,6 +478,7 @@ public class LoadTestService {
                 .setRoleByUser(roleByUserMap)
                 .setUserRetryCounts(browserEmulatorClient.getPerUserRetryCounts())
                 .setUserRetryAttempts(browserEmulatorClient.getPerUserRetryAttempts())
+                .setPlatformMetrics(platformMetrics)
                 .build();
 
         allReports.add(rr);

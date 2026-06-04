@@ -3,12 +3,18 @@ package io.openvidu.loadtest.monitoring;
 import java.io.IOException;
 import java.net.URI;
 import java.text.DecimalFormat;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import jakarta.annotation.PostConstruct;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
@@ -31,6 +37,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.exceptions.LoadTestInitializationException;
+import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 
 @Service
 public class ElasticSearchClient {
@@ -102,6 +109,54 @@ public class ElasticSearchClient {
 
     public boolean isInitialized() {
         return this.initialized;
+    }
+
+    /**
+     * Indexes the platform metrics collected from Prometheus (through
+     * Grafana) into a dedicated 'loadtest-openvidu-metrics-*' index, covered
+     * by the same 'loadtest-*' Kibana index pattern as the WebRTC stats.
+     */
+    public void indexPlatformMetrics(List<PlatformMetric> metrics) {
+        if (!this.initialized) {
+            log.warn("Elasticsearch is not initialized. Platform metrics won't be indexed.");
+            return;
+        }
+        if (metrics.isEmpty()) {
+            return;
+        }
+
+        String indexName = "loadtest-openvidu-metrics-" + System.currentTimeMillis();
+        try {
+            this.client.indices().create(c -> c.index(indexName).mappings(m -> m
+                    .properties("@timestamp", p -> p.date(d -> d))
+                    .properties("metric", p -> p.keyword(k -> k))
+                    .properties("value", p -> p.double_(d -> d))
+                    .properties("unit", p -> p.keyword(k -> k))
+                    .properties("source", p -> p.keyword(k -> k))));
+
+            BulkRequest.Builder bulkBuilder = new BulkRequest.Builder();
+            int documents = 0;
+            for (PlatformMetric metric : metrics) {
+                for (double[] point : metric.getPoints()) {
+                    Map<String, Object> document = new HashMap<>();
+                    document.put("@timestamp", Instant.ofEpochSecond((long) point[0]).toString());
+                    document.put("metric", metric.getName());
+                    document.put("value", point[1]);
+                    document.put("unit", metric.getUnit());
+                    document.put("source", "grafana-prometheus");
+                    bulkBuilder.operations(op -> op.index(idx -> idx.index(indexName).document(document)));
+                    documents++;
+                }
+            }
+            BulkResponse response = this.client.bulk(bulkBuilder.build());
+            if (response.errors()) {
+                log.error("Elasticsearch bulk indexing of platform metrics reported errors");
+            } else {
+                log.info("Indexed {} platform metric documents into '{}'", documents, indexName);
+            }
+        } catch (Exception e) {
+            log.error("Could not index platform metrics into Elasticsearch: {}", e.getMessage());
+        }
     }
 
     public double getMediaNodeCpu() {

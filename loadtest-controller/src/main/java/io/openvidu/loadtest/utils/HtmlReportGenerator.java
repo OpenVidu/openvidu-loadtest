@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
 
+import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
@@ -124,6 +125,68 @@ public class HtmlReportGenerator {
                     "isAllWorkers", isAllWorkers));
         }
         return rows;
+    }
+
+    private List<Map<String, Object>> buildPlatformMetricRows(List<PlatformMetric> metrics) {
+        if (metrics == null || metrics.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (PlatformMetric metric : metrics) {
+            rows.add(objectRow("metric", metric.getName(),
+                    "description", safeString(metric.getDescription()),
+                    "min", formatMetricValue(metric.getMin(), metric.getUnit()),
+                    "avg", formatMetricValue(metric.getAvg(), metric.getUnit()),
+                    "max", formatMetricValue(metric.getMax(), metric.getUnit()),
+                    "sparkPoints", buildSparklinePoints(metric.getPoints())));
+        }
+        return rows;
+    }
+
+    private String formatMetricValue(double value, String unit) {
+        if ("bps".equals(unit)) {
+            if (Math.abs(value) >= 1e9) {
+                return String.format("%.2f Gbps", value / 1e9);
+            }
+            if (Math.abs(value) >= 1e6) {
+                return String.format("%.2f Mbps", value / 1e6);
+            }
+            if (Math.abs(value) >= 1e3) {
+                return String.format("%.2f Kbps", value / 1e3);
+            }
+            return String.format("%.0f bps", value);
+        }
+        if (Math.abs(value) >= 1000) {
+            return String.format("%,.0f %s", value, unit);
+        }
+        return String.format("%.2f %s", value, unit);
+    }
+
+    /**
+     * Builds the points of an SVG polyline (sparkline) for the metric trend.
+     */
+    private String buildSparklinePoints(List<double[]> points) {
+        final int width = 260;
+        final int height = 36;
+        if (points.size() < 2) {
+            return "";
+        }
+        double min = points.stream().mapToDouble(p -> p[1]).min().orElse(0);
+        double max = points.stream().mapToDouble(p -> p[1]).max().orElse(0);
+        double span = max - min == 0 ? 1.0 : max - min;
+        double stepX = (double) width / (points.size() - 1);
+
+        StringBuilder coords = new StringBuilder();
+        for (int i = 0; i < points.size(); i++) {
+            double x = i * stepX;
+            double y = height - 2 - ((points.get(i)[1] - min) / span) * (height - 4);
+            if (i > 0) {
+                coords.append(' ');
+            }
+            coords.append(String.format(java.util.Locale.ROOT, "%.1f,%.1f", x, y));
+        }
+        return coords.toString();
     }
 
     private String getCpuColorClass(double cpu) {
@@ -478,6 +541,10 @@ public class HtmlReportGenerator {
         List<Map<String, Object>> cpuRows = buildCpuRows(result.getWorkerCpuAvg(), result.getWorkerCpuMax());
         ctx.put("hasCpuRows", !cpuRows.isEmpty());
         ctx.put("cpuRows", cpuRows);
+
+        List<Map<String, Object>> platformMetricRows = buildPlatformMetricRows(result.getPlatformMetrics());
+        ctx.put("hasPlatformMetrics", !platformMetricRows.isEmpty());
+        ctx.put("platformMetricRows", platformMetricRows);
 
         List<Map<String, Object>> userRows = buildUserRows(result);
         ctx.put("hasUsers", !userRows.isEmpty());

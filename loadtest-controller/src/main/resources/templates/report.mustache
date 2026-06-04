@@ -182,6 +182,11 @@
         .cpu-bar-fill.high { background: var(--accent-red); }
         .cpu-text { min-width: 70px; text-align: right; font-weight: 600; font-size: 13px; }
 
+        .metric-name { font-weight: 600; }
+        .metric-desc { color: var(--text-secondary); font-size: 12px; font-weight: 400; margin-top: 2px; }
+        .metric-spark svg { display: block; }
+        .metric-spark polyline { fill: none; stroke: var(--accent-blue); stroke-width: 1.5; }
+
         .table-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
         .search-box { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border-radius: 8px; padding: 8px 16px; border: 1px solid var(--border-color); }
         .search-box input { background: transparent; border: none; color: var(--text-primary); font-size: 14px; outline: none; width: 200px; }
@@ -630,6 +635,48 @@
                 </div>
             </div>
             {{/hasCpuRows}}
+
+            {{#hasPlatformMetrics}}
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                        OpenVidu Platform Metrics
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Metric</th><th>Min</th><th>Avg</th><th>Max</th><th>Trend</th></tr>
+                            </thead>
+                            <tbody>
+                                {{#platformMetricRows}}
+                                <tr>
+                                    <td class="metric-name">{{metric}}<div class="metric-desc">{{description}}</div></td>
+                                    <td>{{min}}</td>
+                                    <td>{{avg}}</td>
+                                    <td>{{max}}</td>
+                                    <td class="metric-spark">
+                                        <svg width="260" height="36" viewBox="0 0 260 36" xmlns="http://www.w3.org/2000/svg">
+                                            <polyline points="{{sparkPoints}}"/>
+                                        </svg>
+                                    </td>
+                                </tr>
+                                {{/platformMetricRows}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {{/hasPlatformMetrics}}
 
             <div class="section">
                 <div class="section-header" onclick="toggleSection(this)">

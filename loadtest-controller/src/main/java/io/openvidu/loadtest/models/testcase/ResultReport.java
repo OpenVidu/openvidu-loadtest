@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 
 public class ResultReport {
@@ -55,6 +56,7 @@ public class ResultReport {
     private Map<String, Calendar> userDisconnectTimestamps = new TreeMap<>(); // key: "session-user"
     private Map<String, List<RetryAttempt>> userRetryAttempts = new LinkedHashMap<>(); // key: "session-user"
     private Map<String, String> roleByUser = new TreeMap<>();
+    private List<PlatformMetric> platformMetrics = new ArrayList<>();
 
     public ResultReport() {
     }
@@ -69,7 +71,8 @@ public class ResultReport {
                 this.retrySuccessRate, this.avgRetriesPerParticipant, this.maxRetriesInSingleParticipant,
                 this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
                 this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
-                this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts, this.roleByUser);
+                this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts, this.roleByUser,
+                this.platformMetrics);
     }
 
     public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -243,6 +246,15 @@ public class ResultReport {
         return roleByUser;
     }
 
+    public ResultReport setPlatformMetrics(List<PlatformMetric> platformMetrics) {
+        this.platformMetrics = platformMetrics != null ? platformMetrics : new ArrayList<>();
+        return this;
+    }
+
+    public List<PlatformMetric> getPlatformMetrics() {
+        return platformMetrics;
+    }
+
     private void computeAggregates() {
         // Compute per-worker and global CPU stats
         Map<String, List<Double>> cpuPerWorker = new TreeMap<>();
@@ -369,7 +381,8 @@ public class ResultReport {
             Map<String, Integer> workerStreams, Map<String, Integer> workerParticipants,
             double[] userStartDelaysPercentiles, Map<String, Calendar> userDisconnectTimestamps,
             Map<String, Calendar> userSuccessTimestamps, Map<String, Integer> userRetryCounts,
-            Map<String, List<RetryAttempt>> userRetryAttempts, Map<String, String> roleByUser) {
+            Map<String, List<RetryAttempt>> userRetryAttempts, Map<String, String> roleByUser,
+            List<PlatformMetric> platformMetrics) {
         this.totalParticipants = totalParticipants;
         this.numSessionsCompleted = numSessionsCompleted;
         this.numSessionsCreated = numSessionsCreated;
@@ -405,6 +418,7 @@ public class ResultReport {
         this.userRetryCounts = userRetryCounts;
         this.userRetryAttempts = userRetryAttempts;
         this.roleByUser = roleByUser != null ? roleByUser : new TreeMap<>();
+        this.platformMetrics = platformMetrics != null ? platformMetrics : new ArrayList<>();
     }
 
     private String getDuration() {
