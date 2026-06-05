@@ -116,7 +116,8 @@ export class BrowserManagerService {
 			);
 		} catch (error) {
 			console.error(
-				`Error creating ${browser} browser participant`,
+				'Error creating %s browser participant',
+				browser,
 				error,
 			);
 			throw error;

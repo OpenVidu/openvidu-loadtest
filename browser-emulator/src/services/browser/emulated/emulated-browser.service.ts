@@ -443,7 +443,8 @@ export class EmulatedBrowserService {
 			await this.dockerService.removeContainer(containerInfo.containerId);
 		} catch (error) {
 			console.error(
-				`Error stopping/removing container for ${connectionId}:`,
+				'Error stopping/removing container for %s:',
+				connectionId,
 				error,
 			);
 		}
@@ -459,7 +460,8 @@ export class EmulatedBrowserService {
 				await this.cleanupSockets(containerInfo);
 			} catch (error) {
 				console.error(
-					`Error stopping socket streaming for ${connectionId}:`,
+					'Error stopping socket streaming for %s:',
+					connectionId,
 					error,
 				);
 			}
@@ -638,7 +640,8 @@ export class EmulatedBrowserService {
 		await this.deleteStreamManagerWithConnectionId(connectionId).catch(
 			error => {
 				console.error(
-					`Error cleaning unhealthy participant ${connectionId}:`,
+					'Error cleaning unhealthy participant %s:',
+					connectionId,
 					error,
 				);
 			},

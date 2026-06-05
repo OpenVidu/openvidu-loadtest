@@ -213,7 +213,9 @@ export class SocketWriterService {
 
 					const handleStreamError = (err: Error) => {
 						console.error(
-							`Read error for ${participantId}/${type}:`,
+							'Read error for %s/%s:',
+							participantId,
+							type,
 							err.message,
 						);
 					};
@@ -231,7 +233,9 @@ export class SocketWriterService {
 
 					const handleSocketError = (err: Error) => {
 						console.error(
-							`Socket error for ${participantId}/${type}:`,
+							'Socket error for %s/%s:',
+							participantId,
+							type,
 							err.message,
 						);
 						cleanupStream();
