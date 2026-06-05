@@ -85,8 +85,8 @@ EXAMPLES:
   # Create AMI in us-east-1 with defaults
   $0
 
-  # Create AMI in eu-west-1 from main branch
-  $0 --region eu-west-1 --git-ref main
+  # Create AMI in eu-west-1 from v4.0.0 git branch or tag
+  $0 --region eu-west-1 --git-ref v4.0.0
 
   # Create AMI with specific media files and restricted CIDR
   $0 --cache-mediafiles="720x30" --security-group-cidr="10.0.0.0/8"
@@ -132,7 +132,7 @@ check_dry_run() {
     local output
     output=$(aws_cmd "$@" 2>&1)
     local exit_code=$?
-    
+
     if echo "$output" | grep -q "DryRunOperation"; then
         return 0
     fi
@@ -164,11 +164,11 @@ resolve_base_ami() {
 check_prerequisites() {
     log "Checking prerequisites..."
 
-    if ! command -v aws &> /dev/null; then
+    if ! command -v aws &>/dev/null; then
         error "AWS CLI is not installed. Please install AWS CLI: https://aws.amazon.com/cli/"
     fi
 
-    if ! command -v jq &> /dev/null; then
+    if ! command -v jq &>/dev/null; then
         error "jq is not installed. Please install jq: https://stedolan.github.io/jq/"
     fi
 
@@ -190,43 +190,43 @@ check_aws_permissions() {
     log "Validating AWS credentials and permissions..."
 
     local errors=0
-    
+
     # Generate unique test name suffix to avoid conflicts
     local test_suffix
     test_suffix=$(date +%s | tail -c 6)
 
     # Test CloudFormation permissions
     log "  Checking CloudFormation permissions..."
-    if ! aws_cmd cloudformation describe-stacks &> /dev/null; then
+    if ! aws_cmd cloudformation describe-stacks &>/dev/null; then
         echo "  ERROR: cloudformation:DescribeStacks failed" >&2
         errors=$((errors + 1))
     fi
 
     # Test SSM GetParameter permission (needed for resolving the base AMI)
     log "  Checking SSM permissions..."
-    if ! aws_cmd ssm get-parameter --name "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id" --query 'Parameter.Value' --output text &> /dev/null; then
+    if ! aws_cmd ssm get-parameter --name "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id" --query 'Parameter.Value' --output text &>/dev/null; then
         echo "  ERROR: ssm:GetParameter failed (required to resolve the Ubuntu base AMI)" >&2
         errors=$((errors + 1))
     fi
 
     # Test EC2 Describe permissions
     log "  Checking EC2 permissions..."
-    if ! aws_cmd ec2 describe-vpcs &> /dev/null; then
+    if ! aws_cmd ec2 describe-vpcs &>/dev/null; then
         echo "  ERROR: ec2:DescribeVpcs failed" >&2
         errors=$((errors + 1))
     fi
 
-    if ! aws_cmd ec2 describe-security-groups &> /dev/null; then
+    if ! aws_cmd ec2 describe-security-groups &>/dev/null; then
         echo "  ERROR: ec2:DescribeSecurityGroups failed" >&2
         errors=$((errors + 1))
     fi
 
-    if ! aws_cmd ec2 describe-subnets &> /dev/null; then
+    if ! aws_cmd ec2 describe-subnets &>/dev/null; then
         echo "  ERROR: ec2:DescribeSubnets failed" >&2
         errors=$((errors + 1))
     fi
 
-    if ! aws_cmd ec2 describe-images --owners self --filters "Name=name,Values=TestAMI" &> /dev/null; then
+    if ! aws_cmd ec2 describe-images --owners self --filters "Name=name,Values=TestAMI" &>/dev/null; then
         echo "  ERROR: ec2:DescribeImages failed" >&2
         errors=$((errors + 1))
     fi
@@ -253,18 +253,18 @@ check_aws_permissions() {
 get_default_vpc() {
     local vpc_id
     vpc_id=$(aws_cmd ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text 2>/dev/null || echo "")
-    
+
     if [ -z "$vpc_id" ] || [ "$vpc_id" = "None" ]; then
         # Try to get any VPC if no default exists
         vpc_id=$(aws_cmd ec2 describe-vpcs --query 'Vpcs[0].VpcId' --output text 2>/dev/null || echo "")
     fi
-    
+
     # Filter out "None" string
     if [ "$vpc_id" = "None" ]; then
         echo ""
         return
     fi
-    
+
     echo "$vpc_id"
 }
 
@@ -284,11 +284,11 @@ ensure_security_group() {
 
     if [ -n "$sg_id" ]; then
         log "Security group already exists: ${sg_id}"
-        
+
         # Check if required ports are open
         local port_5000=false
         local port_5001=false
-        
+
         for ip_permission in $(aws_cmd ec2 describe-security-groups --group-ids "$sg_id" --query 'SecurityGroups[0].IpPermissions[].{Port:ToPort,IpRanges:IpRanges}' --output json 2>/dev/null | jq -r '.[] | @base64' 2>/dev/null || echo ""); do
             if [ -z "$ip_permission" ]; then
                 continue
@@ -297,7 +297,7 @@ ensure_security_group() {
             port=$(echo "$ip_permission" | base64 -d | jq -r '.Port // empty')
             local cidr
             cidr=$(echo "$ip_permission" | base64 -d | jq -r '.IpRanges[0].CidrIp // empty')
-            
+
             if [ "$port" = "5000" ]; then
                 port_5000=true
             fi
@@ -305,7 +305,7 @@ ensure_security_group() {
                 port_5001=true
             fi
         done
-        
+
         if [ "$port_5000" = false ] || [ "$port_5001" = false ]; then
             log "Adding missing security group rules for ports 5000, 5001"
             if [ "$port_5000" = false ]; then
@@ -317,14 +317,14 @@ ensure_security_group() {
                     --protocol tcp --port 5001 --cidr "$SECURITY_GROUP_CIDR" >/dev/null 2>&1 || true
             fi
         fi
-        
+
         echo "$sg_id"
         return
     fi
 
     local vpc_id
     vpc_id=$(get_default_vpc)
-    
+
     if [ -z "$vpc_id" ]; then
         error "No VPC found in region ${AWS_DEFAULT_REGION}. Please create a VPC first."
     fi
@@ -348,7 +348,7 @@ ensure_security_group() {
 
 check_existing_ami() {
     log "Checking for existing BrowserEmulatorAMI in region ${AWS_DEFAULT_REGION}..."
-    
+
     local existing_ami
     existing_ami=$(aws_cmd ec2 describe-images \
         --filters "Name=name,Values=BrowserEmulatorAMI-*" \
@@ -362,7 +362,7 @@ check_existing_ami() {
 
     local ami_count
     ami_count=$(echo "$existing_ami" | jq 'length')
-    
+
     log "Found ${ami_count} existing AMI(s):"
     echo "$existing_ami" | jq -r '.[] | "  - \(.Id): \(.Name)"'
 
@@ -377,7 +377,7 @@ check_existing_ami() {
         echo "$existing_ami" | jq -r '.[] | .Id' | while read -r ami_id; do
             log "Deregistering AMI: ${ami_id}"
             aws_cmd ec2 deregister-image --image-id "$ami_id" || true
-            
+
             # Find and delete associated snapshots
             local snapshot_ids
             snapshot_ids=$(aws_cmd ec2 describe-snapshots --filters "Name=description,Values=*${ami_id}*" --query 'Snapshots[*].SnapshotId' --output text 2>/dev/null || echo "")
@@ -398,7 +398,7 @@ check_existing_ami() {
         echo "$existing_ami" | jq -r '.[] | .Id' | while read -r ami_id; do
             log "Deregistering AMI: ${ami_id}"
             aws_cmd ec2 deregister-image --image-id "$ami_id" || true
-            
+
             local snapshot_ids
             snapshot_ids=$(aws_cmd ec2 describe-snapshots --filters "Name=description,Values=*${ami_id}*" --query 'Snapshots[*].SnapshotId' --output text 2>/dev/null || echo "")
             for snap_id in $snapshot_ids; do
@@ -427,7 +427,7 @@ create_ami() {
     local temp_json
     temp_json=$(mktemp -t cloudformation-XXX --suffix .json)
 
-    cat > "$temp_json" <<EOF
+    cat >"$temp_json" <<EOF
 [
     {"ParameterKey": "ImageId", "ParameterValue": "${BASE_AMI_ID}"},
     {"ParameterKey": "GitRef", "ParameterValue": "${GIT_REF}"},
@@ -500,13 +500,13 @@ update_config() {
     # Create a temp file and use awk for safer substitution
     local temp_file
     temp_file=$(mktemp)
-    
+
     awk -v ami_id="$ami_id" -v sg_id="$sg_id" -v region="$AWS_DEFAULT_REGION" '
         /^  amiId:/ { print "  amiId: " ami_id; next }
         /^  securityGroupId:/ { print "  securityGroupId: " sg_id; next }
         /^  region:/ { print "  region: " region; next }
         { print }
-    ' "$CONFIG_FILE" > "$temp_file" && mv "$temp_file" "$CONFIG_FILE"
+    ' "$CONFIG_FILE" >"$temp_file" && mv "$temp_file" "$CONFIG_FILE"
 
     log "Config file updated successfully"
     log "  AMI ID: ${ami_id}"
@@ -517,74 +517,74 @@ update_config() {
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        --region)
-            AWS_DEFAULT_REGION="$2"
+    --region)
+        AWS_DEFAULT_REGION="$2"
+        shift
+        shift
+        ;;
+    --git-ref)
+        GIT_REF="$2"
+        shift
+        shift
+        ;;
+    --cache-mediafiles)
+        if [[ $# -gt 1 ]] && [[ "$2" != --* ]]; then
+            CACHE_MEDIAFILES_ARGS="$2"
             shift
             shift
-            ;;
-        --git-ref)
-            GIT_REF="$2"
+        else
+            CACHE_MEDIAFILES_ARGS="__enabled__"
             shift
-            shift
-            ;;
-        --cache-mediafiles)
-            if [[ $# -gt 1 ]] && [[ "$2" != --* ]]; then
-                CACHE_MEDIAFILES_ARGS="$2"
-                shift
-                shift
-            else
-                CACHE_MEDIAFILES_ARGS="__enabled__"
-                shift
-            fi
-            ;;
-        --cache-mediafiles=*)
-            CACHE_MEDIAFILES_ARGS="${1#*=}"
-            shift
-            ;;
-        --security-group-cidr)
-            SECURITY_GROUP_CIDR="$2"
-            shift
-            shift
-            ;;
-        --delete-old-ami)
-            DELETE_OLD_AMI=true
-            shift
-            ;;
-        --endpoint)
-            AWS_ENDPOINT="$2"
-            shift
-            shift
-            ;;
-        --skip-permission-check)
-            SKIP_PERMISSION_CHECK=true
-            shift
-            ;;
-        --profile)
-            AWS_PROFILE="$2"
-            shift
-            shift
-            ;;
-        --dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        --existing-ami-id)
-            EXISTING_AMI_ID="$2"
-            shift
-            shift
-            ;;
-        --base-ami-id)
-            BASE_AMI_ID="$2"
-            shift
-            shift
-            ;;
-        -h | --help)
-            usage
-            ;;
-        *)
-            echo "Unknown argument: $key" >&2
-            usage
-            ;;
+        fi
+        ;;
+    --cache-mediafiles=*)
+        CACHE_MEDIAFILES_ARGS="${1#*=}"
+        shift
+        ;;
+    --security-group-cidr)
+        SECURITY_GROUP_CIDR="$2"
+        shift
+        shift
+        ;;
+    --delete-old-ami)
+        DELETE_OLD_AMI=true
+        shift
+        ;;
+    --endpoint)
+        AWS_ENDPOINT="$2"
+        shift
+        shift
+        ;;
+    --skip-permission-check)
+        SKIP_PERMISSION_CHECK=true
+        shift
+        ;;
+    --profile)
+        AWS_PROFILE="$2"
+        shift
+        shift
+        ;;
+    --dry-run)
+        DRY_RUN=true
+        shift
+        ;;
+    --existing-ami-id)
+        EXISTING_AMI_ID="$2"
+        shift
+        shift
+        ;;
+    --base-ami-id)
+        BASE_AMI_ID="$2"
+        shift
+        shift
+        ;;
+    -h | --help)
+        usage
+        ;;
+    *)
+        echo "Unknown argument: $key" >&2
+        usage
+        ;;
     esac
 done
 
