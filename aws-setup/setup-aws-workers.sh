@@ -202,6 +202,13 @@ check_aws_permissions() {
         errors=$((errors + 1))
     fi
 
+    # Test SSM GetParameter permission (needed for resolving the base AMI)
+    log "  Checking SSM permissions..."
+    if ! aws_cmd ssm get-parameter --name "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id" --query 'Parameter.Value' --output text &> /dev/null; then
+        echo "  ERROR: ssm:GetParameter failed (required to resolve the Ubuntu base AMI)" >&2
+        errors=$((errors + 1))
+    fi
+
     # Test EC2 Describe permissions
     log "  Checking EC2 permissions..."
     if ! aws_cmd ec2 describe-vpcs &> /dev/null; then
@@ -593,8 +600,8 @@ log "  Security Group CIDR: ${SECURITY_GROUP_CIDR}"
 [ "$DRY_RUN" = true ] && log "  DRY RUN MODE - No resources will be created"
 
 check_prerequisites
-resolve_base_ami
 check_aws_permissions
+resolve_base_ami
 check_existing_ami
 
 if [ "$DRY_RUN" = true ]; then
