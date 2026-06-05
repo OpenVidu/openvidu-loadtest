@@ -75,6 +75,14 @@ public abstract class LoadTestConfig {
 
     private String kibanaHost;
 
+    private String grafanaHost;
+
+    private String grafanaUsername;
+
+    private String grafanaPassword;
+
+    private String grafanaDatasourceUid;
+
     private String awsSecretAccessKey;
 
     private String awsAccessKey;
@@ -213,6 +221,28 @@ public abstract class LoadTestConfig {
 
     public boolean isKibanaEstablished() {
         return this.kibanaHost != null && !this.kibanaHost.isEmpty();
+    }
+
+    public String getGrafanaHost() {
+        return this.grafanaHost;
+    }
+
+    public String getGrafanaUsername() {
+        return this.grafanaUsername;
+    }
+
+    public String getGrafanaPassword() {
+        return this.grafanaPassword;
+    }
+
+    public String getGrafanaDatasourceUid() {
+        return this.grafanaDatasourceUid;
+    }
+
+    public boolean isGrafanaEstablished() {
+        return this.grafanaHost != null && !this.grafanaHost.isEmpty()
+                && this.grafanaUsername != null && !this.grafanaUsername.isEmpty()
+                && this.grafanaPassword != null && !this.grafanaPassword.isEmpty();
     }
 
     public List<String> getWorkerUrlList() {
@@ -412,6 +442,13 @@ public abstract class LoadTestConfig {
         elasticsearchUserName = asOptionalString("monitoring.elasticsearch.username");
         elasticsearchPassword = asOptionalString("monitoring.elasticsearch.password");
         kibanaHost = asOptionalURL("monitoring.kibana.host");
+        grafanaHost = asOptionalURL("monitoring.grafana.host");
+        grafanaUsername = asOptionalString("monitoring.grafana.username");
+        grafanaPassword = asOptionalString("monitoring.grafana.password");
+        grafanaDatasourceUid = asOptionalString("monitoring.grafana.datasourceUid");
+        if (grafanaDatasourceUid == null || grafanaDatasourceUid.isEmpty()) {
+            grafanaDatasourceUid = "openvidu-prometheus";
+        }
     }
 
     private void initWorkerConfig() {
@@ -564,6 +601,7 @@ public abstract class LoadTestConfig {
         log.info("Kibana Host: {}", kibanaHost);
         log.info("ElasticSearch Host: {}", elasticsearchHost);
         log.info("ElasticSearch Username: {}", elasticsearchUserName);
+        log.info("Grafana Host: {}", grafanaHost);
         log.info("-------- -------------------- --------");
 
         log.info("");

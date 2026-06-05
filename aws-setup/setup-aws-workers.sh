@@ -17,6 +17,10 @@ AWS_ENDPOINT=""
 AWS_PROFILE=""
 DRY_RUN=false
 EXISTING_AMI_ID=""
+BASE_AMI_ID=""
+# Public SSM parameter maintained by Canonical, resolves to the latest
+# Ubuntu 24.04 AMI of the selected region
+UBUNTU_AMI_SSM_PARAM="/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
 
 usage() {
     cat >&2 <<EOF
@@ -68,6 +72,11 @@ OPTIONS:
   --existing-ami-id <AMI_ID>
       Skip AMI creation and use an existing AMI ID directly.
       Useful when AMI was already created or for testing purposes.
+
+  --base-ami-id <AMI_ID>
+      Base Ubuntu AMI used to build the BrowserEmulator AMI. By default it is
+      resolved automatically for the selected region from the public SSM
+      parameter (Ubuntu 24.04 amd64, maintained by Canonical).
 
   -h, --help
       Display this help message and exit
@@ -133,6 +142,25 @@ check_dry_run() {
     return $exit_code
 }
 
+resolve_base_ami() {
+    if [ -n "$BASE_AMI_ID" ]; then
+        log "Using base AMI provided via --base-ami-id: ${BASE_AMI_ID}"
+        return
+    fi
+
+    log "Resolving Ubuntu 24.04 base AMI for region ${AWS_DEFAULT_REGION}..."
+    BASE_AMI_ID=$(aws_cmd ssm get-parameter \
+        --name "$UBUNTU_AMI_SSM_PARAM" \
+        --query 'Parameter.Value' \
+        --output text 2>/dev/null || echo "")
+
+    if [ -z "$BASE_AMI_ID" ] || [ "$BASE_AMI_ID" = "None" ]; then
+        error "Could not resolve the Ubuntu 24.04 base AMI for region ${AWS_DEFAULT_REGION}. Provide one explicitly with --base-ami-id"
+    fi
+
+    log "Base AMI for ${AWS_DEFAULT_REGION}: ${BASE_AMI_ID}"
+}
+
 check_prerequisites() {
     log "Checking prerequisites..."
 
@@ -174,6 +202,13 @@ check_aws_permissions() {
         errors=$((errors + 1))
     fi
 
+    # Test SSM GetParameter permission (needed for resolving the base AMI)
+    log "  Checking SSM permissions..."
+    if ! aws_cmd ssm get-parameter --name "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id" --query 'Parameter.Value' --output text &> /dev/null; then
+        echo "  ERROR: ssm:GetParameter failed (required to resolve the Ubuntu base AMI)" >&2
+        errors=$((errors + 1))
+    fi
+
     # Test EC2 Describe permissions
     log "  Checking EC2 permissions..."
     if ! aws_cmd ec2 describe-vpcs &> /dev/null; then
@@ -198,7 +233,7 @@ check_aws_permissions() {
 
     # Test EC2 Create permissions (dry run)
     log "  Testing EC2 create permissions..."
-    if ! check_dry_run ec2 run-instances --dry-run --image-id ami-0b6c6ebed2801a5cb --instance-type t3.micro --count 1 >/dev/null 2>&1; then
+    if ! check_dry_run ec2 run-instances --dry-run --image-id "$BASE_AMI_ID" --instance-type t3.micro --count 1 >/dev/null 2>&1; then
         echo "  ERROR: ec2:RunInstances permission test failed" >&2
         errors=$((errors + 1))
     fi
@@ -394,7 +429,7 @@ create_ami() {
 
     cat > "$temp_json" <<EOF
 [
-    {"ParameterKey": "ImageId", "ParameterValue": "ami-0b6c6ebed2801a5cb"},
+    {"ParameterKey": "ImageId", "ParameterValue": "${BASE_AMI_ID}"},
     {"ParameterKey": "GitRef", "ParameterValue": "${GIT_REF}"},
     {"ParameterKey": "CacheMediaFilesArgs", "ParameterValue": "${CACHE_MEDIAFILES_ARGS}"}
 ]
@@ -538,6 +573,11 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        --base-ami-id)
+            BASE_AMI_ID="$2"
+            shift
+            shift
+            ;;
         -h | --help)
             usage
             ;;
@@ -561,6 +601,7 @@ log "  Security Group CIDR: ${SECURITY_GROUP_CIDR}"
 
 check_prerequisites
 check_aws_permissions
+resolve_base_ami
 check_existing_ami
 
 if [ "$DRY_RUN" = true ]; then
@@ -568,7 +609,7 @@ if [ "$DRY_RUN" = true ]; then
     SG_VPC=$(get_default_vpc)
     log "DRY RUN: VPC for security group: ${SG_VPC:-<auto-detect>}"
     log "DRY RUN: Would open ports 5000, 5001 to CIDR ${SECURITY_GROUP_CIDR}"
-    log "DRY RUN: Would create AMI with GitRef=${GIT_REF}, CacheMediaFiles=${CACHE_MEDIAFILES_ARGS}"
+    log "DRY RUN: Would create AMI from base ${BASE_AMI_ID} with GitRef=${GIT_REF}, CacheMediaFiles=${CACHE_MEDIAFILES_ARGS}"
     log ""
     log "DRY RUN: config/config-aws.yaml would be updated with:"
     log "  - amiId: <new-ami-id>"

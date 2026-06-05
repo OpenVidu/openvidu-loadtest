@@ -1,4 +1,4 @@
-import { Client } from '@elastic/elasticsearch';
+import { Client, HttpConnection } from '@elastic/elasticsearch';
 import fs from 'node:fs';
 import type { ClientOptions } from '@elastic/elasticsearch/lib/client';
 import type {
@@ -58,6 +58,17 @@ export class ElasticSearchService {
 		username?: string,
 		password?: string,
 	): ClientOptions {
+		// The default undici connection does not support URLs with a path
+		// prefix (e.g. https://host/elasticsearch behind a reverse proxy),
+		// so fall back to the classic HTTP connection in that case
+		let hasPathPrefix = false;
+		try {
+			hasPathPrefix = new URL(hostname).pathname !== '/';
+		} catch {
+			console.warn(
+				`Invalid Elasticsearch URL: "${hostname}". Falling back to default connection.`,
+			);
+		}
 		const clientOptions: ClientOptions = {
 			node: hostname,
 			maxRetries: 5,
@@ -65,6 +76,7 @@ export class ElasticSearchService {
 			tls: {
 				rejectUnauthorized: false,
 			},
+			...(hasPathPrefix ? { Connection: HttpConnection } : {}),
 			...(username && password
 				? {
 						auth: {

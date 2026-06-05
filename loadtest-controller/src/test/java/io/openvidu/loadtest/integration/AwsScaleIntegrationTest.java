@@ -100,6 +100,7 @@ class AwsScaleIntegrationTest {
     @BeforeAll
     static void setup() throws Exception {
         log.info("=== AwsScaleIntegrationTest Setup ===");
+        IntegrationTestReportCleaner.cleanTargetReportsOnce();
         cleanupResultsDir();
         // Floci already started by @Testcontainers
         String ec2Endpoint = floci.getEndpoint() + "/";

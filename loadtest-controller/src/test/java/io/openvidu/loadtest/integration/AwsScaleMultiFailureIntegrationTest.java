@@ -121,6 +121,7 @@ class AwsScaleMultiFailureIntegrationTest {
     @BeforeAll
     static void setup() throws Exception {
         log.info("=== AwsScaleMultiFailureIntegrationTest Setup ===");
+        IntegrationTestReportCleaner.cleanTargetReportsOnce();
         cleanupResultsDir();
         String ec2Endpoint = floci.getEndpoint() + "/";
         log.info("Floci EC2 endpoint: {}", ec2Endpoint);

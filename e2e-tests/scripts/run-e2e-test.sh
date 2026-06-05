@@ -2,10 +2,29 @@
 
 # Central e2e test runner for OpenVidu Load Test
 # This script runs a load test with the specified configuration and validates results
-# Usage: ./run-e2e-test.sh <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]
+# Usage: ./run-e2e-test.sh [--keep-running|-k] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]
 # Example: ./run-e2e-test.sh smoke-test-config.yaml validate-results.sh https://172-31-224-178.openvidu-local.dev:7443
+# Flags:
+#   --keep-running, -k  Keep Docker services running after test completion (useful for debugging)
 
 set -e
+
+EXIT_CODE=0
+KEEP_RUNNING=false
+
+# Parse flags
+PASSTHROUGH_ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --keep-running|-k)
+            KEEP_RUNNING=true
+            ;;
+        *)
+            PASSTHROUGH_ARGS+=("$arg")
+            ;;
+    esac
+done
+set -- "${PASSTHROUGH_ARGS[@]}"
 
 echo "Starting OpenVidu Load Test E2E Test..."
 
@@ -17,7 +36,7 @@ fi
 
 # Check arguments
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]"
+    echo "Usage: $0 [--keep-running|-k] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]"
     echo "Example: $0 smoke-test-config.yaml validate-results.sh https://openvidu.example.com:7443 devkey secret"
     exit 1
 fi
@@ -80,70 +99,59 @@ if [ $ELAPSED -ge $MAX_WAIT ]; then
     docker compose logs
 fi
 
-# If results exist, wait for both containers to stop (max 30 seconds)
-TXT_REPORT=$(ls -t $LOCAL_RESULTS_DIR/results-*.txt 2>/dev/null | head -1)
-if [ -n "$TXT_REPORT" ]; then
-    echo "Waiting for containers to stop..."
-    TIMEOUT=30
-    ELAPSED=0
-    while [ $ELAPSED -lt $TIMEOUT ]; do
-        RUNNING_CONTAINERS=$(docker compose ps --status running -q 2>/dev/null || true)
-        if [ -z "$RUNNING_CONTAINERS" ]; then
-            echo "All containers stopped."
-            break
-        fi
-        sleep 2
-        ELAPSED=$((ELAPSED + 2))
-        echo "Waiting for containers to stop... ($ELAPSED/$TIMEOUT seconds)"
-    done
-    if [ $ELAPSED -ge $TIMEOUT ]; then
-        echo "WARNING: Some containers did not stop within $TIMEOUT seconds."
-    fi
-fi
-
-# Check if any containers are still running after shutdown
-echo "Checking for leftover containers..."
-REMAINING_CONTAINERS=$(docker compose ps --status running -q 2>/dev/null || true)
-if [ -n "$REMAINING_CONTAINERS" ]; then
-    echo "ERROR: Containers still running after shutdown:"
-    docker compose ps
-    EXIT_CODE=1
-fi
-
-# Check for any Selenium browser containers that might have been left running
-echo "Checking for leftover Selenium containers..."
-SELENIUM_CONTAINERS=$(docker ps -q --filter "name=selenium" 2>/dev/null || true)
-if [ -n "$SELENIUM_CONTAINERS" ]; then
-    echo "ERROR: Selenium containers still running:"
-    docker ps --filter "name=selenium"
-    EXIT_CODE=1
-fi
-
-# Stop services
+# Save logs before stopping anything
 docker compose logs > "$LOCAL_RESULTS_DIR/docker-compose.log" 2>&1
-echo "Stopping services..."
-docker compose down
 
-# Stop and remove any remaining selenium containers
-SELENIUM_CONTAINERS=$(docker ps -aq --filter "name=selenium" 2>/dev/null || true)
-if [ -n "$SELENIUM_CONTAINERS" ]; then
-    echo "Removing remaining Selenium containers..."
-    docker rm -f $SELENIUM_CONTAINERS >/dev/null 2>&1 || true
-fi
-
-if [ "${EXIT_CODE:-0}" -eq 0 ]; then
-    echo "✓ All containers stopped successfully"
-fi
-
-# Run validation script
+# Run validation script while services are still up (ELK test needs ES/Kibana running)
 VALIDATION_SCRIPT_PATH="$SCRIPT_DIR/$VALIDATION_SCRIPT"
 if [ ! -f "$VALIDATION_SCRIPT_PATH" ]; then
     echo "ERROR: Validation script not found at $VALIDATION_SCRIPT_PATH"
     exit 1
 fi
 
+set +e
 bash "$VALIDATION_SCRIPT_PATH" "$LOCAL_RESULTS_DIR"
 VALIDATION_EXIT_CODE=$?
+set -e
+
+if [ "$KEEP_RUNNING" = true ]; then
+    echo "Skipping service shutdown (--keep-running flag is set)."
+    echo "Docker services are still running. Stop them manually with:"
+    echo "  docker compose down -t 60"
+else
+    # Stop all services
+    echo "Stopping services..."
+    docker compose down -t 60
+
+    # Stop and remove any remaining selenium containers
+    SELENIUM_CONTAINERS=$(docker ps -aq --filter "name=selenium" 2>/dev/null || true)
+    if [ -n "$SELENIUM_CONTAINERS" ]; then
+        echo "Removing remaining Selenium containers..."
+        docker rm -f $SELENIUM_CONTAINERS >/dev/null 2>&1 || true
+    fi
+
+    if [ "${EXIT_CODE:-0}" -eq 0 ] && [ "$VALIDATION_EXIT_CODE" -eq 0 ]; then
+        echo "✓ All containers stopped successfully"
+    fi
+
+    # Check for any containers still running or created
+    echo "Checking for leftover containers..."
+    REMAINING_CONTAINERS=$(docker compose ps -q 2>/dev/null || true)
+    if [ -n "$REMAINING_CONTAINERS" ]; then
+        echo "ERROR: Containers still remaining after shutdown:"
+        docker compose ps
+        EXIT_CODE=1
+    fi
+
+    # Check for any Selenium browser containers that might have been left running
+    echo "Checking for leftover Selenium containers..."
+    SELENIUM_CONTAINERS=$(docker ps -q --filter "name=selenium" 2>/dev/null || true)
+    if [ -n "$SELENIUM_CONTAINERS" ]; then
+        echo "ERROR: Selenium containers still running:"
+        docker ps --filter "name=selenium"
+        EXIT_CODE=1
+    fi
+fi
 
 if [ "${EXIT_CODE:-0}" -ne 0 ] || [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
     echo "E2E test failed."
@@ -151,4 +159,7 @@ if [ "${EXIT_CODE:-0}" -ne 0 ] || [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
 fi
 
 echo "E2E test completed successfully!"
+if [ "$KEEP_RUNNING" = true ]; then
+    echo "(Docker services left running as requested)"
+fi
 exit 0

@@ -134,6 +134,7 @@ class LoadTestIntegrationTest {
 
     @BeforeAll
     static void setUpEnvironmentAndStartMockServers() throws Exception {
+        IntegrationTestReportCleaner.cleanTargetReportsOnce();
         cleanupResultsDir();
         Files.createDirectories(resultsDir);
         // Mock servers started in @DynamicPropertySource
@@ -201,7 +202,8 @@ class LoadTestIntegrationTest {
         Path latest = null;
         try (var stream = Files.list(dir)) {
             for (Path path : stream.toList()) {
-                if (matcher.matches(path.getFileName()) && (latest == null || Files.getLastModifiedTime(path).toMillis() > Files.getLastModifiedTime(latest).toMillis())) {
+                if (matcher.matches(path.getFileName()) && (latest == null
+                        || Files.getLastModifiedTime(path).toMillis() > Files.getLastModifiedTime(latest).toMillis())) {
                     latest = path;
                 }
             }

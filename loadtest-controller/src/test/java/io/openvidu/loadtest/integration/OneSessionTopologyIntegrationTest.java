@@ -117,6 +117,7 @@ class OneSessionTopologyIntegrationTest {
 
     @BeforeAll
     static void setUpEnvironmentAndStartMockServers() throws Exception {
+        IntegrationTestReportCleaner.cleanTargetReportsOnce();
         Files.createDirectories(resultsDir);
         cleanupResultsDir();
         // Mock servers started in @DynamicPropertySource

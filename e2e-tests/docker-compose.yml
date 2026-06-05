@@ -50,6 +50,104 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/openvidu-loadtest:/tmp/openvidu-loadtest
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.4.2
+    container_name: elasticsearch-e2e
+    restart: no
+    stop_grace_period: 60s
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - browseremulator
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.4.2
+    container_name: kibana-e2e
+    restart: no
+    stop_grace_period: 60s
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - browseremulator
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+  metricbeat-masternode:
+    image: docker.elastic.co/beats/metricbeat:7.12.0
+    container_name: metricbeat-masternode-e2e
+    restart: no
+    user: root
+    environment:
+      NODE_TYPE: masternode
+      NODE_ID: 1
+      ELASTICSEARCH_HOSTNAME: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+    command: ["metricbeat", "-e", "-strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat/masternode.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks:
+      - browseremulator
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+  metricbeat-medianode:
+    image: docker.elastic.co/beats/metricbeat:7.12.0
+    container_name: metricbeat-medianode-e2e
+    restart: no
+    user: root
+    environment:
+      NODE_TYPE: medianode
+      NODE_ID: 2
+      ELASTICSEARCH_HOSTNAME: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+    command: ["metricbeat", "-e", "-strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat/medianode.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks:
+      - browseremulator
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+  metricbeat-browseremulator:
+    image: docker.elastic.co/beats/metricbeat:7.12.0
+    container_name: metricbeat-browseremulator-e2e
+    restart: no
+    user: root
+    environment:
+      NODE_TYPE: browseremulator
+      NODE_ID: 3
+      ELASTICSEARCH_HOSTNAME: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+    command: ["metricbeat", "-e", "-strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat/browseremulator.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks:
+      - browseremulator
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
 networks:
   browseremulator:
     name: browseremulator-e2e

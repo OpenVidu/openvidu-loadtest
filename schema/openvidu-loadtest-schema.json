@@ -329,7 +329,7 @@
         "monitoring": {
             "type": "object",
             "title": "Monitoring Configuration",
-            "description": "Elasticsearch and Kibana integration for metrics",
+            "description": "Elasticsearch, Kibana and Grafana integration for metrics",
             "properties": {
                 "elasticsearch": {
                     "type": "object",
@@ -354,6 +354,28 @@
                         "host": {
                             "type": "string",
                             "description": "Kibana host URL"
+                        }
+                    }
+                },
+                "grafana": {
+                    "type": "object",
+                    "description": "Grafana of the OpenVidu deployment. When set, OpenVidu platform metrics (participants, bandwidth, packet loss, RTT...) are collected from Prometheus through the Grafana datasource proxy at the end of the test, indexed into Elasticsearch and added to the HTML report",
+                    "properties": {
+                        "host": {
+                            "type": "string",
+                            "description": "Grafana host URL (e.g. https://my-openvidu.io/grafana)"
+                        },
+                        "username": {
+                            "type": "string",
+                            "description": "Grafana username"
+                        },
+                        "password": {
+                            "type": "string",
+                            "description": "Grafana password"
+                        },
+                        "datasourceUid": {
+                            "type": "string",
+                            "description": "UID of the Prometheus datasource in Grafana (default: openvidu-prometheus)"
                         }
                     }
                 }

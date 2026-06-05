@@ -85,6 +85,11 @@ monitoring:
     password:
   kibana:
     host:
+  grafana:
+    host:
+    username:
+    password:
+    datasourceUid: openvidu-prometheus
 
 # ---------- Recording & QoE ----------
 # See docs/advanced-options.md for detailed documentation

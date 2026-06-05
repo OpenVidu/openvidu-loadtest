@@ -57,6 +57,13 @@ cd e2e-tests/scripts
 ./run-e2e-test.sh smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
+### ELK Smoke Test (validates Metricbeat + Kibana integration)
+
+```bash
+cd e2e-tests/scripts
+./run-e2e-test.sh elk-smoke-test-config.yaml validate-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+```
+
 ## Test Discovery and Validation Mapping
 
 The unified runner uses convention-based mapping to determine which validation script to use for each config file:
@@ -83,17 +90,18 @@ To add a new test type:
 
 ## Configuration-Validation Mapping Examples
 
-| Config file                       | Validation script (if exists)     | Fallback              |
-| --------------------------------- | --------------------------------- | --------------------- |
-| `smoke-test-config.yaml`          | `validate-smoke-test.sh`          | `validate-default.sh` |
-| `emulated-smoke-test-config.yaml` | `validate-emulated-smoke-test.sh` | `validate-default.sh` |
-| `load-test-config.yaml`           | `validate-load-test.sh`           | `validate-default.sh` |
+| Config file                       | Validation script (if exists)       | Fallback              |
+| --------------------------------- | ----------------------------------- | --------------------- |
+| `smoke-test-config.yaml`          | `validate-smoke-test.sh`            | `validate-default.sh` |
+| `emulated-smoke-test-config.yaml` | `validate-emulated-smoke-test.sh`   | `validate-default.sh` |
+| `elk-smoke-test-config.yaml`      | `validate-elk-smoke-test.sh`        | `validate-default.sh` |
+| `load-test-config.yaml`           | `validate-load-test.sh`             | `validate-default.sh` |
 
 ## Expected Results
 
 All smoke tests should:
 
-- Start both loadtest-controller and browser-emulator services
+- Start all services (loadtest-controller, browser-emulator, elasticsearch, kibana, metricbeat-masternode, metricbeat-medianode)
 - Create a single session with 2 participants in N:N topology
 - Generate results in the `results/` directory:
   - `results-{timestamp}.txt` (text summary)
@@ -119,6 +127,27 @@ All smoke tests should:
 - "User Connections" (mandatory)
  - Table columns: User, Session, Join Date, Retries, Retry Details
 - Two user rows (User1 and User2) present
+
+### ELK Smoke Test Additional Validation
+
+The ELK smoke test (`elk-smoke-test-config.yaml`) adds these validations on top of the default checks:
+
+**Elasticsearch validation:**
+
+- Elasticsearch is reachable at `http://localhost:9200`
+- `metricbeat-*` has ≥1 document with `fields.node_role:masternode`
+- `metricbeat-*` has ≥1 document with `fields.node_role:medianode`
+- `metricbeat-*` has ≥1 document with `fields.node_role:browseremulator`
+- `loadtest-openvidu-metrics-*` has 0 documents (controller does not index platform metrics)
+
+**Kibana URL validation:**
+
+- Text report contains `Kibana url: http://kibana:5601/app/kibana#/dashboard/...`
+- HTML report contains a clickable link `<a href="http://kibana:5601/app/kibana#/dashboard/..."`
+
+**How it works:**
+
+The test config sets `monitoring.elasticsearch.host` (so the controller passes it to the browser-emulator, which launches its own Metricbeat) and `monitoring.kibana.host` (so dashboards are imported and the report includes a dashboard URL). Grafana is intentionally omitted — the controller's `collectPlatformMetrics()` returns an empty list, so `indexPlatformMetrics()` is never called, and no documents are written to `loadtest-openvidu-metrics-*`.
 
 If validation fails, the result files are kept in the `results/` directory for debugging.
 
