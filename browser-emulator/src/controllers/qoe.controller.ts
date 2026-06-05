@@ -2,6 +2,7 @@ import * as express from 'express';
 import multer from 'multer';
 import type { Request, Response } from 'express';
 import fs from 'node:fs';
+import path from 'node:path';
 import type { QoeAnalysisOrchestratorService } from '../services/qoe-analysis/qoe-analysis-orchestrator.service.ts';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 import type { QoeAnalysisRequest } from '../types/qoe.type.ts';
@@ -47,7 +48,7 @@ export class QoeController {
 		const buffer = req.file.buffer;
 
 		fs.appendFile(
-			`${LocalFilesRepository.QOE_RECORDING_DIR}/${req.file.originalname}`,
+			`${LocalFilesRepository.QOE_RECORDING_DIR}/${path.basename(req.file.originalname)}`,
 			new Uint8Array(buffer),
 			err => {
 				if (err) {

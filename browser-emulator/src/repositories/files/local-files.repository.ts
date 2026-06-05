@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import http from 'node:http';
+import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { URL } from 'node:url';
 
@@ -107,7 +108,8 @@ export class LocalFilesRepository {
 	}
 
 	private async downloadFile(name: string, fileUrl: string): Promise<string> {
-		const filePath = LocalFilesRepository.MEDIAFILES_DIR + '/' + name;
+		const filePath =
+			LocalFilesRepository.MEDIAFILES_DIR + '/' + path.basename(name);
 		try {
 			await fsPromises.access(
 				LocalFilesRepository.MEDIAFILES_DIR,

@@ -2,6 +2,7 @@ import * as net from 'node:net';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createReadStream, type ReadStream } from 'node:fs';
+import { sanitizePathSegment } from '../../utils/sanitize.ts';
 
 const OGG_CAPTURE_PATTERN = 'OggS';
 const OGG_PAGE_HEADER_SIZE = 27;
@@ -342,7 +343,11 @@ export class SocketWriterService {
 	 * Get the socket path for a participant
 	 */
 	getSocketPath(participantId: string, type: string): string {
-		return path.join(this.baseDir, participantId, `${type}.sock`);
+		return path.join(
+			this.baseDir,
+			sanitizePathSegment(participantId),
+			`${sanitizePathSegment(type)}.sock`,
+		);
 	}
 
 	private getKey(participantId: string, type: string): string {
@@ -358,7 +363,7 @@ export class SocketWriterService {
 	}
 
 	private async cleanParticipantDir(participantId: string): Promise<void> {
-		const dir = path.join(this.baseDir, participantId);
+		const dir = path.join(this.baseDir, sanitizePathSegment(participantId));
 		try {
 			const files = await fs.readdir(dir);
 			if (files.length === 0) {

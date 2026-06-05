@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
-import { dirname } from 'node:path';
+import path from 'node:path';
 import type { JsonValue } from '../types/json.type.ts';
+import { sanitizeFilename } from './sanitize.ts';
 
 export const STATS_DIR = `${process.cwd()}/stats/`;
 export const CON_FILE = `connections.json`;
@@ -26,9 +27,9 @@ export async function createAllStatFilesForSession(
 }
 
 async function createFile(userId: string, sessionId: string, fileName: string) {
-	const filePath = `${STATS_DIR}${sessionId}/${userId}/${fileName}`;
+	const filePath = `${STATS_DIR}${sanitizeFilename(sessionId)}/${sanitizeFilename(userId)}/${fileName}`;
 	console.log('Creating file: ' + filePath);
-	await fsp.mkdir(dirname(filePath), { recursive: true });
+	await fsp.mkdir(path.dirname(filePath), { recursive: true });
 	console.log('Created dir for file: ' + filePath);
 	try {
 		await fsp.writeFile(filePath, '[]', { flag: 'wx' });
@@ -81,7 +82,7 @@ export function addSaveStatsToFileToQueue(
 	fileName: string,
 	data: JsonValue,
 ) {
-	const filePath = `${STATS_DIR}${sessionId}/${userId}/${fileName}`;
+	const filePath = `${STATS_DIR}${sanitizeFilename(sessionId)}/${sanitizeFilename(userId)}/${fileName}`;
 
 	// Initialize queue for the file if it does not exist
 	if (!queues.has(filePath)) {

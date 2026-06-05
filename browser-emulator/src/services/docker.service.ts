@@ -1,6 +1,7 @@
 import Docker from 'dockerode';
 import fs from 'node:fs';
 import path from 'node:path';
+import { sanitizeFilename } from '../utils/sanitize.ts';
 
 interface PullProgressEvent {
 	status: string;
@@ -73,15 +74,22 @@ export class DockerService {
 			return;
 		}
 
+		const logsDir = path.dirname(destPath);
+		const safeLogsDir = logsDir.replace(/[^a-zA-Z0-9_/\\:-]/g, '');
+		const safeDestPath = path.join(
+			safeLogsDir,
+			sanitizeFilename(path.basename(destPath)),
+		);
+
 		try {
-			await fs.promises.mkdir(path.dirname(destPath), {
+			await fs.promises.mkdir(path.dirname(safeDestPath), {
 				recursive: true,
 			});
 		} catch {
 			// ignore mkdir errors, will fail on write if needed
 		}
 
-		const writeStream = fs.createWriteStream(destPath, { flags: 'a' });
+		const writeStream = fs.createWriteStream(safeDestPath, { flags: 'a' });
 
 		// Request the logs stream and pipe to file. follow=true keeps streaming until container stops.
 		const logStream: NodeJS.ReadableStream = (await container.logs({
