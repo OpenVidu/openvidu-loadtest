@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '0 2 * * *' 
 
+permissions:
+  contents: read
+
 jobs:
   e2e-test:
     runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}

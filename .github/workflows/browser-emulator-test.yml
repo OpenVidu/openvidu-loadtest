@@ -6,6 +6,9 @@ on:
       - 'browser-emulator/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   unit-test:
     runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}

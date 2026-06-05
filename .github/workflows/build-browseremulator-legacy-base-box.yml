@@ -3,6 +3,9 @@ name: Build and upload browser-emulator base box
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
