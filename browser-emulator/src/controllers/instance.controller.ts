@@ -1,149 +1,169 @@
-import fs = require('fs');
 import * as express from 'express';
-import { Request, Response } from 'express';
-import { BrowserVideoRequest, CustomBrowserVideoRequest, InitializePostRequest } from '../types/api-rest.type';
-import { InstanceService } from '../services/instance.service';
-import { ElasticSearchService } from '../services/elasticsearch.service';
-import { APPLICATION_MODE } from '../config';
-import { ApplicationMode } from '../types/config.type';
-import { ContainerName } from '../types/container-info.type';
-import { QoeAnalyzerService } from '../services/qoe-analyzer.service';
-import { FilesService } from '../services/files/files.service';
-import { S3FilesService } from '../services/files/impl/s3.service';
-import { MinioFilesService } from '../services/files/impl/minio.service';
-import { downloadFile } from '../utils/download-files';
-import { SeleniumService } from '../services/selenium.service';
+import type { Request, Response } from 'express';
+import type { RemotePersistenceService } from '../services/files/remote-persistence.service.ts';
+import type { ElasticSearchService } from '../services/elasticsearch.service.ts';
+import type { InstanceService } from '../services/instance.service.ts';
+import type { LocalFilesService } from '../services/files/local-files.service.ts';
+import type { FakeMediaDevicesService } from '../services/fake-media/fake-media-devices.service.ts';
+import type {
+	InitializePost,
+	InitializePostRequest,
+} from '../types/initialize.type.ts';
+import type { ConfigService } from '../services/config.service.ts';
+import type { SeleniumService } from '../services/browser/real/selenium.service.ts';
+import { gracefulExit } from 'exit-hook';
 
-export const app = express.Router({
-	strict: true,
-});
+export class InstanceController {
+	private readonly router: express.Router;
 
-const MEDIAFILES_DIR = `${process.cwd()}/src/assets/mediafiles`;
+	private readonly elasticSearchService: ElasticSearchService;
+	private readonly instanceService: InstanceService;
+	private readonly localFilesService: LocalFilesService;
+	private readonly fakeMediaDevicesService: FakeMediaDevicesService;
+	private readonly remotePersistenceService: RemotePersistenceService;
+	private readonly seleniumService: SeleniumService;
+	private readonly config: ConfigService;
 
-app.get('/ping', (req: Request, res: Response) => {
-	if (InstanceService.getInstance().isInstanceInitialized()) {
-		res.status(200).send('Pong');
-	} else {
-		res.status(500).send();
+	constructor(
+		elasticSearchService: ElasticSearchService,
+		instanceService: InstanceService,
+		localFilesService: LocalFilesService,
+		fakeMediaDevicesService: FakeMediaDevicesService,
+		remotePersistenceService: RemotePersistenceService,
+		configService: ConfigService,
+		seleniumService: SeleniumService,
+	) {
+		this.elasticSearchService = elasticSearchService;
+		this.instanceService = instanceService;
+		this.localFilesService = localFilesService;
+		this.fakeMediaDevicesService = fakeMediaDevicesService;
+		this.remotePersistenceService = remotePersistenceService;
+		this.config = configService;
+		this.seleniumService = seleniumService;
+		this.router = express.Router({ strict: true });
+		this.setupRoutes();
 	}
-});
 
-// app.post('/restart', async (req: Request, res: Response) => {
-// 	try {
-// 		console.log('Restarting browser-emulator');
-// 		res.status(200).send();
-// 		exec('forever restartall');
-// 	} catch (error) {
-// 		res.status(500).send(error);
-// 	}
-// });
-
-app.post('/initialize', async (req: Request, res: Response) => {
-	try {
-		const request: InitializePostRequest = req.body;
-		const isProdMode: boolean = APPLICATION_MODE === ApplicationMode.PROD;
-		let filesService: FilesService;
-		const elasticSearchService: ElasticSearchService = ElasticSearchService.getInstance();
-
-		createRecordingsDirectory();
-
-		console.log('Initialize browser-emulator');
-
-		const promises = []
-		if (isProdMode) {
-			if (!!request.browserVideo) {
-				promises.push(downloadMediaFilesAndStartSeleniumService(request.browserVideo));
-			}
-			
-			if (!elasticSearchService.isElasticSearchRunning()) {
-				process.env.ELASTICSEARCH_HOSTNAME = request.elasticSearchHost;
-				process.env.ELASTICSEARCH_USERNAME = request.elasticSearchUserName;
-				process.env.ELASTICSEARCH_PASSWORD = request.elasticSearchPassword;
-				if (!!request.elasticSearchIndex) {
-					process.env.ELASTICSEARCH_INDEX = request.elasticSearchIndex;
-				}
-				promises.push(elasticSearchService.initialize(process.env.ELASTICSEARCH_INDEX));
-				promises.push(launchMetricBeat());
-			}
-
-		}
-		const fileServicePromise = new Promise((resolve, reject) => {
-			if (!!request.minioHost && !!request.minioAccessKey && !!request.minioSecretKey) {
-				process.env.MINIO_HOST = request.minioHost;
-				process.env.MINIO_PORT = !!request.minioPort ? request.minioPort.toString() : '443';
-				process.env.MINIO_BUCKET = request.minioBucket;
-				filesService = MinioFilesService.getInstance(request.minioAccessKey, request.minioSecretKey);
-			} else if (!!request.awsAccessKey && !!request.awsSecretAccessKey) {
-				process.env.S3_BUCKET = request.s3BucketName;
-				filesService = S3FilesService.getInstance(request.awsAccessKey, request.awsSecretAccessKey);
-			}
-			resolve('');
-		}).then(() => {
-			if (!!request.qoeAnalysis && request.qoeAnalysis.enabled) {
-				process.env.QOE_ANALYSIS = request.qoeAnalysis.enabled.toString();
-				QoeAnalyzerService.getInstance().setDurations(request.qoeAnalysis.fragment_duration, request.qoeAnalysis.padding_duration);
-			}
-		});
-		promises.push(fileServicePromise);
-		await Promise.all(promises);
-		res.status(200).send(`Instance ${req.headers.host} has been initialized`);
-	} catch (error) {
-		console.error(error);
-		res.status(500).send(error);
+	private setupRoutes(): void {
+		this.router.get('/ping', this.ping.bind(this));
+		this.router.post('/initialize', this.initialize.bind(this));
+		this.router.delete('/shutdown', this.shutdown.bind(this));
 	}
-});
 
-function createRecordingsDirectory() {
-	const dir = `${process.cwd()}/recordings`;
-	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir);
-		fs.mkdirSync(dir + '/chrome');
-		fs.mkdirSync(dir + '/qoe');
-	}
-}
-
-async function launchMetricBeat() {
-	const instanceService = InstanceService.getInstance();
-	try {
-		await instanceService.launchMetricBeat();
-	} catch (error) {
-		console.log('Error starting metricbeat', error);
-		if (error.statusCode === 409 && error.message.includes('Conflict')) {
-			console.log('Retrying ...');
-			await instanceService.removeContainer(ContainerName.METRICBEAT);
-			await instanceService.launchMetricBeat();
+	private ping(_: Request, res: Response): void {
+		if (this.instanceService.isInstanceReady()) {
+			res.status(200).send('Pong');
+		} else {
+			res.status(500).send();
 		}
 	}
-}
 
-async function downloadMediaFilesAndStartSeleniumService(videoType: BrowserVideoRequest): Promise<SeleniumService> {
-	const fileNames = await Promise.all([
-		downloadBrowserMediaFiles(videoType),
-		downloadEmulatedFiles()
-	])
-	return SeleniumService.getInstance(fileNames[0][0], fileNames[0][1]);
-}
+	private async initialize(
+		req: InitializePostRequest,
+		res: Response,
+	): Promise<void> {
+		try {
+			const request = req.body;
 
-async function downloadBrowserMediaFiles(videoType: BrowserVideoRequest): Promise<string[]> {
-	if (videoType.videoInfo === undefined) {
-		throw new Error('Missing video info in video request');
+			this.config.setLegacyMode(!!request.legacyMode);
+
+			console.log('Initialize browser-emulator');
+
+			await this.instanceService.ensureDockerNetworkExists();
+			const promises = [];
+			this.setupRemotePersistenceService(request);
+			promises.push(
+				this.localFilesService
+					.downloadBrowserMediaFiles(request.browserVideo)
+					.then((fileNames: string[]) => {
+						const promises = [];
+						this.seleniumService.initialize();
+
+						if (request.legacyMode) {
+							promises.push(
+								this.fakeMediaDevicesService.startFakeMediaDevices(
+									fileNames[0],
+									fileNames[1],
+									request.vnc,
+								),
+							);
+						}
+						return Promise.all(promises);
+					}),
+			);
+			if (
+				request.elasticSearchHost &&
+				!this.elasticSearchService.isElasticSearchRunning()
+			) {
+				promises.push(
+					this.elasticSearchService
+						.initialize(
+							request.elasticSearchHost,
+							request.elasticSearchUserName,
+							request.elasticSearchPassword,
+							request.elasticSearchIndex,
+						)
+						.then(() =>
+							this.instanceService.launchMetricBeat(
+								request.elasticSearchHost,
+								request.elasticSearchUserName,
+								request.elasticSearchPassword,
+							),
+						),
+				);
+			}
+			await Promise.all(promises);
+
+			res.status(200).send(
+				`Instance ${req.headers.host} has been initialized`,
+			);
+		} catch (error) {
+			console.error(error);
+			res.status(500).send('Internal server error');
+		}
 	}
-	const videoInfo = videoType.videoInfo
-	const videoFile = `fakevideo_${videoInfo.fps}fps_${videoInfo.width}x${videoInfo.height}.y4m`
-	const videoUrl = videoType.videoType === "custom" ? videoType.customVideo.video.url : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}_${videoInfo.height}p_${videoInfo.fps}fps.y4m`
-	const audioFile = `fakeaudio.wav`
-	const audioUrl = videoType.videoType === "custom" ? videoType.customVideo.audioUrl : `https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/${videoType.videoType}.wav`
-	const promises = [
-			downloadFile(videoFile, videoUrl, MEDIAFILES_DIR),
-			downloadFile(audioFile, audioUrl, MEDIAFILES_DIR)
-		]
-	return Promise.all(promises)
-}
 
-async function downloadEmulatedFiles(): Promise<string[]> {
-	return Promise.all([
-		downloadFile("video_640x480.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_640x480.mkv", MEDIAFILES_DIR).then(() => "video_640x480.mkv"),
-		downloadFile("video_1280x720.mkv", "https://s3.eu-west-1.amazonaws.com/public.openvidu.io/bbb_1280x720.mkv", MEDIAFILES_DIR).then(() => "video_1280x720.mkv")
-	]);
-}
+	private shutdown(_: Request, res: Response) {
+		try {
+			console.log('Shutdown signal received, exiting...');
+			setTimeout(() => {
+				gracefulExit(0);
+			}, 1000);
+			res.status(200).send('Shutdown initiated');
+		} catch (error) {
+			console.error('Error during shutdown:', error);
+			res.status(500).send('Internal server error');
+		}
+	}
 
+	public getRouter(): express.Router {
+		return this.router;
+	}
+
+	private setupRemotePersistenceService(request: InitializePost) {
+		let accessKey: string | undefined;
+		let secretAccessKey: string | undefined;
+		const bucketName = request.s3BucketName;
+		let host: string | undefined;
+		if (request.awsAccessKey && request.awsSecretAccessKey) {
+			accessKey = request.awsAccessKey;
+			secretAccessKey = request.awsSecretAccessKey;
+		}
+		if (request.s3Host) {
+			host = request.s3Host;
+			if (request.s3HostAccessKey && request.s3HostSecretAccessKey) {
+				accessKey = request.s3HostAccessKey;
+				secretAccessKey = request.s3HostSecretAccessKey;
+			}
+		}
+		if (bucketName && accessKey && secretAccessKey) {
+			this.remotePersistenceService.initialize(
+				accessKey,
+				secretAccessKey,
+				bucketName,
+				request.s3Region,
+				host,
+			);
+		}
+	}
+}

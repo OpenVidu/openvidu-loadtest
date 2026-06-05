@@ -1,0 +1,3 @@
+apis:
+  main:
+    root: ./docs/openapi.yaml

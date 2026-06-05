@@ -1,0 +1,54 @@
+services:
+
+  loadtest-controller:
+    build:
+      context: ./loadtest-controller
+      dockerfile: Dockerfile
+    image: loadtest-controller:local
+    container_name: loadtest-controller
+    restart: no
+    # Run as the host user so files written to ./results are not owned by root.
+    # Override if your user is not 1000:1000:
+    #   HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      LOADTEST_CONFIG: ${LOADTEST_CONFIG:-/config/config.yaml}
+      RESULTS_DIR: /results
+    networks:
+      - browseremulator
+    depends_on:
+      browser-emulator:
+        condition: service_healthy
+    volumes:
+      - ./config:/config
+      - ./results:/results
+      
+  browser-emulator:
+    build:
+      context: ./browser-emulator
+      dockerfile: Dockerfile
+    image: browser-emulator:local
+    container_name: browser-emulator
+    restart: no
+    environment:
+      RUNNING_IN_DOCKER: true
+      DOCKER_NETWORK_NAME: browseremulator
+      DOCKER_BROWSER_EMULATOR_HOST: browser-emulator
+      MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/browser-emulator/mediafiles}
+      SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/browser-emulator/logs}
+      METRICBEAT_CONFIG: ${METRICBEAT_CONFIG:-${PWD}/browser-emulator/src/assets/metricbeat-config/metricbeat.yml}
+    stop_grace_period: 60s
+    networks:
+      - browseremulator
+    volumes:
+      - ./browser-emulator/recordings/chrome:/app/recordings/chrome
+      - ./browser-emulator/recordings/qoe:/app/recordings/qoe
+      - ./browser-emulator/stats:/app/stats
+      - ./browser-emulator/logs:/app/logs
+      - ./browser-emulator/mediafiles:/app/mediafiles
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/openvidu-loadtest:/tmp/openvidu-loadtest
+
+networks:
+  browseremulator:
+    name: browseremulator

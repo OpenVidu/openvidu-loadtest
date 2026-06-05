@@ -1,0 +1,708 @@
+package io.openvidu.loadtest.integration.mock;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsParameters;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManagerFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Mock server for browser-emulator HTTP/HTTPS API using Java's built-in
+ * HttpServer/HttpsServer.
+ * Simulates the browser-emulator endpoints that loadtest-controller
+ * communicates with. Can be configured for HTTP or HTTPS with self-signed
+ * certificate.
+ */
+public class BrowserEmulatorMockServer {
+    private static final Logger log = LoggerFactory.getLogger(BrowserEmulatorMockServer.class);
+
+    private HttpServer httpServer;
+    private HttpsServer httpsServer;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Random random = new Random();
+    private final AtomicInteger requestCount = new AtomicInteger(0);
+    private final AtomicInteger participantCounter = new AtomicInteger(0);
+    private X509Certificate certificate;
+    private final int port;
+    private int actualPort = -1;
+    private boolean useHttps = false;
+    private WebSocketMockServer webSocketServer;
+    private ReconnectionFailureSimulator failureSimulator;
+    private final CopyOnWriteArrayList<ParticipantCreationListener> creationListeners = new CopyOnWriteArrayList<>();
+    private final ConcurrentHashMap<String, String> participantToWorker = new ConcurrentHashMap<>();
+
+    private int maxParticipantsThreshold = -1;
+    private Runnable onMaxParticipantsReached;
+
+    /**
+     * Track which worker a participant belongs to.
+     */
+    public void registerParticipant(String participant, String session, String workerUrl) {
+        String key = participant + "-" + session;
+        participantToWorker.put(key, workerUrl);
+    }
+
+    /**
+     * Get the worker URL for a participant.
+     */
+    public String getWorkerForParticipant(String participant, String session) {
+        return participantToWorker.get(participant + "-" + session);
+    }
+
+    /**
+     * Get the WebSocket server instance.
+     */
+    public WebSocketMockServer getWebSocketServer() {
+        return webSocketServer;
+    }
+
+    /**
+     * Listener interface for participant creation events.
+     */
+    @FunctionalInterface
+    public interface ParticipantCreationListener {
+        void onParticipantCreated(String userId, String sessionName, int participantNumber);
+    }
+
+    /**
+     * Register a listener to be notified when participants are created.
+     */
+    public void addParticipantCreationListener(ParticipantCreationListener listener) {
+        creationListeners.add(listener);
+    }
+
+    public BrowserEmulatorMockServer(int port) {
+        this.port = port;
+        log.info("BrowserEmulatorMockServer created for port {}", port);
+    }
+
+    /**
+     * Constructor with failure simulator for reconnection failure testing.
+     */
+    public BrowserEmulatorMockServer(int port, ReconnectionFailureSimulator failureSimulator) {
+        this.port = port;
+        this.failureSimulator = failureSimulator;
+        log.info("BrowserEmulatorMockServer created for port {} with failure simulator", port);
+    }
+
+    /**
+     * Set the WebSocket server to send events to when participants are created.
+     */
+    public void setWebSocketServer(WebSocketMockServer webSocketServer) {
+        this.webSocketServer = webSocketServer;
+    }
+
+    /**
+     * Reset the mock server state for a new test case.
+     */
+    public void reset() {
+        participantCounter.set(0);
+        maxParticipantsThreshold = -1;
+        onMaxParticipantsReached = null;
+        log.info("BrowserEmulatorMockServer reset for new test case");
+    }
+
+    /**
+     * Set a threshold for maximum participants. When this threshold is reached,
+     * the provided callback will be invoked to stop the test.
+     * 
+     * @param maxParticipants the maximum number of participants before test stops
+     *                        (-1 to disable)
+     * @param onMaxReached    callback to execute when threshold is reached
+     */
+    public void setMaxParticipantsThreshold(int maxParticipants, Runnable onMaxReached) {
+        this.maxParticipantsThreshold = maxParticipants;
+        this.onMaxParticipantsReached = onMaxReached;
+        log.info("Max participants threshold set to {}", maxParticipants);
+    }
+
+    /**
+     * Get the current participant count.
+     */
+    public int getParticipantCount() {
+        return participantCounter.get();
+    }
+
+    /**
+     * Signal the controller to stop the test by sending a sessionDisconnected event
+     * for a participant. This triggers the reconnection flow which will eventually
+     * cause the test to terminate.
+     * 
+     * @param userId      the user ID to disconnect
+     * @param sessionName the session name
+     */
+    public void signalTestStop(String userId, String sessionName) {
+        if (webSocketServer != null && webSocketServer.isRunning()) {
+            webSocketServer.sendDisconnected(userId, sessionName);
+            log.info("Sent test stop signal via sessionDisconnected for {}-{}", userId, sessionName);
+        } else {
+            log.warn("Cannot send test stop signal - WebSocket server not available");
+        }
+    }
+
+    /**
+     * Force an immediate test termination by causing all subsequent participant
+     * creation requests to fail with a special error that signals test termination.
+     * This is more reliable than the async callback approach.
+     */
+    public void triggerTestTermination() {
+        log.info("Triggering test termination - all subsequent participant creations will fail");
+        // Setting maxParticipantsThreshold to 0 triggers immediate termination on next
+        // request
+        this.maxParticipantsThreshold = 0;
+    }
+
+    /**
+     * Start the mock HTTPS server with self-signed certificate.
+     */
+    public void startHttps() throws Exception {
+        log.info("Starting BrowserEmulatorMockServer on HTTPS port {}", port);
+
+        // Generate self-signed certificate
+        certificate = SelfSignedCertificateGenerator.generateCertificate();
+        KeyStore keyStore = SelfSignedCertificateGenerator.createKeyStore(certificate);
+
+        // Setup SSL context
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(keyStore, SelfSignedCertificateGenerator.KEY_PASSWORD.toCharArray());
+
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(keyStore);
+
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+        // Create HTTPS server
+        try {
+            this.httpsServer = HttpsServer.create(new InetSocketAddress(port), 0);
+        } catch (java.net.BindException be) {
+            log.warn("Port {} already in use when attempting to start HTTPS server", port);
+            // If an existing server is responding on the expected ping endpoint, reuse it
+            if (isServerResponding(port, true)) {
+                log.info("Existing server detected on port {} - reusing it", port);
+                useHttps = true;
+                return;
+            }
+            throw be;
+        }
+        this.httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
+            @Override
+            public void configure(HttpsParameters params) {
+                SSLContext context = getSSLContext();
+                SSLEngine engine = context.createSSLEngine();
+                params.setNeedClientAuth(false);
+                params.setCipherSuites(engine.getEnabledCipherSuites());
+                params.setProtocols(engine.getEnabledProtocols());
+                params.setSSLParameters(context.getDefaultSSLParameters());
+            }
+        });
+        this.httpsServer.setExecutor(Executors.newCachedThreadPool());
+
+        // Register handlers
+        registerHandlers(httpsServer);
+
+        // Start the server
+        httpsServer.start();
+        // Determine actual bound port (in case port was 0 / ephemeral)
+        try {
+            if (this.httpsServer.getAddress() != null) {
+                this.actualPort = this.httpsServer.getAddress().getPort();
+            }
+        } catch (Exception e) {
+            log.debug("Could not determine HTTPS server bound port", e);
+        }
+        useHttps = true;
+        log.info("BrowserEmulatorMockServer started successfully on HTTPS port {}", port);
+    }
+
+    /**
+     * Start the mock HTTP server (plain, no encryption).
+     */
+    public void start() throws IOException {
+        log.info("Starting BrowserEmulatorMockServer on HTTP port {}", port);
+
+        // Create HTTP server
+        try {
+            this.httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+        } catch (java.net.BindException be) {
+            log.warn("Port {} already in use when attempting to start HTTP server", port);
+            if (isServerResponding(port, false)) {
+                log.info("Existing server detected on port {} - reusing it", port);
+                useHttps = false;
+                return;
+            }
+            throw be;
+        }
+        this.httpServer.setExecutor(Executors.newCachedThreadPool());
+
+        // Register handlers
+        registerHandlers(httpServer);
+
+        // Start the server
+        httpServer.start();
+        // Determine actual bound port (in case port was 0 / ephemeral)
+        try {
+            if (this.httpServer.getAddress() != null) {
+                this.actualPort = this.httpServer.getAddress().getPort();
+            }
+        } catch (Exception e) {
+            log.debug("Could not determine HTTP server bound port", e);
+        }
+        useHttps = false;
+        log.info("BrowserEmulatorMockServer started successfully on HTTP port {}", port);
+    }
+
+    /**
+     * Probe the given port for an existing mock server by performing a GET
+     * /instance/ping.
+     * If tls is true, attempt HTTPS with a permissive SSL context to accept
+     * self-signed certs.
+     */
+    private boolean isServerResponding(int portToCheck, boolean tls) {
+        try {
+            String scheme = tls ? "https" : "http";
+            java.net.URI uri = new java.net.URI(scheme + "://localhost:" + portToCheck + "/instance/ping");
+
+            java.net.http.HttpClient client;
+            if (tls) {
+                // Trust all certificates for the probe
+                javax.net.ssl.TrustManager[] trustAllCerts = new javax.net.ssl.TrustManager[] {
+                        new javax.net.ssl.X509TrustManager() {
+                            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                                return null;
+                            }
+
+                            public void checkClientTrusted(java.security.cert.X509Certificate[] certs,
+                                    String authType) {
+                            }
+
+                            public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
+                                    String authType) {
+                            }
+                        }
+                };
+                javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                client = java.net.http.HttpClient.newBuilder()
+                        .sslContext(sc)
+                        .connectTimeout(java.time.Duration.ofSeconds(2))
+                        .build();
+            } else {
+                client = java.net.http.HttpClient.newBuilder()
+                        .connectTimeout(java.time.Duration.ofSeconds(2))
+                        .build();
+            }
+
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(uri)
+                    .GET()
+                    .timeout(java.time.Duration.ofSeconds(2))
+                    .build();
+
+            java.net.http.HttpResponse<String> resp = client.send(req,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            return resp.statusCode() == 200 && "Pong".equals(resp.body());
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private void registerHandlers(HttpServer server) {
+        server.createContext("/instance/ping", new PingHandler());
+        server.createContext("/instance/initialize", new InitializeHandler());
+        server.createContext("/openvidu-browser/streamManager", new StreamManagerHandler());
+        server.createContext("/openvidu-browser/streamManager/session/", new DisconnectHandler());
+        server.createContext("/instance/shutdown", new ShutdownHandler());
+    }
+
+    private void registerHandlers(HttpsServer server) {
+        server.createContext("/instance/ping", new PingHandler());
+        server.createContext("/instance/initialize", new InitializeHandler());
+        server.createContext("/openvidu-browser/streamManager", new StreamManagerHandler());
+        server.createContext("/openvidu-browser/streamManager/session/", new DisconnectHandler());
+        server.createContext("/instance/shutdown", new ShutdownHandler());
+    }
+
+    /**
+     * Stop the mock server.
+     */
+    public void stop() {
+        log.info("Stopping BrowserEmulatorMockServer");
+        if (httpsServer != null) {
+            httpsServer.stop(0);
+        }
+        if (httpServer != null) {
+            httpServer.stop(0);
+        }
+    }
+
+    /**
+     * Check if server is running.
+     */
+    public boolean isRunning() {
+        return (httpServer != null) || (httpsServer != null);
+    }
+
+    /**
+     * Get the port the server is running on.
+     */
+    public int getPort() {
+        return actualPort != -1 ? actualPort : port;
+    }
+
+    /**
+     * Get the self-signed certificate (for clients to trust).
+     */
+    public X509Certificate getCertificate() {
+        return certificate;
+    }
+
+    /**
+     * Check if server is using HTTPS.
+     */
+    public boolean isHttps() {
+        return useHttps;
+    }
+
+    /**
+     * Reset request count (useful for test isolation).
+     */
+    public void resetRequestCount() {
+        this.requestCount.set(0);
+    }
+
+    /**
+     * Get the total number of requests processed.
+     */
+    public int getRequestCount() {
+        return requestCount.get();
+    }
+
+    /**
+     * Extract the numeric part from a userId like "User42" -> 42.
+     */
+    private static int extractUserNumber(String userId) {
+        if (userId == null)
+            return 0;
+        String prefix = "User";
+        if (userId.startsWith(prefix)) {
+            try {
+                return Integer.parseInt(userId.substring(prefix.length()));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Handler for GET /instance/ping endpoint.
+     */
+    private class PingHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            requestCount.incrementAndGet();
+            log.debug("Received GET /instance/ping request #{}", requestCount);
+
+            String response = "Pong";
+            exchange.getResponseHeaders().set("Content-Type", "text/plain");
+            exchange.sendResponseHeaders(200, response.length());
+
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(response.getBytes());
+            }
+        }
+    }
+
+    /**
+     * Handler for POST /instance/initialize endpoint.
+     */
+    private class InitializeHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            requestCount.incrementAndGet();
+            log.debug("Received POST /instance/initialize request #{}", requestCount);
+
+            try {
+                Thread.sleep(random.nextInt(750, 1500));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Thread interrupted");
+            }
+            String response = "Instance initialized successfully";
+            exchange.getResponseHeaders().set("Content-Type", "text/plain");
+            exchange.sendResponseHeaders(200, response.length());
+
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(response.getBytes());
+            }
+        }
+    }
+
+    /**
+     * Handler for POST /openvidu-browser/streamManager endpoint.
+     * This endpoint creates a new participant (publisher or subscriber).
+     * Simulates reconnection failures for participant 200.
+     */
+    private class StreamManagerHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.getResponseBody().close();
+                return;
+            }
+
+            requestCount.incrementAndGet();
+            log.debug("Received POST /openvidu-browser/streamManager request #{}", requestCount);
+
+            try {
+                Thread.sleep(random.nextInt(1000, 5000));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Thread interrupted");
+            }
+            try {
+                // Read request body fully
+                byte[] input = exchange.getRequestBody().readAllBytes();
+                String requestBody = new String(input);
+
+                if (requestBody == null || requestBody.trim().isEmpty()) {
+                    log.error("Empty request body for streamManager");
+                    String errorResponse = "{\"error\": \"Invalid JSON structure\"}";
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(400, errorResponse.length());
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(errorResponse.getBytes());
+                    }
+                    return;
+                }
+
+                // Parse JSON to extract userId and sessionName
+                try {
+
+                    ObjectNode requestJson = (ObjectNode) objectMapper.readTree(requestBody);
+                    String userId = requestJson.path("properties").path("userId").asText("unknown");
+                    String sessionName = requestJson.path("properties").path("sessionName").asText("unknown");
+                    String role = requestJson.path("properties").path("role").asText("SUBSCRIBER");
+
+                    // Check if this participant should fail on creation (initial connect)
+                    if (failureSimulator != null && failureSimulator.shouldFailOnCreate(userId, sessionName)) {
+                        String completeUser = userId + "-" + sessionName;
+                        int attempt = failureSimulator.recordFailure(completeUser);
+
+                        if (attempt == -1) {
+                            // Max retries exceeded - this triggers test termination
+                            log.info("Participant {} failed after {} retries - triggering test end",
+                                    completeUser, failureSimulator.getMaxRetries());
+                            String errorResponse = "{\"error\": \"Participant " + completeUser
+                                    + " failed after " + failureSimulator.getMaxRetries() + " retries\"}";
+                            exchange.getResponseHeaders().set("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(500, errorResponse.length());
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(errorResponse.getBytes());
+                            }
+                        } else if (attempt > 0) {
+                            // During retry window - simulate connection failure
+                            log.info("Simulating failure for {} (attempt {}/{})",
+                                    completeUser, attempt, failureSimulator.getMaxRetries());
+                            String errorResponse = "{\"error\": \"Connection refused - retry " + attempt + "\"}";
+                            exchange.getResponseHeaders().set("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(500, errorResponse.length());
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(errorResponse.getBytes());
+                            }
+                        }
+                        return;
+                    }
+
+                    // Check if this participant should fail on reconnection (after WebSocket
+                    // disconnect)
+                    if (failureSimulator != null && failureSimulator.shouldFailOnReconnect(userId, sessionName)) {
+                        String completeUser = userId + "-" + sessionName;
+                        int attempt = failureSimulator.recordFailure(completeUser);
+
+                        if (attempt == -1) {
+                            // Max retries exceeded - reconnection will succeed now
+                            log.info("Participant {} reconnection succeeded after {} failed attempts",
+                                    userId, failureSimulator.getMaxRetries());
+                        } else {
+                            // Still within retry window - fail this reconnection attempt
+                            log.info("Simulating reconnection failure for {} (attempt {}/{})",
+                                    userId, attempt, failureSimulator.getMaxRetries());
+                            String errorResponse = "{\"error\": \"Reconnection refused - retry " + attempt + "\"}";
+                            exchange.getResponseHeaders().set("Content-Type", "application/json");
+                            exchange.sendResponseHeaders(500, errorResponse.length());
+                            try (OutputStream os = exchange.getResponseBody()) {
+                                os.write(errorResponse.getBytes());
+                            }
+                            return;
+                        }
+                    }
+
+                    // Check if termination has been triggered
+                    if (maxParticipantsThreshold == 0) {
+                        log.info("Test termination triggered - returning error response");
+                        String errorResponse = "{\"error\": \"Test terminated\"}";
+                        exchange.getResponseHeaders().set("Content-Type", "application/json");
+                        exchange.sendResponseHeaders(503, errorResponse.length());
+                        try (OutputStream os = exchange.getResponseBody()) {
+                            os.write(errorResponse.getBytes());
+                        }
+                        return;
+                    }
+
+                    // Calculate streams and participants based on role
+                    int streams = "PUBLISHER".equals(role) ? 2 : 1;
+                    int participants = 1;
+
+                    // Generate success response
+                    ObjectNode responseJson = objectMapper.createObjectNode();
+                    responseJson.put("connectionId", "conn-" + userId + "-" + sessionName + "-" + requestCount.get());
+                    responseJson.put("streams", streams);
+                    responseJson.put("participants", participants);
+                    responseJson.put("workerCpuUsage", 0.1 + random.nextDouble() * 0.6);
+                    responseJson.put("userId", userId);
+                    responseJson.put("sessionId", sessionName);
+
+                    String response = responseJson.toString();
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, response.length());
+
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(response.getBytes());
+                    }
+
+                    // Send ParticipantCreated event via WebSocket if connected
+                    sendParticipantCreatedEvent(userId, sessionName);
+
+                    // Notify creation listeners
+                    int userNum = extractUserNumber(userId);
+                    for (ParticipantCreationListener listener : creationListeners) {
+                        listener.onParticipantCreated(userId, sessionName, userNum);
+                    }
+
+                    // Check if max participants threshold reached
+                    int currentCount = participantCounter.incrementAndGet();
+                    if (maxParticipantsThreshold > 0 && currentCount >= maxParticipantsThreshold) {
+                        log.info("Max participants threshold reached ({}). Triggering test stop.", currentCount);
+                        if (onMaxParticipantsReached != null) {
+                            onMaxParticipantsReached.run();
+                        }
+                    }
+                } catch (ClassCastException e) {
+                    log.error("Invalid JSON structure in request body: {}", requestBody, e);
+                    String errorResponse = "{\"error\": \"Invalid JSON structure\"}";
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(400, errorResponse.length());
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(errorResponse.getBytes());
+                    }
+                }
+
+            } catch (Exception e) {
+                log.error("Error processing streamManager request", e);
+                String errorResponse = "{\"error\": \"Internal server error\"}";
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(500, errorResponse.length());
+
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(errorResponse.getBytes());
+                }
+            }
+        }
+
+        /**
+         * Send a ParticipantCreated event via WebSocket to notify the controller.
+         * This mimics what the real browser-emulator does when a participant joins.
+         */
+        private void sendParticipantCreatedEvent(String userId, String sessionName) {
+            if (webSocketServer != null && webSocketServer.isRunning()) {
+                try {
+                    ObjectNode event = objectMapper.createObjectNode();
+                    event.put("type", "ParticipantCreated");
+                    event.put("participant", userId);
+                    event.put("session", sessionName);
+                    event.put("timestamp", System.currentTimeMillis());
+
+                    String eventJson = objectMapper.writeValueAsString(event);
+                    webSocketServer.send(eventJson);
+                    log.debug("Sent ParticipantCreated event for {} in {}", userId, sessionName);
+                } catch (Exception e) {
+                    log.warn("Failed to send WebSocket event: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Handler for DELETE /instance/shutdown endpoint.
+     */
+    private class ShutdownHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            requestCount.incrementAndGet();
+            log.debug("Received DELETE /instance/shutdown request #{}", requestCount);
+
+            String response = "Shutdown initiated";
+            exchange.getResponseHeaders().set("Content-Type", "text/plain");
+            exchange.sendResponseHeaders(200, response.length());
+
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(response.getBytes());
+            }
+        }
+    }
+
+    /**
+     * Handler for DELETE
+     * /openvidu-browser/streamManager/session/{session}/user/{participant}
+     * Used by the reconnect flow to disconnect a participant before re-creating
+     * them.
+     */
+    private class DisconnectHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"DELETE".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.getResponseBody().close();
+                return;
+            }
+
+            requestCount.incrementAndGet();
+            log.debug("Received DELETE /openvidu-browser/streamManager/session/... request #{}", requestCount);
+
+            String response = "{\"status\": \"ok\"}";
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length());
+
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(response.getBytes());
+            }
+        }
+    }
+}

@@ -1,0 +1,153 @@
+services:
+
+  loadtest-controller:
+    build:
+      context: ../loadtest-controller
+      dockerfile: Dockerfile
+    image: loadtest-controller:local
+    container_name: loadtest-controller-e2e
+    restart: no
+    environment:
+      LOADTEST_CONFIG: ${LOADTEST_CONFIG:-/config/config.yaml}
+      PLATFORM_URL: ${PLATFORM_URL:-https://localhost:7443}
+      PLATFORM_APIKEY: ${PLATFORM_APIKEY:-devkey}
+      PLATFORM_APISECRET: ${PLATFORM_APISECRET:-secret}
+      RESULTS_DIR: /results
+    networks:
+      - browseremulator
+    depends_on:
+      browser-emulator:
+        condition: service_healthy
+    volumes:
+      - ${LOCAL_CONFIG_DIR:-./config}:/config
+      - ${LOCAL_RESULTS_DIR:-./results}:/results
+      
+  browser-emulator:
+    build:
+      context: ../browser-emulator
+      dockerfile: Dockerfile
+    image: browser-emulator:local
+    container_name: browser-emulator-e2e
+    restart: no
+    environment:
+        SERVER_PORT: ${SERVER_PORT:-5000}
+        WEBSOCKET_PORT: ${WEBSOCKET_PORT:-5001}
+        RUNNING_IN_DOCKER: true
+        DOCKER_NETWORK_NAME: browseremulator-e2e
+        DOCKER_BROWSER_EMULATOR_HOST: browser-emulator
+        MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR}
+        SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR}
+        METRICBEAT_CONFIG: ${METRICBEAT_CONFIG}
+    stop_grace_period: 60s
+    networks:
+      - browseremulator
+    volumes:
+      - ../browser-emulator/recordings/chrome:/app/recordings/chrome
+      - ../browser-emulator/recordings/qoe:/app/recordings/qoe
+      - ../browser-emulator/stats:/app/stats
+      - ../browser-emulator/logs:/app/logs
+      - ../browser-emulator/mediafiles:/app/mediafiles
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/openvidu-loadtest:/tmp/openvidu-loadtest
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.4.2
+    container_name: elasticsearch-e2e
+    restart: no
+    stop_grace_period: 60s
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - browseremulator
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.4.2
+    container_name: kibana-e2e
+    restart: no
+    stop_grace_period: 60s
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - browseremulator
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+  metricbeat-masternode:
+    image: docker.elastic.co/beats/metricbeat:7.12.0
+    container_name: metricbeat-masternode-e2e
+    restart: no
+    user: root
+    environment:
+      NODE_TYPE: masternode
+      NODE_ID: 1
+      ELASTICSEARCH_HOSTNAME: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+    command: ["metricbeat", "-e", "-strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat/masternode.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks:
+      - browseremulator
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+  metricbeat-medianode:
+    image: docker.elastic.co/beats/metricbeat:7.12.0
+    container_name: metricbeat-medianode-e2e
+    restart: no
+    user: root
+    environment:
+      NODE_TYPE: medianode
+      NODE_ID: 2
+      ELASTICSEARCH_HOSTNAME: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+    command: ["metricbeat", "-e", "-strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat/medianode.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks:
+      - browseremulator
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+  metricbeat-browseremulator:
+    image: docker.elastic.co/beats/metricbeat:7.12.0
+    container_name: metricbeat-browseremulator-e2e
+    restart: no
+    user: root
+    environment:
+      NODE_TYPE: browseremulator
+      NODE_ID: 3
+      ELASTICSEARCH_HOSTNAME: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+    command: ["metricbeat", "-e", "-strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat/browseremulator.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks:
+      - browseremulator
+    depends_on:
+      elasticsearch:
+        condition: service_started
+
+networks:
+  browseremulator:
+    name: browseremulator-e2e

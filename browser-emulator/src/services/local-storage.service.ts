@@ -11,13 +11,13 @@ export interface Storage {
 }
 
 export class LocalStorageService {
-	private storage: Storage;
+	private readonly storage: Storage;
 
 	constructor() {
 		this.storage = globalThis.localStorage;
 	}
 
-	setItem(name: string, value: any) {
+	setItem(name: string, value: string) {
 		this.storage.setItem(name, value);
 	}
 
@@ -25,7 +25,7 @@ export class LocalStorageService {
 		return !!this.getItem(name);
 	}
 
-	getItem(name: string): string {
+	getItem(name: string): string | null {
 		return this.storage.getItem(name);
 	}
 

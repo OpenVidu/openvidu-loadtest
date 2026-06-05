@@ -1,39 +1,62 @@
-import WebSocket = require('ws');
-
+import { WebSocketServer, WebSocket } from 'ws';
+import type { ConfigService } from './config.service.ts';
 export class WsService {
-	protected static instance: WsService;
-	private readonly CONNECTING = 0;
 	private readonly OPEN = 1;
-	private readonly CLOSING = 2;
-	private readonly CLOSED = 3;
-	private interval: NodeJS.Timeout;
-	private ws: WebSocket;
+	private ws: WebSocket | undefined;
+	private server: WebSocketServer | undefined;
+	private readonly configService: ConfigService;
 
-	private constructor() {}
-
-	static getInstance(): WsService {
-		if (!WsService.instance) {
-			WsService.instance = new WsService();
-		}
-		return WsService.instance;
+	constructor(configService: ConfigService) {
+		this.configService = configService;
 	}
 
-	setWebsocket(ws: WebSocket) {
-		this.ws = ws;
-		this.ws.on('message', this.handleMessage);
+	initializeServer(): void {
+		console.log('Starting WebSocket server...');
+		this.server = new WebSocketServer({
+			port: this.configService.getWebsocketServerPort(),
+			path: '/events',
+		});
+
+		this.server.on('error', error => {
+			console.error('WebSocket server error:', error);
+		});
+
+		this.server.on('connection', (ws: WebSocket) => {
+			ws.on('message', this.handleMessage);
+			this.ws = ws;
+			console.log('WebSocket connection established');
+		});
+
+		console.log(
+			'WebSocket server started on port ' +
+				this.configService.getWebsocketServerPort(),
+		);
 	}
 
-	private handleMessage(message: string) {
+	async close(): Promise<void> {
+		return new Promise(resolve => {
+			if (this.server) {
+				this.server.close(() => {
+					console.log('WebSocket server closed');
+					resolve();
+				});
+			} else {
+				resolve();
+			}
+		});
+	}
+
+	private handleMessage(this: void, message: string) {
 		console.log('Received message: ' + message);
 	}
 
 	send(message: string) {
 		try {
-			if (this.ws?.readyState === this.OPEN) {
+			if (!!this.ws && this.ws.readyState === this.OPEN) {
 				this.ws.send(message);
 				console.log('Message was sent: ', message);
 			}
-		} catch (error) {
+		} catch {
 			console.log('Error sending WS message');
 		}
 	}

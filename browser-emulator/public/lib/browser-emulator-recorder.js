@@ -81,6 +81,29 @@ class BrowserEmulatorRecorder {
     }
 
     async sendBlob(blob) {
+        const MAX_RETRIES = 5;
+        const INITIAL_BACKOFF = 1000;
+
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                return await this._sendBlobOnce(blob);
+            } catch (error) {
+                if (error.status === 429 && attempt < MAX_RETRIES) {
+                    const delay = INITIAL_BACKOFF * Math.pow(2, attempt) + Math.random() * 1000;
+                    console.warn(
+                        "Rate limited uploading chunk, retrying in " + Math.round(delay) + "ms " +
+                        "(attempt " + (attempt + 1) + "/" + MAX_RETRIES + "): " +
+                        this.localUserId + " recording " + this.remoteUserId
+                    );
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    throw error;
+                }
+            }
+        }
+    }
+
+    _sendBlobOnce(blob) {
         return new Promise((resolve, reject) => {
             var ITEM_NAME = 'ov-qoe-config';
 
@@ -99,6 +122,10 @@ class BrowserEmulatorRecorder {
                 }).then(response => {
                     if (response.ok) {
                         resolve();
+                    } else if (response.status === 429) {
+                        const err = new Error('Rate limited');
+                        err.status = 429;
+                        reject(err);
                     } else {
                         reject(new Error('Failed to send file'));
                     }

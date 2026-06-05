@@ -1,87 +1,121 @@
-import * as os from 'node-os-utils';
-import { ContainerCreateOptions } from 'dockerode';
-import { DockerService } from './docker.service';
-import { LocalStorageService } from './local-storage.service';
-import { WebrtcStatsService } from './config-storage.service';
-import { ContainerName } from '../types/container-info.type';
+import { OSUtils } from 'node-os-utils';
+import type { ContainerCreateOptions } from 'dockerode';
+import { DockerService } from './docker.service.js';
+import { ContainerName } from '../types/container-info.type.js';
+import type { ConfigService } from './config.service.ts';
 
 export class InstanceService {
-	private static instance: InstanceService;
-	private isinstanceInitialized: boolean = false;
+	private instanceReady = false;
 	private readonly METRICBEAT_MONITORING_INTERVAL = 5;
-	private readonly METRICBEAT_IMAGE = 'docker.elastic.co/beats/metricbeat-oss:7.12.0';
-	private readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
+	private readonly METRICBEAT_IMAGE =
+		'docker.elastic.co/beats/metricbeat-oss:7.12.0';
+	public static readonly METRICBEAT_YML_LOCATION = `${process.cwd()}/src/assets/metricbeat-config/metricbeat.yml`;
 
-	readonly WORKER_UUID: string = new Date().getTime().toString();
-	private pullImagesRetries: number = 0;
+	readonly WORKER_UUID: string = Date.now().toString();
+	private pullImagesRetries = 0;
 
-	private constructor(private dockerService: DockerService = new DockerService()) {}
+	private readonly osutils = new OSUtils();
+	private readonly dockerService: DockerService;
+	private readonly configService: ConfigService;
 
-	static getInstance(): InstanceService {
-		if (!InstanceService.instance) {
-			InstanceService.instance = new InstanceService();
+	constructor(dockerService: DockerService, configService: ConfigService) {
+		this.dockerService = dockerService;
+		this.configService = configService;
+	}
+
+	public isInstanceReady() {
+		return this.instanceReady;
+	}
+
+	public setInstanceReady() {
+		this.instanceReady = true;
+	}
+
+	public async getCpuUsage(): Promise<number> {
+		const usage = await this.osutils.cpu.usage();
+		if (usage.success) {
+			return usage.data;
 		}
-		return InstanceService.instance;
+		return 0;
 	}
 
-	isInstanceInitialized() {
-		return this.isinstanceInitialized;
+	public async ensureDockerNetworkExists(): Promise<void> {
+		await this.dockerService.ensureNetworkExists(
+			this.configService.getDockerizedBrowsersConfig().networkName,
+		);
 	}
 
-	instanceInitialized() {
-		this.isinstanceInitialized = true;
-	}
-
-	async cleanEnvironment() {
-		new LocalStorageService().clear(new WebrtcStatsService().getItemName());
-	}
-
-	async getCpuUsage(): Promise<number> {
-		return await os.cpu.usage();
-	}
-
-	async launchMetricBeat() {
-		const ELASTICSEARCH_USERNAME = !!process.env.ELASTICSEARCH_USERNAME ? process.env.ELASTICSEARCH_USERNAME : 'empty';
-		const ELASTICSEARCH_PASSWORD = !!process.env.ELASTICSEARCH_PASSWORD ? process.env.ELASTICSEARCH_PASSWORD : 'empty';
+	public async launchMetricBeat(
+		elasticsearchHost: string,
+		elasticsearchUsername?: string,
+		elasticsearchPassword?: string,
+	) {
+		await this.pullImagesNeeded();
 		const options: ContainerCreateOptions = {
 			Image: this.METRICBEAT_IMAGE,
 			name: ContainerName.METRICBEAT,
 			User: 'root',
 			Env: [
-				`ELASTICSEARCH_HOSTNAME=${process.env.ELASTICSEARCH_HOSTNAME}`,
-				`ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}`,
-				`ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}`,
+				`ELASTICSEARCH_HOSTNAME=${elasticsearchHost}`,
+				`ELASTICSEARCH_USERNAME=${elasticsearchUsername ?? 'empty'}`,
+				`ELASTICSEARCH_PASSWORD=${elasticsearchPassword ?? 'empty'}`,
 				`METRICBEAT_MONITORING_INTERVAL=${this.METRICBEAT_MONITORING_INTERVAL}`,
 				`WORKER_UUID=${this.WORKER_UUID}`,
 			],
-			Cmd: ['/bin/bash', '-c', 'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs'],
+			Cmd: [
+				'/bin/bash',
+				'-c',
+				'metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs',
+			],
 			HostConfig: {
 				Binds: [
 					`/var/run/docker.sock:/var/run/docker.sock`,
-					`${this.METRICBEAT_YML_LOCATION}:/usr/share/metricbeat/metricbeat.yml:ro`,
+					`${this.configService.getMetricbeatConfig()}:/usr/share/metricbeat/metricbeat.yml:ro`,
 					'/proc:/hostfs/proc:ro',
 					'/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro',
 					'/:/hostfs:ro',
 				],
-				NetworkMode: 'browseremulator',
+				NetworkMode:
+					this.configService.getDockerizedBrowsersConfig()
+						.networkName,
 			},
 		};
-		await this.dockerService.startContainer(options);
+		try {
+			await this.dockerService.startContainer(options);
+		} catch (error: unknown) {
+			console.log('Error starting metricbeat', error);
+			const err = error as { statusCode?: number; message: string };
+			if (err.statusCode === 409 && err.message.includes('Conflict')) {
+				console.log('Retrying ...');
+				await this.removeContainer(ContainerName.METRICBEAT);
+				await this.launchMetricBeat(
+					elasticsearchHost,
+					elasticsearchUsername,
+					elasticsearchPassword,
+				);
+			}
+		}
 	}
 
-	async removeContainer(containerNameOrId: string) {
+	public async removeMetricBeat() {
+		await this.removeContainer(ContainerName.METRICBEAT);
+	}
+
+	private async removeContainer(containerNameOrId: string) {
 		await this.dockerService.removeContainer(containerNameOrId);
 	}
 
-	async pullImagesNeeded(): Promise<void> {
+	private async pullImagesNeeded(): Promise<void> {
 		try {
-			if (!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))) {
+			if (
+				!(await this.dockerService.imageExists(this.METRICBEAT_IMAGE))
+			) {
 				await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
 			}
 		} catch (err) {
-			console.error("Error pulling images: ");
+			console.error('Error pulling images: ');
 			console.error(err);
-			console.log("Retrying...");
+			console.log('Retrying...');
 			// retry 5 times
 			if (this.pullImagesRetries < 5) {
 				this.pullImagesRetries++;
@@ -92,5 +126,4 @@ export class InstanceService {
 			}
 		}
 	}
-
 }

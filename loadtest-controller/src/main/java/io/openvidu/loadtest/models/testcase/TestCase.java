@@ -4,161 +4,232 @@ import java.util.List;
 
 public class TestCase {
 
-	private Typology typology;
-	private List<String> participants;
-	private int sessions;
-	private Resolution resolution;
-	private int frameRate;
-	private OpenViduRecordingMode openviduRecordingMode;
-	private boolean browserRecording = false;
-	private boolean headlessBrowser = false;
-	private boolean showBrowserVideoElements = true;
-	private String recordingMetadata = "";
-	private int startingParticipants = 0;
+    private Topology topology;
+    private List<String> participants;
+    private int sessions;
+    private Resolution resolution;
+    private int frameRate;
+    private Browser browser;
+    private OpenViduRecordingMode openviduRecordingMode;
+    private boolean browserRecording = false;
+    private boolean headlessBrowser = false;
+    private boolean showBrowserVideoElements = true;
+    private String recordingMetadata = "";
+    private int startingParticipants = 0;
 
-	public TestCase(String typology, List<String> participants, int sessions, int frameRate, Resolution resolution,
-			OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
-			boolean showBrowserVideoElements) {
-		this.typology = getTypology(typology);
-		this.participants = participants;
-		this.sessions = sessions;
-		this.resolution = resolution;
-		this.frameRate = frameRate;
-		this.openviduRecordingMode = openviduRecordingMode;
-		this.browserRecording = browserRecording;
-		this.headlessBrowser = headlessBrowser;
-		this.showBrowserVideoElements = showBrowserVideoElements;
-	}
-	
-	public TestCase(TestCase testCase) {
-		this.typology = testCase.typology;
-		this.participants = testCase.participants;
-		this.sessions = testCase.sessions;
-		this.resolution = testCase.resolution;
-		this.frameRate = testCase.frameRate;
-		this.openviduRecordingMode = testCase.openviduRecordingMode;
-		this.browserRecording = testCase.browserRecording;
-		this.headlessBrowser = testCase.headlessBrowser;
-		this.showBrowserVideoElements = testCase.showBrowserVideoElements;
-		this.recordingMetadata = testCase.recordingMetadata;
-		this.startingParticipants = testCase.startingParticipants;
-	}
+    public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
+            OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
+            boolean showBrowserVideoElements, Browser browser) {
+        this.topology = getTopology(topology);
+        this.participants = participants;
+        this.sessions = sessions;
+        this.resolution = resolution;
+        this.frameRate = frameRate;
+        this.browser = browser;
+        this.openviduRecordingMode = openviduRecordingMode;
+        this.browserRecording = browserRecording;
+        this.headlessBrowser = headlessBrowser;
+        this.showBrowserVideoElements = showBrowserVideoElements;
+    }
 
-	public boolean is_NxN() {
-		return this.typology.getValue().equals(Typology.NxN.getValue());
-	}
+    public TestCase(TestCase testCase) {
+        this.topology = testCase.topology;
+        this.participants = testCase.participants;
+        this.sessions = testCase.sessions;
+        this.resolution = testCase.resolution;
+        this.frameRate = testCase.frameRate;
+        this.openviduRecordingMode = testCase.openviduRecordingMode;
+        // Ensure browser is copied when creating a defensive copy of TestCase
+        this.browser = testCase.browser;
+        this.browserRecording = testCase.browserRecording;
+        this.headlessBrowser = testCase.headlessBrowser;
+        this.showBrowserVideoElements = testCase.showBrowserVideoElements;
+        this.recordingMetadata = testCase.recordingMetadata;
+        this.startingParticipants = testCase.startingParticipants;
+    }
 
-	public boolean is_NxM() {
-		return this.typology.getValue().equals(Typology.NxM.getValue());
-	}
+    public boolean isNxN() {
+        return this.topology.getValue().equals(Topology.N_X_N.getValue());
+    }
 
-	public boolean is_TEACHING() {
-		return this.typology.getValue().equals(Typology.TEACHING.getValue());
-	}
+    public boolean isNxM() {
+        return this.topology.getValue().equals(Topology.N_X_M.getValue());
+    }
 
-	public boolean is_ONE_SESSION() {
-		return this.typology.getValue().equals(Typology.ONE_SESSION.getValue());
-	}
+    public boolean isTeaching() {
+        return this.topology.getValue().equals(Topology.TEACHING.getValue());
+    }
 
-	public boolean is_TERMINATE() {
-		return this.typology.getValue().equals(Typology.TERMINATE.getValue());
-	}
+    public boolean isOneSessionNxn() {
+        return this.topology.getValue().equals(Topology.ONE_SESSION_NXN.getValue());
+    }
 
-	public Typology getTypology() {
-		return typology;
-	}
+    public boolean isOneSessionNxm() {
+        return this.topology.getValue().equals(Topology.ONE_SESSION_NXM.getValue());
+    }
 
-	public List<String> getParticipants() {
-		return participants;
-	}
+    @Deprecated
+    public boolean isOneSession() {
+        return this.topology.getValue().equals(Topology.ONE_SESSION_NXN.getValue()) ||
+               this.topology.getValue().equals(Topology.ONE_SESSION_NXM.getValue());
+    }
 
-	public void setParticipants(List<String> participants) {
-		this.participants = participants;
-	}
+    public Topology getTopology() {
+        return topology;
+    }
 
-	public int getSessions() {
-		return sessions;
-	}
+    public List<String> getParticipants() {
+        return participants;
+    }
 
-	public void setSessions(int sessions) {
-		this.sessions = sessions;
-	}
-	
-	public Resolution getResolution() {
-		return resolution;
-	}
+    /**
+     * Gets the participant count for N:N topology tests.
+     * Returns Integer.MAX_VALUE if the participant string is "infinite" (case-insensitive).
+     * 
+     * @param index The index of the participant string to get
+     * @return The participant count or Integer.MAX_VALUE for infinite
+     */
+    public int getParticipantCount(int index) {
+        String participantStr = participants.get(index);
+        if ("infinite".equalsIgnoreCase(participantStr)) {
+            return Integer.MAX_VALUE;
+        }
+        return Integer.parseInt(participantStr);
+    }
 
-	public String getRecordingMetadata() {
-		return recordingMetadata;
-	}
+    /**
+     * Gets the publisher count for N:M or ONE_SESSION_NXM topology tests.
+     * Returns Integer.MAX_VALUE if the participant string is "infinite" (case-insensitive).
+     * 
+     * @param index The index of the participant string to get
+     * @return The publisher count or Integer.MAX_VALUE for infinite
+     */
+    public int getPublisherCount(int index) {
+        String participantStr = participants.get(index);
+        String[] parts = participantStr.split(":");
+        String publisherStr = parts[0];
+        if ("infinite".equalsIgnoreCase(publisherStr)) {
+            return Integer.MAX_VALUE;
+        }
+        return Integer.parseInt(publisherStr);
+    }
 
-	public void setRecordingMetadata(String recordingMetadata) {
-		this.recordingMetadata = recordingMetadata;
-	}
+    /**
+     * Gets the subscriber count for N:M or ONE_SESSION_NXM topology tests.
+     * Returns Integer.MAX_VALUE if the participant string is "infinite" (case-insensitive).
+     * 
+     * @param index The index of the participant string to get
+     * @return The subscriber count or Integer.MAX_VALUE for infinite
+     */
+    public int getSubscriberCount(int index) {
+        String participantStr = participants.get(index);
+        String[] parts = participantStr.split(":");
+        if (parts.length < 2) {
+            return 0; // Default to 0 if no subscriber count specified
+        }
+        String subscriberStr = parts[1];
+        if ("infinite".equalsIgnoreCase(subscriberStr)) {
+            return Integer.MAX_VALUE;
+        }
+        return Integer.parseInt(subscriberStr);
+    }
 
-	public int getFrameRate() {
-		return frameRate;
-	}
+    public void setParticipants(List<String> participants) {
+        this.participants = participants;
+    }
 
-	public boolean isBrowserRecording() {
-		return browserRecording;
-	}
+    public int getSessions() {
+        return sessions;
+    }
 
-	public void setBrowserRecording(boolean browserRecording) {
-		this.browserRecording = browserRecording;
-	}
+    public void setSessions(int sessions) {
+        this.sessions = sessions;
+    }
 
-	public boolean isHeadlessBrowser() {
-		return headlessBrowser;
-	}
+    public Resolution getResolution() {
+        return resolution;
+    }
 
-	public void setHeadlessBrowser(boolean headless) {
-		this.headlessBrowser = headless;
-	}
-	
-	public OpenViduRecordingMode getOpenviduRecordingMode() {
-		return openviduRecordingMode;
-	}
+    public String getRecordingMetadata() {
+        return recordingMetadata;
+    }
 
-	public boolean isShowBrowserVideoElements() {
-		return showBrowserVideoElements && !this.isHeadlessBrowser();
-	}
+    public void setRecordingMetadata(String recordingMetadata) {
+        this.recordingMetadata = recordingMetadata;
+    }
 
-	public int getStartingParticipants() {
-		return startingParticipants;
-	}
+    public int getFrameRate() {
+        return frameRate;
+    }
 
-	public void setStartingParticipants(int startingParticipants) {
-		this.startingParticipants = startingParticipants;
-	}
+    public boolean isBrowserRecording() {
+        return browserRecording;
+    }
 
-	@Override
-	public String toString() {
-		// @formatter:off
+    public Browser getBrowser() {
+        return this.browser;
+    }
+
+    public void setBrowserRecording(boolean browserRecording) {
+        this.browserRecording = browserRecording;
+    }
+
+    public boolean isHeadlessBrowser() {
+        return headlessBrowser;
+    }
+
+    public void setHeadlessBrowser(boolean headless) {
+        this.headlessBrowser = headless;
+    }
+
+    public OpenViduRecordingMode getOpenviduRecordingMode() {
+        return openviduRecordingMode;
+    }
+
+    public boolean isShowBrowserVideoElements() {
+        return showBrowserVideoElements && !this.isHeadlessBrowser();
+    }
+
+    public int getStartingParticipants() {
+        return startingParticipants;
+    }
+
+    public void setStartingParticipants(int startingParticipants) {
+        this.startingParticipants = startingParticipants;
+    }
+
+    public void setBrowser(Browser browser) {
+        this.browser = browser;
+    }
+
+    @Override
+    public String toString() {
+        // @formatter:off
 
 		String sessionLimit = sessions == -1 ? "No limit" : Integer.toString(sessions);
 		String startingParticipantString = startingParticipants == 0 ? "No starting participants" : Integer.toString(startingParticipants);
-		return "Session typology: " + typology
+		return "Session topology: " + topology
 				+ " | Participants in session: " + participants
 				+ " | Starting participants: " + startingParticipantString
 				+ " | Sessions limit: "	+ sessionLimit
 				+ " | Resolution: " + resolution.getValue()
-				+ " | Frame rate: " + frameRate 
+				+ " | Frame rate: " + frameRate
+                + " | Browser: " + browser.getValue()
 				+ " | Headless browser: " + isHeadlessBrowser()
 				+ " | Browser recording: " + isBrowserRecording()
 				+ " | Browser show video elements: " + isShowBrowserVideoElements();
 		
 		// @formatter:on
 
-	}
+    }
 
-	private Typology getTypology(String typology) {
-		for (int i = 0; i < Typology.values().length; i++) {
-			if (Typology.values()[i].getValue().equalsIgnoreCase(typology)) {
-				return Typology.values()[i];
-			}
-		}
-		return null;
-	}
+    private Topology getTopology(String topology) {
+        for (int i = 0; i < Topology.values().length; i++) {
+            if (Topology.values()[i].getValue().equalsIgnoreCase(topology)) {
+                return Topology.values()[i];
+            }
+        }
+        return null;
+    }
 
 }

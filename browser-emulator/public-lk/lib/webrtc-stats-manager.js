@@ -74,7 +74,7 @@ class WebRTCStatsManager {
                             this.savedStats = [];
                             const response = {
                                 webrtcStats: data,
-                                timestamp: new Date().toISOString(),
+                                "@timestamp": new Date().toISOString(),
                                 user: USER_ID,
                                 session: SESSION_ID
                             };
@@ -139,11 +139,17 @@ class WebRTCStatsManager {
     }
     
     addConnectionToStats(pc, peerId, connectionId) {
-        this.webrtcStats.addConnection({
-            pc: pc,
-            peerId: peerId,
-            connectionId: connectionId
-        })
+		this.webrtcStats.addConnection({
+			pc: pc,
+			peerId: peerId,
+			connectionId: connectionId
+		}).catch((error) => {
+			if (error instanceof Error && error.message.includes('already monitoring')) {
+				console.warn(`PeerConnection with id ${connectionId} is already being monitored.`);
+			} else {
+				console.error(`Error adding PeerConnection to WebRTCStats: ${error}`);
+			}
+		});
         this.webRtcIssueDetector.handleNewPeerConnection(pc);
     }
 }

@@ -1,0 +1,38 @@
+name: Loadtest Controller Unit And Integration Tests
+
+on:
+  push:
+    paths:
+      - 'loadtest-controller/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+    unit-test:
+        runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+        container:
+            image: maven:3.9.14-eclipse-temurin-25
+            options: --user root
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+            - name: Build and unit tests
+              run: |
+                cd loadtest-controller
+                mvn -Dtest=io.openvidu.loadtest.unit.**.*Test clean test
+
+            - name: Run integration tests
+              run: |
+                cd loadtest-controller
+                mvn -Dtest=io.openvidu.loadtest.integration.**.*Test test
+
+    cleanup:
+      needs: unit-test
+      if: ${{ always() }}
+      runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+      steps:
+        - name: Clean up
+          uses: OpenVidu/actions/cleanup@35d136377813cf9b0b23d12d16d57864ccf3a8c2 # v1.0.2

@@ -1,0 +1,9 @@
+ignoredBuiltDependencies:
+  - esbuild
+
+onlyBuiltDependencies:
+  - bufferutil
+  - cpu-features
+  - protobufjs
+  - ssh2
+  - unrs-resolver

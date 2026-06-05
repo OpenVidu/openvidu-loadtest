@@ -4,52 +4,63 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
-import io.openvidu.loadtest.controller.LoadTestController;
 import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
+import io.openvidu.loadtest.services.core.LoadTestService;
 import io.openvidu.loadtest.utils.DataIO;
+import io.openvidu.loadtest.utils.ShutdownManager;
 
 /**
- * @author Carlos Santos
+ * @author Carlos Santos & Iván Chicano
  *
  */
 
 @SpringBootApplication
 public class LoadTestApplication {
 
-	private static final Logger log = LoggerFactory.getLogger(LoadTestApplication.class);
+    private static final Logger log = LoggerFactory.getLogger(LoadTestApplication.class);
+    private LoadTestService loadTestService;
+    private DataIO io;
+    private ShutdownManager shutdownManager;
 
-	@Autowired
-	private LoadTestController loadTestController;
+    public LoadTestApplication(ShutdownManager shutdownManager, LoadTestService loadTestService, DataIO io) {
+        this.shutdownManager = shutdownManager;
+        this.loadTestService = loadTestService;
+        this.io = io;
+    }
 
-	@Autowired
-	private DataIO io;
+    public static void main(String[] args) {
+        SpringApplication.run(LoadTestApplication.class, args);
+    }
 
-	public static void main(String[] args) {
-		SpringApplication.run(LoadTestApplication.class, args);
-	}
+    public void start() {
+        List<TestCase> testCasesList = io.getTestCasesFromJSON();
+        if (!testCasesList.isEmpty()) {
+            try {
+                loadTestService.startLoadTests(testCasesList);
+                log.info("Finished");
+                // Exit the application after all tests are completed
+                shutdownManager.shutdownWithCode(0);
+            } catch (NoWorkersAvailableException e) {
+                log.error("Not enough workers available to run tests: {}", e.getMessage());
+                shutdownManager.shutdownWithCode(1);
+            }
+        } else {
+            log.error(
+                    "Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
+            // Exit with error code when no test cases are found
+            shutdownManager.shutdownWithCode(1);
+        }
+    }
 
-	public void start() throws Exception {
-
-		List<TestCase> testCasesList = io.getTestCasesFromJSON();
-		if (testCasesList.size() > 0) {
-
-			loadTestController.startLoadTests(testCasesList);
-			log.info("Finished");
-		} else {
-			log.error(
-					"Test cases file not found or it is empty. Please, add test_case.json file in resources directory");
-		}
-	}
-
-	@EventListener(ApplicationReadyEvent.class)
-	public void whenReady() throws Exception {
-		this.start();
-	}
+    @EventListener(ApplicationReadyEvent.class)
+    public void whenReady() {
+        this.start();
+    }
 
 }

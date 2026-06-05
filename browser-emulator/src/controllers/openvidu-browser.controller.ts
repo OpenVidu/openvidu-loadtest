@@ -1,110 +1,185 @@
 import * as express from 'express';
-import { Request, Response } from 'express';
-import { BrowserManagerService } from '../services/browser-manager.service';
-import { OpenViduRole, Resolution } from '../types/openvidu.type';
-import { LoadTestPostRequest, LoadTestPostResponse } from '../types/api-rest.type';
-import BaseComModule from '../com-modules/base';
+import type { Request, Response } from 'express';
+import type BaseComModule from '../com-modules/base.js';
+import type { BrowserManagerService } from '../services/browser/browser-manager.service.ts';
+import {
+	type CreateUserBrowserResponse,
+	type CreateUserBrowserRequest,
+	Role,
+	Resolution,
+} from '../types/create-user.type.ts';
 
-export const app = express.Router({
-	strict: true,
-});
+export class OpenViduBrowserController {
+	private readonly router: express.Router;
+	private readonly comModule: BaseComModule;
+	private readonly browserManagerService: BrowserManagerService;
 
-app.post('/streamManager', async (req: Request, res: Response) => {
-	try {
-		const comModuleInstance: BaseComModule = BaseComModule.getInstance();
-		const request: LoadTestPostRequest = req.body;
+	constructor(
+		comModule: BaseComModule,
+		browserManagerService: BrowserManagerService,
+	) {
+		this.comModule = comModule;
+		this.browserManagerService = browserManagerService;
+		this.router = express.Router({ strict: true });
+		this.setupRoutes();
+	}
 
-		if (comModuleInstance.areParametersCorrect(request)) {
-			comModuleInstance.setEnvironmentParams(req);
-			comModuleInstance.processNewUserRequest(request);
-			const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
+	private setupRoutes(): void {
+		this.router.post(
+			'/streamManager',
+			this.handleStreamManagerPost.bind(this),
+		);
+		this.router.delete(
+			'/streamManager',
+			this.handleStreamManagerDelete.bind(this),
+		);
+		this.router.delete(
+			'/streamManager/connection/:connectionId',
+			this.handleStreamManagerConnectionDelete.bind(this),
+		);
+		this.router.delete(
+			'/streamManager/session/:sessionId/user/:userId',
+			this.handleStreamManagerSessionUserDelete.bind(this),
+		);
+	}
 
-			request.properties.frameRate = request.properties.frameRate || 30;
-			// Setting default role for publisher properties
-			request.properties.role = request.properties.role || OpenViduRole.PUBLISHER;
+	private async handleStreamManagerPost(
+		req: CreateUserBrowserRequest,
+		res: Response,
+	): Promise<void> {
+		try {
+			const request = req.body;
 
-			if (request.properties.resolution && Object.values(Resolution).includes(request.properties.resolution)) {
-				request.properties.resolution = request.properties.resolution;
-			} else {
-				request.properties.resolution = Resolution.DEFAULT;
+			if (
+				!request.properties?.browser ||
+				!['chrome', 'firefox', 'emulated'].includes(
+					request.properties.browser,
+				)
+			) {
+				res.status(400).send({
+					message:
+						'browser is required and must be "chrome", "firefox", or "emulated"',
+				});
+				return;
 			}
 
-			request.properties.showVideoElements = request.properties.showVideoElements || true;
+			if (this.comModule.areParametersCorrect(request)) {
+				await this.comModule.processNewUserRequest(request);
 
-			const response: LoadTestPostResponse = await browserManagerService.createStreamManager(request);
-			return res.status(200).send(response);
-		} else {
-			console.log('Problem with some body parameter' + JSON.stringify(request));
-			return res.status(400).send('Problem with some body parameter');
+				request.properties.frameRate =
+					request.properties.frameRate || 30;
+				request.properties.role =
+					request.properties.role || Role.PUBLISHER;
+
+				if (
+					!(
+						request.properties.resolution &&
+						Object.values(Resolution).includes(
+							request.properties.resolution,
+						)
+					)
+				) {
+					request.properties.resolution = Resolution.DEFAULT;
+				}
+
+				request.properties.showVideoElements =
+					request.properties.showVideoElements ?? true;
+
+				const response: CreateUserBrowserResponse =
+					await this.browserManagerService.createStreamManager(
+						request,
+					);
+				res.status(200).send(response);
+			} else {
+				console.log(
+					'Problem with some body parameter' +
+						JSON.stringify(request),
+				);
+				res.status(400).send('Problem with some body parameter');
+			}
+		} catch (error: unknown) {
+			console.error(error);
+			res.status(500).send({
+				message: 'Internal server error',
+			});
 		}
-	} catch (error) {
-		console.log('ERROR ', error);
-		res.status(error?.status || 500).send({ message: error?.statusText, error: error });
 	}
-});
 
-app.delete('/streamManager', async (req: Request, res: Response) => {
-	const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
-	console.log('Deleting all participants');
-	try {
-		await browserManagerService.clean();
-		res.status(200).send(`Instance ${req.headers.host} is clean`);
-	} catch (error) {
-		console.error(error);
-		res.status(500).send(error);
-	}
-});
-
-app.delete('/streamManager/connection/:connectionId', async (req: Request, res: Response) => {
-	try {
-		const connectionId: string = req.params.connectionId;
-
-		if (!connectionId) {
-			return res.status(400).send('Problem with connectionId parameter. IT DOES NOT EXIST');
+	private async handleStreamManagerDelete(
+		req: Request,
+		res: Response,
+	): Promise<void> {
+		console.log('Deleting all participants');
+		try {
+			await this.browserManagerService.clean();
+			res.status(200).send(`Instance ${req.headers.host} is clean`);
+		} catch (error) {
+			console.error(error);
+			res.status(500).send('Internal server error');
 		}
-		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
-		console.log('Deleting streams with connectionId: ' + connectionId);
-		await browserManagerService.deleteStreamManagerWithConnectionId(connectionId);
-		res.status(200).send({});
-	} catch (error) {
-		console.log(error);
-		res.status(500).send(error);
 	}
-});
 
-app.delete('/streamManager/session/:sessionId/user/:userId', async (req: Request, res: Response) => {
-	try {
-		const sessionId: string = req.params.sessionId;
-		const userId: string = req.params.userId;
+	private async handleStreamManagerConnectionDelete(
+		req: Request,
+		res: Response,
+	): Promise<void> {
+		try {
+			const connectionId = req.params.connectionId;
 
-		if (!sessionId || !userId) {
-			return res.status(400).send('Problem with userId or sessionId parameter. IT DOES NOT EXIST');
+			if (!connectionId || Array.isArray(connectionId)) {
+				res.status(400).send(
+					'Problem with connectionId parameter. IT DOES NOT EXIST',
+				);
+				return;
+			}
+			console.log('Deleting streams with connectionId: ' + connectionId);
+			await this.browserManagerService.deleteStreamManagerWithConnectionId(
+				connectionId,
+			);
+			res.status(200).send({});
+		} catch (error) {
+			console.error(error);
+			res.status(500).send('Internal server error');
 		}
-		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
-		console.log('Deleting streams with sessionId: ' + sessionId + ' and userId: ' + userId);
-		await browserManagerService.deleteStreamManagerWithSessionAndUser(sessionId, userId);
-		res.status(200).send({});
-	} catch (error) {
-		console.log(error);
-		res.status(500).send(error);
 	}
-});
 
-app.delete('/streamManager/role/:role', async (req: Request, res: Response) => {
-	try {
-		let role: any = req.params.role;
-		if (!role) {
-			return res.status(400).send('Problem with ROLE parameter. IT DOES NOT EXIST');
-		} else if (role !== OpenViduRole.PUBLISHER && role !== OpenViduRole.SUBSCRIBER) {
-			return res.status(400).send(`Problem with ROLE parameter. IT MUST BE ${OpenViduRole.PUBLISHER} or ${OpenViduRole.SUBSCRIBER}`);
+	private async handleStreamManagerSessionUserDelete(
+		req: Request,
+		res: Response,
+	): Promise<void> {
+		try {
+			const sessionId = req.params.sessionId;
+			const userId = req.params.userId;
+
+			if (
+				!sessionId ||
+				!userId ||
+				Array.isArray(sessionId) ||
+				Array.isArray(userId)
+			) {
+				res.status(400).send(
+					'Problem with userId or sessionId parameter ().',
+				);
+				return;
+			}
+			console.log(
+				'Deleting streams with sessionId: ' +
+					sessionId +
+					' and userId: ' +
+					userId,
+			);
+			await this.browserManagerService.deleteStreamManagerWithSessionAndUser(
+				sessionId,
+				userId,
+			);
+			res.status(200).send({});
+		} catch (error) {
+			console.error(error);
+			res.status(500).send('Internal server error');
 		}
-		const browserManagerService: BrowserManagerService = BrowserManagerService.getInstance();
-		role = role === OpenViduRole.PUBLISHER ? OpenViduRole.PUBLISHER : OpenViduRole.SUBSCRIBER;
-		console.log('Deleting streams with ROLE:' + role);
-		await browserManagerService.deleteStreamManagerWithRole(role);
-		res.status(200).send({});
-	} catch (error) {
-		console.log(error);
-		res.status(500).send(error);
 	}
-});
+
+	public getRouter(): express.Router {
+		return this.router;
+	}
+}

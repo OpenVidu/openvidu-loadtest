@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=../../schema/openvidu-loadtest-schema.json
+platform:
+  url: https://to-be-replaced:7443
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: emulated
+    description: "Basic N:N topology test with emulated browsers"
+
+workers:
+  urls: 
+    - browser-emulator
+
+distribution:
+  usersPerWorker: 2
+
+advanced:
+  reportOutput:
+    - html
+    - txt

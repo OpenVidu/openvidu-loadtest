@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=../schema/openvidu-loadtest-schema.json
+# ============================================
+# AWS Production Load Test Configuration
+# ============================================
+# Configuration for running load tests on AWS EC2 instances.
+#
+# Quick setup: Run ./setup-aws-workers.sh to auto-configure part of this file
+# See README.md for detailed AWS setup instructions.
+
+platform:
+  url: https://your-openvidu-url.io
+  apiKey: your_api_key
+  apiSecret: your_api_secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "8"
+    sessions: infinite
+    browser: emulated
+    description: "Large scale N:N topology"
+
+aws:
+  # AWS credentials (can also be set via AWS_ACCESS_KEY/AWS_SECRET_ACCESS_KEY env vars)
+  accessKey: your_access_key
+  secretAccessKey: your_secret_key
+
+  # AMI ID - created by setup-aws-workers.sh
+  amiId: ami-0d79f4a8ab4101f6f
+
+  # EC2 instance type (see README for capacity recommendations)
+  instanceType: t3.medium
+
+  # SSH key pair name for debugging (optional)
+  keyPairName: your-key-pair
+
+  # Security group ID - controls access to worker ports (5000, 5001)
+  # Created automatically by setup-aws-workers.sh
+  securityGroupId: sg-01f9c0f88131294c2
+
+  # AWS region where instances will be launched
+  region: us-east-1
+
+  # Availability zone within the region
+  availabilityZone: us-east-1a
+
+  # Number of EC2 instances to start when test begins
+  workersAtStart: 1
+
+  # Additional instances to launch when existing workers reach capacity
+  rampUpWorkers: 1
+
+  # Whether to terminate EC2 instances after test completion
+  # Set to false to keep instances stopped for debugging
+  terminateWorkers: true
+
+distribution:
+  # Maximum number of users (participants) per worker instance (see README for recommendations)
+  usersPerWorker: 10

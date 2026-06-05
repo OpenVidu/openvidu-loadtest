@@ -3,604 +3,688 @@ package io.openvidu.loadtest.config;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
-public class LoadTestConfig {
+public abstract class LoadTestConfig {
 
-	private Environment env;
+    private static final Logger log = LoggerFactory.getLogger(LoadTestConfig.class);
 
-	protected LoadTestConfig(Environment env) {
-		this.env = env;
-	}
+    protected final YamlConfigLoader yamlConfig;
+    protected final Environment env;
 
-	private List<String> workerUrlList;
+    protected LoadTestConfig(Environment env) {
+        this.env = env;
+        this.yamlConfig = new YamlConfigLoader(env);
+    }
 
-	private String workerAmiId;
+    private List<String> workerUrlList;
 
-	private String workerInstanceType;
-	
-	private String workerInstanceKeyPair;
+    private String workerAmiId;
 
-	private String workerSecurityGroupId;
+    private String workerInstanceType;
 
-	private String workerInstanceRegion;
+    private String workerInstanceKeyPair;
 
-	private int workersNumberAtTheBeginning;
+    private String workerSecurityGroupId;
 
-	private int recordingWorkersNumberAtTheBeginning;
+    private String workerInstanceRegion;
 
-	private int workerMaxLoad;
+    private int workersNumberAtTheBeginning;
 
-	private int workersRumpUp;
+    private int recordingWorkersNumberAtTheBeginning;
 
-	private boolean terminateWorkers;
+    private int workerMaxLoad;
 
-	private String openviduUrl;
+    private int workersRumpUp;
 
-	private String openviduSecret;
+    private boolean terminateWorkers;
+    private boolean exitOnEnd;
 
-	private String sessionNamePrefix;
+    private String openviduUrl;
 
-	private String userNamePrefix;
+    private String sessionNamePrefix;
 
-	private int secondsToWaitBetweenParticipants;
+    private String userNamePrefix;
 
-	private int secondsToWaitBetweenSession;
+    private int secondsToWaitBetweenParticipants;
 
-	private int secondsToWaitBeforeTestFinished;
+    private int secondsToWaitBetweenSession;
 
-	private int secondsToWaitBetweenTestCases;
+    private int secondsToWaitBeforeTestFinished;
 
-	private boolean manualParticipantsAllocation;
+    private int secondsToWaitBetweenTestCases;
 
-	private int usersPerWorker;
-	
-	private double medianodeLoadForStartRecording;
-	
-	private int recordingSessionGroup;
+    private boolean manualParticipantsAllocation;
 
-	private String elasticsearchHost;
+    private int usersPerWorker;
 
-	private String elasticsearchUserName;
+    private double medianodeLoadForStartRecording;
 
-	private String elasticsearchPassword;
+    private int recordingSessionGroup;
 
-	private String kibanaHost;
+    private String elasticsearchHost;
 
-	private String awsSecretAccessKey;
-	
-	private String awsAccessKey;
-	
-	private String s3bucketName;
+    private String elasticsearchUserName;
 
-	private String minioAccessKey;
-	
-	private String minioSecretKey;
+    private String elasticsearchPassword;
 
-	private String minioBucket;
-	
-	private int minioPort;
+    private String kibanaHost;
 
-	private String minioHost;
-	
-	private boolean retryMode;
-	
-	private int retryTimes;
+    private String grafanaHost;
 
-	private boolean qoeAnalysisRecordings;
+    private String grafanaUsername;
 
-	private boolean qoeAnalysisInSitu;
+    private String grafanaPassword;
 
-	private int paddingDuration;
-	
-	private int fragmentDuration;
+    private String grafanaDatasourceUid;
 
-	private String videoType;
+    private String awsSecretAccessKey;
 
-	private int videoHeight;
-	
-	private int videoWidth;
+    private String awsAccessKey;
 
-	private int videoFps;
+    private String endpointOverride;
 
-	private String videoUrl;
+    private String s3bucketName;
 
-	private String audioUrl;
+    private String s3Region;
 
-	private boolean debugVnc;
+    private String s3Host;
 
-	private int batchMaxRequests;
+    private String s3HostAccessKey;
 
-	private boolean batches;
+    private String s3HostSecretKey;
 
-	private boolean waitCompletion;
+    private boolean retryMode;
 
-	private String workerAvailabilityZone;
+    private int retryTimes;
 
-	private boolean forceContinue;
+    private List<String> reportOutput = new ArrayList<>(Arrays.asList("html"));
 
-	public boolean isWaitCompletion() {
-		return waitCompletion;
-	}
+    private boolean qoeAnalysisRecordings;
 
-	public boolean isBatches() {
-		return batches;
-	}
-	
-	public String getOpenViduUrl() {
-		return this.openviduUrl;
-	}
+    private boolean qoeAnalysisInSitu;
 
-	public String getAwsSecretAccessKey() {
-		return awsSecretAccessKey;
-	}
+    private int paddingDuration;
 
-	public String getAwsAccessKey() {
-		return awsAccessKey;
-	}
+    private int fragmentDuration;
 
-	public String getOpenViduSecret() {
-		return this.openviduSecret;
-	}
+    private String videoType;
 
-	public String getSessionNamePrefix() {
-		return sessionNamePrefix;
-	}
+    private int videoHeight;
 
-	public String getUserNamePrefix() {
-		return userNamePrefix;
-	}
+    private int videoWidth;
 
-	public int getSecondsToWaitBetweenParticipants() {
-		return secondsToWaitBetweenParticipants;
-	}
+    private int videoFps;
 
-	public int getSecondsToWaitBetweenSession() {
-		return secondsToWaitBetweenSession;
-	}
+    private String videoUrl;
 
-	public int getSecondsToWaitBeforeTestFinished() {
-		return secondsToWaitBeforeTestFinished;
-	}
+    private String audioUrl;
 
-	public String getWorkerInstanceKeyPair() {
-		return workerInstanceKeyPair;
-	}
+    private int batchMaxRequests;
 
-	public int getSecondsToWaitBetweenTestCases() {
-		return secondsToWaitBetweenTestCases;
-	}
+    private boolean batches;
 
-	public String getKibanaHost() {
-		return this.kibanaHost;
-	}
+    private boolean waitCompletion;
 
-	public String getElasticsearchHost() {
-		return this.elasticsearchHost;
-	}
+    private String workerAvailabilityZone;
 
-	public String getElasticsearchUserName() {
-		return this.elasticsearchUserName;
-	}
+    private boolean disableHttps;
 
-	public boolean isManualParticipantsAllocation() {
-		return manualParticipantsAllocation;
-	}
+    private int workerHttpPort;
+    private int workerWebsocketPort;
 
-	public int getUsersPerWorker() {
-		return usersPerWorker;
-	}
+    public boolean isWaitCompletion() {
+        return waitCompletion;
+    }
 
-	public String getElasticsearchPassword() {
-		return this.elasticsearchPassword;
-	}
+    public boolean isBatches() {
+        return batches;
+    }
 
-	public boolean isElasticSearchSecured() {
-		return this.elasticsearchUserName != null && !this.elasticsearchUserName.isEmpty()
-				&& this.elasticsearchPassword != null && !this.elasticsearchPassword.isEmpty();
-	}
+    public String getOpenViduUrl() {
+        return this.openviduUrl;
+    }
 
-	public boolean isKibanaEstablished() {
-		return this.kibanaHost != null && !this.kibanaHost.isEmpty();
-	}
+    public String getAwsSecretAccessKey() {
+        return awsSecretAccessKey;
+    }
 
-	public List<String> getWorkerUrlList() {
-		return this.workerUrlList;
-	}
+    public String getAwsAccessKey() {
+        return awsAccessKey;
+    }
 
-	public String getWorkerAmiId() {
-		return this.workerAmiId;
-	}
+    public String getEndpointOverride() {
+        return endpointOverride;
+    }
 
-	public String getWorkerInstanceType() {
-		return workerInstanceType;
-	}
+    public String getSessionNamePrefix() {
+        return sessionNamePrefix;
+    }
 
-	public String getWorkerSecurityGroupId() {
-		return workerSecurityGroupId;
-	}
+    public String getUserNamePrefix() {
+        return userNamePrefix;
+    }
 
-	public String getWorkerInstanceRegion() {
-		return workerInstanceRegion;
-	}
+    public int getSecondsToWaitBetweenParticipants() {
+        return secondsToWaitBetweenParticipants;
+    }
 
-	public int getWorkersNumberAtTheBeginning() {
-		return workersNumberAtTheBeginning;
-	}
-	
+    public int getSecondsToWaitBetweenSession() {
+        return secondsToWaitBetweenSession;
+    }
+
+    public int getSecondsToWaitBeforeTestFinished() {
+        return secondsToWaitBeforeTestFinished;
+    }
+
+    public String getWorkerInstanceKeyPair() {
+        return workerInstanceKeyPair;
+    }
+
+    public int getSecondsToWaitBetweenTestCases() {
+        return secondsToWaitBetweenTestCases;
+    }
+
+    public String getKibanaHost() {
+        return this.kibanaHost;
+    }
+
+    public String getElasticsearchHost() {
+        return this.elasticsearchHost;
+    }
+
+    public String getElasticsearchUserName() {
+        return this.elasticsearchUserName;
+    }
+
+    public boolean isManualParticipantsAllocation() {
+        return manualParticipantsAllocation;
+    }
+
+    public int getUsersPerWorker() {
+        return usersPerWorker;
+    }
+
+    public String getElasticsearchPassword() {
+        return this.elasticsearchPassword;
+    }
+
+    public boolean isElasticSearchSecured() {
+        return this.elasticsearchUserName != null && !this.elasticsearchUserName.isEmpty()
+                && this.elasticsearchPassword != null && !this.elasticsearchPassword.isEmpty();
+    }
+
+    public boolean isKibanaEstablished() {
+        return this.kibanaHost != null && !this.kibanaHost.isEmpty();
+    }
+
+    public String getGrafanaHost() {
+        return this.grafanaHost;
+    }
+
+    public String getGrafanaUsername() {
+        return this.grafanaUsername;
+    }
+
+    public String getGrafanaPassword() {
+        return this.grafanaPassword;
+    }
+
+    public String getGrafanaDatasourceUid() {
+        return this.grafanaDatasourceUid;
+    }
+
+    public boolean isGrafanaEstablished() {
+        return this.grafanaHost != null && !this.grafanaHost.isEmpty()
+                && this.grafanaUsername != null && !this.grafanaUsername.isEmpty()
+                && this.grafanaPassword != null && !this.grafanaPassword.isEmpty();
+    }
+
+    public List<String> getWorkerUrlList() {
+        return this.workerUrlList;
+    }
+
+    public int getWorkerHttpPort() {
+        return this.workerHttpPort;
+    }
+
+    public int getWorkerWebsocketPort() {
+        return this.workerWebsocketPort;
+    }
+
+    public String getWorkerAmiId() {
+        return this.workerAmiId;
+    }
+
+    public String getWorkerInstanceType() {
+        return workerInstanceType;
+    }
+
+    public String getWorkerSecurityGroupId() {
+        return workerSecurityGroupId;
+    }
+
+    public String getWorkerInstanceRegion() {
+        return workerInstanceRegion;
+    }
+
+    public int getWorkersNumberAtTheBeginning() {
+        return workersNumberAtTheBeginning;
+    }
+
     public int getRecordingWorkersNumberAtTheBeginning() {
-		return recordingWorkersNumberAtTheBeginning;
+        return recordingWorkersNumberAtTheBeginning;
     }
 
-	public int getWorkersRumpUp() {
-		return workersRumpUp;
-	}
-
-	public int getWorkerMaxLoad() {
-		return workerMaxLoad;
-	}
-	
-	public double getMedianodeLoadForRecording() {
-		return medianodeLoadForStartRecording;
-	}
-	
-	public int getRecordingSessionGroup() {
-		return recordingSessionGroup;
-	}
-	
-	public String getS3BucketName() {
-		return s3bucketName;
-	}
-
-	public boolean isTerminateWorkers() {
-		return terminateWorkers;
-	}
-	
-	public boolean isRetryMode() {
-		return retryMode;
-	}
-
-	public int getRetryTimes() {
-		return retryTimes;
-	}
-
-	public boolean isQoeAnalysisRecordings() {
-		return qoeAnalysisRecordings;
-	}
-
-	public boolean isQoeAnalysisInSitu() {
-		return qoeAnalysisInSitu;
-	}
-
-	public int getPaddingDuration() {
-		return paddingDuration;
-	}
-
-	public int getFragmentDuration() {
-		return fragmentDuration;
-	}
-	
-	public String getVideoType() {
-		return videoType;
-	}
-
-	public int getVideoHeight() {
-		return videoHeight;
-	}
-
-	public int getVideoWidth() {
-		return videoWidth;
-	}
-
-	public int getVideoFps() {
-		return videoFps;
-	}
-
-	public String getVideoUrl() {
-		return videoUrl;
-	}
-
-	public String getAudioUrl() {
-		return audioUrl;
-	}
-
-    public String getMinioAccessKey() {
-        return this.minioAccessKey;
+    public int getWorkersRumpUp() {
+        return workersRumpUp;
     }
 
-    public String getMinioSecretKey() {
-        return this.minioSecretKey;
+    public int getWorkerMaxLoad() {
+        return workerMaxLoad;
     }
 
-    public String getMinioHost() {
-        return this.minioHost;
+    public double getMedianodeLoadForRecording() {
+        return medianodeLoadForStartRecording;
     }
 
-    public int getMinioPort() {
-        return this.minioPort;
+    public int getRecordingSessionGroup() {
+        return recordingSessionGroup;
     }
 
-    public String getMinioBucket() {
-        return this.minioBucket;
+    public String getS3BucketName() {
+        return s3bucketName;
     }
 
-	public boolean isDebugVnc() {
-		return this.debugVnc;
-	}
+    public boolean isTerminateWorkers() {
+        return terminateWorkers;
+    }
 
-	public int getBatchMaxRequests() {
-		return this.batchMaxRequests;
-	}
+    public boolean isExitOnEnd() {
+        return exitOnEnd;
+    }
 
-	public String getWorkerAvailabilityZone() {
-		return workerAvailabilityZone;
-	}
+    public boolean isRetryMode() {
+        return retryMode;
+    }
 
-	public boolean isForceContinue() {
-		return forceContinue;
-	}
+    public int getRetryTimes() {
+        return retryTimes;
+    }
 
-	protected void checkConfigurationProperties() {
+    public List<String> getReportOutput() {
+        return reportOutput;
+    }
 
-		try {
-			openviduUrl = asString("OPENVIDU_URL");
-			openviduUrl = openviduUrl.replaceAll("/$", "");
-			openviduSecret = asOptionalString("OPENVIDU_SECRET");
-			sessionNamePrefix = asString("SESSION_NAME_PREFIX");
-			userNamePrefix = asString("USER_NAME_PREFIX");
-			secondsToWaitBetweenParticipants = asInt("SECONDS_TO_WAIT_BETWEEN_PARTICIPANTS");
-			secondsToWaitBetweenSession = asInt("SECONDS_TO_WAIT_BETWEEN_SESSIONS");
-			secondsToWaitBeforeTestFinished = asInt("SECONDS_TO_WAIT_BEFORE_TEST_FINISHED");
-			secondsToWaitBetweenTestCases = asInt("SECONDS_TO_WAIT_BETWEEN_TEST_CASES");
-			manualParticipantsAllocation = asBoolean("MANUAL_PARTICIPANTS_ALLOCATION");
-			usersPerWorker= asInt("USERS_PER_WORKER");
-			if (usersPerWorker == -1) {
-				usersPerWorker= asInt("SESSIONS_PER_WORKER");
-			}
-			elasticsearchHost = asOptionalString("ELASTICSEARCH_HOST");
-			elasticsearchUserName = asOptionalString("ELASTICSEARCH_USERNAME");
-			elasticsearchPassword = asOptionalString("ELASTICSEARCH_PASSWORD");
-			kibanaHost = asOptionalURL("KIBANA_HOST");
-			workerUrlList = asOptionalStringList("WORKER_URL_LIST");
-			workerAmiId = asOptionalString("WORKER_AMI_ID");
-			workerInstanceKeyPair = asOptionalString("WORKER_INSTANCE_KEY_PAIR_NAME");
-			workerInstanceType = asOptionalString("WORKER_INSTANCE_TYPE");
-			workerSecurityGroupId = asOptionalString("WORKER_SECURITY_GROUP_ID");
-			workerInstanceRegion = asOptionalString("WORKER_INSTANCE_REGION");
-			workerAvailabilityZone = asOptionalString("WORKER_AVAILABILITY_ZONE");
-			workersNumberAtTheBeginning = asInt("WORKERS_NUMBER_AT_THE_BEGINNING");
-			recordingWorkersNumberAtTheBeginning = asInt("RECORDING_WORKERS_AT_THE_BEGINNING");
-			workerMaxLoad = asInt("WORKER_MAX_LOAD");
-			workersRumpUp = asInt("WORKERS_RAMP_UP");
-			if (workersRumpUp == -1) {
-				workersRumpUp= asInt("WORKERS_RUMP_UP");
-			}
-			medianodeLoadForStartRecording = asDouble("MEDIANODE_LOAD_FOR_START_RECORDING");
-			recordingSessionGroup = asInt("RECORDING_SESSION_GRUPED_BY");
-			terminateWorkers = asBoolean("TERMINATE_WORKERS");
-			awsSecretAccessKey = asOptionalString("AWS_SECRET_ACCESS_KEY");
-			awsAccessKey = asOptionalString("AWS_ACCESS_KEY");
-			s3bucketName = asOptionalString("S3_BUCKET_NAME");
-			retryMode = asBoolean("RETRY_MODE");
-			retryTimes = asInt("RETRY_TIMES");
-			qoeAnalysisRecordings = asBoolean("QOE_ANALYSIS_RECORDINGS");
-			qoeAnalysisInSitu = asBoolean("QOE_ANALYSIS_IN_SITU");
-			paddingDuration = asInt("VIDEO_PADDING_DURATION");
-			fragmentDuration = asInt("VIDEO_FRAGMENT_DURATION");
-			videoType = asString("VIDEO_TYPE");
-			videoHeight = asInt("VIDEO_HEIGHT");
-			videoWidth = asInt("VIDEO_WIDTH");
-			videoFps = asInt("VIDEO_FPS");
-			videoUrl = asOptionalString("VIDEO_URL");
-			audioUrl = asOptionalString("AUDIO_URL");
-			minioAccessKey = asOptionalString("MINIO_ACCESS_KEY");
-			minioSecretKey = asOptionalString("MINIO_SECRET_KEY");
-			minioHost = asOptionalString("MINIO_HOST");
-			minioPort = asInt("MINIO_PORT");
-			minioBucket = asOptionalString("MINIO_BUCKET");
-			debugVnc = asBoolean("DEBUG_VNC");
-			batchMaxRequests = asInt("BATCHES_MAX_REQUESTS");
-			if (batchMaxRequests == -1) {
-				batchMaxRequests = Runtime.getRuntime().availableProcessors() + 1;
-			}
-			batches = asBoolean("BATCHES");
-			waitCompletion = asBoolean("WAIT_COMPLETE");
-			forceContinue = asBoolean("FORCE_CONTINUE");
-			this.printInfo();
+    public void setReportOutput(List<String> reportOutput) {
+        this.reportOutput = reportOutput;
+    }
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
+    public boolean isQoeAnalysisRecordings() {
+        return qoeAnalysisRecordings;
+    }
 
-	}
+    public boolean isQoeAnalysisInSitu() {
+        return qoeAnalysisInSitu;
+    }
 
-	protected void printInfo() {
-		String format = "%-25s%3s%n";
-		System.out.println("-------- Load Test Parameters --------");
-		System.out.printf(format, "OpenVidu URL:", openviduUrl);
-		System.out.printf(format, "OpenVidu SECRET:", openviduSecret);
-		System.out.printf(format, "Session Name Prefix:", sessionNamePrefix);
-		System.out.printf(format, "Username Prefix:", userNamePrefix);
-		System.out.printf(format, "Seconds between users:", secondsToWaitBetweenParticipants);
-		System.out.printf(format, "Seconds between sessions:", secondsToWaitBetweenSession);
-		System.out.printf(format, "Is manual participant allocation:", manualParticipantsAllocation);
-		if(manualParticipantsAllocation) {
-			if(usersPerWorker > 0) {
-				System.out.printf(format, "Users per worker:", usersPerWorker);
-			} else {
-				System.err.printf(format, "Users per worker is not defined");
-				System.exit(1);
-			}
-		}
-		
-		if(retryMode) {
-			System.out.println("Controller started in RETRY MODE");
-			if(retryTimes < 1) {
-				System.err.println("Retry times is undefined");
-				System.exit(1);
-			}
-		}
-		
-		System.out.printf("\n");
-		System.out.printf("--- WORKER PARAMETERS ---");
-		System.out.printf("\n");
-		
-		if(workerUrlList.size() > 0) {
-			System.out.printf("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
-			System.out.printf("\n");
-			System.out.printf(format, "Worker List:", workerUrlList);
-		} else {
-			System.out.printf("RUNNING TESTS IN PRODUCTION (AWS)");
-			System.out.printf("\n");
+    public int getPaddingDuration() {
+        return paddingDuration;
+    }
 
-			System.out.printf(format, "Worker Ami Id:", workerAmiId);
-			System.out.printf(format, "Worker instance type:", workerInstanceType);
-			System.out.printf(format, "Worker max load:", workerMaxLoad);
-			System.out.printf(format, "Workers at the beginning:", workersNumberAtTheBeginning);
-			System.out.printf(format, "Recording Workers at the beginning:", recordingWorkersNumberAtTheBeginning);
-			System.out.printf(format, "Worker ramp up:", workersRumpUp);
-			if (workersRumpUp == 0) {
-				System.out.printf(format, "Continue test if there aren't enough workers", forceContinue);
-			}
-			System.out.printf(format, "AWS instance region:", workerInstanceRegion);
-			System.out.printf(format, "AWS instance availability zone:", workerAvailabilityZone);
+    public int getFragmentDuration() {
+        return fragmentDuration;
+    }
 
-		}
-		
-		if(medianodeLoadForStartRecording > 0) {
-			System.out.printf(format, "Start recording when medianode CPU is over:", medianodeLoadForStartRecording);
-		}
-		if (recordingSessionGroup > 0) {
-			System.out.printf(format, "Recording starts each :", recordingSessionGroup + " session(s)");
-			if(s3bucketName.isBlank() && minioBucket.isBlank()) {
-				System.err.printf(format, "S3 or Minio Bucket Name is not defined");
-				System.exit(1);
-			}
-		}
+    public String getVideoType() {
+        return videoType;
+    }
 
-		System.out.printf("\n");
-		System.out.printf("--- MONITORING PARAMETERS ---");
-		System.out.printf("\n");
+    public int getVideoHeight() {
+        return videoHeight;
+    }
 
-		System.out.printf(format, "Kibana Host:", kibanaHost);
-		System.out.printf(format, "ElasticSearch Host:", elasticsearchHost);
-		System.out.printf(format, "ElasticSearch Username:", elasticsearchUserName);
-		System.out.printf(format, "ElasticSearch Password:", elasticsearchPassword);
-		System.out.println("-------- -------------------- --------");
+    public int getVideoWidth() {
+        return videoWidth;
+    }
 
-		System.out.printf("\n");
-		System.out.printf("--- QOE ANALYSIS PARAMETERS ---");
-		System.out.printf("\n");
+    public int getVideoFps() {
+        return videoFps;
+    }
 
-		System.out.printf(format, "QoE recordings:", qoeAnalysisRecordings);
-		System.out.printf(format, "QoE analysis will be run in-situ:", qoeAnalysisInSitu);
-		System.out.printf(format, "Video padding duration:", paddingDuration);
-		System.out.printf(format, "Video fragment duration:", fragmentDuration);
-		System.out.println("-------- -------------------- --------");System.out.printf("\n");
-		System.out.printf("--- MISCELANEOUS PARAMETERS ---");
-		System.out.printf("\n");
-		System.out.printf(format, "Use batches for inserting users: ", batches);
-		System.out.printf(format, "Maximum number of in flight requests (batch): ", batchMaxRequests);
-		System.out.printf(format, "Wait for user or batch insertion completion: ", waitCompletion);
-		if (isDebugVnc()) {
-			System.out.printf("Debug VNC Enabled\n");
-		}
-	}
+    public String getVideoUrl() {
+        return videoUrl;
+    }
 
-	// -------------------------------------------------------
-	// Format Checkers
-	// -------------------------------------------------------
+    public String getAudioUrl() {
+        return audioUrl;
+    }
 
-	protected String asOptionalURL(String property) throws Exception {
-		String url = env.getProperty(property);
-		try {
-			if ((url != null) && (!url.isEmpty())) {
-				checkUrl(url);
-				return url;
-			}
-			return "";
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new Exception(property + " is wrong." + e);
-		}
-	}
+    public String getS3Region() {
+        return s3Region;
+    }
 
-	protected String asString(String property) throws Exception {
-		String value = env.getProperty(property);
-		if (value == null || value.isEmpty()) {
-			throw new Exception(property + " is required.");
-		}
-		return value;
-	}
+    public String getS3Host() {
+        return s3Host;
+    }
 
-	protected List<String> asStringList(String property) throws Exception {
-		List<String> value = env.getProperty(property, List.class);
-		if (value == null || value.isEmpty()) {
-			throw new Exception(property + " is required.");
-		}
+    public String getS3HostAccessKey() {
+        return s3HostAccessKey;
+    }
 
-		return value;
-	}
+    public String getS3HostSecretKey() {
+        return s3HostSecretKey;
+    }
 
-	protected List<String> asOptionalStringList(String property) {
-		try {
-			return this.asStringList(property);
-		} catch (Exception e) {
-			return new ArrayList<String>();
-		}
-	}
+    public int getBatchMaxRequests() {
+        return this.batchMaxRequests;
+    }
 
-	protected int asInt(String property) {
-		try {
-			Integer integerValue = Integer.parseInt(env.getProperty(property));
-			if (integerValue < 0) {
-				return 0;
-			}
-			return integerValue;
-		} catch (NumberFormatException e) {
-			return -1;
-		}
+    public String getWorkerAvailabilityZone() {
+        return workerAvailabilityZone;
+    }
 
-	}
-	
-	protected double asDouble(String property) {
-		try {
-			Double doubleValue = Double.parseDouble(env.getProperty(property));
-			if (doubleValue < 0) {
-				return 0.0;
-			}
-			return doubleValue;
-		} catch (NumberFormatException e) {
-			return 0.0;
-		}
+    public boolean isHttpsDisabled() {
+        return disableHttps;
+    }
 
-	}
+    protected void checkConfigurationProperties() {
+        try {
+            initPlatformAndSessionConfig();
+            initDistributionConfig();
+            initMonitoringConfig();
+            initWorkerConfig();
+            initAwsAndRecordingConfig();
+            initRetryAndQoeConfig();
+            initVideoAndStorageConfig();
+            initBatchAndMiscConfig();
+            this.printInfo();
 
-	protected String asOptionalString(String property) {
-		String value = env.getProperty(property);
-		if (value == null || value.isEmpty()) {
-			return "";
-		}
-		return value;
-	}
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
 
-	protected boolean asBoolean(String property) {
-		try {
-			return Boolean.parseBoolean(env.getProperty(property));
-		} catch (Exception e) {
-			return false;
-		}
-	}
+    }
 
-	protected void checkUrl(String url) throws Exception {
-		try {
-			new URI(url);
-		} catch (URISyntaxException e) {
-			throw new Exception("String '" + url + "' has not a valid URL format: " + e.getMessage());
-		}
-	}
+    private void initPlatformAndSessionConfig() {
+        openviduUrl = asString("platform.url");
+        openviduUrl = openviduUrl.replaceAll("/$", "");
+        sessionNamePrefix = defaultIfEmpty(asOptionalString("session.namePrefix"), "LoadTestSession");
+        userNamePrefix = defaultIfEmpty(asOptionalString("session.usersNamePrefix"), "User");
+        secondsToWaitBetweenParticipants = asInt("session.secondsBetweenParticipants");
+        secondsToWaitBetweenSession = defaultIfMinusOne(asInt("session.secondsBetweenSessions"), 0);
+        secondsToWaitBeforeTestFinished = defaultIfMinusOne(asInt("session.secondsBeforeTestFinished"), 0);
+        secondsToWaitBetweenTestCases = defaultIfMinusOne(asInt("session.secondsBetweenTestCases"), 0);
+    }
+
+    private void initDistributionConfig() {
+        // FIXME: Force set manual allocation until we figure out a way to obtain media
+        // node CPU in OV3, when we realise it set manualAllocation to the value in key
+        // "distribution.manual" and set default mode to automatic
+        Boolean manualAllocation = true;
+        manualParticipantsAllocation = Boolean.TRUE.equals(manualAllocation);
+        usersPerWorker = asInt("distribution.usersPerWorker");
+        usersPerWorker = usersPerWorker == -1 ? asInt("distribution.sessionsPerWorker") : usersPerWorker;
+        if (manualParticipantsAllocation && usersPerWorker <= 0) {
+            log.error("distribution.manual is true but distribution.usersPerWorker is not defined");
+            System.exit(1);
+        }
+    }
+
+    private void initMonitoringConfig() throws URISyntaxException {
+        elasticsearchHost = asOptionalString("monitoring.elasticsearch.host");
+        elasticsearchUserName = asOptionalString("monitoring.elasticsearch.username");
+        elasticsearchPassword = asOptionalString("monitoring.elasticsearch.password");
+        kibanaHost = asOptionalURL("monitoring.kibana.host");
+        grafanaHost = asOptionalURL("monitoring.grafana.host");
+        grafanaUsername = asOptionalString("monitoring.grafana.username");
+        grafanaPassword = asOptionalString("monitoring.grafana.password");
+        grafanaDatasourceUid = asOptionalString("monitoring.grafana.datasourceUid");
+        if (grafanaDatasourceUid == null || grafanaDatasourceUid.isEmpty()) {
+            grafanaDatasourceUid = "openvidu-prometheus";
+        }
+    }
+
+    private void initWorkerConfig() {
+        workerUrlList = asOptionalStringList("workers.urls");
+        workerAmiId = asOptionalString("aws.amiId");
+        workerInstanceKeyPair = asOptionalString("aws.keyPairName");
+        workerInstanceType = asOptionalString("aws.instanceType");
+        workerSecurityGroupId = asOptionalString("aws.securityGroupId");
+        workerInstanceRegion = asOptionalString("aws.region");
+        workerAvailabilityZone = asOptionalString("aws.availabilityZone");
+        workersNumberAtTheBeginning = asInt("aws.workersAtStart");
+        recordingWorkersNumberAtTheBeginning = asInt("recording.workersAtStart");
+        workerMaxLoad = asInt("distribution.maxLoadPercent");
+        workersRumpUp = asInt("aws.rampUpWorkers");
+        disableHttps = asBoolean("workers.disableHttps");
+        // Default exitOnEnd to true
+        Boolean exitOnEndConfig = yamlConfig.getBooleanOrNull("workers.exitOnEnd");
+        exitOnEnd = exitOnEndConfig != null ? exitOnEndConfig : true;
+        // Worker ports (optional)
+        workerHttpPort = defaultIfMinusOne(asInt("workers.http.port"), 5000);
+        workerWebsocketPort = defaultIfMinusOne(asInt("workers.websocket.port"), 5001);
+    }
+
+    private void initAwsAndRecordingConfig() {
+        medianodeLoadForStartRecording = asDouble("recording.mediaNodeLoadThreshold");
+        recordingSessionGroup = asInt("recording.sessionsGroupSize");
+        // Default terminateWorkers to true when AWS is configured (no worker URLs),
+        // false for local workers
+        Boolean terminateWorkersConfig = yamlConfig.getBooleanOrNull("aws.terminateWorkers");
+        terminateWorkers = terminateWorkersConfig != null ? terminateWorkersConfig : workerUrlList.isEmpty();
+        awsSecretAccessKey = asOptionalString("aws.secretAccessKey");
+        awsAccessKey = asOptionalString("aws.accessKey");
+        endpointOverride = asOptionalString("aws.endpointOverride");
+        s3bucketName = asOptionalString("storage.bucket");
+    }
+
+    private void initRetryAndQoeConfig() {
+        Boolean retryEnabled = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
+        retryMode = !Boolean.FALSE.equals(retryEnabled);
+        retryTimes = defaultIfMinusOne(asInt("advanced.retry.times"), 5);
+        qoeAnalysisRecordings = asBoolean("qoe.recordStreams");
+        qoeAnalysisInSitu = asBoolean("qoe.analyzeInSitu");
+        paddingDuration = asInt("qoe.paddingDuration");
+        fragmentDuration = asInt("qoe.fragmentDuration");
+    }
+
+    private void initVideoAndStorageConfig() {
+        videoType = defaultIfEmpty(asOptionalString("video.type"), "BUNNY");
+        videoHeight = defaultIfMinusOne(asInt("video.height"), 480);
+        videoWidth = defaultIfMinusOne(asInt("video.width"), 640);
+        videoFps = defaultIfMinusOne(asInt("video.fps"), 30);
+        videoUrl = asOptionalString("video.customVideoUrl");
+        audioUrl = asOptionalString("video.customAudioUrl");
+        s3Region = asOptionalString("storage.region");
+        s3Host = asOptionalString("storage.endpoint");
+        s3HostAccessKey = asOptionalString("storage.accessKey");
+        s3HostSecretKey = asOptionalString("storage.secretKey");
+    }
+
+    private void initBatchAndMiscConfig() {
+        batchMaxRequests = asInt("advanced.batches.maxConcurrentRequests");
+        batchMaxRequests = batchMaxRequests == -1 ? Runtime.getRuntime().availableProcessors() + 1 : batchMaxRequests;
+        Boolean batchesEnabled = yamlConfig.getBooleanOrNull("advanced.batches.enabled");
+        batches = !Boolean.FALSE.equals(batchesEnabled);
+        Boolean waitCompleteEnabled = yamlConfig.getBooleanOrNull("advanced.waitForCompletion");
+        waitCompletion = !Boolean.FALSE.equals(waitCompleteEnabled);
+        // Parse report output list
+        List<String> reportOutputList = asOptionalStringList("advanced.reportOutput");
+        if (!reportOutputList.isEmpty()) {
+            reportOutput = reportOutputList;
+        }
+        // default reportOutput already initialized to ["html"]
+    }
+
+    private String defaultIfEmpty(String value, String defaultValue) {
+        return value == null || value.isEmpty() ? defaultValue : value;
+    }
+
+    private int defaultIfMinusOne(int value, int defaultValue) {
+        return value == -1 ? defaultValue : value;
+    }
+
+    private void printInfo() {
+        log.info("-------- Load Test Parameters --------");
+        log.info("OpenVidu URL: {}", openviduUrl);
+        log.info("Session Name Prefix: {}", sessionNamePrefix);
+        log.info("Username Prefix: {}", userNamePrefix);
+        log.info("Seconds between users: {}", secondsToWaitBetweenParticipants);
+        log.info("Seconds between sessions: {}", secondsToWaitBetweenSession);
+        log.info("Is manual participant allocation: {}", manualParticipantsAllocation);
+        if (manualParticipantsAllocation) {
+            if (usersPerWorker > 0) {
+                log.info("Users per worker: {}", usersPerWorker);
+            } else {
+                log.error("Users per worker is not defined");
+                System.exit(1);
+            }
+        }
+
+        if (retryMode) {
+            log.info("Controller started in RETRY MODE");
+            if (retryTimes < 1) {
+                log.error("Retry times is undefined");
+                System.exit(1);
+            }
+        }
+
+        log.info("");
+        log.info("--- WORKER PARAMETERS ---");
+        log.info("");
+        log.debug("Worker HTTP port: {}", workerHttpPort);
+        log.debug("Worker WebSocket port: {}", workerWebsocketPort);
+        if (this.disableHttps) {
+            log.info("HTTPS is disabled for worker URLs.");
+        }
+        if (!workerUrlList.isEmpty()) {
+            log.info("RUNNING TESTS IN DEVELOPMENT (LOCAL)");
+            log.info("");
+            log.info("Worker List: {}", workerUrlList);
+        } else {
+            log.info("RUNNING TESTS IN PRODUCTION (AWS)");
+            log.info("");
+
+            log.info("Worker Ami Id: {}", workerAmiId);
+            log.info("Worker instance type: {}", workerInstanceType);
+            log.info("Worker max load: {}", workerMaxLoad);
+            log.info("Workers at the beginning: {}", workersNumberAtTheBeginning);
+            log.info("Recording Workers at the beginning: {}", recordingWorkersNumberAtTheBeginning);
+            log.info("Worker ramp up: {}", workersRumpUp);
+            log.info("AWS instance region: {}", workerInstanceRegion);
+            log.info("AWS instance availability zone: {}", workerAvailabilityZone);
+
+        }
+
+        if (medianodeLoadForStartRecording > 0) {
+            log.info("Start recording when medianode CPU is over: {}", medianodeLoadForStartRecording);
+        }
+        if (recordingSessionGroup > 0) {
+            log.info("Recording starts each : {} session(s)", recordingSessionGroup);
+            if (s3bucketName.isBlank()) {
+                log.error("S3 Bucket Name is not defined");
+                System.exit(1);
+            }
+        }
+
+        log.info("");
+        log.info("--- MONITORING PARAMETERS ---");
+        log.info("");
+
+        log.info("Kibana Host: {}", kibanaHost);
+        log.info("ElasticSearch Host: {}", elasticsearchHost);
+        log.info("ElasticSearch Username: {}", elasticsearchUserName);
+        log.info("Grafana Host: {}", grafanaHost);
+        log.info("-------- -------------------- --------");
+
+        log.info("");
+        log.info("--- QOE ANALYSIS PARAMETERS ---");
+        log.info("");
+
+        log.info("QoE recordings: {}", qoeAnalysisRecordings);
+        log.info("QoE analysis will be run in-situ: {}", qoeAnalysisInSitu);
+        log.info("Video padding duration: {}", paddingDuration);
+        log.info("Video fragment duration: {}", fragmentDuration);
+        log.info("-------- -------------------- --------");
+        log.info("");
+        log.info("--- MISCELANEOUS PARAMETERS ---");
+        log.info("");
+        log.info("Use batches for inserting users: {}", batches);
+        log.info("Maximum number of in flight requests (batch): {}", batchMaxRequests);
+        log.info("Wait for user or batch insertion completion: {}", waitCompletion);
+    }
+
+    // -------------------------------------------------------
+    // Format Checkers (now using YamlConfigLoader)
+    // -------------------------------------------------------
+
+    protected String asOptionalURL(String property) throws URISyntaxException {
+        String url = asOptionalString(property);
+        try {
+            if ((url != null) && (!url.isEmpty())) {
+                checkUrl(url);
+                return url;
+            }
+            return "";
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            throw new URISyntaxException(property, "is wrong. " + e.getMessage());
+        }
+    }
+
+    protected String asString(String property) throws IllegalArgumentException {
+        String value = yamlConfig.getString(property);
+        if (value == null || value.isEmpty()) {
+            throw new IllegalArgumentException(property + " is required.");
+        }
+        return value;
+    }
+
+    protected List<String> asStringList(String property) throws IllegalArgumentException {
+        String value = yamlConfig.getString(property);
+        if (value == null || value.isEmpty()) {
+            throw new IllegalArgumentException(property + " is required.");
+        }
+        return Arrays.asList(value.split(","));
+    }
+
+    protected List<String> asOptionalStringList(String property) {
+        try {
+            return this.yamlConfig.getStringList(property);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    protected int asInt(String property) {
+        return yamlConfig.getInt(property);
+    }
+
+    protected double asDouble(String property) {
+        return yamlConfig.getDouble(property);
+    }
+
+    protected String asOptionalString(String property) {
+        return yamlConfig.getString(property);
+    }
+
+    protected boolean asBoolean(String property) {
+        return yamlConfig.getBoolean(property);
+    }
+
+    protected void checkUrl(String url) throws URISyntaxException {
+        try {
+            new URI(url);
+        } catch (URISyntaxException e) {
+            throw new URISyntaxException(url, "has not a valid URL format: " + e.getMessage());
+        }
+    }
 
 }

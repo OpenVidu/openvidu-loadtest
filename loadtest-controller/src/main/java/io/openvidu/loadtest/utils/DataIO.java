@@ -1,153 +1,262 @@
 package io.openvidu.loadtest.utils;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.stream.JsonReader;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
-import io.openvidu.loadtest.models.testcase.Typology;
+import io.openvidu.loadtest.config.LoadTestConfig;
 
-@Service
+@Component
 public class DataIO {
 
-	private static final Logger log = LoggerFactory.getLogger(DataIO.class);
-	private static ClassLoader classLoader = DataIO.class.getClassLoader();
-	private static final String TEST_CASES_JSON_FILE = "test_cases.json";
-	private static final String REPORT_FILE_RESULT = "results.txt";
+    private static final Logger log = LoggerFactory.getLogger(DataIO.class);
+    private static final String DEFAULT_CONFIG = "config/config.yaml";
+    private static final String CONFIG_ENV_VAR = "LOADTEST_CONFIG";
+    private static final String TIMESTAMP_PATTERN = "yyyy-MM-dd_HH-mm-ss";
 
+    public static String generateTimestamp() {
+        return new SimpleDateFormat(TIMESTAMP_PATTERN).format(new Date());
+    }
 
-	@Autowired
-	private JsonUtils jsonUtils;
+    private final Environment environment;
+    private final ResultExporter resultExporter;
+    private final LoadTestConfig loadTestConfig;
+    private final HtmlReportGenerator htmlReportGenerator;
 
-	public List<TestCase> getTestCasesFromJSON() {
-		File file = new File(classLoader.getResource(TEST_CASES_JSON_FILE).getFile());
-		JsonArray testCasesList = new JsonArray();
+    // Constructor for tests or explicit wiring
+    public DataIO(Environment environment, ResultExporter resultExporter, LoadTestConfig loadTestConfig,
+            HtmlReportGenerator htmlReportGenerator) {
+        this.environment = environment;
+        this.resultExporter = resultExporter;
+        this.loadTestConfig = loadTestConfig;
+        this.htmlReportGenerator = htmlReportGenerator;
+    }
 
-		try {
-			JsonReader reader = new JsonReader(new FileReader(file.getAbsolutePath()));
-			JsonObject jsonObject = jsonUtils.getJson(reader);
-			testCasesList = (JsonArray) jsonObject.get("testcases");
+    @SuppressWarnings("unchecked")
+    public List<TestCase> getTestCasesFromJSON() {
+        String configPathStr = environment.getProperty(CONFIG_ENV_VAR, DEFAULT_CONFIG);
+        Path configPath = Path.of(configPathStr);
+        File configFile = configPath.toFile();
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+        Map<String, Object> config;
+        List<Map<String, Object>> testCasesList;
 
-		return this.convertJsonArrayToTestCasesList(testCasesList);
-	}
+        if (configFile.exists()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+                config = mapper.readValue(configFile, Map.class);
+                log.info("Loading test cases from: {}", configPath);
+            } catch (IOException e) {
+                log.error("Failed to parse config file: {}", configPath, e);
+                return new ArrayList<>();
+            }
+        } else {
+            try (InputStream is = getClass().getClassLoader().getResourceAsStream(configPath.toString())) {
+                if (is == null) {
+                    log.error("Config file not found at {} or in classpath", configPath);
+                    return new ArrayList<>();
+                }
+                ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+                config = mapper.readValue(is, Map.class);
+                log.info("Loading test cases from classpath: {}", configPath);
+            } catch (IOException e) {
+                log.error("Failed to parse config file from classpath: {}", configPath, e);
+                return new ArrayList<>();
+            }
+        }
 
-	public void exportResults(ResultReport result) {
+        testCasesList = (List<Map<String, Object>>) config.get("testcases");
+        if (testCasesList == null || testCasesList.isEmpty()) {
+            log.error("No test cases found in config file");
+            return new ArrayList<>();
+        }
 
-		String RESULT_PATH = new FileSystemResource(REPORT_FILE_RESULT).getFile().getAbsolutePath();
+        return convertMapListToTestCasesList(testCasesList);
+    }
 
-		FileWriter fw;
-		try {
-			fw = new FileWriter(RESULT_PATH, true);
-			BufferedWriter bw = new BufferedWriter(fw);
-		    bw.write(result.toString());
-		    bw.newLine();
-		    bw.newLine();
-		    bw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+    public void exportResultsTxtOnly(ResultReport result, String timestamp) {
+        log.debug("exportResultsTxtOnly called");
+        List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
+        if (reportOutput.contains("txt")) {
+            try {
+                String fileName = "results-" + timestamp + ".txt";
+                this.resultExporter.export(result, fileName);
+            } catch (IOException e) {
+                log.error("Could not save results to file", e);
+            }
+        }
+    }
 
-		log.info("Saved result in a " + RESULT_PATH);
-	}
+    public void exportAllResults(List<ResultReport> reports, String timestamp) {
+        log.debug("exportAllResults called with {} reports", reports.size());
+        List<String> reportOutput = loadTestConfig != null ? loadTestConfig.getReportOutput() : new ArrayList<>();
+        if (reportOutput.contains("html")) {
+            try {
+                String fileName = "report-" + timestamp + ".html";
+                htmlReportGenerator.generateMultiReport(reports, fileName);
+            } catch (IOException e) {
+                log.error("Could not save HTML report to file", e);
+            }
+        }
+    }
 
-	private List<TestCase> convertJsonArrayToTestCasesList(JsonArray array) {
+    /**
+     * Protected factory method to create a FileSystemResource. Overridable in
+     * tests.
+     */
+    protected FileSystemResource createFileSystemResource(String resource) {
+        return new FileSystemResource(resource);
+    }
 
-		List<TestCase> testCaseList = new ArrayList<TestCase>();
+    private List<TestCase> convertMapListToTestCasesList(List<Map<String, Object>> testCasesList) {
+        List<TestCase> testCaseList = new ArrayList<>();
+        for (Map<String, Object> element : testCasesList) {
+            testCaseList.add(parseTestCase(element));
+        }
+        return testCaseList;
+    }
 
-		for (int i = 0; i < array.size(); i++) {
-			JsonObject element = array.get(i).getAsJsonObject();
-			boolean headlessBrowser = false;
-			boolean browserRecording = false;
-			boolean showBrowserVideoElements = false;
-			String openviduRecordingModeStr = "";
-			int frameRate = 30;
-			Resolution resolution = Resolution.MEDIUM;
-			List<String> participants = new ArrayList<String>();
-			int sessions = 0;
-			OpenViduRecordingMode openviduRecordingMode = OpenViduRecordingMode.NONE;
-			String typology = element.get("typology").getAsString();
-			int startingParticipants = 0;
-			if (!typology.equalsIgnoreCase(Typology.TERMINATE.getValue())) {
-				String sessionsStr = element.get("sessions").getAsString();
-				JsonArray participantsArray = (JsonArray) element.get("participants");
-				participants = jsonUtils.getStringList(participantsArray);
+    private TestCase parseTestCase(Map<String, Object> element) {
+        String topology = parseTopology(element);
 
-				if(element.get("frameRate") !=null && !element.get("frameRate").getAsString().isBlank()) {
-					frameRate = element.get("frameRate").getAsInt();
-				}
-				
-				if(element.get("resolution") !=null && !element.get("resolution").getAsString().isBlank()) {
-					resolution = element.get("resolution").getAsString().equalsIgnoreCase(Resolution.HIGH.getValue()) ? Resolution.HIGH : Resolution.MEDIUM;
-				}
+        List<String> participants = parseParticipants(element);
+        int sessions = parseSessions(element);
+        int frameRate = parseFrameRate(element);
+        Resolution resolution = parseResolution(element);
+        OpenViduRecordingMode openviduRecordingMode = parseOpenViduRecordingMode(element);
+        boolean headlessBrowser = parseHeadless(element);
+        boolean browserRecording = parseBrowserRecording(element);
+        boolean showBrowserVideoElements = parseShowBrowserVideoElements(element);
+        Browser browser = parseBrowser(element);
+        int startingParticipants = parseStartingParticipants(element);
 
-				if(element.get("openviduRecordingMode") != null && !element.get("openviduRecordingMode").getAsString().isBlank()) {
+        TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution,
+                openviduRecordingMode, headlessBrowser, browserRecording, showBrowserVideoElements, browser);
+        testCase.setStartingParticipants(startingParticipants);
+        return testCase;
+    }
 
-					openviduRecordingModeStr = element.get("openviduRecordingMode").getAsString();
-				}
+    private String parseTopology(Map<String, Object> element) {
+        Object topologyObj = element.get("topology");
+        if (topologyObj == null) {
+            topologyObj = element.get("typology");
+        }
+        return topologyObj != null ? topologyObj.toString() : "";
+    }
 
-				if (element.get("startingParticipants") != null && !element.get("startingParticipants").getAsString().isBlank()) {
-					startingParticipants = element.get("startingParticipants").getAsInt();
-				}
+    private List<String> parseParticipants(Map<String, Object> element) {
+        List<String> participants = new ArrayList<>();
+        Object participantsObj = element.get("participants");
+        if (participantsObj instanceof List) {
+            for (Object p : (List<?>) participantsObj) {
+                participants.add(p.toString());
+            }
+        }
+        return participants;
+    }
 
-				if(!openviduRecordingModeStr.isBlank()) {
-					if(openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.COMPOSED.getValue())) {
-						openviduRecordingMode = OpenViduRecordingMode.COMPOSED;
-					} else if (openviduRecordingModeStr.equalsIgnoreCase(OpenViduRecordingMode.INDIVIDUAL.getValue())){
-						openviduRecordingMode = OpenViduRecordingMode.INDIVIDUAL;
-					}
-				}
+    private int parseSessions(Map<String, Object> element) {
+        Object sessionsObj = element.get("sessions");
+        String sessionsStr = sessionsObj != null ? sessionsObj.toString() : "1";
+        return sessionsStr.equalsIgnoreCase("infinite") ? -1 : parseInt(sessionsStr);
+    }
 
-				sessions = sessionsStr.equals("infinite") ? -1 : Integer.parseInt(sessionsStr);
+    private int parseFrameRate(Map<String, Object> element) {
+        Object frameRateObj = element.get("frameRate");
+        return frameRateObj != null ? parseInt(frameRateObj.toString()) : 30;
+    }
 
-				browserRecording = element.has("recording") ? element.get("recording").getAsBoolean() : false;
-				headlessBrowser = element.has("headless") ? element.get("headless").getAsBoolean() : false;
-				showBrowserVideoElements = element.has("showBrowserVideoElements")
-						? element.get("showBrowserVideoElements").getAsBoolean()
-						: false;
+    private Resolution parseResolution(Map<String, Object> element) {
+        Object resolutionObj = element.get("resolution");
+        if (resolutionObj == null) {
+            return Resolution.MEDIUM;
+        }
+        String resStr = resolutionObj.toString();
+        if (resStr.equalsIgnoreCase(Resolution.HIGH.getValue()) || resStr.equals("1280x720")) {
+            return Resolution.HIGH;
+        } else if (resStr.equalsIgnoreCase("1920x1080") || resStr.equalsIgnoreCase(Resolution.FULLHIGH.getValue())) {
+            return Resolution.FULLHIGH;
+        }
+        return Resolution.MEDIUM;
+    }
 
-			}
+    private OpenViduRecordingMode parseOpenViduRecordingMode(Map<String, Object> element) {
+        Object openviduRecordingModeObj = element.get("openviduRecordingMode");
+        if (openviduRecordingModeObj == null || openviduRecordingModeObj.toString().isBlank()) {
+            return OpenViduRecordingMode.NONE;
+        }
+        String modeStr = openviduRecordingModeObj.toString();
+        if (modeStr.equalsIgnoreCase(OpenViduRecordingMode.COMPOSED.getValue())) {
+            return OpenViduRecordingMode.COMPOSED;
+        } else if (modeStr.equalsIgnoreCase(OpenViduRecordingMode.INDIVIDUAL.getValue())) {
+            return OpenViduRecordingMode.INDIVIDUAL;
+        }
+        return OpenViduRecordingMode.NONE;
+    }
 
-			TestCase testCase = new TestCase(typology, participants, sessions, frameRate, resolution, openviduRecordingMode,
-				headlessBrowser, browserRecording, showBrowserVideoElements);
-			testCase.setStartingParticipants(startingParticipants);
-			testCaseList.add(testCase);
-		}
+    private boolean parseHeadless(Map<String, Object> element) {
+        Object headlessObj = element.get("headless");
+        return headlessObj instanceof Boolean headlessObjBool && headlessObjBool;
+    }
 
-		return testCaseList;
+    private boolean parseBrowserRecording(Map<String, Object> element) {
+        Object recordingObj = element.get("recording");
+        return recordingObj instanceof Boolean recordingObjBool && recordingObjBool;
+    }
 
-	}
+    private boolean parseShowBrowserVideoElements(Map<String, Object> element) {
+        Object showBrowserObj = element.get("showBrowserVideoElements");
+        return showBrowserObj instanceof Boolean showBrowserObjBool && showBrowserObjBool;
+    }
 
-	public boolean askForConfirmation(String message) {
-		log.warn(message);
-		String confirmation;
-		do {
-			confirmation = System.console().readLine();
-			if (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N")) {
-				log.warn("Please answer with Y or N.");
-			}
-		} while (!confirmation.equalsIgnoreCase("Y") && !confirmation.equalsIgnoreCase("N"));
-		return confirmation.equalsIgnoreCase("Y");
-	}
+    private Browser parseBrowser(Map<String, Object> element) {
+        Object browserObj = element.get("browser");
+        if (browserObj == null || browserObj.toString().isBlank()) {
+            return Browser.CHROME;
+        }
+        String browserStr = browserObj.toString();
+        if (browserStr.equalsIgnoreCase(Browser.CHROME.getValue())) {
+            return Browser.CHROME;
+        } else if (browserStr.equalsIgnoreCase(Browser.FIREFOX.getValue())) {
+            return Browser.FIREFOX;
+        } else if (browserStr.equalsIgnoreCase(Browser.EMULATED.getValue())) {
+            return Browser.EMULATED;
+        }
+        log.warn("Browser {} not recognized. Defaulting to Chrome.", browserStr);
+        return Browser.CHROME;
+    }
+
+    private int parseStartingParticipants(Map<String, Object> element) {
+        Object startingParticipantsObj = element.get("startingParticipants");
+        return startingParticipantsObj != null ? parseInt(startingParticipantsObj.toString()) : 0;
+    }
+
+    private int parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
 
 }

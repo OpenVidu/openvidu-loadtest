@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=../../../../../../schema/openvidu-loadtest-schema.json
+# Integration test configuration based on e2e smoke test
+# This config is for running integration tests with mocked browser-emulator
+
+platform:
+  url: https://openvidu-test.io:7443
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: chrome
+    description: "Basic N:N topology test"
+
+workers:
+  urls:
+    - localhost
+
+distribution:
+  usersPerWorker: 2
+
+advanced:
+  reportOutput:
+    - html
+    - txt

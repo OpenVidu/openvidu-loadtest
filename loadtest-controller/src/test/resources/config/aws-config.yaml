@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=../../../../../schema/openvidu-loadtest-schema.json
+platform:
+  url: https://openvidu-test.io:7443
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: chrome
+    description: "Basic N:N topology test"
+
+aws:
+  accessKey: test
+  secretAccessKey: secret
+  amiId: ami-test
+  instanceType: t3.large
+  keyPairName: test-key-pair
+  securityGroupId: sg-test
+  region: us-east-1
+  availabilityZone: us-east-1a
+  workersAtStart: 1
+  rampUpWorkers: 1
+  terminateWorkers: false
+
+distribution:
+  manual: true
+  usersPerWorker: 2

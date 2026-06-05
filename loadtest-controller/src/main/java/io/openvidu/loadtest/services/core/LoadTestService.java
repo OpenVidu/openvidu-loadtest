@@ -1,0 +1,490 @@
+package io.openvidu.loadtest.services.core;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import software.amazon.awssdk.services.ec2.model.Instance;
+
+import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
+import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
+import io.openvidu.loadtest.models.testcase.ResultReport;
+import io.openvidu.loadtest.models.testcase.TestCase;
+import io.openvidu.loadtest.models.testcase.WorkerType;
+import io.openvidu.loadtest.models.monitoring.PlatformMetric;
+import io.openvidu.loadtest.monitoring.ElasticSearchClient;
+import io.openvidu.loadtest.monitoring.GrafanaPrometheusClient;
+import io.openvidu.loadtest.monitoring.KibanaClient;
+import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.Sleeper;
+import io.openvidu.loadtest.services.WebSocketClient;
+import io.openvidu.loadtest.services.WebSocketConnectionFactory;
+import io.openvidu.loadtest.services.WorkerUrlResolver;
+import io.openvidu.loadtest.utils.DataIO;
+
+/**
+ * @author Carlos Santos & Iván Chicano
+ *
+ */
+
+@Service
+public class LoadTestService {
+    private static final Logger log = LoggerFactory.getLogger(LoadTestService.class);
+
+    private BrowserEmulatorClient browserEmulatorClient;
+    private LoadTestConfig loadTestConfig;
+    private KibanaClient kibanaClient;
+    private ElasticSearchClient esClient;
+    private GrafanaPrometheusClient grafanaClient;
+    private Ec2Client ec2Client;
+    private Sleeper sleeper;
+    private WebSocketConnectionFactory webSocketConnectionFactory;
+    private WorkerUrlResolver workerUrlResolver;
+    private final LoadTestWorkerLifecycleOrchestrator workerLifecycleOrchestrator;
+    private final LoadTestEstimationOrchestrator estimationOrchestrator;
+    private final LoadTestShutdownOrchestrator shutdownOrchestrator;
+    private final LoadTestParticipantOrchestrator participantOrchestrator;
+    private final LoadTestTopologyOrchestrator topologyOrchestrator;
+
+    private DataIO io;
+    private String timestamp;
+
+    private List<Instance> awsWorkersList = new ArrayList<>();
+    private List<String> devWorkersList = new ArrayList<>();
+    private List<Instance> recordingWorkersList = new ArrayList<>();
+    private final List<ResultReport> allReports = Collections.synchronizedList(new ArrayList<>());
+
+    private Calendar startTime;
+    private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    private boolean prodMode = false;
+
+    // TODO: Reimplement calculation of streams per worker
+
+    public LoadTestService(BrowserEmulatorClient browserEmulatorClient, LoadTestConfig loadTestConfig,
+            KibanaClient kibanaClient, ElasticSearchClient esClient, GrafanaPrometheusClient grafanaClient,
+            Ec2Client ec2Client,
+            WebSocketConnectionFactory webSocketConnectionFactory, DataIO dataIO, Sleeper sleeper,
+            WorkerUrlResolver workerUrlResolver) {
+        this.browserEmulatorClient = browserEmulatorClient;
+        this.loadTestConfig = loadTestConfig;
+        this.kibanaClient = kibanaClient;
+        this.esClient = esClient;
+        this.grafanaClient = grafanaClient;
+        this.ec2Client = ec2Client;
+        this.webSocketConnectionFactory = webSocketConnectionFactory;
+        this.io = dataIO;
+        this.sleeper = sleeper;
+        this.workerUrlResolver = workerUrlResolver;
+        this.workerLifecycleOrchestrator = new LoadTestWorkerLifecycleOrchestrator(this, ec2Client, loadTestConfig,
+                workerUrlResolver);
+        this.estimationOrchestrator = new LoadTestEstimationOrchestrator(this, browserEmulatorClient,
+                loadTestConfig, sleeper);
+        this.shutdownOrchestrator = new LoadTestShutdownOrchestrator(this, browserEmulatorClient, ec2Client,
+                loadTestConfig, workerUrlResolver);
+        this.participantOrchestrator = new LoadTestParticipantOrchestrator(this, browserEmulatorClient, esClient,
+                loadTestConfig, sleeper);
+        this.topologyOrchestrator = new LoadTestTopologyOrchestrator(this, loadTestConfig, kibanaClient,
+                browserEmulatorClient, workerUrlResolver, dataIO);
+
+        prodMode = loadTestConfig.getWorkerUrlList().isEmpty();
+        devWorkersList = loadTestConfig.getWorkerUrlList();
+    }
+
+    String setAndInitializeNextWorker(String currentWorker, WorkerType workerType)
+            throws NoWorkersAvailableException {
+        return workerLifecycleOrchestrator.setAndInitializeNextWorker(currentWorker, workerType);
+    }
+
+    void initializeInstance(String url) {
+        browserEmulatorClient.ping(url);
+        WebSocketClient ws = webSocketConnectionFactory
+                .createConnection("ws://" + url + ":" + this.loadTestConfig.getWorkerWebsocketPort() + "/events");
+        shutdownOrchestrator.addWebSocketSession(ws);
+        browserEmulatorClient.initializeInstance(url);
+    }
+
+    boolean estimate(boolean instancesInitialized, TestCase testCase, int publishers,
+            int subscribers) {
+        return estimationOrchestrator.estimate(instancesInitialized, this.getWorkerUrlForEstimation(), testCase,
+                publishers, subscribers);
+    }
+
+    boolean launchInitialInstances() {
+        return workerLifecycleOrchestrator.launchInitialInstances();
+    }
+
+    boolean checkEnoughWorkers(int sessions, int participants) {
+        int workersAvailable = prodMode ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+        int workersRumpUp = prodMode ? loadTestConfig.getWorkersRumpUp() : 0;
+        int nParticipants = sessions * participants;
+        int estimatedParticipants = getBrowserEstimation() * workersAvailable;
+        if (workersRumpUp < 1 && (sessions == -1 || (nParticipants > estimatedParticipants))) {
+            String warning = "Number of available workers might not be enough to host all users ("
+                    + (nParticipants < 0 ? "infinite" : nParticipants)
+                    + " participants trying to fit in " + workersAvailable + " worker at "
+                    + getBrowserEstimation()
+                    + " browsers per worker). The test will stop when there are no more workers available.";
+            log.warn(warning);
+        }
+
+        return true;
+    }
+
+    public void startLoadTests(List<TestCase> testCasesList)
+            throws io.openvidu.loadtest.exceptions.NoWorkersAvailableException {
+        // Early validation: when workers are limited, ensure configured capacity
+        // (usersPerWorker * numberOfWorkers) is enough for each test case.
+        boolean prod = this.prodMode;
+        int workersAvailable = prod ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+        int workersRumpUp = loadTestConfig.getWorkersRumpUp();
+        boolean workersConfiguredManually = !loadTestConfig.getWorkerUrlList().isEmpty();
+        boolean workersLimited = workersConfiguredManually || (prod && workersRumpUp == 0);
+
+        if (workersLimited) {
+            int usersPerWorker = loadTestConfig.getUsersPerWorker();
+            long capacity = (long) Math.max(0, usersPerWorker) * Math.max(0, workersAvailable);
+
+            for (TestCase tc : testCasesList) {
+                List<String> participantsList = tc.getParticipants();
+                for (int i = 0; i < participantsList.size(); i++) {
+                    long expectedParticipants = 0;
+
+                    if (tc.isOneSessionNxn()) {
+                        int p = tc.getParticipantCount(i);
+                        expectedParticipants = p == Integer.MAX_VALUE ? Integer.MAX_VALUE : p;
+                    } else if (tc.isOneSessionNxm()) {
+                        int pubs = tc.getPublisherCount(i);
+                        int subs = tc.getSubscriberCount(i);
+                        if (pubs == Integer.MAX_VALUE || subs == Integer.MAX_VALUE) {
+                            expectedParticipants = Integer.MAX_VALUE;
+                        } else {
+                            expectedParticipants = (long) pubs + subs;
+                        }
+                    } else if (tc.isNxN()) {
+                        int p = tc.getParticipantCount(i);
+                        int sessions = tc.getSessions();
+                        if (sessions == -1 || p == Integer.MAX_VALUE) {
+                            expectedParticipants = Integer.MAX_VALUE;
+                        } else {
+                            expectedParticipants = (long) p * sessions;
+                        }
+                    } else if (tc.isNxM() || tc.isTeaching()) {
+                        int pubs = tc.getPublisherCount(i);
+                        int subs = tc.getSubscriberCount(i);
+                        int sessions = tc.getSessions();
+                        if (sessions == -1 || pubs == Integer.MAX_VALUE || subs == Integer.MAX_VALUE) {
+                            expectedParticipants = Integer.MAX_VALUE;
+                        } else {
+                            expectedParticipants = (long) (pubs + subs) * sessions;
+                        }
+                    } else {
+                        // Unknown topology - skip check
+                        continue;
+                    }
+
+                    if (expectedParticipants == Integer.MAX_VALUE) {
+                        throw new NoWorkersAvailableException(
+                                "Test case requires infinite participants but workers are limited (no ramp-up or manual workers configured)");
+                    }
+
+                    if (expectedParticipants > capacity) {
+                        throw new NoWorkersAvailableException(
+                                "Not enough worker capacity for test case (required=" + expectedParticipants
+                                        + ", capacity=" + capacity + ")");
+                    }
+                }
+            }
+        }
+
+        topologyOrchestrator.startLoadTests(testCasesList);
+    }
+
+    CreateParticipantResponse startOneSessionNxNTest(TestCase testCase) throws NoWorkersAvailableException {
+        return participantOrchestrator.startOneSessionNxNTest(testCase);
+    }
+
+    CreateParticipantResponse startOneSessionNxmTest(int publishers, TestCase testCase)
+            throws NoWorkersAvailableException {
+        return participantOrchestrator.startOneSessionNxmTest(publishers, testCase);
+    }
+
+    CreateParticipantResponse startNxNTest(int participantsBySession, TestCase testCase)
+            throws NoWorkersAvailableException {
+        return participantOrchestrator.startNxNTest(participantsBySession, testCase);
+    }
+
+    CreateParticipantResponse startNxMTest(int publishers, int subscribers, TestCase testCase)
+            throws NoWorkersAvailableException {
+        return participantOrchestrator.startNxMTest(publishers, subscribers, testCase);
+    }
+
+    private String getWorkerUrlForEstimation() {
+        return prodMode ? workerUrlResolver.resolveUrl(awsWorkersList.get(0)) : devWorkersList.get(0);
+    }
+
+    boolean isProdMode() {
+        return prodMode;
+    }
+
+    int getBrowserEstimation() {
+        return estimationOrchestrator.getBrowserEstimation();
+    }
+
+    void setEstimationBrowserEstimation(int value) {
+        estimationOrchestrator.setBrowserEstimation(value);
+    }
+
+    void setStartTimeNow() {
+        this.startTime = Calendar.getInstance();
+    }
+
+    void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    void resetForNewTestCase() {
+        this.startTime = Calendar.getInstance();
+        participantOrchestrator.cleanup();
+        browserEmulatorClient.clean();
+    }
+
+    void completeTestAndSave(TestCase testCase, String participantsBySession, CreateParticipantResponse lastCPR) {
+        browserEmulatorClient.setEndOfTest(true);
+        sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+        this.saveResultReport(testCase, participantsBySession, lastCPR);
+    }
+
+    void cleanupAfterParticipantConfiguration() {
+        this.disconnectAllSessions();
+        this.cleanEnvironment();
+    }
+
+    void terminateAllInstances() {
+        ec2Client.terminateAllInstances();
+    }
+
+    boolean hasInitialWorkersAvailable() {
+        int workersAvailable = prodMode ? loadTestConfig.getWorkersNumberAtTheBeginning() : devWorkersList.size();
+        int workersRumpUp = loadTestConfig.getWorkersRumpUp();
+        return workersAvailable != 0 || (prodMode && workersRumpUp > 0);
+    }
+
+    List<Instance> getAwsWorkersList() {
+        return awsWorkersList;
+    }
+
+    List<Instance> getRecordingWorkersList() {
+        return recordingWorkersList;
+    }
+
+    List<ResultReport> getAllReports() {
+        return allReports;
+    }
+
+    List<String> getDevWorkersList() {
+        return devWorkersList;
+    }
+
+    List<Date> getWorkerLifecycleOrchestratorWorkerStartTimes() {
+        return workerLifecycleOrchestrator.getWorkerStartTimes();
+    }
+
+    List<Date> getWorkerLifecycleOrchestratorRecordingWorkerStartTimes() {
+        return workerLifecycleOrchestrator.getRecordingWorkerStartTimes();
+    }
+
+    void resetProdWorkers() {
+        awsWorkersList = new ArrayList<>();
+        recordingWorkersList = new ArrayList<>();
+    }
+
+    CreateParticipantResponse getLastResponse(List<CompletableFuture<CreateParticipantResponse>> futureList) {
+        CreateParticipantResponse reconnectingResponse = browserEmulatorClient.getLastErrorReconnectingResponse();
+        if (reconnectingResponse != null) {
+            return reconnectingResponse;
+        }
+        CreateParticipantResponse lastResponse = null;
+        for (CompletableFuture<CreateParticipantResponse> future : futureList) {
+            try {
+                log.debug("Waiting for future {}", future);
+                CreateParticipantResponse futureResponse = future.get();
+                if (!futureResponse.isResponseOk()) {
+                    lastResponse = futureResponse;
+                    break;
+                }
+                if ((lastResponse == null) || (futureResponse.getStreamsInWorker() >= lastResponse
+                        .getStreamsInWorker())) {
+                    lastResponse = futureResponse;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted while waiting for future {}, {}", future, e);
+            } catch (ExecutionException e) {
+                log.error("Execution exception while waiting for future {}, {}", future, e);
+            }
+        }
+        return lastResponse;
+    }
+
+    private void cleanEnvironment() {
+        participantOrchestrator.cleanup();
+        workerLifecycleOrchestrator.cleanup();
+        estimationOrchestrator.cleanup();
+        shutdownOrchestrator.cleanup();
+        browserEmulatorClient.clean();
+        sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
+        waitToMediaServerLiveAgain();
+        browserEmulatorClient.setEndOfTest(false);
+    }
+
+    private void waitToMediaServerLiveAgain() {
+        if (esClient.isInitialized()) {
+            while (esClient.getMediaNodeCpu() > 5.00) {
+                sleeper.sleep(5, "Waiting MediaServer recovers his CPU");
+            }
+        } else {
+            sleeper.sleep(5, "Waiting MediaServer recovers his CPU");
+        }
+    }
+
+    private void disconnectAllSessions() {
+        shutdownOrchestrator.disconnectAllSessions();
+    }
+
+    private void saveResultReport(TestCase testCase, String participantsBySession, CreateParticipantResponse lastCPR) {
+        Calendar endTime = Calendar.getInstance();
+        endTime.add(Calendar.SECOND, loadTestConfig.getSecondsToWaitBetweenTestCases());
+        endTime.add(Calendar.SECOND, 10);
+
+        // Parse date to match with Kibana time filter
+        String startTimeStr = formatter.format(this.startTime.getTime()).replace(" ", "T") + "Z";
+        String endTimeStr = formatter.format(endTime.getTime()).replace(" ", "T") + "Z";
+        String kibanaUrl = kibanaClient.getDashboardUrl(startTimeStr, endTimeStr);
+
+        List<PlatformMetric> platformMetrics = grafanaClient.collectPlatformMetrics(startTimeStr, endTimeStr);
+        if (!platformMetrics.isEmpty()) {
+            esClient.indexPlatformMetrics(platformMetrics);
+        }
+        String stopReason = lastCPR.getStopReason();
+        if (stopReason == null) {
+            stopReason = "Test finished";
+        }
+        String videoControl = "None";
+        if ((loadTestConfig.getS3BucketName() != null) && !loadTestConfig.getS3BucketName().equals("")) {
+            if (loadTestConfig.getS3Host() != null && !loadTestConfig.getS3Host().isEmpty()) {
+                videoControl = loadTestConfig.getS3Host() + "/" + loadTestConfig.getS3BucketName();
+            } else {
+                videoControl = "https://s3.console.aws.amazon.com/s3/buckets/" + loadTestConfig.getS3BucketName();
+            }
+        }
+        // Compute per-user success timestamps
+        Map<String, Calendar> userSuccessTimestamps = new HashMap<>();
+        log.debug("Computing per-user success timestamps. getUserStartTimes size: {}",
+                participantOrchestrator.getUserStartTimes().size());
+        for (Map.Entry<Calendar, List<String>> entry : participantOrchestrator.getUserStartTimes().entrySet()) {
+            Calendar timestamp = entry.getKey();
+            List<String> sessionUser = entry.getValue();
+            log.debug("Entry: timestamp={}, sessionUser={}", timestamp, sessionUser);
+            log.debug("sessionUser size: {}", sessionUser.size());
+            if (sessionUser.size() >= 2) {
+                String sessionId = sessionUser.get(0);
+                String userId = sessionUser.get(1);
+                log.debug("sessionId={}, userId={}", sessionId, userId);
+                String key = userId + "-" + sessionId;
+                log.debug("Adding key: {}", key);
+                userSuccessTimestamps.put(key, timestamp);
+            } else {
+                log.warn("sessionUser size less than 2: {}", sessionUser);
+            }
+        }
+        log.debug("userSuccessTimestamps size: {}", userSuccessTimestamps.size());
+        if (userSuccessTimestamps.isEmpty()) {
+            log.warn("userSuccessTimestamps is empty. This may cause missing rows in the HTML report.");
+            // Attempt fallback: try both orders of sessionId and userId
+            for (Map.Entry<Calendar, List<String>> entry : participantOrchestrator.getUserStartTimes().entrySet()) {
+                Calendar timestamp = entry.getKey();
+                List<String> sessionUser = entry.getValue();
+                if (sessionUser.size() >= 2) {
+                    String first = sessionUser.get(0);
+                    String second = sessionUser.get(1);
+                    // Try second-first order (userId-sessionId) - typical expectation
+                    String key1 = second + "-" + first;
+                    log.warn("Fallback adding key (userId-sessionId): {}", key1);
+                    userSuccessTimestamps.put(key1, timestamp);
+                    // Try first-second order (sessionId-userId) just in case
+                    String key2 = first + "-" + second;
+                    log.warn("Fallback adding key (sessionId-userId): {}", key2);
+                    userSuccessTimestamps.put(key2, timestamp);
+                }
+            }
+            log.warn("After fallback, userSuccessTimestamps size: {}", userSuccessTimestamps.size());
+        }
+
+        // Build mapping of user-session -> role (label)
+        Map<String, String> roleByUserMap = new HashMap<>();
+        List<CreateParticipantResponse> allResponses = participantOrchestrator.getAllParticipantResponses();
+        for (CreateParticipantResponse r : allResponses) {
+            if (r.getUserId() != null && r.getSessionId() != null && r.getRole() != null) {
+                roleByUserMap.put(r.getUserId() + "-" + r.getSessionId(), r.getRole().getLabel());
+            }
+        }
+        // Merge any roles tracked in BrowserEmulatorClient internal maps
+        Map<String, io.openvidu.loadtest.models.testcase.Role> clientRoles = browserEmulatorClient.getPerUserRoles();
+        if (clientRoles != null) {
+            for (Map.Entry<String, io.openvidu.loadtest.models.testcase.Role> e : clientRoles.entrySet()) {
+                if (e.getValue() != null) {
+                    roleByUserMap.putIfAbsent(e.getKey(), e.getValue().getLabel());
+                }
+            }
+        }
+        // Fallback: if topology is N:N, assume PUBLISHER for any missing entries
+        if (testCase != null && testCase.getTopology() != null && testCase.getTopology().toString().startsWith("N:N")) {
+            for (String key : userSuccessTimestamps.keySet()) {
+                roleByUserMap.putIfAbsent(key, "PUBLISHER");
+            }
+        }
+
+        ResultReport rr = new ResultReport().setTotalParticipants(participantOrchestrator.getTotalParticipants())
+                .setNumSessionsCompleted(participantOrchestrator.getSessionsCompleted())
+                .setNumSessionsCreated(participantOrchestrator.getSessionNumber())
+                .setWorkersUsed(workerLifecycleOrchestrator.getWorkersUsed())
+                .setSessionTopology(testCase.getTopology().toString())
+                .setOpenviduRecording(testCase.getOpenviduRecordingMode().toString())
+                .setBrowserRecording(testCase.isBrowserRecording()).setParticipantsPerSession(participantsBySession)
+                .setStopReason(stopReason).setStartTime(this.startTime)
+                .setEndTime(endTime).setKibanaUrl(kibanaUrl)
+                .setManualParticipantAllocation(loadTestConfig.isManualParticipantsAllocation())
+                .setUsersPerWorker(loadTestConfig.getUsersPerWorker())
+                .setS3BucketName(videoControl)
+                .setTimePerWorker(shutdownOrchestrator.getWorkerTimes())
+                .setTimePerRecordingWorker(shutdownOrchestrator.getRecordingWorkerTimes())
+                .setUserStartTimes(participantOrchestrator.getUserStartTimes())
+                .setUserSuccessTimestamps(userSuccessTimestamps)
+                .setParticipantResponses(participantOrchestrator.getAllParticipantResponses())
+                .setRoleByUser(roleByUserMap)
+                .setUserRetryCounts(browserEmulatorClient.getPerUserRetryCounts())
+                .setUserRetryAttempts(browserEmulatorClient.getPerUserRetryAttempts())
+                .setPlatformMetrics(platformMetrics)
+                .build();
+
+        allReports.add(rr);
+
+        io.exportResultsTxtOnly(rr, timestamp);
+
+    }
+
+}

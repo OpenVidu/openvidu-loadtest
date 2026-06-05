@@ -1,14 +1,14 @@
-import { OpenViduRole } from './openvidu.type';
+import { Role } from '../types/create-user.type.ts';
+export const ContainerName = {
+	METRICBEAT: 'metricbeat',
+} as const;
 
+export type ContainerName = (typeof ContainerName)[keyof typeof ContainerName];
 
-export enum ContainerName {
-	METRICBEAT = 'metricbeat',
-}
-
-export interface BrowserContainerInfo {
+export interface BrowserCContainerInfo {
 	containerName: string;
 	bindedPort: number;
-	connectionRole: OpenViduRole;
+	connectionRole: Role;
 	isRecording: boolean;
 	sessionName: string;
 }

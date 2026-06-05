@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../schema/openvidu-loadtest-schema.json
+# ============================================
+# Basic Local Load Test Configuration
+# ============================================
+# Quick start configuration for testing with a local worker. See the first quick start example in the README for more details.
+
+platform:
+  url: https://your-openvidu-url.io
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: emulated
+    description: "Basic N:N topology test"
+workers:
+  urls: 
+    - browser-emulator
+
+distribution:
+  usersPerWorker: 10

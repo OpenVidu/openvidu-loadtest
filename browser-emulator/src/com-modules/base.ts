@@ -1,24 +1,11 @@
-import { LoadTestPostRequest } from "../types/api-rest.type";
-import { SERVER_PORT} from '../config';
-import { Request } from "express";
+import type { CreateUserBrowser } from '../types/create-user.type.ts';
 
-abstract class BaseComModule {
+export default abstract class BaseComModule {
+	abstract processNewUserRequest(request: CreateUserBrowser): Promise<void>;
 
-    protected static instance: BaseComModule | undefined;
+	abstract areParametersCorrect(request: CreateUserBrowser): boolean;
 
-    static getInstance(): BaseComModule | undefined {
-        return this.instance;
-    }
+	abstract generateWebappUrl(request: CreateUserBrowser): string;
 
-    abstract processNewUserRequest(request: LoadTestPostRequest): Promise<any>;
-
-    abstract areParametersCorrect(request: LoadTestPostRequest): boolean;
-
-    setEnvironmentParams(req: Request): void {
-        process.env.LOCATION_HOSTNAME = `localhost:${SERVER_PORT}`;
-    };
-
-    abstract generateWebappUrl(request: LoadTestPostRequest): string;
+	abstract get PUBLIC_DIR(): string;
 }
-
-export default BaseComModule;

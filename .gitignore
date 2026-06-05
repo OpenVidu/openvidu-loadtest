@@ -24,13 +24,14 @@ hs_err_pid*
 
 *.wav
 *.y4m
+*.h264
+*.ogg
 *.yuv
 *.mp4
 *.mkv
 */.settings
 .classpath
 .project
-*/.vscode
 */.sts4-cache
 
 */target/*
@@ -63,3 +64,5 @@ browser-emulator/qoe_scripts/__pycache__/
 browser-emulator/.awsconfig/
 
 docker/browser-emulator/browser-emulator/
+
+report*.html
