@@ -336,6 +336,12 @@ export class SeleniumService {
 		seleniumServerBaseUrl: string,
 		timeoutMs: number,
 	): Promise<void> {
+		const parsedUrl = new URL(seleniumServerBaseUrl);
+		if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+			throw new Error(
+				`Invalid Selenium server URL protocol: ${parsedUrl.protocol}`,
+			);
+		}
 		const deadline = Date.now() + timeoutMs;
 		while (Date.now() < deadline) {
 			try {

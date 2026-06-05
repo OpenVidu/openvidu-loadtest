@@ -5,6 +5,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { URL } from 'node:url';
+import { validateUrl } from '../../utils/sanitize.js';
 
 export class LocalFilesRepository {
 	// TODO: These directories could be moved to the config service
@@ -182,13 +183,13 @@ export class LocalFilesRepository {
 	private async headRequest(
 		fileUrl: string,
 	): Promise<http.IncomingHttpHeaders> {
-		const requestUrl = new URL(fileUrl);
-		const protocol = requestUrl.protocol.slice(0, -1);
+		const validatedUrl = validateUrl(fileUrl);
+		const protocol = validatedUrl.protocol.slice(0, -1);
 		const httpModule = protocol === 'https' ? https : http;
 
 		return new Promise<http.IncomingHttpHeaders>((resolve, reject) => {
 			const request = httpModule.request(
-				requestUrl,
+				validatedUrl,
 				{ method: 'HEAD' },
 				(response: http.IncomingMessage) => {
 					if (
@@ -201,13 +202,23 @@ export class LocalFilesRepository {
 					}
 
 					if (response.headers.location) {
-						const redirectUrl = new URL(
-							response.headers.location,
-							requestUrl,
-						).toString();
-						this.headRequest(redirectUrl)
-							.then(resolve)
-							.catch(reject);
+						try {
+							const redirectUrl = validateUrl(
+								new URL(
+									response.headers.location,
+									validatedUrl,
+								).toString(),
+							).toString();
+							this.headRequest(redirectUrl)
+								.then(resolve)
+								.catch(reject);
+						} catch (err) {
+							reject(
+								err instanceof Error
+									? err
+									: new Error(String(err)),
+							);
+						}
 						return;
 					}
 
@@ -229,11 +240,12 @@ export class LocalFilesRepository {
 		filePath: string,
 		file: fs.WriteStream,
 	): Promise<string> {
-		const protocol = new URL(fileUrl).protocol.slice(0, -1);
+		const validatedUrl = validateUrl(fileUrl);
+		const protocol = validatedUrl.protocol.slice(0, -1);
 		const httpModule = protocol === 'https' ? https : http;
 		return new Promise<string>((resolve, reject) => {
 			httpModule
-				.get(fileUrl, (response: http.IncomingMessage) => {
+				.get(validatedUrl, (response: http.IncomingMessage) => {
 					if (
 						!!response.statusCode &&
 						response.statusCode >= 200 &&
@@ -248,19 +260,33 @@ export class LocalFilesRepository {
 							resolve(filePath);
 						});
 					} else if (response.headers.location) {
-						this.download(response.headers.location, filePath, file)
-							.then(filePath => resolve(filePath))
-							.catch((err: unknown) => {
-								if (err instanceof Error) {
-									reject(err);
-								} else {
-									reject(
-										new Error(
-											'Unknown error during download',
-										),
-									);
-								}
-							});
+						try {
+							const redirectUrl = validateUrl(
+								new URL(
+									response.headers.location,
+									validatedUrl,
+								).toString(),
+							).toString();
+							this.download(redirectUrl, filePath, file)
+								.then(filePath => resolve(filePath))
+								.catch((err: unknown) => {
+									if (err instanceof Error) {
+										reject(err);
+									} else {
+										reject(
+											new Error(
+												'Unknown error during download',
+											),
+										);
+									}
+								});
+						} catch (err) {
+							reject(
+								err instanceof Error
+									? err
+									: new Error(String(err)),
+							);
+						}
 					} else {
 						reject(
 							new Error(
