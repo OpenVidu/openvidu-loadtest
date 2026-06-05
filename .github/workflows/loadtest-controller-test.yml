@@ -14,7 +14,7 @@ jobs:
         runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
         container:
             image: maven:3.9.14-eclipse-temurin-25
-            options: --user root
+            options: --user 1000:1000
         steps:
             - name: Checkout repository
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
