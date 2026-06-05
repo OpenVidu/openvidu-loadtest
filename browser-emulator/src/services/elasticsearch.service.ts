@@ -61,7 +61,14 @@ export class ElasticSearchService {
 		// The default undici connection does not support URLs with a path
 		// prefix (e.g. https://host/elasticsearch behind a reverse proxy),
 		// so fall back to the classic HTTP connection in that case
-		const hasPathPrefix = new URL(hostname).pathname !== '/';
+		let hasPathPrefix = false;
+		try {
+			hasPathPrefix = new URL(hostname).pathname !== '/';
+		} catch {
+			console.warn(
+				`Invalid Elasticsearch URL: "${hostname}". Falling back to default connection.`,
+			);
+		}
 		const clientOptions: ClientOptions = {
 			node: hostname,
 			maxRetries: 5,

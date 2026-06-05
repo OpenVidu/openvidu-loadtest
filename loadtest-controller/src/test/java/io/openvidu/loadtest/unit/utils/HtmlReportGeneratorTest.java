@@ -15,6 +15,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.openvidu.loadtest.models.monitoring.PlatformMetric;
+import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
@@ -509,6 +511,234 @@ class HtmlReportGeneratorTest {
         assertFalse(overviewTable.isEmpty(), "Overview comparison table should exist");
         org.jsoup.select.Elements overviewRows = doc.select(".overview-table tbody tr");
         assertEquals(2, overviewRows.size(), "Overview table should have 2 rows");
+    }
+
+    @Test
+    void testGenerateHtmlReport_withPlatformMetrics(@TempDir Path tempDir) throws IOException {
+        List<Point> points = List.of(
+                new Point(1000.0, 10.0),
+                new Point(2000.0, 20.0),
+                new Point(3000.0, 15.0));
+
+        List<PlatformMetric> platformMetrics = new ArrayList<>();
+        platformMetrics.add(new PlatformMetric("participants", "count",
+                "Concurrent participants connected to the platform", points));
+        platformMetrics.add(new PlatformMetric("rtt_p95", "ms",
+                "95th percentile round-trip time", points));
+        platformMetrics.add(new PlatformMetric("packet_loss", "%",
+                "Platform-wide percentage of RTP packets lost", points));
+
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(10)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setStopReason("Test finished")
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance())
+                .setPlatformMetrics(platformMetrics);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
+
+        assertTrue(Files.exists(reportPath));
+        String content = Files.readString(reportPath);
+
+        // Check the section is present
+        assertTrue(content.contains("OpenVidu Platform Metrics"));
+
+        // Check metric names and descriptions
+        assertTrue(content.contains("participants"));
+        assertTrue(content.contains("Concurrent participants connected to the platform"));
+        assertTrue(content.contains("rtt_p95"));
+        assertTrue(content.contains("95th percentile round-trip time"));
+        assertTrue(content.contains("packet_loss"));
+
+        // Check min/avg/max values are rendered
+        assertTrue(content.contains("10.00 count"));
+        assertTrue(content.contains("15.00 count"));
+        assertTrue(content.contains("20.00 count"));
+
+        // Check sparkline SVG is present
+        assertTrue(content.contains("<polyline points="));
+    }
+
+    @Test
+    void testGenerateHtmlReport_withPlatformMetricsEmpty_noSection(@TempDir Path tempDir) throws IOException {
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setStopReason("Test finished")
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance())
+                .setPlatformMetrics(new ArrayList<>());
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+        assertFalse(content.contains("OpenVidu Platform Metrics"));
+    }
+
+    @Test
+    void testGenerateHtmlReport_withBandwidthMetricFormatsBps(@TempDir Path tempDir) throws IOException {
+        // Bandwidth in bps: 1.5Mbps = 1500000 bps
+        List<Point> bpsPoints = List.of(
+                new Point(1000.0, 1500000.0),
+                new Point(2000.0, 2500000.0));
+
+        List<PlatformMetric> platformMetrics = new ArrayList<>();
+        platformMetrics.add(new PlatformMetric("bandwidth_in", "bps",
+                "Media traffic received", bpsPoints));
+
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setStopReason("Test finished")
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance())
+                .setPlatformMetrics(platformMetrics);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+        // 1500000 bps should format as 1.50 Mbps
+        assertTrue(content.contains("Mbps"));
+        // 2500000 bps should format as 2.50 Mbps
+        assertTrue(content.contains("2.50 Mbps"));
+    }
+
+    @Test
+    void testGenerateMultiReport_withPlatformMetricsInTab(@TempDir Path tempDir) throws IOException {
+        List<Point> points = List.of(new Point(1000.0, 10.0));
+
+        List<PlatformMetric> platformMetrics = new ArrayList<>();
+        platformMetrics.add(new PlatformMetric("participants", "count",
+                "Concurrent participants", points));
+
+        Calendar startTime = Calendar.getInstance();
+        Calendar endTime = Calendar.getInstance();
+        endTime.add(Calendar.SECOND, 60);
+
+        ResultReport report = new ResultReport()
+                .setTotalParticipants(10)
+                .setNumSessionsCreated(2)
+                .setNumSessionsCompleted(2)
+                .setWorkersUsed(1)
+                .setSessionTopology("N:N")
+                .setParticipantsPerSession("5")
+                .setBrowserRecording(false)
+                .setOpenviduRecording("NONE")
+                .setManualParticipantAllocation(false)
+                .setStopReason("Test finished")
+                .setStartTime(startTime)
+                .setEndTime(endTime)
+                .setKibanaUrl("")
+                .setS3BucketName("bucket")
+                .setPlatformMetrics(platformMetrics);
+
+        List<ResultReport> reports = List.of(report);
+        Path reportPath = tempDir.resolve("multi-report.html");
+        htmlReportGenerator.generateMultiReport(reports, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+        assertTrue(content.contains("OpenVidu Platform Metrics"));
+        assertTrue(content.contains("participants"));
+    }
+
+    @Test
+    void testGenerateMultiReport_withPlatformMetricOverflow(@TempDir Path tempDir) throws IOException {
+        // Test that high values format correctly with unit suffix
+        List<Point> points = List.of(new Point(1000.0, 2000.0));
+
+        List<PlatformMetric> platformMetrics = new ArrayList<>();
+        platformMetrics.add(new PlatformMetric("rtt_p95", "ms",
+                "Round-trip time", points));
+
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setStopReason("Test finished")
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance())
+                .setPlatformMetrics(platformMetrics);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+        // Values >= 1000 use "%,.0f %s" format -> "2,000 ms"
+        assertTrue(content.contains("2,000 ms") || content.contains("2000.00 ms"),
+                "High RTT values should be formatted with the unit");
+    }
+
+    @Test
+    void testGenerateHtmlReport_withPlatformMetricsAndNull(@TempDir Path tempDir) throws IOException {
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setStopReason("Test finished")
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance())
+                .setPlatformMetrics(null);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+        assertFalse(content.contains("OpenVidu Platform Metrics"),
+                "Platform metrics section should not appear when metrics is null");
+    }
+
+    @Test
+    void testGenerateHtmlReport_platformMetricSparkline(@TempDir Path tempDir) throws IOException {
+        // Test sparkline with many points to verify SVG polyline generation
+        List<Point> points = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            points.add(new Point(i * 1000.0, i * 10.0));
+        }
+
+        List<PlatformMetric> platformMetrics = new ArrayList<>();
+        platformMetrics.add(new PlatformMetric("quality_score", "score",
+                "Quality score", points));
+
+        ResultReport resultReport = new ResultReport()
+                .setTotalParticipants(5)
+                .setNumSessionsCreated(1)
+                .setNumSessionsCompleted(1)
+                .setStopReason("Test finished")
+                .setStartTime(Calendar.getInstance())
+                .setEndTime(Calendar.getInstance())
+                .setPlatformMetrics(platformMetrics);
+
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(resultReport, reportPath.toString());
+
+        String content = Files.readString(reportPath);
+
+        // Parse with JSoup to verify sparkline SVG structure
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(content);
+        org.jsoup.select.Elements sparklineSvgs = doc.select(".metric-spark svg");
+        assertFalse(sparklineSvgs.isEmpty(), "At least one sparkline SVG should exist");
+        assertEquals(1, sparklineSvgs.size());
+
+        org.jsoup.nodes.Element svg = sparklineSvgs.get(0);
+        assertEquals("260", svg.attr("width"));
+        assertEquals("36", svg.attr("height"));
+
+        org.jsoup.select.Elements polylines = svg.select("polyline");
+        assertFalse(polylines.isEmpty(), "Sparkline SVG should contain a polyline");
+        String pointsAttr = polylines.get(0).attr("points");
+        assertFalse(pointsAttr.isEmpty(), "Polyline points should not be empty");
+
+        // Should have 10 coordinate pairs for 10 data points
+        String[] coords = pointsAttr.trim().split("\\s+");
+        assertEquals(10, coords.length,
+                "Sparkline should have 10 coordinate pairs for 10 data points");
     }
 
     @Test

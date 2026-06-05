@@ -27,6 +27,7 @@ import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
 
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
+import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
@@ -41,6 +42,8 @@ public class HtmlReportGenerator {
     private static final String KEY_VALUE = "value";
     private static final String PERCENTAGE_FORMAT = "%.1f%%";
     private static final int PAGE_SIZE = 50;
+    private static final int SPARKLINE_WIDTH = 260;
+    private static final int SPARKLINE_HEIGHT = 36;
 
     private final Template reportTemplate;
 
@@ -139,7 +142,9 @@ public class HtmlReportGenerator {
                     "min", formatMetricValue(metric.getMin(), metric.getUnit()),
                     "avg", formatMetricValue(metric.getAvg(), metric.getUnit()),
                     "max", formatMetricValue(metric.getMax(), metric.getUnit()),
-                    "sparkPoints", buildSparklinePoints(metric.getPoints())));
+                    "sparkPoints", buildSparklinePoints(metric.getPoints()),
+                    "sparklineWidth", SPARKLINE_WIDTH,
+                    "sparklineHeight", SPARKLINE_HEIGHT));
         }
         return rows;
     }
@@ -157,6 +162,9 @@ public class HtmlReportGenerator {
             }
             return String.format("%.0f bps", value);
         }
+        if ("%".equals(unit)) {
+            return String.format("%.2f%%", value);
+        }
         if (Math.abs(value) >= 1000) {
             return String.format("%,.0f %s", value, unit);
         }
@@ -166,21 +174,19 @@ public class HtmlReportGenerator {
     /**
      * Builds the points of an SVG polyline (sparkline) for the metric trend.
      */
-    private String buildSparklinePoints(List<double[]> points) {
-        final int width = 260;
-        final int height = 36;
+    private String buildSparklinePoints(List<Point> points) {
         if (points.size() < 2) {
             return "";
         }
-        double min = points.stream().mapToDouble(p -> p[1]).min().orElse(0);
-        double max = points.stream().mapToDouble(p -> p[1]).max().orElse(0);
+        double min = points.stream().mapToDouble(Point::value).min().orElse(0);
+        double max = points.stream().mapToDouble(Point::value).max().orElse(0);
         double span = max - min == 0 ? 1.0 : max - min;
-        double stepX = (double) width / (points.size() - 1);
+        double stepX = (double) SPARKLINE_WIDTH / (points.size() - 1);
 
         StringBuilder coords = new StringBuilder();
         for (int i = 0; i < points.size(); i++) {
             double x = i * stepX;
-            double y = height - 2 - ((points.get(i)[1] - min) / span) * (height - 4);
+            double y = SPARKLINE_HEIGHT - 2 - ((points.get(i).value() - min) / span) * (SPARKLINE_HEIGHT - 4);
             if (i > 0) {
                 coords.append(' ');
             }
