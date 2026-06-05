@@ -336,14 +336,18 @@ The predefined options available are:
 
 ### Monitoring
 
-Kibana integration for metrics visualization. Expects Elastichsearch 9.x and Kibana 9.x.
+Elasticsearch, Kibana and Grafana integration for metrics visualization. Expects Elasticsearch 9.x and Kibana 9.x.
 
-| Property                 | Required | Default | Description            |
-| ------------------------ | -------- | ------- | ---------------------- |
-| `kibana.host`            | No       | -       | Kibana URL             |
-| `elasticsearch.host`     | No       | -       | Elasticsearch URL      |
-| `elasticsearch.username` | No       | -       | Elasticsearch username |
-| `elasticsearch.password` | No       | -       | Elasticsearch password |
+| Property                 | Required | Default               | Description                                                                                                                                                                                      |
+| ------------------------ | -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `kibana.host`            | No       | -                     | Kibana URL                                                                                                                                                                                       |
+| `elasticsearch.host`     | No       | -                     | Elasticsearch URL                                                                                                                                                                                |
+| `elasticsearch.username` | No       | -                     | Elasticsearch username                                                                                                                                                                           |
+| `elasticsearch.password` | No       | -                     | Elasticsearch password                                                                                                                                                                           |
+| `grafana.host`           | No       | -                     | Grafana host URL (e.g. `https://my-openvidu.io/grafana`). When set, OpenVidu platform metrics are collected at the end of the test. Note that your OpenVidu deployment must have Grafana running |
+| `grafana.username`       | No       | -                     | Grafana username                                                                                                                                                                                 |
+| `grafana.password`       | No       | -                     | Grafana password                                                                                                                                                                                 |
+| `grafana.datasourceUid`  | No       | `openvidu-prometheus` | UID of the Prometheus datasource in Grafana                                                                                                                                                      |
 
 ### Advanced User Management Options
 
