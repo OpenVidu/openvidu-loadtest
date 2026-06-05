@@ -112,6 +112,7 @@ class MultiTestCaseIntegrationTest {
 
     @BeforeAll
     static void setUpEnvironmentAndStartMockServers() throws Exception {
+        IntegrationTestReportCleaner.cleanTargetReportsOnce();
         Files.createDirectories(resultsDir);
         cleanupResultsDir();
     }

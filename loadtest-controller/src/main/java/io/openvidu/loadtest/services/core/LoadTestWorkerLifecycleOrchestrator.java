@@ -164,6 +164,8 @@ class LoadTestWorkerLifecycleOrchestrator {
                 log.error("Instance initialization interrupted: {}", ie.getMessage());
             } catch (ExecutionException ee) {
                 log.error("Error while initializing instance: {}", ee.getMessage());
+                // TODO: An error initializing an instance should be handled more gracefully,
+                // e.g. by launching a replacement instance.
             }
         }
     }
