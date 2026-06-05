@@ -20,6 +20,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.utils.CustomHttpClient;
 import io.openvidu.loadtest.utils.JsonUtils;
 
@@ -42,37 +43,53 @@ public class KibanaClient {
 
     private static final Logger log = LoggerFactory.getLogger(KibanaClient.class);
 
+    public int maxRetries = 10;
+    public int retryDelaySeconds = 5;
+
     private LoadTestConfig loadTestConfig;
     private CustomHttpClient httpClient;
     private ResourceLoader resourceLoader;
     private JsonUtils jsonUtils;
+    private Sleeper sleeper;
 
     private String kibanaHost;
 
     public KibanaClient(LoadTestConfig loadTestConfig, CustomHttpClient httpClient, ResourceLoader resourceLoader,
-            JsonUtils jsonUtils) {
+            JsonUtils jsonUtils, Sleeper sleeper) {
         this.loadTestConfig = loadTestConfig;
         this.httpClient = httpClient;
         this.resourceLoader = resourceLoader;
         this.jsonUtils = jsonUtils;
+        this.sleeper = sleeper;
     }
 
     public void importDashboards() {
-        if (this.loadTestConfig.isKibanaEstablished()) {
+        if (!this.loadTestConfig.isKibanaEstablished()) {
+            log.warn("Kibana Host parameter is empty. Dashboard won't be imported.");
+            return;
+        }
 
+        this.kibanaHost = loadTestConfig.getKibanaHost().replaceAll("/$", "");
+        log.info("Importing Kibana JSON file with saved objects from resources directory");
+
+        for (int i = 1; i <= this.maxRetries; i++) {
             try {
-                this.kibanaHost = loadTestConfig.getKibanaHost().replaceAll("/$", "");
-                log.info("Importing Kibana JSON file with saved objects from resources directory");
                 Resource resource = resourceLoader.getResource("classpath:loadtest.ndjson");
                 File file = resourceToFile(resource);
                 importSavedObjects(file);
+                log.info("Kibana dashboards successfully imported on attempt {}/{}", i, this.maxRetries);
+                return;
             } catch (Exception e) {
-                log.warn("Can't import dashboard to Kibana at {}", this.kibanaHost);
-                log.error(e.getMessage());
+                log.warn("Kibana dashboard import failed (attempt {}/{}): {}", i, this.maxRetries,
+                        e.getMessage());
             }
-            return;
+            if (i < this.maxRetries) {
+                this.sleeper.sleep(this.retryDelaySeconds, "retrying Kibana dashboard import");
+            }
         }
-        log.warn("Kibana Host parameter is empty. Dashboard won't be imported.");
+
+        log.error("Can't import dashboard to Kibana at {} after {} attempts", this.kibanaHost,
+                this.maxRetries);
     }
 
     private File resourceToFile(Resource resource) throws IOException {
@@ -89,40 +106,54 @@ public class KibanaClient {
     }
 
     public String getDashboardUrl(String startTime, String endTime) {
-        if (this.loadTestConfig.isKibanaEstablished()) {
-            // Use the Export API instead of the deprecated _find endpoint.
-            final String URL = this.loadTestConfig.getKibanaHost() + API_EXPORT_SAVED_OBJECTS;
-            Map<String, String> headers = new HashMap<>();
+        if (!this.loadTestConfig.isKibanaEstablished()) {
+            return DASHBOARD_NOT_FOUND;
+        }
 
-            String esUserName = loadTestConfig.getElasticsearchUserName();
-            String esPassword = loadTestConfig.getElasticsearchPassword();
-            boolean securityEnabled = loadTestConfig.isElasticSearchSecured();
-            if (securityEnabled) {
-                headers.put("Authorization", getBasicAuth(esUserName, esPassword));
-            }
-            headers.put("kbn-xsrf", "true");
+        final String URL = this.loadTestConfig.getKibanaHost() + API_EXPORT_SAVED_OBJECTS;
+        Map<String, String> headers = new HashMap<>();
 
+        String esUserName = loadTestConfig.getElasticsearchUserName();
+        String esPassword = loadTestConfig.getElasticsearchPassword();
+        boolean securityEnabled = loadTestConfig.isElasticSearchSecured();
+        if (securityEnabled) {
+            headers.put("Authorization", getBasicAuth(esUserName, esPassword));
+        }
+        headers.put("kbn-xsrf", "true");
+
+        JsonObject body = new JsonObject();
+        body.addProperty("type", "dashboard");
+        body.addProperty("search", LOAD_TEST_DASHBOARD);
+        body.addProperty("excludeExportDetails", true);
+
+        for (int i = 1; i <= this.maxRetries; i++) {
             try {
-                JsonObject body = new JsonObject();
-                body.addProperty("type", "dashboard");
-                body.addProperty("search", LOAD_TEST_DASHBOARD);
-                body.addProperty("excludeExportDetails", true);
-
                 HttpResponse<String> response = this.httpClient.sendPost(URL, body, null, headers);
 
                 if (response.statusCode() == HTTP_STATUS_OK) {
-                    return extractDashboardUrlFromResponse(response, startTime, endTime);
+                    String url = extractDashboardUrlFromResponse(response, startTime, endTime);
+                    if (!DASHBOARD_NOT_FOUND.equals(url)) {
+                        return url;
+                    }
+                } else {
+                    log.warn("Kibana export API returned status {} (attempt {}/{})",
+                            response.statusCode(), i, this.maxRetries);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.error("Interrupted while reaching Kibana REST API GET {}: {}", URL, e.getMessage());
-                e.printStackTrace();
+                log.warn("Interrupted while reaching Kibana REST API GET {} (attempt {}/{}): {}",
+                        URL, i, this.maxRetries, e.getMessage());
             } catch (IOException e) {
-                log.error("Error while reaching Kibana REST API GET {}: {}", URL, e.getMessage());
-                e.printStackTrace();
+                log.warn("Error while reaching Kibana REST API GET {} (attempt {}/{}): {}",
+                        URL, i, this.maxRetries, e.getMessage());
+            }
+
+            if (i < this.maxRetries) {
+                this.sleeper.sleep(this.retryDelaySeconds, "retrying Kibana dashboard URL retrieval");
             }
         }
 
+        log.error("Kibana Load Test Dashboard URL not found after {} attempts", this.maxRetries);
         return DASHBOARD_NOT_FOUND;
 
     }
@@ -164,8 +195,7 @@ public class KibanaClient {
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("Interrupted while reaching Kibana REST API POST {}: {}", URL, e.getMessage());
-            e.printStackTrace();
+            throw new IOException("Interrupted while reaching Kibana REST API POST " + URL, e);
         }
     }
 
@@ -173,11 +203,10 @@ public class KibanaClient {
         return "Basic " + Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
     }
 
-    private void processKibanaResponse(HttpResponse<String> response) {
-        if (response.statusCode() == HTTP_STATUS_OK) {
-            log.info("Kibana dashboards successfully imported");
-        } else if (log.isErrorEnabled()) {
-            log.error("Kibana response status {}. {}", response.statusCode(), response.body());
+    private void processKibanaResponse(HttpResponse<String> response) throws IOException {
+        if (response.statusCode() != HTTP_STATUS_OK) {
+            throw new IOException(
+                    "Kibana returned status " + response.statusCode() + ": " + response.body());
         }
     }
 

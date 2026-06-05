@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.text.DecimalFormat;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.exceptions.LoadTestInitializationException;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
+import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
+import io.openvidu.loadtest.services.Sleeper;
 
 @Service
 public class ElasticSearchClient {
@@ -52,8 +56,14 @@ public class ElasticSearchClient {
 
     private boolean initialized = false;
 
-    public ElasticSearchClient(LoadTestConfig loadTestConfig) {
+    public int maxRetries = 10;
+    public int retryDelayMs = 5000;
+
+    private Sleeper sleeper;
+
+    public ElasticSearchClient(LoadTestConfig loadTestConfig, Sleeper sleeper) {
         this.loadTestConfig = loadTestConfig;
+        this.sleeper = sleeper;
     }
 
     @PostConstruct
@@ -89,10 +99,28 @@ public class ElasticSearchClient {
             ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
             this.client = new ElasticsearchClient(transport);
 
-            if (doPing()) {
-                this.initialized = true;
-                log.info("Connection to Elasticsearch established at {}", elasticsearchHost);
+            for (int i = 1; i <= this.maxRetries; i++) {
+                try {
+                    if (doPing()) {
+                        this.initialized = true;
+                        log.info("Connection to Elasticsearch established at {}", elasticsearchHost);
+                        return;
+                    }
+                } catch (Exception e) {
+                    log.warn("Connection to Elasticsearch failed (attempt {}/{}): {}", i, this.maxRetries,
+                            e.getMessage());
+                }
+                if (i < this.maxRetries) {
+                    this.sleeper.sleep(this.retryDelayMs / 1000, "retrying Elasticsearch connection");
+                }
             }
+            String message = "Connection to Elasticsearch failed at " + loadTestConfig.getElasticsearchHost()
+                    + " after " + this.maxRetries + " attempts (retry delay " + (this.retryDelayMs / 1000) + "s)"
+                    + ". If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it";
+            log.error(message);
+            throw new LoadTestInitializationException(message);
+        } catch (LoadTestInitializationException e) {
+            throw e;
         } catch (Exception e) {
             String message = "Connection to Elasticsearch failed at " + loadTestConfig.getElasticsearchHost()
                     + " (" + e.getMessage()
@@ -113,8 +141,8 @@ public class ElasticSearchClient {
 
     /**
      * Indexes the platform metrics collected from Prometheus (through
-     * Grafana) into a dedicated 'loadtest-openvidu-metrics-*' index, covered
-     * by the same 'loadtest-*' Kibana index pattern as the WebRTC stats.
+     * Grafana) into a date-rolling 'loadtest-openvidu-metrics-YYYY.MM.dd' index,
+     * covered by the same 'loadtest-*' Kibana index pattern as the WebRTC stats.
      */
     public void indexPlatformMetrics(List<PlatformMetric> metrics) {
         if (!this.initialized) {
@@ -125,23 +153,27 @@ public class ElasticSearchClient {
             return;
         }
 
-        String indexName = "loadtest-openvidu-metrics-" + System.currentTimeMillis();
+        String indexName = "loadtest-openvidu-metrics-"
+                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
         try {
-            this.client.indices().create(c -> c.index(indexName).mappings(m -> m
-                    .properties("@timestamp", p -> p.date(d -> d))
-                    .properties("metric", p -> p.keyword(k -> k))
-                    .properties("value", p -> p.double_(d -> d))
-                    .properties("unit", p -> p.keyword(k -> k))
-                    .properties("source", p -> p.keyword(k -> k))));
+            boolean exists = this.client.indices().exists(e -> e.index(indexName)).value();
+            if (!exists) {
+                this.client.indices().create(c -> c.index(indexName).mappings(m -> m
+                        .properties("@timestamp", p -> p.date(d -> d))
+                        .properties("metric", p -> p.keyword(k -> k))
+                        .properties("value", p -> p.double_(d -> d))
+                        .properties("unit", p -> p.keyword(k -> k))
+                        .properties("source", p -> p.keyword(k -> k))));
+            }
 
             BulkRequest.Builder bulkBuilder = new BulkRequest.Builder();
             int documents = 0;
             for (PlatformMetric metric : metrics) {
-                for (double[] point : metric.getPoints()) {
+                for (Point point : metric.getPoints()) {
                     Map<String, Object> document = new HashMap<>();
-                    document.put("@timestamp", Instant.ofEpochSecond((long) point[0]).toString());
+                    document.put("@timestamp", Instant.ofEpochSecond((long) point.timestamp()).toString());
                     document.put("metric", metric.getName());
-                    document.put("value", point[1]);
+                    document.put("value", point.value());
                     document.put("unit", metric.getUnit());
                     document.put("source", "grafana-prometheus");
                     bulkBuilder.operations(op -> op.index(idx -> idx.index(indexName).document(document)));
@@ -155,7 +187,7 @@ public class ElasticSearchClient {
                 log.info("Indexed {} platform metric documents into '{}'", documents, indexName);
             }
         } catch (Exception e) {
-            log.error("Could not index platform metrics into Elasticsearch: {}", e.getMessage());
+            log.error("Could not index platform metrics into Elasticsearch", e);
         }
     }
 
