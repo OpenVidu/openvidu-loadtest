@@ -98,17 +98,10 @@ export class OpenViduBrowserController {
 				res.status(400).send('Problem with some body parameter');
 			}
 		} catch (error: unknown) {
-			if (error instanceof Error) {
-				res.status(500).send({
-					message: error.message,
-					error: error,
-				});
-			} else {
-				res.status(500).send({
-					message: 'Unknown error',
-					error: error,
-				});
-			}
+			console.error(error);
+			res.status(500).send({
+				message: 'Internal server error',
+			});
 		}
 	}
 
@@ -122,7 +115,7 @@ export class OpenViduBrowserController {
 			res.status(200).send(`Instance ${req.headers.host} is clean`);
 		} catch (error) {
 			console.error(error);
-			res.status(500).send(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 
@@ -145,8 +138,8 @@ export class OpenViduBrowserController {
 			);
 			res.status(200).send({});
 		} catch (error) {
-			console.log(error);
-			res.status(500).send(error);
+			console.error(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 
@@ -181,8 +174,8 @@ export class OpenViduBrowserController {
 			);
 			res.status(200).send({});
 		} catch (error) {
-			console.log(error);
-			res.status(500).send(error);
+			console.error(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 

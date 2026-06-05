@@ -52,7 +52,8 @@ export class QoeController {
 			new Uint8Array(buffer),
 			err => {
 				if (err) {
-					res.status(500).send(err.message);
+					console.error(err);
+					res.status(500).send('Internal server error');
 				} else {
 					res.status(200).send();
 				}

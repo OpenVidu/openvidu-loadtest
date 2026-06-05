@@ -54,7 +54,7 @@ export class EventsController {
 			res.status(200).send();
 		} catch (error) {
 			console.log('ERROR saving stats', error);
-			res.status(500).send(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 
@@ -73,7 +73,7 @@ export class EventsController {
 			res.status(200).send();
 		} catch (error) {
 			console.error(error);
-			res.status(500).send(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 
@@ -94,7 +94,7 @@ export class EventsController {
 			res.status(200).send();
 		} catch (error) {
 			console.error(error);
-			res.status(500).send(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 

@@ -119,7 +119,7 @@ export class InstanceController {
 			);
 		} catch (error) {
 			console.error(error);
-			res.status(500).send(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 
@@ -132,7 +132,7 @@ export class InstanceController {
 			res.status(200).send('Shutdown initiated');
 		} catch (error) {
 			console.error('Error during shutdown:', error);
-			res.status(500).send(error);
+			res.status(500).send('Internal server error');
 		}
 	}
 
