@@ -1,5 +1,6 @@
 import * as express from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,6 +16,15 @@ export class QoeController {
 	private readonly router: express.Router;
 	private readonly qoeAnalysisOrchestratorService: QoeAnalysisOrchestratorService;
 	private readonly upload = multer({ storage: multer.memoryStorage() });
+	private readonly qoeRecordingsLimiter = rateLimit({
+		windowMs: 60 * 1000,
+		max: 10,
+		standardHeaders: true,
+		legacyHeaders: false,
+		message: {
+			error: 'Too many QoE recording uploads, please try again later',
+		},
+	});
 
 	constructor(
 		qoeAnalysisOrchestratorService: QoeAnalysisOrchestratorService,
@@ -27,6 +37,7 @@ export class QoeController {
 	private setupRoutes(): void {
 		this.router.post(
 			'/qoeRecordings',
+			this.qoeRecordingsLimiter,
 			this.upload.single('file'),
 			this.handleQoeRecordingsUpload.bind(this) as express.RequestHandler,
 		);

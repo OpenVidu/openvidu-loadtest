@@ -41,6 +41,7 @@
 		"dockerode": "4.0.9",
 		"exit-hook": "5.1.0",
 		"express": "5.2.1",
+		"express-rate-limit": "8.5.2",
 		"livekit-server-sdk": "2.15.0",
 		"multer": "2.1.0",
 		"node-os-utils": "2.0.1",
