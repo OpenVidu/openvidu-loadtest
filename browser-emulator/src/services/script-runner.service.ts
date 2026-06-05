@@ -50,6 +50,7 @@ export class ScriptRunnerService {
 
 			const { command, args } =
 				this.splitScriptIntoCommandAndArgs(script);
+			this.validateCommand(command);
 
 			const execProcess = spawn(command, args, {
 				cwd: process.cwd(),
@@ -342,6 +343,12 @@ export class ScriptRunnerService {
 
 		const command = args.shift() ?? '';
 		return { command, args };
+	}
+
+	private validateCommand(command: string): void {
+		if (!/^[a-zA-Z0-9_/-]+$/.test(command) || command.includes('..')) {
+			throw new Error(`Invalid command: "${command}"`);
+		}
 	}
 
 	public async killDetached(process: ChildProcess) {
