@@ -353,8 +353,14 @@ public class LoadTestService {
 
     private void waitToMediaServerLiveAgain() {
         if (esClient.isInitialized()) {
-            while (esClient.getMediaNodeCpu() > 5.00) {
+            int maxWaitSeconds = 30;
+            int waited = 0;
+            while (esClient.getMediaNodeCpu() > 5.00 && waited < maxWaitSeconds) {
                 sleeper.sleep(5, "Waiting MediaServer recovers his CPU");
+                waited += 5;
+            }
+            if (waited >= maxWaitSeconds) {
+                log.warn("MediaServer CPU did not drop below 5% within {} seconds, proceeding anyway", maxWaitSeconds);
             }
         } else {
             sleeper.sleep(5, "Waiting MediaServer recovers his CPU");
