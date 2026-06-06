@@ -61,6 +61,21 @@ export MEDIAFILES_HOST_DIR="$E2E_TEST_DIR/../browser-emulator/mediafiles"
 export SCRIPTS_LOGS_HOST_DIR="$E2E_TEST_DIR/../browser-emulator/logs"
 export METRICBEAT_CONFIG="$E2E_TEST_DIR/../browser-emulator/src/assets/metricbeat-config/metricbeat.yml"
 
+# Auto-detect host user/group IDs for non-root container execution
+export HOST_UID="${HOST_UID:-$(id -u)}"
+export HOST_GID="${HOST_GID:-$(id -g)}"
+if [ -z "${DOCKER_GID:-}" ] && [ -e /var/run/docker.sock ]; then
+	export DOCKER_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo "")
+fi
+export DOCKER_GID="${DOCKER_GID:-1001}"
+
+# Ensure /tmp/openvidu-loadtest exists and is world-writable
+# Docker bind mounts create this directory as root:root 755 by default,
+# but browser-emulator (running as non-root UID 1000) needs write access.
+if [ ! -d /tmp/openvidu-loadtest ]; then
+	mkdir -m 777 /tmp/openvidu-loadtest
+fi
+
 # Clean previous results to avoid false positives
 rm -f $LOCAL_RESULTS_DIR/results-*.txt $LOCAL_RESULTS_DIR/report-*.html $LOCAL_RESULTS_DIR/docker-compose.log
 

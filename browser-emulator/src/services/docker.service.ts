@@ -90,6 +90,12 @@ export class DockerService {
 		}
 
 		const writeStream = fs.createWriteStream(safeDestPath, { flags: 'a' });
+		writeStream.on('error', (err) => {
+			console.error(
+				'Error writing selenium container logs to file:',
+				err,
+			);
+		});
 
 		// Request the logs stream and pipe to file. follow=true keeps streaming until container stops.
 		const logStream: NodeJS.ReadableStream = (await container.logs({

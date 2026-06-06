@@ -216,8 +216,7 @@ export class SeleniumService {
 
 		// Start streaming container logs to host ./logs directory
 		try {
-			const hostLogsDir = this.configService.getScriptsLogsHostDir();
-			const logsPath = `${hostLogsDir}/selenium-${logName ?? Date.now()}.log`;
+			const logsPath = `${LocalFilesRepository.SCRIPTS_LOGS_DIR}/selenium-${logName ?? Date.now()}.log`;
 			void this.dockerService.streamContainerLogs(
 				containerName,
 				logsPath,

@@ -10,11 +10,21 @@ permissions:
   contents: read
 
 jobs:
+    get-docker-gid:
+        runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+        outputs:
+            gid: ${{ steps.gid.outputs.result }}
+        steps:
+            - name: Get Docker group GID
+              id: gid
+              run: echo "result=$(stat -c '%g' /var/run/docker.sock)" >> "$GITHUB_OUTPUT"
+
     unit-test:
+        needs: get-docker-gid
         runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
         container:
             image: maven:3.9.14-eclipse-temurin-25
-            options: --user 1000:1000
+            options: --user 1000:1000 -v /var/run/docker.sock:/var/run/docker.sock --group-add ${{ needs.get-docker-gid.outputs.gid }}
         steps:
             - name: Checkout repository
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
