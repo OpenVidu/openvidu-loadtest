@@ -19,4 +19,7 @@ COPY tests ./tests
 
 RUN mkdir -p recordings/chrome recordings/qoe stats logs mediafiles
 
+# Make /app writable by the node user (UID 1000) for vitest/vite temp files
+RUN chown -R node:node /app
+
 CMD ["pnpm","run","test"]

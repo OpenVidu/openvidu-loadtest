@@ -36,14 +36,32 @@ jobs:
           LAN_PRIVATE_IP_DASHED="${LAN_PRIVATE_IP//./-}"
           echo "ovurl=https://$LAN_PRIVATE_IP_DASHED.openvidu-local.dev:7443" >> "$GITHUB_OUTPUT"
         
+      - name: Get Docker group GID
+        id: get-docker-gid
+        run: |
+          DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+          echo "DOCKER_GID=$DOCKER_GID" >> "$GITHUB_OUTPUT"
+          echo "HOST_UID=$(id -u)" >> "$GITHUB_OUTPUT"
+          echo "HOST_GID=$(id -g)" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure /tmp/openvidu-loadtest exists and is writable
+        run: mkdir -m 777 -p /tmp/openvidu-loadtest
+
       - name: Run Browser Emulator E2E Tests in Docker
         env:
           TEST_LIVEKIT_URL: ${{ steps.openvidu_env.outputs.ovurl }}
+          HOST_UID: ${{ steps.get-docker-gid.outputs.HOST_UID }}
+          HOST_GID: ${{ steps.get-docker-gid.outputs.HOST_GID }}
+          DOCKER_GID: ${{ steps.get-docker-gid.outputs.DOCKER_GID }}
         run: |
           cd browser-emulator
           docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from browser-emulator-tests          
 
       - name: Run All OpenVidu LoadTest E2E Tests
+        env:
+          HOST_UID: ${{ steps.get-docker-gid.outputs.HOST_UID }}
+          HOST_GID: ${{ steps.get-docker-gid.outputs.HOST_GID }}
+          DOCKER_GID: ${{ steps.get-docker-gid.outputs.DOCKER_GID }}
         run: |
           cd e2e-tests/scripts
           ./run-all-e2e-tests.sh ${{ steps.openvidu_env.outputs.ovurl }} devkey secret
