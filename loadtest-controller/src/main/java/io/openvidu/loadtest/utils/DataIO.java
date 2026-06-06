@@ -114,7 +114,7 @@ public class DataIO {
             try {
                 String fileName = "report-" + timestamp + ".html";
                 htmlReportGenerator.generateMultiReport(reports, fileName);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.error("Could not save HTML report to file", e);
             }
         }

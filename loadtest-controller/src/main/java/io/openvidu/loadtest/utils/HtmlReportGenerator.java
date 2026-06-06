@@ -439,7 +439,12 @@ public class HtmlReportGenerator {
         log.debug("Writing multi HTML report to: {}", resultPath);
         try (FileWriter fw = new FileWriter(resultPath);
                 BufferedWriter bw = new BufferedWriter(fw)) {
-            bw.write(renderMultiHtmlContent(reports));
+            try {
+                bw.write(renderMultiHtmlContent(reports));
+            } catch (Exception e) {
+                log.error("Error rendering HTML report content", e);
+                bw.write(renderFallbackHtmlContent(reports, e));
+            }
         }
         log.info("Saved multi HTML report in {}", resultPath);
     }
@@ -447,6 +452,28 @@ public class HtmlReportGenerator {
     private String renderMultiHtmlContent(List<ResultReport> reports) {
         Map<String, Object> context = buildMultiReportContext(reports);
         return reportTemplate.execute(context);
+    }
+
+    private String renderFallbackHtmlContent(List<ResultReport> reports, Exception error) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>OpenVidu Load Test Report (Fallback)</title>");
+        sb.append("<style>body{font-family:sans-serif;margin:20px;}h1{color:#d32f2f;}.report{white-space:pre-wrap;background:#f5f5f5;padding:16px;border-radius:4px;}.error{background:#ffebee;padding:12px;border-left:4px solid #d32f2f;margin:16px 0;}</style>");
+        sb.append("</head><body>");
+        sb.append("<h1>OpenVidu Load Test Report</h1>");
+        sb.append("<div class=\"error\"><strong>Report rendering error:</strong> ").append(escapeHtml(error.getMessage())).append("</div>");
+        sb.append("<div class=\"report\">");
+        for (ResultReport report : reports) {
+            sb.append(escapeHtml(report.toString()));
+            sb.append("\n\n");
+        }
+        sb.append("</div></body></html>");
+        return sb.toString();
+    }
+
+    private static String escapeHtml(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
     }
 
     private Map<String, Object> buildMultiReportContext(List<ResultReport> reports) {
