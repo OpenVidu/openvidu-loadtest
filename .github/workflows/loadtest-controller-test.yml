@@ -16,7 +16,9 @@ jobs:
             gid: ${{ steps.gid.outputs.result }}
         steps:
             - name: Clean workspace from previous run
-              run: sudo rm -rf "${{ github.workspace }}"/*
+              run: |
+                shopt -s dotglob
+                sudo rm -rf "${{ github.workspace }}"/*
               shell: bash
 
             - name: Get Docker group GID

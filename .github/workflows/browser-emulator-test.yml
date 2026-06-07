@@ -24,7 +24,9 @@ jobs:
           version: 10
 
       - name: Clean workspace from previous run
-        run: sudo rm -rf "${{ github.workspace }}"/*
+        run: |
+          shopt -s dotglob
+          sudo rm -rf "${{ github.workspace }}"/*
         shell: bash
 
       - name: Checkout repository
