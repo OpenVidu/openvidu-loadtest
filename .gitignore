@@ -45,7 +45,8 @@ browser-emulator/dist/
 
 browser-emulator/recordings/
 
-browser-emulator/logs/
+browser-emulator/logs/*
+!browser-emulator/logs/.gitkeep
 
 browser-emulator/qoe_json_files/
 
