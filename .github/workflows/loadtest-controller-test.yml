@@ -49,4 +49,4 @@ jobs:
       runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
       steps:
         - name: Clean up
-          uses: OpenVidu/actions/cleanup@35d136377813cf9b0b23d12d16d57864ccf3a8c2 # v1.0.2
+          uses: OpenVidu/actions/cleanup@040cbfd01320475801d7b12e33769e0d55a737a8 # v1.0.21
