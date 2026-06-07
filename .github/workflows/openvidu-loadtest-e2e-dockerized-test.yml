@@ -13,8 +13,12 @@ jobs:
     runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
     steps:
         
+      - name: Clean workspace from previous run
+        run: sudo rm -rf "${{ github.workspace }}"/*
+        shell: bash
+
       - name: Checkout repository
-        uses: ./.github/actions/checkout-with-cleanup
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
   
       - name: Setup OpenVidu Local Deployment
         uses: OpenVidu/actions/start-openvidu-local-deployment@35d136377813cf9b0b23d12d16d57864ccf3a8c2 # v1.0.2
