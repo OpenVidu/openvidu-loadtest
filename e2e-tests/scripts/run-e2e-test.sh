@@ -111,6 +111,14 @@ while [ $ELAPSED -lt $MAX_WAIT ]; do
         break
     fi
     
+    # Check if loadtest-controller has exited without producing results
+    CONTROLLER_STATE=$(docker inspect --format='{{.State.Status}}' loadtest-controller-e2e 2>/dev/null || echo "unknown")
+    if [ "$CONTROLLER_STATE" = "exited" ]; then
+        echo "loadtest-controller has exited without producing results. Test failed."
+        docker compose logs loadtest-controller
+        exit 1
+    fi
+    
     # Check if containers are still running
     RUNNING_CONTAINERS=$(docker compose ps -q)
     if [ -z "$RUNNING_CONTAINERS" ]; then
