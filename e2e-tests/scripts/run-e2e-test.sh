@@ -2,17 +2,19 @@
 
 # Central e2e test runner for OpenVidu Load Test
 # This script runs a load test with the specified configuration and validates results
-# Usage: ./run-e2e-test.sh [--keep-running|-k] [--no-build|-n] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]
+# Usage: ./run-e2e-test.sh [--keep-running|-k] [--no-build|-n] [--elk] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]
 # Example: ./run-e2e-test.sh smoke-test-config.yaml validate-results.sh https://172-31-224-178.openvidu-local.dev:7443
 # Flags:
 #   --keep-running, -k  Keep Docker services running after test completion (useful for debugging)
 #   --no-build, -n      Skip docker image build (use existing images)
+#   --elk               Start ELK stack (Elasticsearch, Kibana, Metricbeat)
 
 set -e
 
 EXIT_CODE=0
 KEEP_RUNNING=false
 NO_BUILD=false
+ELK_PROFILE=""
 
 # Parse flags
 PASSTHROUGH_ARGS=()
@@ -23,6 +25,9 @@ for arg in "$@"; do
             ;;
         --no-build|-n)
             NO_BUILD=true
+            ;;
+        --elk)
+            ELK_PROFILE=" --profile elk"
             ;;
         *)
             PASSTHROUGH_ARGS+=("$arg")
@@ -41,7 +46,7 @@ fi
 
 # Check arguments
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 [--keep-running|-k] [--no-build|-n] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]"
+    echo "Usage: $0 [--keep-running|-k] [--no-build|-n] [--elk] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]"
     echo "Example: $0 smoke-test-config.yaml validate-results.sh https://openvidu.example.com:7443 devkey secret"
     exit 1
 fi
@@ -88,9 +93,11 @@ rm -f $LOCAL_RESULTS_DIR/results-*.txt $LOCAL_RESULTS_DIR/report-*.html $LOCAL_R
 echo "Starting services with docker compose..."
 cd "$E2E_TEST_DIR"
 if [ "$NO_BUILD" = true ]; then
-    docker compose up -d
+    # shellcheck disable=SC2086
+    docker compose up$ELK_PROFILE -d
 else
-    docker compose up --build -d
+    # shellcheck disable=SC2086
+    docker compose up$ELK_PROFILE --build -d
 fi
 
 MAX_WAIT=120

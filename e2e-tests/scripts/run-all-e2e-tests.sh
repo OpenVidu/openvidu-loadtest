@@ -104,16 +104,23 @@ for config_path in "${CONFIG_FILES[@]}"; do
     
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
+    # Auto-detect whether this test needs the ELK stack
+    ELK_FLAG=""
+    if [[ "$config_file" == *elk* ]]; then
+        ELK_FLAG="--elk"
+    fi
+    
     echo ""
     echo "========================================"
     echo "Running test $TOTAL_TESTS: $test_name"
     echo "  Config: $config_file"
     echo "  Validation: $validation_script"
+    echo "  ELK stack: $([ -n "$ELK_FLAG" ] && echo yes || echo no)"
     echo "========================================"
     echo ""
     
     # Run the test
-    if bash "$SCRIPT_DIR/run-e2e-test.sh" --no-build $KEEP_RUNNING_FLAG "$config_file" "$validation_script" "$PLATFORM_URL" "$PLATFORM_APIKEY" "$PLATFORM_APISECRET"; then
+    if bash "$SCRIPT_DIR/run-e2e-test.sh" --no-build $ELK_FLAG $KEEP_RUNNING_FLAG "$config_file" "$validation_script" "$PLATFORM_URL" "$PLATFORM_APIKEY" "$PLATFORM_APISECRET"; then
         echo "✓ Test '$test_name' PASSED"
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
