@@ -73,6 +73,14 @@ PASSED_TESTS=0
 FAILED_TESTS=0
 FAILED_TEST_NAMES=()
 
+# Build Docker images once before running any tests
+echo ""
+echo "Building Docker images (loadtest-controller, browser-emulator)..."
+cd "$E2E_TEST_DIR"
+docker compose build
+echo "Docker images built successfully."
+echo ""
+
 # Run each test
 for config_path in "${CONFIG_FILES[@]}"; do
     config_file="$(basename "$config_path")"
@@ -105,7 +113,7 @@ for config_path in "${CONFIG_FILES[@]}"; do
     echo ""
     
     # Run the test
-    if bash "$SCRIPT_DIR/run-e2e-test.sh" $KEEP_RUNNING_FLAG "$config_file" "$validation_script" "$PLATFORM_URL" "$PLATFORM_APIKEY" "$PLATFORM_APISECRET"; then
+    if bash "$SCRIPT_DIR/run-e2e-test.sh" --no-build $KEEP_RUNNING_FLAG "$config_file" "$validation_script" "$PLATFORM_URL" "$PLATFORM_APIKEY" "$PLATFORM_APISECRET"; then
         echo "✓ Test '$test_name' PASSED"
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
