@@ -58,7 +58,6 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.4.2
     container_name: elasticsearch-e2e
-    profiles: ["elk"]
     restart: no
     stop_grace_period: 60s
     environment:
@@ -73,7 +72,6 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:9.4.2
     container_name: kibana-e2e
-    profiles: ["elk"]
     restart: no
     stop_grace_period: 60s
     environment:
@@ -89,7 +87,6 @@ services:
   metricbeat-masternode:
     image: docker.elastic.co/beats/metricbeat:7.12.0
     container_name: metricbeat-masternode-e2e
-    profiles: ["elk"]
     restart: no
     user: root
     environment:
@@ -113,7 +110,6 @@ services:
   metricbeat-medianode:
     image: docker.elastic.co/beats/metricbeat:7.12.0
     container_name: metricbeat-medianode-e2e
-    profiles: ["elk"]
     restart: no
     user: root
     environment:
@@ -137,7 +133,6 @@ services:
   metricbeat-browseremulator:
     image: docker.elastic.co/beats/metricbeat:7.12.0
     container_name: metricbeat-browseremulator-e2e
-    profiles: ["elk"]
     restart: no
     user: root
     environment:

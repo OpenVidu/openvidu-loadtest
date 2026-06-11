@@ -27,7 +27,7 @@ for arg in "$@"; do
             NO_BUILD=true
             ;;
         --elk)
-            ELK_PROFILE=" --profile elk"
+            ELK_PROFILE="elasticsearch kibana metricbeat-masternode metricbeat-medianode metricbeat-browseremulator"
             ;;
         *)
             PASSTHROUGH_ARGS+=("$arg")
@@ -92,12 +92,14 @@ rm -f $LOCAL_RESULTS_DIR/results-*.txt $LOCAL_RESULTS_DIR/report-*.html $LOCAL_R
 # Start services
 echo "Starting services with docker compose..."
 cd "$E2E_TEST_DIR"
+# Always start the core services; append ELK services when --elk is set
+CORE_SERVICES="loadtest-controller browser-emulator"
 if [ "$NO_BUILD" = true ]; then
     # shellcheck disable=SC2086
-    docker compose up$ELK_PROFILE -d
+    docker compose up -d $CORE_SERVICES $ELK_PROFILE
 else
     # shellcheck disable=SC2086
-    docker compose up$ELK_PROFILE --build -d
+    docker compose up --build -d $CORE_SERVICES $ELK_PROFILE
 fi
 
 MAX_WAIT=120
