@@ -51,7 +51,9 @@ jobs:
           echo "HOST_GID=$(id -g)" >> "$GITHUB_OUTPUT"
 
       - name: Ensure /tmp/openvidu-loadtest exists and is writable
-        run: mkdir -m 777 -p /tmp/openvidu-loadtest
+        run: |
+          sudo rm -rf /tmp/openvidu-loadtest
+          mkdir -m 777 -p /tmp/openvidu-loadtest
 
       - name: Run Browser Emulator E2E Tests in Docker
         env:
@@ -72,6 +74,10 @@ jobs:
           cd e2e-tests/scripts
           ./run-all-e2e-tests.sh ${{ steps.openvidu_env.outputs.ovurl }} devkey secret
       
+      - name: Clean up /tmp/openvidu-loadtest
+        if: always()
+        run: sudo rm -rf /tmp/openvidu-loadtest
+
       - name: Clean up
         if: always()
         uses: OpenVidu/actions/cleanup@040cbfd01320475801d7b12e33769e0d55a737a8 # v1.0.21
