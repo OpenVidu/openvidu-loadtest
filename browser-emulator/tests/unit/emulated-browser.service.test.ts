@@ -89,6 +89,19 @@ vi.mock('../../src/services/streaming/socket-writer-health.service.js', () => ({
 		.mockImplementation(() => mockSocketWriterHealthService),
 }));
 
+const mockRoomServiceClient = vi.hoisted(() => ({
+	listRooms: vi.fn().mockResolvedValue([]),
+	createRoom: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock('livekit-server-sdk', () => ({
+	RoomServiceClient: class {
+		constructor() {
+			return mockRoomServiceClient;
+		}
+	},
+}));
+
 vi.mock('../../src/utils/stats-files.js', () => ({
 	ERRORS_FILE: 'errors.json',
 	addSaveStatsToFileToQueue: vi.fn(),
@@ -105,6 +118,8 @@ describe('EmulatedBrowserService', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockRoomServiceClient.listRooms.mockResolvedValue([]);
+		mockRoomServiceClient.createRoom.mockResolvedValue({});
 		emulatedFilePublishStreamService = new EmulatedFilePublishStreamService(
 			mockSocketWriterService as never,
 			mockSocketWriterHealthService as never,
@@ -190,15 +205,31 @@ describe('EmulatedBrowserService', () => {
 			expect(mockDockerService.startContainer).toHaveBeenCalledTimes(2);
 		});
 
-		it('should keep room-check containers until logs are read', async () => {
+		it('should create room via SDK if it does not exist', async () => {
+			mockRoomServiceClient.listRooms.mockResolvedValueOnce([]);
+
 			await service.createEmulatedParticipant(baseRequest as never);
 
-			const runAndWaitCalls = mockDockerService.runAndWaitContainer.mock
-				.calls as [{ HostConfig?: { AutoRemove?: boolean } }][];
+			expect(mockRoomServiceClient.listRooms).toHaveBeenCalledWith([
+				'test-session',
+			]);
+			expect(mockRoomServiceClient.createRoom).toHaveBeenCalledWith({
+				name: 'test-session',
+				emptyTimeout: 600,
+			});
+		});
 
-			for (const [containerConfig] of runAndWaitCalls) {
-				expect(containerConfig.HostConfig?.AutoRemove).toBe(false);
-			}
+		it('should not create room if it already exists', async () => {
+			mockRoomServiceClient.listRooms.mockResolvedValueOnce([
+				{ name: 'test-session' },
+			] as never);
+
+			await service.createEmulatedParticipant(baseRequest as never);
+
+			expect(mockRoomServiceClient.listRooms).toHaveBeenCalledWith([
+				'test-session',
+			]);
+			expect(mockRoomServiceClient.createRoom).not.toHaveBeenCalled();
 		});
 
 		it('should accept ICE and peer connected logs as successful join', async () => {

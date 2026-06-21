@@ -2,6 +2,7 @@ import type { DockerService } from '../../docker.service.ts';
 import type { ConfigService } from '../../config.service.ts';
 import type { WsService } from '../../ws.service.ts';
 import type { LocalFilesRepository } from '../../../repositories/files/local-files.repository.ts';
+import { RoomServiceClient } from 'livekit-server-sdk';
 import {
 	Role,
 	type CreateUserBrowser,
@@ -307,77 +308,29 @@ export class EmulatedBrowserService {
 	): Promise<void> {
 		console.log(`Checking if room ${roomName} exists...`);
 
-		const checkContainerName = `lk-check-room-${roomName}-${Date.now()}`;
-		let createRoomContainerName: string | undefined;
+		const baseUrl = request.openviduUrl
+			.replace('ws://', 'http://')
+			.replace('wss://', 'https://');
 
-		const checkCommand = [
-			'room',
-			'list',
-			'--url',
-			request.openviduUrl,
-			'--api-key',
-			request.livekitApiKey ?? '',
-			'--api-secret',
-			request.livekitApiSecret ?? '',
-		];
+		const roomService = new RoomServiceClient(
+			baseUrl,
+			request.livekitApiKey,
+			request.livekitApiSecret,
+		);
 
 		try {
-			const items = await this.dockerService.runAndWaitContainer({
-				Image: this.LIVEKIT_CLI_IMAGE,
-				name: checkContainerName,
-				Cmd: checkCommand,
-				HostConfig: {
-					// Keep container until we read logs to avoid Docker 409 races.
-					AutoRemove: false,
-					NetworkMode:
-						this.configService.getDockerizedBrowsersConfig()
-							.networkName,
-				},
-			});
-			const logs = this.normalizeContainerLogs(items[1]);
-			if (logs.includes(request.properties.sessionName.toLowerCase())) {
+			const rooms = await roomService.listRooms([roomName]);
+			if (rooms.length > 0) {
 				console.log(`Room ${roomName} already exists`);
 			} else {
-				const createRoomCommand = [
-					'room',
-					'create',
-					'--url',
-					request.openviduUrl,
-					'--api-key',
-					request.livekitApiKey ?? '',
-					'--api-secret',
-					request.livekitApiSecret ?? '',
-					'--empty-timeout',
-					String(this.ROOM_EMPTY_TIMEOUT),
-					roomName,
-				];
-
-				createRoomContainerName = `lk-create-room-${roomName}-${Date.now()}`;
-				await this.dockerService.runAndWaitContainer({
-					Image: this.LIVEKIT_CLI_IMAGE,
-					name: createRoomContainerName,
-					Cmd: createRoomCommand,
-					HostConfig: {
-						AutoRemove: false,
-						NetworkMode:
-							this.configService.getDockerizedBrowsersConfig()
-								.networkName,
-					},
+				await roomService.createRoom({
+					name: roomName,
+					emptyTimeout: this.ROOM_EMPTY_TIMEOUT,
 				});
-
 				console.log(`Room ${roomName} created`);
 			}
 		} catch (error) {
 			console.log(`Room creation check failed: ${String(error)}`);
-		} finally {
-			await Promise.allSettled([
-				this.dockerService.removeContainer(checkContainerName),
-				createRoomContainerName
-					? this.dockerService.removeContainer(
-							createRoomContainerName,
-						)
-					: Promise.resolve(),
-			]);
 		}
 	}
 
