@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload performance test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: perf-test-results-${{ github.run_id }}
           path: browser-emulator/stats/perf-results/*.json
@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload CPU monitoring data
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: cpu-monitoring-${{ github.run_id }}
           path: browser-emulator/stats/perf-results/cpu-monitoring.csv
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload container logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: container-logs-${{ github.run_id }}
           path: browser-emulator/logs/
