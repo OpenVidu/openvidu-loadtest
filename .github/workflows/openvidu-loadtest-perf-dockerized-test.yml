@@ -1,0 +1,128 @@
+name: OpenVidu Load Test Performance Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  perf-test:
+    runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}
+    timeout-minutes: 180
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup OpenVidu Local Deployment
+        uses: OpenVidu/actions/start-openvidu-local-deployment@35d136377813cf9b0b23d12d16d57864ccf3a8c2 # v1.0.2
+        with:
+          ref-openvidu-local-deployment: main
+
+      - name: Export HTTPS URL from OpenVidu Local Deployment
+        id: openvidu_env
+        shell: bash
+        run: |
+          ENV_FILE="./openvidu-local-deployment/community/.env"
+          LAN_PRIVATE_IP="$(grep -E '^LAN_PRIVATE_IP=' "$ENV_FILE" | head -n1 | cut -d'=' -f2- | tr -d '\r')"
+          if [ -z "$LAN_PRIVATE_IP" ]; then
+            echo "LAN_PRIVATE_IP not found in $ENV_FILE" >&2
+            exit 1
+          fi
+          LAN_PRIVATE_IP_DASHED="${LAN_PRIVATE_IP//./-}"
+          echo "ovurl=https://$LAN_PRIVATE_IP_DASHED.openvidu-local.dev:7443" >> "$GITHUB_OUTPUT"
+
+      - name: Get Docker group GID
+        id: get-docker-gid
+        run: |
+          DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+          echo "DOCKER_GID=$DOCKER_GID" >> "$GITHUB_OUTPUT"
+          echo "HOST_UID=$(id -u)" >> "$GITHUB_OUTPUT"
+          echo "HOST_GID=$(id -g)" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure output directories exist
+        run: |
+          mkdir -m 777 -p /tmp/openvidu-loadtest
+          mkdir -p browser-emulator/stats/perf-results
+          mkdir -p browser-emulator/logs
+
+      - name: Start container CPU monitor
+        id: start-monitor
+        shell: bash
+        run: |
+          cd browser-emulator
+          nohup bash scripts/monitor-containers.sh > logs/monitor-containers.log 2>&1 &
+          echo "MONITOR_PID=$!" >> "$GITHUB_OUTPUT"
+
+      - name: Run Browser Emulator Performance Tests in Docker
+        env:
+          TEST_LIVEKIT_URL: ${{ steps.openvidu_env.outputs.ovurl }}
+          HOST_UID: ${{ steps.get-docker-gid.outputs.HOST_UID }}
+          HOST_GID: ${{ steps.get-docker-gid.outputs.HOST_GID }}
+          DOCKER_GID: ${{ steps.get-docker-gid.outputs.DOCKER_GID }}
+          TEST_SCRIPT: test:perf
+        run: |
+          cd browser-emulator
+          docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from browser-emulator-tests
+
+      - name: Stop container CPU monitor
+        if: always()
+        shell: bash
+        run: |
+          PID="${{ steps.start-monitor.outputs.MONITOR_PID }}"
+          if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+            echo "Stopping container monitor (PID: $PID)"
+            kill "$PID"
+            wait "$PID" 2>/dev/null || true
+          else
+            echo "Container monitor not running"
+          fi
+
+      - name: Capture all container logs
+        if: always()
+        shell: bash
+        run: |
+          cd browser-emulator
+          LOG_DIR="logs"
+          echo "=== Capturing openvidu-local-deployment container logs ==="
+          docker ps -a --filter "label=com.docker.compose.project=openvidu-local-deployment" --format "{{.Names}}" | while read -r name; do
+            echo "Capturing logs from $name"
+            docker logs "$name" > "$LOG_DIR/deploy-$name.log" 2>&1 || true
+          done
+          echo "=== Capturing browser-emulator-tests container logs ==="
+          docker logs browser-emulator-tests > "$LOG_DIR/browser-emulator-tests.log" 2>&1 || true
+          echo "=== Capturing livekit-cli container logs ==="
+          docker ps -a --filter "name=lk-" --format "{{.Names}}" | while read -r name; do
+            echo "Capturing logs from $name"
+            docker logs "$name" > "$LOG_DIR/lk-$name.log" 2>&1 || true
+          done
+          echo "=== Container log capture complete ==="
+
+      - name: Upload performance test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-test-results-${{ github.run_id }}
+          path: browser-emulator/stats/perf-results/*.json
+          if-no-files-found: warn
+
+      - name: Upload CPU monitoring data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpu-monitoring-${{ github.run_id }}
+          path: browser-emulator/stats/perf-results/cpu-monitoring.csv
+          if-no-files-found: warn
+
+      - name: Upload container logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-logs-${{ github.run_id }}
+          path: browser-emulator/logs/
+          if-no-files-found: warn
+
+      - name: Clean up
+        if: always()
+        uses: OpenVidu/actions/cleanup@35d136377813cf9b0b23d12d16d57864ccf3a8c2 # v1.0.2

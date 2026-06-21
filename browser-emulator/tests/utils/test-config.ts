@@ -1,3 +1,5 @@
+import https from 'node:https';
+
 export const RUNNING_IN_DOCKER = process.env.RUNNING_IN_DOCKER === 'true';
 const openviduUrl = process.env.TEST_OPENVIDU_URL ?? 'http://localhost:4443';
 const livekitUrl = process.env.TEST_LIVEKIT_URL ?? 'http://localhost:7880';
@@ -16,4 +18,31 @@ export function getConfig() {
 		livekitApiKey: LIVEKIT_API_KEY,
 		livekitApiSecret: LIVEKIT_API_SECRET,
 	};
+}
+
+export async function checkDeploymentReachable(
+	url: string,
+	timeoutMs = 15000,
+): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		const req = https.get(url, { rejectUnauthorized: false }, res => {
+			res.resume();
+			resolve();
+		});
+		req.on('error', err =>
+			reject(
+				new Error(
+					`Deployment ${url} is not reachable: ${err.message}. Make sure the platform server is running and accessible.`,
+				),
+			),
+		);
+		req.setTimeout(timeoutMs, () => {
+			req.destroy();
+			reject(
+				new Error(
+					`Deployment ${url} timed out after ${timeoutMs}ms. Make sure the platform server is running and accessible.`,
+				),
+			);
+		});
+	});
 }

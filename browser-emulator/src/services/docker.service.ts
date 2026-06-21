@@ -90,7 +90,7 @@ export class DockerService {
 		}
 
 		const writeStream = fs.createWriteStream(safeDestPath, { flags: 'a' });
-		writeStream.on('error', (err) => {
+		writeStream.on('error', err => {
 			console.error(
 				'Error writing selenium container logs to file:',
 				err,

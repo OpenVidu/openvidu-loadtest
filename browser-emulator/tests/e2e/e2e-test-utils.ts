@@ -14,7 +14,7 @@ import {
 	BrowserVideo,
 	InitializePost,
 } from '../../src/types/initialize.type.js';
-import { getConfig } from '../utils/test-config.js';
+import { getConfig, checkDeploymentReachable } from '../utils/test-config.js';
 import { QoeAnalysisStatus } from '../../src/types/qoe.type.js';
 import {
 	S3Client,
@@ -358,6 +358,10 @@ export async function run2BrowserTest(
 	elkIndex?: string,
 ): Promise<string> {
 	await pingInstance(app);
+	const config = getConfig();
+	const deployUrl =
+		platform === 'livekit' ? config.livekitUrl : config.openviduUrl;
+	await checkDeploymentReachable(deployUrl);
 	await initializeInstance(
 		app,
 		enableS3,

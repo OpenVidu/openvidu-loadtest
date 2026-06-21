@@ -24,6 +24,7 @@
 		"test:unit": "vitest run --project=unit",
 		"test:integration": "vitest run --project=integration",
 		"test:e2e": "vitest run --project=e2e",
+		"test:perf": "vitest run --project=perf",
 		"test:qoe": "vitest run --project=qoe",
 		"test:coverage": "vitest run --project=unit --project=integration --project=e2e --coverage",
 		"test:legacy": "tsx ./dev_scripts/run-tests-vagrant.ts",

@@ -40,7 +40,7 @@ services:
             - /tmp/openvidu-loadtest:/tmp/openvidu-loadtest
         # Override the container command to enable optional debugging
         # When DOCKER_DEBUG=true the app starts with the Node inspector
-        command: sh -lc "if [ \"${DOCKER_DEBUG:-false}\" = \"true\" ]; then pnpm run test:e2e --inspect-brk=0.0.0.0:9229 --no-file-parallelism; else pnpm run test:e2e; fi"
+        command: sh -lc "if [ \"${DOCKER_DEBUG:-false}\" = \"true\" ]; then pnpm run ${TEST_SCRIPT:-test:e2e} --inspect-brk=0.0.0.0:9229 --no-file-parallelism; else pnpm run ${TEST_SCRIPT:-test:e2e}; fi"
 networks:
     browseremulator:
         name: browseremulator
