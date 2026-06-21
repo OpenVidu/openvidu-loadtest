@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { LoggerService } from '../../src/services/logger.service';
+
+const loggerService = new LoggerService();
 
 const mockDockerService = {
 	imageExists: vi.fn().mockResolvedValue(true),
@@ -63,15 +66,6 @@ const mockSocketWriterHealthService = {
 	hasCheck: vi.fn().mockReturnValue(false),
 };
 
-const mockLoggerService = {
-	getLogger: vi.fn().mockReturnValue({
-		info: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
-	}),
-};
-
 vi.mock('../../src/services/docker.service.js', () => ({
 	DockerService: vi.fn().mockImplementation(() => mockDockerService),
 }));
@@ -133,7 +127,7 @@ describe('EmulatedBrowserService', () => {
 			mockSocketWriterService as never,
 			mockSocketWriterHealthService as never,
 			mockLocalFilesRepository as never,
-			mockLoggerService as never,
+			loggerService,
 		);
 
 		service = new EmulatedBrowserService(
@@ -142,7 +136,7 @@ describe('EmulatedBrowserService', () => {
 			mockWsService as never,
 			mockLocalFilesRepository as never,
 			emulatedFilePublishStreamService as never,
-			mockLoggerService as never,
+			loggerService,
 		);
 	});
 
@@ -178,7 +172,7 @@ describe('EmulatedBrowserService', () => {
 					mockSocketWriterService as never,
 					mockSocketWriterHealthService as never,
 					failingLocalFilesRepository,
-					mockLoggerService as never,
+					loggerService,
 				);
 
 			service = new EmulatedBrowserService(
@@ -187,7 +181,7 @@ describe('EmulatedBrowserService', () => {
 				mockWsService as never,
 				failingLocalFilesRepository,
 				emulatedFailStreamService as never,
-				mockLoggerService as never,
+				loggerService,
 			);
 
 			await expect(

@@ -6,7 +6,6 @@ import {
 	afterAll,
 	beforeEach,
 	afterEach,
-	vi,
 } from 'vitest';
 import {
 	S3Client,
@@ -15,7 +14,7 @@ import {
 	DeleteObjectCommand,
 	NoSuchBucket,
 } from '@aws-sdk/client-s3';
-import baseLogger from '../../src/services/logger.service';
+import baseLogger, { LoggerService } from '../../src/services/logger.service';
 import { RemotePersistenceService } from '../../src/services/files/remote-persistence.service.ts';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
 import { StartedS3MockContainer } from '@testcontainers/s3mock';
@@ -152,19 +151,9 @@ describe('RemotePersistenceService Integration Tests', () => {
 		testBucketName = `test-bucket-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
 		// Create fresh repository and service for each test
-		const mockLogger = {
-			info: vi.fn(),
-			error: vi.fn(),
-			warn: vi.fn(),
-			debug: vi.fn(),
-			trace: vi.fn(),
-			child: vi.fn().mockReturnThis(),
-		};
-		const mockLoggerService = {
-			getLogger: vi.fn().mockReturnValue(mockLogger),
-		};
+		const loggerService = new LoggerService();
 		remotePersistenceService = new RemotePersistenceService(
-			new S3Repository(mockLoggerService),
+			new S3Repository(loggerService),
 		);
 	});
 

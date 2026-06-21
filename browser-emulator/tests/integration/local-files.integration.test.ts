@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { removeAllFilesFromDir } from '../utils/files.ts';
+import { LoggerService } from '../../src/services/logger.service';
 
 function createFakeDownloadStream(fakeContent = 'FAKE_FILE_DATA') {
 	const stream = new Readable();
@@ -182,19 +183,9 @@ describe('Local Files Service + Repository Integration Tests', () => {
 	let fileService: LocalFilesService;
 
 	beforeEach(async () => {
-		const mockLogger = {
-			info: vi.fn(),
-			error: vi.fn(),
-			warn: vi.fn(),
-			debug: vi.fn(),
-			trace: vi.fn(),
-			child: vi.fn().mockReturnThis(),
-		};
-		const mockLoggerService = {
-			getLogger: vi.fn().mockReturnValue(mockLogger),
-		};
+		const loggerService = new LoggerService();
 
-		filesRepository = new LocalFilesRepository(mockLoggerService);
+		filesRepository = new LocalFilesRepository(loggerService);
 		fileService = new LocalFilesService(filesRepository);
 		await removeAllFilesFromDir(LocalFilesRepository.MEDIAFILES_DIR);
 	});

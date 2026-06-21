@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import baseLogger from '../../src/services/logger.service';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import baseLogger, { LoggerService } from '../../src/services/logger.service';
 import { QoeAnalysisOrchestratorService } from '../../src/services/qoe-analysis/qoe-analysis-orchestrator.service.ts';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
 
@@ -64,21 +64,9 @@ describe('QoeAnalysisOrchestratorService integration', () => {
 			configurable: true,
 		});
 
-		const mockLogger = {
-			info: vi.fn(),
-			error: vi.fn(),
-			warn: vi.fn(),
-			debug: vi.fn(),
-			trace: vi.fn(),
-			child: vi.fn().mockReturnThis(),
-		};
-		const mockLoggerService = {
-			getLogger: vi.fn().mockReturnValue(mockLogger),
-		};
+		const loggerService = new LoggerService();
 
-		const localFilesRepository = new LocalFilesRepository(
-			mockLoggerService,
-		);
+		const localFilesRepository = new LocalFilesRepository(loggerService);
 		await localFilesRepository.downloadMediaFiles(
 			path.basename(PRESENTER_VIDEO),
 			`https://openvidu-loadtest-mediafiles.s3.us-east-1.amazonaws.com/bunny_480p_30fps.y4m`,

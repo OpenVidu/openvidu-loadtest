@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { LoggerService } from '../../src/services/logger.service';
+
+const loggerService = new LoggerService();
 
 const mockSeleniumService = {
 	getDriver: vi.fn(),
@@ -17,15 +20,6 @@ const mockComModule = {
 	generateWebappUrl: vi
 		.fn()
 		.mockReturnValue('http://localhost:3000/?session=test&user=test'),
-};
-
-const mockLoggerService = {
-	getLogger: vi.fn().mockReturnValue({
-		info: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
-	}),
 };
 
 vi.mock('../../src/services/selenium.service.js', () => ({
@@ -62,7 +56,7 @@ describe('RealBrowserService', () => {
 			mockSeleniumService as never,
 			mockComModule as never,
 			mockLocalFilesRepository as never,
-			mockLoggerService as never,
+			loggerService,
 		);
 	});
 

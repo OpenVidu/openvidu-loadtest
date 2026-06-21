@@ -1,13 +1,5 @@
-import {
-	describe,
-	it,
-	expect,
-	beforeEach,
-	afterEach,
-	beforeAll,
-	vi,
-} from 'vitest';
-import baseLogger from '../../src/services/logger.service';
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import baseLogger, { LoggerService } from '../../src/services/logger.service';
 import { FakeMediaDevicesService } from '../../src/services/fake-media/fake-media-devices.service.js';
 import { ScriptRunnerService } from '../../src/services/script-runner.service.js';
 import { LocalFilesService } from '../../src/services/files/local-files.service.js';
@@ -26,21 +18,11 @@ describe('FakeMediaDevicesService', () => {
 	let audioPath: string;
 
 	beforeAll(async () => {
-		const mockLogger = {
-			info: vi.fn(),
-			error: vi.fn(),
-			warn: vi.fn(),
-			debug: vi.fn(),
-			trace: vi.fn(),
-			child: vi.fn().mockReturnThis(),
-		};
-		const mockLoggerService = {
-			getLogger: vi.fn().mockReturnValue(mockLogger),
-		};
+		const loggerService = new LoggerService();
 
 		// Download test media files if they don't exist
 		[videoPath, audioPath] = await new LocalFilesService(
-			new LocalFilesRepository(mockLoggerService),
+			new LocalFilesRepository(loggerService),
 		).downloadBrowserMediaFiles({
 			videoType: 'bunny',
 			videoInfo: {

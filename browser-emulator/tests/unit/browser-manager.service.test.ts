@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { LoggerService } from '../../src/services/logger.service';
+
+const loggerService = new LoggerService();
 
 // Mock dependencies
 const mockConfigService = {
@@ -35,15 +38,6 @@ const mockElasticSearchService = {
 
 const mockRemotePersistenceService = {
 	isInitialized: vi.fn().mockReturnValue(false),
-};
-
-const mockLoggerService = {
-	getLogger: vi.fn().mockReturnValue({
-		info: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-		debug: vi.fn(),
-	}),
 };
 
 vi.mock('../../src/services/config.service.js', () => ({
@@ -148,7 +142,7 @@ describe('BrowserManagerService', () => {
 			mockInstanceService as never,
 			mockElasticSearchService as never,
 			mockRemotePersistenceService as never,
-			mockLoggerService as never,
+			loggerService as never,
 		);
 	});
 
