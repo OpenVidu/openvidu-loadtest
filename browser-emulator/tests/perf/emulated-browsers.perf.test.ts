@@ -5,7 +5,6 @@ import { setupServerPorts, cleanupServer } from '../e2e/e2e-test-utils.js';
 import {
 	ensureResultsDir,
 	setupPerformanceTest,
-	countAllErrors,
 	runBenchmark,
 	runSaturation,
 	DEFAULT_SATURATION_CONFIG,
@@ -37,7 +36,7 @@ afterAll(async () => {
 describe('Perf: emulated browsers', () => {
 	describe('Benchmarks', () => {
 		it('bench-one-room-publishers', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
+			await setupPerformanceTest(app);
 			const result = await runBenchmark(
 				app,
 				'bench-one-room-publishers',
@@ -47,29 +46,23 @@ describe('Perf: emulated browsers', () => {
 					publishersPerSession: 8,
 					subscribersPerSession: 0,
 				},
-				beforeMetrics,
 			);
 			ALL_RESULTS.push(result);
 		});
 
 		it('bench-one-room-mixed', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const result = await runBenchmark(
-				app,
-				'bench-one-room-mixed',
-				{
-					topology: 'ONE_SESSION_NXM',
-					sessions: 1,
-					publishersPerSession: 1,
-					subscribersPerSession: 20,
-				},
-				beforeMetrics,
-			);
+			await setupPerformanceTest(app);
+			const result = await runBenchmark(app, 'bench-one-room-mixed', {
+				topology: 'ONE_SESSION_NXM',
+				sessions: 1,
+				publishersPerSession: 1,
+				subscribersPerSession: 20,
+			});
 			ALL_RESULTS.push(result);
 		});
 
 		it('bench-multi-room-publishers', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
+			await setupPerformanceTest(app);
 			const result = await runBenchmark(
 				app,
 				'bench-multi-room-publishers',
@@ -79,53 +72,40 @@ describe('Perf: emulated browsers', () => {
 					publishersPerSession: 8,
 					subscribersPerSession: 0,
 				},
-				beforeMetrics,
 			);
 			ALL_RESULTS.push(result);
 		});
 
 		it('bench-multi-room-mixed', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const result = await runBenchmark(
-				app,
-				'bench-multi-room-mixed',
-				{
-					topology: 'N:M',
-					sessions: 2,
-					publishersPerSession: 3,
-					subscribersPerSession: 40,
-				},
-				beforeMetrics,
-			);
+			await setupPerformanceTest(app);
+			const result = await runBenchmark(app, 'bench-multi-room-mixed', {
+				topology: 'N:M',
+				sessions: 2,
+				publishersPerSession: 3,
+				subscribersPerSession: 40,
+			});
 			ALL_RESULTS.push(result);
 		});
 
 		it('bench-teaching', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const result = await runBenchmark(
-				app,
-				'bench-teaching',
-				{
-					topology: 'TEACHING',
-					sessions: 3,
-					publishersPerSession: 1,
-					subscribersPerSession: 20,
-				},
-				beforeMetrics,
-			);
+			await setupPerformanceTest(app);
+			const result = await runBenchmark(app, 'bench-teaching', {
+				topology: 'TEACHING',
+				sessions: 3,
+				publishersPerSession: 1,
+				subscribersPerSession: 20,
+			});
 			ALL_RESULTS.push(result);
 		});
 	});
 
 	describe('Saturation', () => {
 		it('saturate-one-room-publishers', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const initialErrors = await countAllErrors();
+			await setupPerformanceTest(app);
 			const sessionName = `Perf-Sat-ORP-${Date.now()}`;
 
 			let pubIndex = 0;
 			const stepFn: SaturationStepFn = () => {
-				if (pubIndex >= 200) return null;
 				pubIndex++;
 				return {
 					sessionName,
@@ -134,24 +114,16 @@ describe('Perf: emulated browsers', () => {
 				};
 			};
 
-			const result = await runSaturation(
-				app,
-				stepFn,
-				{
-					...DEFAULT_SATURATION_CONFIG,
-					topology: 'ONE_SESSION_NXN',
-					description:
-						'Add publishers to single session until failure',
-				},
-				beforeMetrics,
-				initialErrors,
-			);
+			const result = await runSaturation(app, stepFn, {
+				...DEFAULT_SATURATION_CONFIG,
+				topology: 'ONE_SESSION_NXN',
+				description: 'Add publishers to single session until failure',
+			});
 			ALL_RESULTS.push(result);
 		});
 
 		it('saturate-one-room-mixed', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const initialErrors = await countAllErrors();
+			await setupPerformanceTest(app);
 			const sessionName = `Perf-Sat-ORM-${Date.now()}`;
 
 			let teacherCreated = false;
@@ -165,7 +137,6 @@ describe('Perf: emulated browsers', () => {
 						role: 'PUBLISHER',
 					};
 				}
-				if (subIndex >= 200) return null;
 				subIndex++;
 				return {
 					sessionName,
@@ -174,29 +145,21 @@ describe('Perf: emulated browsers', () => {
 				};
 			};
 
-			const result = await runSaturation(
-				app,
-				stepFn,
-				{
-					...DEFAULT_SATURATION_CONFIG,
-					topology: 'ONE_SESSION_NXM',
-					description:
-						'1 publisher + add subscribers to single session until failure',
-				},
-				beforeMetrics,
-				initialErrors,
-			);
+			const result = await runSaturation(app, stepFn, {
+				...DEFAULT_SATURATION_CONFIG,
+				topology: 'ONE_SESSION_NXM',
+				description:
+					'1 publisher + add subscribers to single session until failure',
+			});
 			ALL_RESULTS.push(result);
 		});
 
 		it('saturate-multi-room-publishers', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const initialErrors = await countAllErrors();
+			await setupPerformanceTest(app);
 			const sessionBase = `Perf-Sat-MRP-${Date.now()}`;
 
 			let sessionIndex = 0;
 			const stepFn: SaturationStepFn = () => {
-				if (sessionIndex >= 200) return null;
 				sessionIndex++;
 				return {
 					sessionName: `${sessionBase}-S${sessionIndex}`,
@@ -205,30 +168,21 @@ describe('Perf: emulated browsers', () => {
 				};
 			};
 
-			const result = await runSaturation(
-				app,
-				stepFn,
-				{
-					...DEFAULT_SATURATION_CONFIG,
-					topology: 'N:N',
-					description:
-						'New session with 1 publisher each until failure',
-				},
-				beforeMetrics,
-				initialErrors,
-			);
+			const result = await runSaturation(app, stepFn, {
+				...DEFAULT_SATURATION_CONFIG,
+				topology: 'N:N',
+				description: 'New session with 1 publisher each until failure',
+			});
 			ALL_RESULTS.push(result);
 		});
 
 		it('saturate-multi-room-mixed', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const initialErrors = await countAllErrors();
+			await setupPerformanceTest(app);
 			const sessionBase = `Perf-Sat-MRM-${Date.now()}`;
 
 			let sessionIndex = 0;
 			let pubCreated = false;
 			const stepFn: SaturationStepFn = () => {
-				if (sessionIndex >= 100) return null;
 				if (!pubCreated) {
 					pubCreated = true;
 					return {
@@ -246,24 +200,17 @@ describe('Perf: emulated browsers', () => {
 				};
 			};
 
-			const result = await runSaturation(
-				app,
-				stepFn,
-				{
-					...DEFAULT_SATURATION_CONFIG,
-					topology: 'N:M',
-					description:
-						'New sessions with 1 pub + 1 sub each until failure',
-				},
-				beforeMetrics,
-				initialErrors,
-			);
+			const result = await runSaturation(app, stepFn, {
+				...DEFAULT_SATURATION_CONFIG,
+				topology: 'N:M',
+				description:
+					'New sessions with 1 pub + 1 sub each until failure',
+			});
 			ALL_RESULTS.push(result);
 		});
 
 		it('saturate-teaching', async () => {
-			const { beforeMetrics } = await setupPerformanceTest(app);
-			const initialErrors = await countAllErrors();
+			await setupPerformanceTest(app);
 			const sessionBase = `Perf-Sat-T-${Date.now()}`;
 
 			let sessionIndex = 0;
@@ -272,7 +219,6 @@ describe('Perf: emulated browsers', () => {
 			let subCount = 0;
 			const stepFn: SaturationStepFn = () => {
 				if (state === 'pub') {
-					if (sessionIndex >= 20) return null;
 					sessionIndex++;
 					state = 'sub';
 					subCount = 0;
@@ -293,18 +239,12 @@ describe('Perf: emulated browsers', () => {
 				};
 			};
 
-			const result = await runSaturation(
-				app,
-				stepFn,
-				{
-					...DEFAULT_SATURATION_CONFIG,
-					topology: 'TEACHING',
-					description:
-						'New sessions with 1 teacher + 10 students each until failure',
-				},
-				beforeMetrics,
-				initialErrors,
-			);
+			const result = await runSaturation(app, stepFn, {
+				...DEFAULT_SATURATION_CONFIG,
+				topology: 'TEACHING',
+				description:
+					'New sessions with 1 teacher + 10 students each until failure',
+			});
 			ALL_RESULTS.push(result);
 		});
 	});

@@ -5,7 +5,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { OSUtils } from 'node-os-utils';
-import { STATS_DIR } from '../../src/utils/stats-files.js';
 import { getConfig, checkDeploymentReachable } from '../utils/test-config.js';
 import { pingInstance, initializeInstance } from '../e2e/e2e-test-utils.js';
 
@@ -39,14 +38,11 @@ export interface PhaseRecord {
 	cpu: number | null;
 	memoryRssMb: number | null;
 	creationLatencyMs: number | null;
-	cumulativeErrors: number;
 	failed: boolean;
 	failureReason?: string;
 }
 
 export interface SaturationCeiling {
-	firstSpikeParticipants: number | null;
-	firstSpikeCpu: number | null;
 	sustained100Participants: number | null;
 	firstFailedParticipants: number | null;
 	firstFailureReason: string | null;
@@ -74,18 +70,11 @@ export interface LatencyPercentiles {
 export interface BenchmarkResult {
 	name: string;
 	config: Record<string, unknown>;
-	metrics: {
-		creationLatencyMs: LatencyPercentiles;
-		cpu: { before: number; peakDuring: number; afterCleanup: number };
-		memoryRssMb: {
-			before: number;
-			peakDuring: number;
-			afterCleanup: number;
-		};
-		errors: number;
-		totalDurationMs: number;
-		cleanupDurationMs: number;
-	};
+	timeline: PhaseRecord[];
+	creationLatencyMs: LatencyPercentiles;
+	errors: number;
+	totalDurationMs: number;
+	cleanupDurationMs: number;
 }
 
 export interface StepAction {
@@ -97,27 +86,19 @@ export interface StepAction {
 export interface SaturationConfig {
 	topology: string;
 	description: string;
-	maxParticipants: number;
 	maxDurationMs: number;
-	sampleInterval: number;
 	stabilizeMs: number;
-	cpuSpikeThreshold: number;
 	cpuSustainedThreshold: number;
 	consecutiveSustainedRequired: number;
-	consecutiveFailureLimit: number;
 }
 
 export const DEFAULT_SATURATION_CONFIG: SaturationConfig = {
 	topology: 'unknown',
 	description: '',
-	maxParticipants: 200,
 	maxDurationMs: 600000,
-	sampleInterval: 5,
-	stabilizeMs: 5000,
-	cpuSpikeThreshold: 90,
-	cpuSustainedThreshold: 95,
+	stabilizeMs: 500,
+	cpuSustainedThreshold: 99,
 	consecutiveSustainedRequired: 3,
-	consecutiveFailureLimit: 3,
 };
 
 // --- Helpers ---
@@ -213,38 +194,6 @@ export async function deleteAll(app: Application): Promise<number> {
 	return Math.round(performance.now() - startTime);
 }
 
-export async function countAllErrors(): Promise<number> {
-	let total = 0;
-	try {
-		const sessions = await fs.readdir(STATS_DIR);
-		for (const session of sessions) {
-			if (session === 'perf-results') continue;
-			const sessionPath = path.join(STATS_DIR, session);
-			let users: string[];
-			try {
-				users = await fs.readdir(sessionPath);
-			} catch {
-				continue;
-			}
-			for (const user of users) {
-				const errorsFile = path.join(sessionPath, user, 'errors.json');
-				try {
-					const content = await fs.readFile(errorsFile, 'utf-8');
-					const parsed = JSON.parse(content);
-					if (Array.isArray(parsed)) {
-						total += parsed.length;
-					}
-				} catch {
-					// File may not exist
-				}
-			}
-		}
-	} catch {
-		// Directory may not exist
-	}
-	return total;
-}
-
 export function computeLatencyPercentiles(
 	samples: number[],
 ): LatencyPercentiles {
@@ -291,27 +240,20 @@ export async function runSaturation(
 	app: Application,
 	stepFn: SaturationStepFn,
 	config: SaturationConfig,
-	beforeMetrics: MetricsSnapshot,
-	initialErrors: number,
 ): Promise<SaturationResult> {
 	const startTime = Date.now();
 	const timeline: PhaseRecord[] = [];
 
 	let totalPublishers = 0;
 	let totalSubscribers = 0;
-	let totalParticipants = 0;
 	let sustainedCount = 0;
-	let consecutiveFailures = 0;
-	let cumulativeErrors = initialErrors;
 
-	let firstSpikeParticipants: number | null = null;
-	let firstSpikeCpu: number | null = null;
 	let sustained100Participants: number | null = null;
 	let firstFailedParticipants: number | null = null;
 	let firstFailureReason: string | null = null;
 	let phaseIndex = 0;
 
-	while (totalParticipants < config.maxParticipants) {
+	while (true) {
 		const elapsed = Date.now() - startTime;
 		if (elapsed > config.maxDurationMs) {
 			console.log(`Saturation test timed out after ${elapsed}ms`);
@@ -338,81 +280,51 @@ export async function runSaturation(
 		} else {
 			totalSubscribers++;
 		}
-		totalParticipants = totalPublishers + totalSubscribers;
+		const totalParticipants = totalPublishers + totalSubscribers;
 
 		const failed = result.status !== 200;
-		if (failed) {
-			consecutiveFailures++;
-			if (firstFailedParticipants === null) {
-				firstFailedParticipants = totalParticipants;
-				firstFailureReason = `${result.status} - ${JSON.stringify(result.body)}`;
+		if (failed && firstFailedParticipants === null) {
+			firstFailedParticipants = totalParticipants;
+			firstFailureReason = `${result.status} - ${JSON.stringify(result.body)}`;
+		}
+
+		if (config.stabilizeMs > 0) {
+			await new Promise(resolve =>
+				setTimeout(resolve, config.stabilizeMs),
+			);
+		}
+
+		const metrics = await sampleMetrics();
+
+		if (metrics.cpu >= config.cpuSustainedThreshold) {
+			sustainedCount++;
+			if (
+				sustainedCount >= config.consecutiveSustainedRequired &&
+				sustained100Participants === null
+			) {
+				sustained100Participants = totalParticipants;
 			}
 		} else {
-			consecutiveFailures = 0;
+			sustainedCount = Math.max(0, sustainedCount - 1);
 		}
 
-		const shouldSample =
-			phaseIndex === 1 || phaseIndex % config.sampleInterval === 0;
-		let cpu: number | null = null;
-		let mem: number | null = null;
-
-		if (shouldSample) {
-			if (config.stabilizeMs > 0) {
-				await new Promise(resolve =>
-					setTimeout(resolve, config.stabilizeMs),
-				);
-			}
-
-			const metrics = await sampleMetrics();
-			cpu = metrics.cpu;
-			mem = metrics.memoryRssMb;
-
-			if (
-				cpu >= config.cpuSpikeThreshold &&
-				firstSpikeParticipants === null
-			) {
-				firstSpikeParticipants = totalParticipants;
-				firstSpikeCpu = cpu;
-			}
-
-			if (cpu >= config.cpuSustainedThreshold) {
-				sustainedCount++;
-				if (
-					sustainedCount >= config.consecutiveSustainedRequired &&
-					sustained100Participants === null
-				) {
-					sustained100Participants = totalParticipants;
-				}
-			} else {
-				sustainedCount = Math.max(0, sustainedCount - 1);
-			}
-
-			cumulativeErrors = await countAllErrors();
-		}
-
-		const phase: PhaseRecord = {
+		timeline.push({
 			phase: phaseIndex,
 			totalParticipants,
 			totalPublishers,
 			totalSubscribers,
-			cpu,
-			memoryRssMb: mem,
+			cpu: metrics.cpu,
+			memoryRssMb: metrics.memoryRssMb,
 			creationLatencyMs: result.status === 200 ? result.latencyMs : null,
-			cumulativeErrors,
 			failed,
 			failureReason: failed
 				? (firstFailureReason ?? undefined)
 				: undefined,
-		};
-		timeline.push(phase);
+		});
 
-		const hasReachedSustained100 = sustained100Participants !== null;
-		const hasEnoughFailures =
-			consecutiveFailures >= config.consecutiveFailureLimit;
-		if (hasReachedSustained100 && hasEnoughFailures) {
+		if (sustained100Participants !== null || failed) {
 			console.log(
-				`Saturation ceiling reached at ${totalParticipants} participants ` +
-					`(CPU sustained: ${sustained100Participants}, failures: ${consecutiveFailures})`,
+				`Saturation ceiling reached: ${failed ? 'participant failure' : 'CPU sustained'} at ${totalParticipants} participants`,
 			);
 			break;
 		}
@@ -426,8 +338,6 @@ export async function runSaturation(
 		topology: config.topology,
 		config: { ...config },
 		ceiling: {
-			firstSpikeParticipants,
-			firstSpikeCpu,
 			sustained100Participants,
 			firstFailedParticipants,
 			firstFailureReason,
@@ -438,7 +348,7 @@ export async function runSaturation(
 	};
 }
 
-// --- Benchmark Helpers ---
+// --- Benchmark ---
 
 export async function runBenchmark(
 	app: Application,
@@ -449,66 +359,97 @@ export async function runBenchmark(
 		publishersPerSession: number;
 		subscribersPerSession: number;
 	},
-	beforeMetrics: MetricsSnapshot,
 ): Promise<BenchmarkResult> {
 	const startTime = Date.now();
 	const sessionBase = `Perf-${name}-${Date.now()}`;
 	const latencies: number[] = [];
+	const timeline: PhaseRecord[] = [];
+	let totalPublishers = 0;
+	let totalSubscribers = 0;
+	let phaseIndex = 0;
 
 	for (let s = 0; s < config.sessions; s++) {
 		const sessionName =
 			config.sessions > 1 ? `${sessionBase}-S${s + 1}` : sessionBase;
 
 		for (let p = 1; p <= config.publishersPerSession; p++) {
+			phaseIndex++;
 			const result = await createParticipant(
 				app,
 				sessionName,
 				`Pub-${p}`,
 				'PUBLISHER',
 			);
+			totalPublishers++;
 			if (result.status === 200) {
 				latencies.push(result.latencyMs);
 			}
+
+			await new Promise(resolve => setTimeout(resolve, 500));
+
+			const metrics = await sampleMetrics();
+			timeline.push({
+				phase: phaseIndex,
+				totalParticipants: totalPublishers + totalSubscribers,
+				totalPublishers,
+				totalSubscribers,
+				cpu: metrics.cpu,
+				memoryRssMb: metrics.memoryRssMb,
+				creationLatencyMs:
+					result.status === 200 ? result.latencyMs : null,
+				failed: result.status !== 200,
+				failureReason:
+					result.status !== 200
+						? `${result.status} - ${JSON.stringify(result.body)}`
+						: undefined,
+			});
 		}
 
 		for (let c = 1; c <= config.subscribersPerSession; c++) {
+			phaseIndex++;
 			const result = await createParticipant(
 				app,
 				sessionName,
 				`Sub-${c}`,
 				'SUBSCRIBER',
 			);
+			totalSubscribers++;
 			if (result.status === 200) {
 				latencies.push(result.latencyMs);
 			}
+
+			await new Promise(resolve => setTimeout(resolve, 500));
+
+			const metrics = await sampleMetrics();
+			timeline.push({
+				phase: phaseIndex,
+				totalParticipants: totalPublishers + totalSubscribers,
+				totalPublishers,
+				totalSubscribers,
+				cpu: metrics.cpu,
+				memoryRssMb: metrics.memoryRssMb,
+				creationLatencyMs:
+					result.status === 200 ? result.latencyMs : null,
+				failed: result.status !== 200,
+				failureReason:
+					result.status !== 200
+						? `${result.status} - ${JSON.stringify(result.body)}`
+						: undefined,
+			});
 		}
 	}
 
-	const midMetrics = await sampleMetrics();
 	const cleanupDurationMs = await deleteAll(app);
-	const afterMetrics = await sampleMetrics();
-
-	const totalErrors = await countAllErrors();
+	const errors = timeline.filter(p => p.failed).length;
 
 	return {
 		name,
 		config,
-		metrics: {
-			creationLatencyMs: computeLatencyPercentiles(latencies),
-			cpu: {
-				before: beforeMetrics.cpu,
-				peakDuring: midMetrics.cpu,
-				afterCleanup: afterMetrics.cpu,
-			},
-			memoryRssMb: {
-				before: beforeMetrics.memoryRssMb,
-				peakDuring: midMetrics.memoryRssMb,
-				afterCleanup: afterMetrics.memoryRssMb,
-			},
-			errors: totalErrors,
-			totalDurationMs: Date.now() - startTime,
-			cleanupDurationMs,
-		},
+		timeline,
+		creationLatencyMs: computeLatencyPercentiles(latencies),
+		errors,
+		totalDurationMs: Date.now() - startTime,
+		cleanupDurationMs,
 	};
 }
 
