@@ -1,8 +1,6 @@
 import { beforeEach, vi } from 'vitest';
 import { vol } from 'memfs';
 
-process.env.LOG_LEVEL = 'silent';
-
 export const MOCK_CWD = '/opt/openvidu-loadtest/browser-emulator';
 
 vi.spyOn(process, 'cwd').mockReturnValue(MOCK_CWD);
