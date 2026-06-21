@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { URL } from 'node:url';
 import { validateUrl } from '../../utils/sanitize.js';
+import type { LoggerService } from '../../services/logger.service.ts';
 
 export class LocalFilesRepository {
 	// TODO: These directories could be moved to the config service
@@ -15,12 +16,14 @@ export class LocalFilesRepository {
 	public static readonly MEDIAFILES_DIR = `${process.cwd()}/mediafiles`;
 	public static readonly SCRIPTS_LOGS_DIR = `${process.cwd()}/logs`;
 
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 	private _fakevideo: string | undefined;
 	private _fakeaudio: string | undefined;
 	private _fakevideoStreaming: string | undefined;
 	private _fakeaudioStreaming: string | undefined;
 
-	constructor() {
+	constructor(loggerService: LoggerService) {
+		this.logger = loggerService.getLogger('LocalFilesRepository');
 		this.createNeededDirectories();
 	}
 
@@ -134,10 +137,9 @@ export class LocalFilesRepository {
 			if (remoteSha256) {
 				const localSha256 = await this.calculateFileSha256(filePath);
 				if (localSha256.toLowerCase() === remoteSha256.toLowerCase()) {
-					console.log(
-						'File ' +
-							filePath +
-							' already exists with matching SHA-256',
+					this.logger.info(
+						'File %s already exists with matching SHA-256',
+						filePath,
 					);
 					return filePath;
 				}
@@ -145,7 +147,7 @@ export class LocalFilesRepository {
 		}
 
 		const file = fs.createWriteStream(filePath);
-		console.log('Downloading ' + fileUrl + ' to ' + filePath);
+		this.logger.info('Downloading %s to %s', fileUrl, filePath);
 		return this.download(fileUrl, filePath, file);
 	}
 
@@ -254,8 +256,9 @@ export class LocalFilesRepository {
 						response.pipe(file);
 						file.on('finish', () => {
 							file.close();
-							console.log(
-								'Download of ' + filePath + ' successful',
+							this.logger.info(
+								'Download of %s successful',
+								filePath,
 							);
 							resolve(filePath);
 						});
@@ -298,7 +301,7 @@ export class LocalFilesRepository {
 					}
 				})
 				.on('error', err => {
-					console.error(err);
+					this.logger.error({ err }, 'Download error');
 					reject(err);
 				});
 		});

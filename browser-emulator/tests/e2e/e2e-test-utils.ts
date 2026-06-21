@@ -5,11 +5,14 @@ import { createServer } from 'node:http';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import Docker from 'dockerode';
+import baseLogger from '../../src/services/logger.service';
 import {
 	AvailableBrowsers,
 	Resolution,
 } from '../../src/types/create-user.type.js';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
+
+const logger = baseLogger.child({ module: 'e2e-test-utils' });
 import {
 	BrowserVideo,
 	InitializePost,
@@ -246,7 +249,7 @@ export async function createTwoPublisherUsers(
 }
 
 export async function waitForBrowsersToSendStats(emulationDuration: number) {
-	console.log(
+	logger.info(
 		`Wait ${emulationDuration} seconds to let the browsers connect and send stats`,
 	);
 	await new Promise(resolve => setTimeout(resolve, emulationDuration * 1000));

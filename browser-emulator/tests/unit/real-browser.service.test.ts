@@ -19,6 +19,15 @@ const mockComModule = {
 		.mockReturnValue('http://localhost:3000/?session=test&user=test'),
 };
 
+const mockLoggerService = {
+	getLogger: vi.fn().mockReturnValue({
+		info: vi.fn(),
+		error: vi.fn(),
+		warn: vi.fn(),
+		debug: vi.fn(),
+	}),
+};
+
 vi.mock('../../src/services/selenium.service.js', () => ({
 	SeleniumService: vi.fn().mockImplementation(() => mockSeleniumService),
 }));
@@ -53,6 +62,7 @@ describe('RealBrowserService', () => {
 			mockSeleniumService as never,
 			mockComModule as never,
 			mockLocalFilesRepository as never,
+			mockLoggerService as never,
 		);
 	});
 

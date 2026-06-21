@@ -25,6 +25,7 @@ import type {
 	AvailableBrowsers,
 } from '../../types/create-user.type.ts';
 import type { JSONStreamsInfo } from '../../types/json.type.ts';
+import type { LoggerService } from '../logger.service.ts';
 
 export class BrowserManagerService {
 	private _lastRequestInfo: CreateUserBrowser | undefined;
@@ -35,6 +36,7 @@ export class BrowserManagerService {
 	private readonly elasticSearchService: ElasticSearchService;
 	private readonly remotePersistenceService: RemotePersistenceService;
 	private readonly participantTracker: ParticipantTracker;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	constructor(
 		configService: ConfigService,
@@ -43,6 +45,7 @@ export class BrowserManagerService {
 		instanceService: InstanceService,
 		elasticSearchService: ElasticSearchService,
 		remotePersistenceService: RemotePersistenceService,
+		loggerService: LoggerService,
 	) {
 		this.configService = configService;
 		this.realBrowserService = realBrowserService;
@@ -51,6 +54,7 @@ export class BrowserManagerService {
 		this.elasticSearchService = elasticSearchService;
 		this.remotePersistenceService = remotePersistenceService;
 		this.participantTracker = new ParticipantTracker();
+		this.logger = loggerService.getLogger('BrowserManagerService');
 	}
 
 	async createStreamManager(
@@ -115,10 +119,9 @@ export class BrowserManagerService {
 				request.properties,
 			);
 		} catch (error) {
-			console.error(
-				'Error creating %s browser participant',
-				browser,
-				error,
+			this.logger.error(
+				{ browser, error },
+				'Error creating browser participant',
 			);
 			throw error;
 		}
@@ -127,7 +130,7 @@ export class BrowserManagerService {
 		const streams = this.participantTracker.getStreamsCreated();
 		const participants = this.participantTracker.getParticipantsCreated();
 		await this.sendStreamsData(streams, userId, sessionId);
-		console.log(`Participant ${connectionId} created`);
+		this.logger.info({ connectionId }, 'Participant created');
 		this._lastRequestInfo = request;
 		return {
 			connectionId,
@@ -188,32 +191,34 @@ export class BrowserManagerService {
 	}
 
 	async clean(): Promise<void> {
-		console.log('Cleaning browsers...');
+		this.logger.info('Cleaning browsers...');
 		await Promise.all([
 			this.realBrowserService.clean(),
 			this.emulatedBrowserService.clean(),
 		]);
-		console.log('Browsers cleaned');
+		this.logger.info('Browsers cleaned');
 
 		// Clear the centralized tracker
 		this.participantTracker.clear();
 
-		console.log('Waiting for all files to finish writting...');
+		this.logger.info('Waiting for all files to finish writting...');
 		await waitForAllFilesToBeProcessed();
-		console.log('All files processed');
+		this.logger.info('All files processed');
 		if (this.remotePersistenceService.isInitialized()) {
 			try {
-				console.log('Uploading files to remote persistence target...');
+				this.logger.info(
+					'Uploading files to remote persistence target...',
+				);
 				await this.remotePersistenceService.uploadFiles();
-				console.log('Files uploaded to remote persistence target');
+				this.logger.info('Files uploaded to remote persistence target');
 			} catch (error) {
-				console.error(
+				this.logger.error(
+					{ error },
 					'Error uploading files to remote persistence target',
-					error,
 				);
 			}
 		} else {
-			console.warn(
+			this.logger.warn(
 				"RemotePersistenceService is not initialized. Can't upload files.",
 			);
 		}
@@ -256,7 +261,7 @@ export class BrowserManagerService {
 		if ('recordingOutputMode' in req.properties) {
 			info += `Recording Output Mode: ${String(req.properties.recordingOutputMode)} \n`;
 		}
-		console.log(info);
+		this.logger.info(info);
 	}
 
 	public get lastRequestInfo(): CreateUserBrowser | undefined {

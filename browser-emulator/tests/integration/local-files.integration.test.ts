@@ -182,7 +182,19 @@ describe('Local Files Service + Repository Integration Tests', () => {
 	let fileService: LocalFilesService;
 
 	beforeEach(async () => {
-		filesRepository = new LocalFilesRepository();
+		const mockLogger = {
+			info: vi.fn(),
+			error: vi.fn(),
+			warn: vi.fn(),
+			debug: vi.fn(),
+			trace: vi.fn(),
+			child: vi.fn().mockReturnThis(),
+		};
+		const mockLoggerService = {
+			getLogger: vi.fn().mockReturnValue(mockLogger),
+		};
+
+		filesRepository = new LocalFilesRepository(mockLoggerService);
 		fileService = new LocalFilesService(filesRepository);
 		await removeAllFilesFromDir(LocalFilesRepository.MEDIAFILES_DIR);
 	});

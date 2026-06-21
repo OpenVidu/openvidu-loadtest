@@ -22,6 +22,7 @@ import { DockerService } from '../../docker.service.ts';
 import type { ContainerCreateOptions } from 'dockerode';
 import type { ChildProcess } from 'node:child_process';
 import type { ScriptRunnerService } from '../../script-runner.service.ts';
+import type { LoggerService } from '../../logger.service.ts';
 
 export class SeleniumService {
 	private readonly chromeOptions = new chrome.Options();
@@ -43,16 +44,20 @@ export class SeleniumService {
 	private readonly DOCKER_SELENIUM_RECORDING_IMAGE =
 		'selenium/video:ffmpeg-8.0-20260222';
 
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
+
 	public constructor(
 		configService: ConfigService,
 		localFilesRepository: LocalFilesRepository,
 		dockerService: DockerService,
 		scriptRunnerService: ScriptRunnerService,
+		loggerService: LoggerService,
 	) {
 		this.configService = configService;
 		this.localFilesRepository = localFilesRepository;
 		this.dockerService = dockerService;
 		this.scriptRunnerService = scriptRunnerService;
+		this.logger = loggerService.getLogger('SeleniumService');
 	}
 
 	public initialize() {
@@ -102,7 +107,7 @@ export class SeleniumService {
 						this.localFilesRepository.fakeaudio,
 				);
 			} else {
-				console.warn(
+				this.logger.warn(
 					'Fake media files not found, Chrome will not work correctly.',
 				);
 			}
@@ -222,9 +227,9 @@ export class SeleniumService {
 				logsPath,
 			);
 		} catch (err) {
-			console.warn(
-				'Failed to start streaming dockerized browser logs:',
-				err,
+			this.logger.warn(
+				{ err },
+				'Failed to start streaming dockerized browser logs',
 			);
 		}
 	}
@@ -292,9 +297,9 @@ export class SeleniumService {
 				);
 			} catch (err) {
 				// Best-effort only; if config calls fail, continue without the flags.
-				console.warn(
+				this.logger.warn(
+					{ err },
 					'Failed to add insecure-origin flags for dockerized Chrome',
-					err,
 				);
 			}
 		}
@@ -355,26 +360,30 @@ export class SeleniumService {
 						value?: { ready?: boolean };
 					};
 					if (body.value?.ready === true) {
-						console.log(
-							'Dockerized Selenium server ' +
-								seleniumServerBaseUrl +
-								' is ready',
+						this.logger.info(
+							{ seleniumServerBaseUrl },
+							'Dockerized Selenium server is ready',
 						);
 						return;
 					} else {
-						console.warn(
-							`Selenium server at ${seleniumServerBaseUrl} responded but is not ready yet, retrying...`,
+						this.logger.warn(
+							{ seleniumServerBaseUrl, body },
+							'Selenium server responded but is not ready yet, retrying...',
 						);
-						console.warn('Response body:', body);
 					}
 				} else {
-					console.warn(
-						`Selenium server responded with status ${response.status}, retrying...`,
+					this.logger.warn(
+						{
+							status: response.status,
+							seleniumServerBaseUrl,
+							body: await response.text(),
+						},
+						'Selenium server responded with error status, retrying...',
 					);
-					console.warn('Response body:', await response.text());
 				}
 			} catch {
-				console.warn(
+				this.logger.warn(
+					{ seleniumServerBaseUrl },
 					'Failed to connect to dockerized Selenium, retrying...',
 				);
 			}
@@ -431,7 +440,7 @@ export class SeleniumService {
 
 	public async recordFullScreen(properties: UserJoinProperties) {
 		if (this.isRecordingFullScreen) {
-			console.warn(
+			this.logger.warn(
 				'Already recording full screen, only one recording is supported at a time',
 			);
 			return;
@@ -480,9 +489,7 @@ export class SeleniumService {
 					detached: true,
 					stdio: ['ignore', logFileFd.fd, logFileFd.fd],
 					onCloseCallback: code => {
-						console.log(
-							`Recording process exited with code ${code}`,
-						);
+						this.logger.info({ code }, 'Recording process exited');
 						this.isRecordingFullScreen = false;
 					},
 				},
@@ -493,11 +500,11 @@ export class SeleniumService {
 
 	async stopFullScreenRecording() {
 		if (this.recordingScript) {
-			console.log('Stopping full screen recording');
+			this.logger.info('Stopping full screen recording');
 			await this.scriptRunnerService.killDetached(this.recordingScript);
 		}
 		if (this.recordingDockerContainerId) {
-			console.log('Stopping full screen recording container');
+			this.logger.info('Stopping full screen recording container');
 			await this.dockerService.removeContainer(
 				this.recordingDockerContainerId,
 			);

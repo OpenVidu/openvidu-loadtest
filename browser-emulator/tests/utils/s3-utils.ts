@@ -1,3 +1,4 @@
+import baseLogger from '../../src/services/logger.service';
 import {
 	S3Client,
 	ListObjectsV2Command,
@@ -8,17 +9,19 @@ import {
 	StartedS3MockContainer,
 } from '@testcontainers/s3mock';
 
+const logger = baseLogger.child({ module: 's3-utils' });
+
 export async function startS3MockTestContainer(): Promise<StartedS3MockContainer> {
-	console.log('Starting S3Mock container...');
+	logger.info('Starting S3Mock container...');
 	const s3MockContainer = await new S3MockContainer('adobe/s3mock:4.11.0')
 		.withLogConsumer(stream => {
-			stream.on('data', line => console.log(line));
-			stream.on('err', line => console.error(line));
-			stream.on('end', () => console.log('Stream closed'));
+			stream.on('data', line => logger.info(line));
+			stream.on('err', line => logger.error(line));
+			stream.on('end', () => logger.info('Stream closed'));
 		})
 		.start();
 
-	console.log(`S3Mock container started`);
+	logger.info(`S3Mock container started`);
 	return s3MockContainer;
 }
 
@@ -31,12 +34,12 @@ export async function stopS3MockTestContainer(
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			try {
 				await s3MockContainer.stop();
-				console.log(`S3Mock container stopped`);
+				logger.info(`S3Mock container stopped`);
 				return;
 			} catch (error) {
 				lastError = error;
 				if (attempt < maxRetries) {
-					console.log(
+					logger.info(
 						`Retry ${attempt}/${maxRetries - 1} stopping S3Mock container...`,
 					);
 					await new Promise(resolve => setTimeout(resolve, 1000));
@@ -44,9 +47,9 @@ export async function stopS3MockTestContainer(
 			}
 		}
 
-		console.error('Error stopping S3Mock container:', lastError);
+		logger.error('Error stopping S3Mock container:', lastError);
 	} catch (error) {
-		console.error('Error stopping S3Mock container:', error);
+		logger.error('Error stopping S3Mock container:', error);
 	}
 }
 

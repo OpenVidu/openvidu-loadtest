@@ -10,6 +10,7 @@ import type {
 	InitializePostRequest,
 } from '../types/initialize.type.ts';
 import type { ConfigService } from '../services/config.service.ts';
+import type { LoggerService } from '../services/logger.service.ts';
 import type { SeleniumService } from '../services/browser/real/selenium.service.ts';
 import { gracefulExit } from 'exit-hook';
 
@@ -23,6 +24,7 @@ export class InstanceController {
 	private readonly remotePersistenceService: RemotePersistenceService;
 	private readonly seleniumService: SeleniumService;
 	private readonly config: ConfigService;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	constructor(
 		elasticSearchService: ElasticSearchService,
@@ -31,6 +33,7 @@ export class InstanceController {
 		fakeMediaDevicesService: FakeMediaDevicesService,
 		remotePersistenceService: RemotePersistenceService,
 		configService: ConfigService,
+		loggerService: LoggerService,
 		seleniumService: SeleniumService,
 	) {
 		this.elasticSearchService = elasticSearchService;
@@ -39,6 +42,7 @@ export class InstanceController {
 		this.fakeMediaDevicesService = fakeMediaDevicesService;
 		this.remotePersistenceService = remotePersistenceService;
 		this.config = configService;
+		this.logger = loggerService.getLogger('InstanceController');
 		this.seleniumService = seleniumService;
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
@@ -67,7 +71,7 @@ export class InstanceController {
 
 			this.config.setLegacyMode(!!request.legacyMode);
 
-			console.log('Initialize browser-emulator');
+			this.logger.info('Initialize browser-emulator');
 
 			await this.instanceService.ensureDockerNetworkExists();
 			const promises = [];
@@ -118,20 +122,20 @@ export class InstanceController {
 				`Instance ${req.headers.host} has been initialized`,
 			);
 		} catch (error) {
-			console.error(error);
+			this.logger.error(error);
 			res.status(500).send('Internal server error');
 		}
 	}
 
 	private shutdown(_: Request, res: Response) {
 		try {
-			console.log('Shutdown signal received, exiting...');
+			this.logger.info('Shutdown signal received, exiting...');
 			setTimeout(() => {
 				gracefulExit(0);
 			}, 1000);
 			res.status(200).send('Shutdown initiated');
 		} catch (error) {
-			console.error('Error during shutdown:', error);
+			this.logger.error(error, 'Error during shutdown');
 			res.status(500).send('Internal server error');
 		}
 	}

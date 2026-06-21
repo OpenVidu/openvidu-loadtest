@@ -16,6 +16,7 @@ import {
 	addSaveStatsToFileToQueue,
 } from '../../../utils/stats-files.ts';
 import * as fs from 'node:fs/promises';
+import type { LoggerService } from '../../logger.service.ts';
 
 interface EmulatedContainerInfo {
 	containerId: string;
@@ -42,6 +43,7 @@ export class EmulatedBrowserService {
 	private readonly wsService: WsService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	private readonly LIVEKIT_CLI_IMAGE = 'livekit/livekit-cli';
 	private readonly ROOM_EMPTY_TIMEOUT = 600; // 10 minutes
@@ -56,6 +58,7 @@ export class EmulatedBrowserService {
 		wsService: WsService,
 		localFilesRepository: LocalFilesRepository,
 		emulatedFilePublishStreamService: EmulatedFilePublishStreamService,
+		loggerService: LoggerService,
 	) {
 		this.dockerService = dockerService;
 		this.configService = configService;
@@ -63,6 +66,7 @@ export class EmulatedBrowserService {
 		this.localFilesRepository = localFilesRepository;
 		this.emulatedFilePublishStreamService =
 			emulatedFilePublishStreamService;
+		this.logger = loggerService.getLogger('EmulatedBrowserService');
 	}
 
 	async createEmulatedParticipant(
@@ -73,8 +77,9 @@ export class EmulatedBrowserService {
 		const sessionName = properties.sessionName;
 		const userId = properties.userId;
 
-		console.log(
-			`Creating emulated participant: userId=${userId}, session=${sessionName}`,
+		this.logger.info(
+			{ userId, sessionName },
+			'Creating emulated participant',
 		);
 
 		// Check streaming media files exist (H.264 and Ogg)
@@ -141,8 +146,15 @@ export class EmulatedBrowserService {
 					maxAttempts: this.CREATE_PARTICIPANT_MAX_ATTEMPTS,
 					error: String(error),
 				});
-				console.warn(
-					`Emulated participant join attempt ${attempt}/${this.CREATE_PARTICIPANT_MAX_ATTEMPTS} failed for ${sessionName}/${userId}: ${String(error)}`,
+				this.logger.warn(
+					{
+						attempt,
+						maxAttempts: this.CREATE_PARTICIPANT_MAX_ATTEMPTS,
+						sessionName,
+						userId,
+						error: String(error),
+					},
+					'Emulated participant join attempt failed',
 				);
 				if (attempt < this.CREATE_PARTICIPANT_MAX_ATTEMPTS) {
 					await new Promise(resolve =>
@@ -238,8 +250,9 @@ export class EmulatedBrowserService {
 
 			this.startParticipantHealthCheck(connectionId);
 
-			console.log(
-				`Emulated participant created: connectionId=${connectionId}, containerId=${containerId}`,
+			this.logger.info(
+				{ connectionId, containerId },
+				'Emulated participant created',
 			);
 
 			return connectionId;
@@ -297,7 +310,10 @@ export class EmulatedBrowserService {
 			this.LIVEKIT_CLI_IMAGE,
 		);
 		if (!imageExists) {
-			console.log(`Pulling ${this.LIVEKIT_CLI_IMAGE} image...`);
+			this.logger.info(
+				{ image: this.LIVEKIT_CLI_IMAGE },
+				'Pulling image...',
+			);
 			await this.dockerService.pullImage(this.LIVEKIT_CLI_IMAGE);
 		}
 	}
@@ -306,7 +322,7 @@ export class EmulatedBrowserService {
 		request: LKCreateUserBrowser,
 		roomName: string,
 	): Promise<void> {
-		console.log(`Checking if room ${roomName} exists...`);
+		this.logger.info({ roomName }, 'Checking if room exists...');
 
 		const baseUrl = request.openviduUrl
 			.replace('ws://', 'http://')
@@ -321,16 +337,19 @@ export class EmulatedBrowserService {
 		try {
 			const rooms = await roomService.listRooms([roomName]);
 			if (rooms.length > 0) {
-				console.log(`Room ${roomName} already exists`);
+				this.logger.info({ roomName }, 'Room already exists');
 			} else {
 				await roomService.createRoom({
 					name: roomName,
 					emptyTimeout: this.ROOM_EMPTY_TIMEOUT,
 				});
-				console.log(`Room ${roomName} created`);
+				this.logger.info({ roomName }, 'Room created');
 			}
 		} catch (error) {
-			console.log(`Room creation check failed: ${String(error)}`);
+			this.logger.warn(
+				{ roomName, error: String(error) },
+				'Room creation check failed',
+			);
 		}
 	}
 
@@ -380,11 +399,11 @@ export class EmulatedBrowserService {
 	async deleteStreamManagerWithConnectionId(
 		connectionId: string,
 	): Promise<void> {
-		console.log(`Deleting emulated participant: ${connectionId}`);
+		this.logger.info({ connectionId }, 'Deleting emulated participant');
 
 		const containerInfo = this.containerMap.get(connectionId);
 		if (!containerInfo) {
-			console.log(`Container ${connectionId} not found`);
+			this.logger.warn({ connectionId }, 'Container not found');
 			return;
 		}
 
@@ -395,10 +414,9 @@ export class EmulatedBrowserService {
 			await this.dockerService.stopContainer(containerInfo.containerId);
 			await this.dockerService.removeContainer(containerInfo.containerId);
 		} catch (error) {
-			console.error(
-				'Error stopping/removing container for %s:',
-				connectionId,
-				error,
+			this.logger.error(
+				{ connectionId, error },
+				'Error stopping/removing container',
 			);
 		}
 
@@ -412,10 +430,9 @@ export class EmulatedBrowserService {
 				// Clean up socket files
 				await this.cleanupSockets(containerInfo);
 			} catch (error) {
-				console.error(
-					'Error stopping socket streaming for %s:',
-					connectionId,
-					error,
+				this.logger.error(
+					{ connectionId, error },
+					'Error stopping socket streaming',
 				);
 			}
 		}
@@ -423,7 +440,7 @@ export class EmulatedBrowserService {
 		// Remove container tracking
 		this.containerMap.delete(connectionId);
 
-		console.log(`Emulated participant deleted: ${connectionId}`);
+		this.logger.info({ connectionId }, 'Emulated participant deleted');
 	}
 
 	private async cleanupSockets(
@@ -447,8 +464,9 @@ export class EmulatedBrowserService {
 		sessionId: string,
 		userId: string,
 	): Promise<void> {
-		console.log(
-			`Deleting emulated participants for session=${sessionId}, user=${userId}`,
+		this.logger.info(
+			{ sessionId, userId },
+			'Deleting emulated participants',
 		);
 
 		const toDelete: string[] = [];
@@ -467,14 +485,14 @@ export class EmulatedBrowserService {
 	}
 
 	async clean(): Promise<void> {
-		console.log('Cleaning emulated participants...');
+		this.logger.info('Cleaning emulated participants...');
 
 		const connectionIds = Array.from(this.containerMap.keys());
 		for (const connectionId of connectionIds) {
 			try {
 				await this.deleteStreamManagerWithConnectionId(connectionId);
 			} catch (error) {
-				console.error(`Error cleaning ${connectionId}:`, error);
+				this.logger.error({ connectionId, error }, 'Error cleaning');
 			}
 		}
 
@@ -483,7 +501,7 @@ export class EmulatedBrowserService {
 		// Also clean up all socket streaming
 		await this.emulatedFilePublishStreamService.stopPublishing();
 
-		console.log('Emulated participants cleaned');
+		this.logger.info('Emulated participants cleaned');
 	}
 
 	getParticipantContainerId(connectionId: string): string | undefined {
@@ -592,10 +610,9 @@ export class EmulatedBrowserService {
 
 		await this.deleteStreamManagerWithConnectionId(connectionId).catch(
 			error => {
-				console.error(
-					'Error cleaning unhealthy participant %s:',
-					connectionId,
-					error,
+				this.logger.error(
+					{ connectionId, error },
+					'Error cleaning unhealthy participant',
 				);
 			},
 		);
@@ -629,8 +646,9 @@ export class EmulatedBrowserService {
 			containerInfo.sessionName,
 			payload,
 		);
-		console.error(
-			`Healthcheck error reported for ${connectionId}: ${reason}`,
+		this.logger.error(
+			{ connectionId, reason },
+			'Healthcheck error reported',
 		);
 	}
 
@@ -648,8 +666,9 @@ export class EmulatedBrowserService {
 		try {
 			return await this.dockerService.getLogsFromContainer(containerId);
 		} catch (error) {
-			console.warn(
-				`Failed to read logs from container ${containerId}: ${String(error)}`,
+			this.logger.warn(
+				{ containerId, error: String(error) },
+				'Failed to read logs from container',
 			);
 			return undefined;
 		}
@@ -678,28 +697,37 @@ export class EmulatedBrowserService {
 			for (let i = 0; i < attempts; i++) {
 				if (await fn()) return true;
 				if (i < attempts - 1) {
-					console.log(`Retrying... (${i + 1}/${attempts})`);
+					this.logger.info(
+						{ attempt: i + 1, attempts },
+						'Retrying...',
+					);
 					await new Promise(res => setTimeout(res, delayMs));
 				}
 			}
 			return false;
 		};
 
-		console.log(
-			`Checking if join container ${joinContainerName} is running...`,
+		this.logger.info(
+			{ joinContainerName },
+			'Checking if join container is running...',
 		);
 		const joinRunning = await retry(() =>
 			this.dockerService.isContainerRunning(joinContainerName),
 		);
 		if (!joinRunning) {
-			console.error(`Join container ${joinContainerName} is not running`);
+			this.logger.error(
+				{ joinContainerName },
+				'Join container is not running',
+			);
 			throw new Error(errorMsg);
 		}
-		console.log(
-			`Join container ${joinContainerName} running: ${joinRunning}`,
+		this.logger.info(
+			{ joinContainerName, joinRunning },
+			'Join container running check',
 		);
-		console.log(
-			`Checking join container ${joinContainerName} logs for successful connection...`,
+		this.logger.info(
+			{ joinContainerName },
+			'Checking join container logs for successful connection...',
 		);
 		const joinLogsOk = await retry(async () => {
 			const joinLogs =
@@ -713,13 +741,15 @@ export class EmulatedBrowserService {
 				await this.dockerService.getLogsFromContainer(
 					joinContainerName,
 				);
-			console.error(
-				`Missing connection indicators in ${joinContainerName} logs:\n${joinLogs}`,
+			this.logger.error(
+				{ joinContainerName, joinLogs },
+				'Missing connection indicators in container logs',
 			);
 			throw new Error(errorMsg);
 		}
-		console.log(
-			`Join container ${joinContainerName} logs indicate successful connection`,
+		this.logger.info(
+			{ joinContainerName },
+			'Join container logs indicate successful connection',
 		);
 
 		if (properties.role === Role.PUBLISHER) {
@@ -727,8 +757,13 @@ export class EmulatedBrowserService {
 				this.emulatedFilePublishStreamService.getParticipantSockets(
 					participantId,
 				);
-			console.log(
-				`Socket streaming active for ${participantId}: video=${!!streamActive?.videoSocket}, audio=${!!streamActive?.audioSocket}`,
+			this.logger.info(
+				{
+					participantId,
+					video: !!streamActive?.videoSocket,
+					audio: !!streamActive?.audioSocket,
+				},
+				'Socket streaming active',
 			);
 		}
 	}

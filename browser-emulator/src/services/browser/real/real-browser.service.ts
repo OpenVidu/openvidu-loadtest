@@ -14,6 +14,7 @@ import {
 	type UserJoinProperties,
 	Role,
 } from '../../../types/create-user.type.ts';
+import type { LoggerService } from '../../logger.service.ts';
 
 declare let localStorage: Storage;
 
@@ -34,19 +35,22 @@ export class RealBrowserService {
 	private readonly seleniumService: SeleniumService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly comModule: BaseComModule;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	constructor(
 		seleniumService: SeleniumService,
 		comModule: BaseComModule,
 		localFilesRepository: LocalFilesRepository,
+		loggerService: LoggerService,
 	) {
 		this.seleniumService = seleniumService;
 		this.comModule = comModule;
 		this.localFilesRepository = localFilesRepository;
+		this.logger = loggerService.getLogger('RealBrowserService');
 	}
 
 	async deleteStreamManagerWithConnectionId(driverId: string): Promise<void> {
-		console.log('Removing and stopping driver ', driverId);
+		this.logger.info({ driverId }, 'Removing and stopping driver');
 		const value = this.driverMap.get(driverId);
 		const keepAliveInterval = this.keepAliveIntervals.get(driverId);
 		if (keepAliveInterval) {
@@ -96,15 +100,16 @@ export class RealBrowserService {
 		try {
 			await Promise.all(promisesToResolve);
 		} catch (error) {
-			console.error('Error quitting driver ', error);
+			this.logger.error({ error }, 'Error quitting driver');
 		}
 	}
 
 	async deleteStreamManagerWithRole(role: Role): Promise<void> {
-		console.log(
-			'Current number of total users in worker: ' + this.driverMap.size,
+		this.logger.info(
+			{ totalUsers: this.driverMap.size },
+			'Current number of total users in worker',
 		);
-		console.log('Deleting all ' + role.toString());
+		this.logger.info({ role }, 'Deleting all role');
 		const driversToDelete: {
 			key: string;
 			value: DriverInfo;
@@ -114,24 +119,25 @@ export class RealBrowserService {
 		this.driverMap.forEach((value, key) => {
 			if (value.connectionRole === role) {
 				driversToDelete.push({ key, value });
-				console.log(
-					'Driver to delete: ' +
-						key +
-						' with session: ' +
-						value.sessionName,
+				this.logger.info(
+					{ driverId: key, sessionName: value.sessionName },
+					'Driver to delete',
 				);
 				if (value.mediaRecorders) {
 					recordingPromises.push(this.saveQoERecordings(key));
 				}
 			}
 		});
-		console.log('Number of users to delete: ' + driversToDelete.length);
+		this.logger.info(
+			{ numberToDelete: driversToDelete.length },
+			'Number of users to delete',
+		);
 		if (recordingPromises.length > 0) {
-			console.log('Saving QoE Recordings...');
+			this.logger.info('Saving QoE Recordings...');
 			await Promise.all(recordingPromises);
-			console.log('QoE recordings saved');
+			this.logger.info('QoE recordings saved');
 		}
-		console.log('Clearing keep alive intervals');
+		this.logger.info('Clearing keep alive intervals');
 		driversToDelete.forEach(item => {
 			const keepAliveInterval = this.keepAliveIntervals.get(item.key);
 			if (keepAliveInterval) {
@@ -144,42 +150,37 @@ export class RealBrowserService {
 		try {
 			await Promise.all(promisesToResolve);
 		} catch (error) {
-			console.error('Error quitting driver ', error);
+			this.logger.error({ error }, 'Error quitting driver');
 		}
 	}
 
 	private async quitDriver(key: string, value: DriverInfo) {
-		console.log(
-			'Quitting driver: ' + key + ' with session: ' + value.sessionName,
+		this.logger.info(
+			{ driverId: key, sessionName: value.sessionName },
+			'Quitting driver',
 		);
 		try {
 			await this.seleniumService.quitDriver(value.driver);
-			console.log(
-				'Driver quit: ' +
-					key +
-					' with session: ' +
-					value.sessionName +
-					' successfully',
+			this.logger.info(
+				{ driverId: key, sessionName: value.sessionName },
+				'Driver quit successfully',
 			);
 		} catch (error) {
-			console.error(
-				'Error quitting driver: ' +
-					key +
-					' with session: ' +
-					value.sessionName,
-				error,
+			this.logger.error(
+				{ driverId: key, sessionName: value.sessionName, error },
+				'Error quitting driver',
 			);
 		}
 	}
 
 	async clean(): Promise<void> {
-		console.log('Cleaning real browsers');
+		this.logger.info('Cleaning real browsers');
 		await this.seleniumService.stopFullScreenRecording();
 		await Promise.all([
 			this.deleteStreamManagerWithRole(Role.PUBLISHER),
 			this.deleteStreamManagerWithRole(Role.SUBSCRIBER),
 		]);
-		console.log('Real browsers cleaned');
+		this.logger.info('Real browsers cleaned');
 	}
 
 	async launchBrowser(
@@ -224,7 +225,7 @@ export class RealBrowserService {
 		let driverId: string | undefined;
 		try {
 			const webappUrl = this.comModule.generateWebappUrl(request);
-			console.log(webappUrl);
+			this.logger.info({ webappUrl }, 'Webapp URL');
 			const driver = await seleniumService.getDriver(
 				request.properties.browser,
 				request.properties.sessionName +
@@ -256,7 +257,7 @@ export class RealBrowserService {
 			this.setupKeepAlive(driver, driverId);
 			return driverId;
 		} catch (error) {
-			console.log(error);
+			this.logger.error({ error }, 'Error initializing browser');
 			if (driverId) {
 				await this.handleBrowserError(driverId);
 			}
@@ -328,7 +329,7 @@ export class RealBrowserService {
 		// await driver.wait(until.elementsLocated(By.id('subscriber-need-to-be-unmuted')), this.BROWSER_WAIT_TIMEOUT_MS);
 		await driver.sleep(1000);
 		await this.clickUnmuteButtons();
-		console.log('Browser works as expected');
+		this.logger.info('Browser works as expected');
 	}
 
 	private setupKeepAlive(driver: WebDriver, driverId: string): void {
@@ -348,7 +349,7 @@ export class RealBrowserService {
 			await this.printBrowserLogs(driverId);
 			await this.deleteStreamManagerWithConnectionId(driverId);
 		} else {
-			console.log('Driver already quit.');
+			this.logger.warn('Driver already quit.');
 		}
 	}
 
@@ -378,19 +379,25 @@ export class RealBrowserService {
 				attempt++;
 				await new Promise(resolve => setTimeout(resolve, time));
 				time *= 2;
-				console.error('Error clicking buttons, retrying', error);
+				this.logger.error(
+					{ error },
+					'Error clicking buttons, retrying',
+				);
 			}
 		}
 		throw new Error('Button could not be clicked after multiple attempts');
 	}
 
 	private async saveQoERecordings(driverId: string) {
-		console.log('Saving QoE Recordings for driver ' + driverId);
+		this.logger.info({ driverId }, 'Saving QoE Recordings for driver');
 		const driverInfo = this.driverMap.get(driverId);
 		if (driverInfo) {
 			const webDriver = driverInfo.driver;
 			if (webDriver) {
-				console.log('Executing getRecordings for driver ' + driverId);
+				this.logger.info(
+					{ driverId },
+					'Executing getRecordings for driver',
+				);
 				try {
 					await webDriver.executeAsyncScript(`
 						const callback = arguments[arguments.length - 1];
@@ -412,13 +419,16 @@ export class RealBrowserService {
 							callback()
 						}
 					`);
-					console.log('QoE Recordings saved for driver ' + driverId);
+					this.logger.info(
+						{ driverId },
+						'QoE Recordings saved for driver',
+					);
 					await this.printBrowserLogs(driverId);
 				} catch (error) {
-					console.log(
-						'Error saving QoE Recordings for driver ' + driverId,
+					this.logger.error(
+						{ driverId, error },
+						'Error saving QoE Recordings',
 					);
-					console.log(error);
 					await this.printBrowserLogs(driverId);
 				}
 				this.driverMap.delete(driverId);
@@ -443,8 +453,8 @@ export class RealBrowserService {
 					return dtFormat.format(new Date(s * 1e3));
 				}
 
-				entries.forEach(function (entry) {
-					console.log(
+				entries.forEach(entry => {
+					this.logger.info(
 						'%s - [%s] %s',
 						formatTime(entry.timestamp),
 						entry.level.name,

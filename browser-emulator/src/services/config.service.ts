@@ -18,6 +18,7 @@ export class ConfigService {
 	private readonly runningInDocker: boolean;
 	private readonly dockerizedBrowsersConfig: DockerizedBrowsersConfig;
 
+	private readonly logLevel: string;
 	private readonly disableHttps: boolean;
 	private readonly mediaFilesHostDir: string;
 	private readonly scriptsLogsHostDir: string;
@@ -30,6 +31,7 @@ export class ConfigService {
 		this.comModule = this.parseComModule();
 		this.runningInDocker = this.parseRunningInDocker();
 		this.dockerizedBrowsersConfig = this.parseDockerizedBrowsersConfig();
+		this.logLevel = this.pickString(process.env.LOG_LEVEL, 'info');
 		this.disableHttps = this.parseBoolean(process.env.DISABLE_HTTPS, false);
 		this.mediaFilesHostDir = this.pickString(
 			process.env.MEDIAFILES_HOST_DIR,
@@ -210,6 +212,7 @@ export class ConfigService {
 			console.log(`  DISABLE_HTTPS: ${this.disableHttps}`);
 		}
 		console.log(`  MEDIAFILES_HOST_DIR: ${this.mediaFilesHostDir}`);
+		console.log(`  LOG_LEVEL: ${this.logLevel}`);
 		console.log(`  SCRIPTS_LOGS_HOST_DIR: ${this.scriptsLogsHostDir}`);
 		console.log(`  METRICBEAT_CONFIG: ${this.metricbeatConfig}`);
 		console.log(
@@ -270,5 +273,9 @@ export class ConfigService {
 
 	public getMetricbeatConfig(): string {
 		return this.metricbeatConfig;
+	}
+
+	public getLogLevel(): string {
+		return this.logLevel;
 	}
 }

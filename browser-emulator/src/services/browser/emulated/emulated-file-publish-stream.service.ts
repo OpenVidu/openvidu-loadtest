@@ -1,11 +1,13 @@
 import { LocalFilesRepository } from '../../../repositories/files/local-files.repository.ts';
 import { SocketWriterService } from '../../streaming/socket-writer.service.ts';
 import { SocketWriterHealthService } from '../../streaming/socket-writer-health.service.ts';
+import type { LoggerService } from '../../logger.service.ts';
 
 export class EmulatedFilePublishStreamService {
 	private readonly socketWriterService: SocketWriterService;
 	private readonly healthService: SocketWriterHealthService;
 	private readonly localFilesRepository: LocalFilesRepository;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	// Track participant streaming state
 	private readonly participantStreams = new Map<
@@ -21,10 +23,14 @@ export class EmulatedFilePublishStreamService {
 		socketWriterService: SocketWriterService,
 		healthService: SocketWriterHealthService,
 		localFilesRepository: LocalFilesRepository,
+		loggerService: LoggerService,
 	) {
 		this.socketWriterService = socketWriterService;
 		this.healthService = healthService;
 		this.localFilesRepository = localFilesRepository;
+		this.logger = loggerService.getLogger(
+			'EmulatedFilePublishStreamService',
+		);
 	}
 
 	/**
@@ -98,8 +104,13 @@ export class EmulatedFilePublishStreamService {
 			failed: false,
 		});
 
-		console.log(
-			`Started socket streaming for ${participantId}: video=${!!result.videoSocket}, audio=${!!result.audioSocket}`,
+		this.logger.info(
+			{
+				participantId,
+				video: !!result.videoSocket,
+				audio: !!result.audioSocket,
+			},
+			'Started socket streaming',
 		);
 
 		return result;
@@ -153,7 +164,7 @@ export class EmulatedFilePublishStreamService {
 		]);
 
 		this.participantStreams.delete(participantId);
-		console.log(`Stopped socket streaming for ${participantId}`);
+		this.logger.info({ participantId }, 'Stopped socket streaming');
 	}
 
 	private async stopAllParticipants(): Promise<void> {
@@ -167,14 +178,14 @@ export class EmulatedFilePublishStreamService {
 
 		this.participantStreams.clear();
 
-		console.log('Stopped all socket streaming');
+		this.logger.info('Stopped all socket streaming');
 	}
 
 	private markFailed(participantId: string, type: 'video' | 'audio'): void {
 		const stream = this.participantStreams.get(participantId);
 		if (stream) {
 			stream.failed = true;
-			console.error(`Stream failed for ${participantId} (${type})`);
+			this.logger.error({ participantId, type }, 'Stream failed');
 		}
 	}
 }

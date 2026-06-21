@@ -5,8 +5,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { OSUtils } from 'node-os-utils';
+import baseLogger from '../../src/services/logger.service';
 import { getConfig, checkDeploymentReachable } from '../utils/test-config.js';
 import { pingInstance, initializeInstance } from '../e2e/e2e-test-utils.js';
+
+const logger = baseLogger.child({ module: 'perf-test-utils' });
 
 const osutils = new OSUtils();
 export const PERF_RESULTS_DIR = path.join(
@@ -256,13 +259,13 @@ export async function runSaturation(
 	while (true) {
 		const elapsed = Date.now() - startTime;
 		if (elapsed > config.maxDurationMs) {
-			console.log(`Saturation test timed out after ${elapsed}ms`);
+			logger.info(`Saturation test timed out after ${elapsed}ms`);
 			break;
 		}
 
 		const action = stepFn(phaseIndex, totalPublishers, totalSubscribers);
 		if (action === null) {
-			console.log('Step function returned null, stopping');
+			logger.info('Step function returned null, stopping');
 			break;
 		}
 
@@ -323,14 +326,14 @@ export async function runSaturation(
 		});
 
 		if (sustained100Participants !== null || failed) {
-			console.log(
+			logger.info(
 				`Saturation ceiling reached: ${failed ? 'participant failure' : 'CPU sustained'} at ${totalParticipants} participants`,
 			);
 			break;
 		}
 	}
 
-	console.log('Cleaning up saturation test...');
+	logger.info('Cleaning up saturation test...');
 	const cleanupDurationMs = await deleteAll(app);
 
 	return {
@@ -488,6 +491,6 @@ export async function saveRunResults(
 
 	const filePath = path.join(PERF_RESULTS_DIR, `run-${runId}.json`);
 	await fs.writeFile(filePath, JSON.stringify(output, null, 2));
-	console.log(`Performance results saved to ${filePath}`);
+	logger.info(`Performance results saved to ${filePath}`);
 	return filePath;
 }

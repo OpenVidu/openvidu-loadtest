@@ -1,6 +1,7 @@
 import * as express from 'express';
 import type { Response } from 'express';
 import type { ElasticSearchService } from '../services/elasticsearch.service.js';
+import type { LoggerService } from '../services/logger.service.js';
 import type { WsService } from '../services/ws.service.js';
 import {
 	ERRORS_FILE,
@@ -11,20 +12,20 @@ import {
 import type { WebRTCStatsRequest } from '../types/webrtc-stats.type.ts';
 import type { BrowserEventRequest } from '../types/browser-event.type.ts';
 
-// DEBUG: Print full objects (only uncomment for debug sessions during development)
-// require("util").inspect.defaultOptions.depth = null;
-
 export class EventsController {
 	private readonly router: express.Router;
 	private readonly elasticSearchService: ElasticSearchService;
 	private readonly wsService: WsService;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	constructor(
 		elasticSearchService: ElasticSearchService,
 		wsService: WsService,
+		loggerService: LoggerService,
 	) {
 		this.elasticSearchService = elasticSearchService;
 		this.wsService = wsService;
+		this.logger = loggerService.getLogger('EventsController');
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
 	}
@@ -53,7 +54,7 @@ export class EventsController {
 			}
 			res.status(200).send();
 		} catch (error) {
-			console.log('ERROR saving stats', error);
+			this.logger.error(error, 'ERROR saving stats');
 			res.status(500).send('Internal server error');
 		}
 	}
@@ -72,7 +73,7 @@ export class EventsController {
 
 			res.status(200).send();
 		} catch (error) {
-			console.error(error);
+			this.logger.error(error);
 			res.status(500).send('Internal server error');
 		}
 	}
@@ -81,8 +82,7 @@ export class EventsController {
 		try {
 			const message: string = JSON.stringify(req.body);
 
-			console.error('Error received from browser: ');
-			console.error(message);
+			this.logger.error('Error received from browser: %s', message);
 
 			addSaveStatsToFileToQueue(
 				req.body.participant,
@@ -93,7 +93,7 @@ export class EventsController {
 
 			res.status(200).send();
 		} catch (error) {
-			console.error(error);
+			this.logger.error(error);
 			res.status(500).send('Internal server error');
 		}
 	}

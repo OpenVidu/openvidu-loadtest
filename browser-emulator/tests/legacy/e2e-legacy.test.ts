@@ -13,6 +13,7 @@ import type { Application } from 'express';
 import { createServer } from 'node:http';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
+import baseLogger from '../../src/services/logger.service';
 import {
 	AvailableBrowsers,
 	Resolution,
@@ -40,6 +41,8 @@ import {
 	stopElasticSearchTestContainer,
 } from '../utils/elasticsearch-testcontainer-utils.js';
 import { Client } from '@elastic/elasticsearch';
+
+const logger = baseLogger.child({ module: 'e2e-legacy' });
 
 const QOE_ANALYSIS_TIMEOUT_MS = 30 * 60 * 1000;
 const QOE_ANALYSIS_POLL_INTERVAL_MS = 2000;
@@ -252,7 +255,7 @@ async function cleanBucket(s3Client: S3Client, testBucketName: string) {
 }
 
 async function waitForBrowsersToSendStats(emulationDuration: number) {
-	console.log(
+	logger.info(
 		`Wait ${emulationDuration} seconds to let the browsers connect and send stats`,
 	);
 	await new Promise(resolve => setTimeout(resolve, emulationDuration * 1000));

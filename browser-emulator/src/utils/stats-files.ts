@@ -3,6 +3,9 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { JsonValue } from '../types/json.type.ts';
 import { sanitizeFilename } from './sanitize.ts';
+import baseLogger from '../services/logger.service.ts';
+
+const logger = baseLogger.child({ module: 'stats-files' });
 
 export const STATS_DIR = `${process.cwd()}/stats/`;
 export const CON_FILE = `connections.json`;
@@ -28,15 +31,15 @@ export async function createAllStatFilesForSession(
 
 async function createFile(userId: string, sessionId: string, fileName: string) {
 	const filePath = `${STATS_DIR}${sanitizeFilename(sessionId)}/${sanitizeFilename(userId)}/${fileName}`;
-	console.log('Creating file: ' + filePath);
+	logger.info('Creating file: %s', filePath);
 	await fsp.mkdir(path.dirname(filePath), { recursive: true });
-	console.log('Created dir for file: ' + filePath);
+	logger.info('Created dir for file: %s', filePath);
 	try {
 		await fsp.writeFile(filePath, '[]', { flag: 'wx' });
 	} catch (error: unknown) {
 		const err = error as NodeJS.ErrnoException;
 		if (err.code === 'EEXIST') {
-			console.log('File already exists: ' + filePath);
+			logger.info('File already exists: %s', filePath);
 		} else {
 			throw err;
 		}
@@ -58,15 +61,16 @@ async function processQueue(filePath: string) {
 				await task();
 			} catch (error: unknown) {
 				if (error instanceof Error) {
-					console.error(
-						'Error processing task for file ' +
-							filePath +
-							': ' +
-							error.message,
+					logger.error(
+						{ error },
+						'Error processing task for file %s: %s',
+						filePath,
+						error.message,
 					);
 				} else {
-					console.error(
-						'Unknown error processing task for file ' + filePath,
+					logger.error(
+						'Unknown error processing task for file %s',
+						filePath,
 					);
 				}
 			}
@@ -130,9 +134,13 @@ async function saveStatsToFileAux(filePath: string, data: JsonValue) {
 		}
 	} catch (error: unknown) {
 		if (error instanceof Error) {
-			console.error('Error saving stats to file: ' + error.message);
+			logger.error(
+				{ error },
+				'Error saving stats to file: %s',
+				error.message,
+			);
 		} else {
-			console.error('Unknown error saving stats to file');
+			logger.error('Unknown error saving stats to file');
 		}
 		throw error;
 	} finally {

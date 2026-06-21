@@ -6,6 +6,7 @@ import type {
 	JSONStatsResponse,
 	JSONStreamsInfo,
 } from '../types/json.type.ts';
+import logger from './logger.service.ts';
 
 export class ElasticSearchService {
 	indexName = '';
@@ -28,7 +29,7 @@ export class ElasticSearchService {
 		indexName = '',
 	) {
 		if (this.needsToBeConfigured()) {
-			console.log('Initializing ElasticSearch');
+			logger.info('Initializing ElasticSearch');
 			this.indexName = indexName;
 			const clientOptions: ClientOptions = this.buildClientOptions(
 				hostname,
@@ -36,18 +37,18 @@ export class ElasticSearchService {
 				password,
 			);
 			try {
-				console.log('Connecting with ElasticSearch ...');
+				logger.info('Connecting with ElasticSearch ...');
 				this.client = new Client(clientOptions);
 				this.pingSuccess = await this.client.ping();
-				console.log(
-					'ElasticSearch connection success: ',
+				logger.info(
+					'ElasticSearch connection success: %s',
 					this.pingSuccess,
 				);
 				if (this.pingSuccess) {
 					await this.ensureIndexExists();
 				}
 			} catch (error) {
-				console.error('Error connecting with ElasticSearch: ', error);
+				logger.error({ error }, 'Error connecting with ElasticSearch');
 				throw error;
 			}
 		}
@@ -65,8 +66,9 @@ export class ElasticSearchService {
 		try {
 			hasPathPrefix = new URL(hostname).pathname !== '/';
 		} catch {
-			console.warn(
-				`Invalid Elasticsearch URL: "${hostname}". Falling back to default connection.`,
+			logger.warn(
+				'Invalid Elasticsearch URL: "%s". Falling back to default connection.',
+				hostname,
 			);
 		}
 		const clientOptions: ClientOptions = {
@@ -96,16 +98,17 @@ export class ElasticSearchService {
 				index: this.indexName,
 			});
 			if (exists) {
-				console.log(`Index ${this.indexName} already exists.`);
+				logger.info('Index %s already exists.', this.indexName);
 			} else {
-				console.log(
-					`Index ${this.indexName} does not exist. Creating it...`,
+				logger.info(
+					'Index %s does not exist. Creating it...',
+					this.indexName,
 				);
 				await this.client!.indices.create({
 					index: this.indexName,
 					body: this.mappings,
 				});
-				console.log(`Index ${this.indexName} created successfully.`);
+				logger.info('Index %s created successfully.', this.indexName);
 			}
 		} else {
 			await this.createElasticSearchIndex();
@@ -124,13 +127,11 @@ export class ElasticSearchService {
 						document: finalData,
 					});
 				} catch (error) {
-					console.error(error);
+					logger.error(error);
 				}
 			}
 		} else {
-			console.warn(
-				'ElasticSearch is not running. Cannot send JSON data.',
-			);
+			logger.warn('ElasticSearch is not running. Cannot send JSON data.');
 		}
 	}
 
@@ -172,18 +173,16 @@ export class ElasticSearchService {
 				if (bulkResponse.errors) {
 					const item = bulkResponse.items?.[0];
 					const error = item?.index?.error;
-					console.error('Error in bulk insert: ', error);
+					logger.error('Error in bulk insert: %j', error ?? {});
 					throw new Error(
 						`Error in bulk insert: ${JSON.stringify(error)}`,
 					);
 				}
 			} catch (error) {
-				console.error(error);
+				logger.error(error);
 			}
 		} else {
-			console.warn(
-				'ElasticSearch is not running. Cannot send JSON data.',
-			);
+			logger.warn('ElasticSearch is not running. Cannot send JSON data.');
 		}
 	}
 
@@ -203,7 +202,7 @@ export class ElasticSearchService {
 				body: this.mappings,
 			});
 		} else {
-			console.warn('ElasticSearch is not running. Cannot create index.');
+			logger.warn('ElasticSearch is not running. Cannot create index.');
 		}
 	}
 
@@ -246,7 +245,7 @@ export class ElasticSearchService {
 				}) ?? []
 			);
 		} else {
-			console.warn(
+			logger.warn(
 				'ElasticSearch is not running. Cannot retrieve start times.',
 			);
 			return [];

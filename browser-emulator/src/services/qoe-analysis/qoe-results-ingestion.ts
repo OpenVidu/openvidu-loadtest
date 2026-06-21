@@ -6,6 +6,9 @@ import type {
 	JSONQoeProcessing,
 	JSONUserInfo,
 } from '../../types/json.type.ts';
+import baseLogger from '../../services/logger.service.ts';
+
+const logger = baseLogger.child({ module: 'qoe-results-ingestion' });
 
 async function getElasticSearchService() {
 	const container = await getContainer();
@@ -44,8 +47,9 @@ function getVideoStart(
 ): number | null {
 	const sessionUsers = userStartMap[session];
 	if (!sessionUsers?.[userFrom] || !sessionUsers[userTo]) {
-		console.error(
-			`Could not find start time for session ${session} user ${userFrom} and user ${userTo}`,
+		logger.error(
+			{ session, userFrom, userTo },
+			'Could not find start time',
 		);
 		return null;
 	}
@@ -84,10 +88,10 @@ function toQoEJsons(
 
 export async function getTimestamps(processingInfo: JSONQoeProcessing) {
 	if (processingInfo.timestamps && processingInfo.timestamps.length > 0) {
-		console.log('Timestamps found in file');
+		logger.info('Timestamps found in file');
 		return processingInfo.timestamps;
 	}
-	console.log('Timestamps not found in file, searching ELK...');
+	logger.info('Timestamps not found in file, searching ELK...');
 	const elasticSearchService = await getElasticSearchService();
 	return await elasticSearchService.getStartTimes();
 }
@@ -97,7 +101,7 @@ export async function processAndUploadResults(
 	info: string[][],
 	processingInfo: JSONQoeProcessing,
 ) {
-	console.log('Finished running all scripts, processing results for ELK...');
+	logger.info('Finished running all scripts, processing results for ELK...');
 	const userStartMap = buildUserStartMap(timestamps);
 	const jsonsELK: JSONQoEInfo[] = [];
 
@@ -109,8 +113,9 @@ export async function processAndUploadResults(
 		const parsedJson: unknown = JSON.parse(jsonText);
 
 		if (!Array.isArray(parsedJson)) {
-			console.error(
-				`Invalid QoE JSON format for session ${session} user ${userFrom} and user ${userTo}`,
+			logger.error(
+				{ session, userFrom, userTo },
+				'Invalid QoE JSON format',
 			);
 			continue;
 		}
@@ -137,7 +142,7 @@ export async function processAndUploadResults(
 		);
 	}
 
-	console.log(
+	logger.info(
 		'Finished processing results for ELK, writing to ElasticSearch...',
 	);
 	const elasticSearchService = await getElasticSearchService();
@@ -149,7 +154,7 @@ export async function processFilesAndUploadResults(
 	processPath?: string,
 ) {
 	if (!processingInfo.elasticsearch_hostname) {
-		console.error(
+		logger.error(
 			'Elasticsearch hostname and/or credentials not provided, cannot upload results',
 		);
 		return;
@@ -187,5 +192,5 @@ export async function processFilesAndUploadResults(
 		filesInfo.push([session, userFrom, userTo, jsonText]);
 	}
 	await processAndUploadResults(timestamps, filesInfo, processingInfo);
-	console.log('Finished uploading results to ELK');
+	logger.info('Finished uploading results to ELK');
 }

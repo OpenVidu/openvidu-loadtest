@@ -8,6 +8,9 @@ import {
 	processAndUploadResults,
 } from './qoe-results-ingestion.ts';
 import type { QoeConfig } from '../../types/qoe-analysis/qoe-analysis.types.ts';
+import baseLogger from '../../services/logger.service.ts';
+
+const logger = baseLogger.child({ module: 'qoe-analysis-runner' });
 export interface QoEAnalysisProgressCallbacks {
 	onFileProcessed?: () => void;
 	onCompleted?: () => void;
@@ -34,12 +37,12 @@ export async function runQoEAnalysisNonBlocking(
 		qoeConfig,
 	)
 		.then(() => {
-			console.log('Finished running QoE analysis');
+			logger.info('Finished running QoE analysis');
 			nonBlockingCallbacks?.onCompleted?.();
 			nonBlockingCallbacks = undefined;
 		})
 		.catch(err => {
-			console.error('QoE analysis failed', err);
+			logger.error({ err }, 'QoE analysis failed');
 			nonBlockingCallbacks?.onCompleted?.();
 			nonBlockingCallbacks = undefined;
 		});
@@ -50,7 +53,7 @@ async function setGlobalConcurrencyForRunner(maxCpus: number) {
 	const container = await getContainer();
 	const qoeCommandRunner = container.resolve('qoeCommandRunner');
 	qoeCommandRunner.configureQoeGlobalLimiter(maxCpus);
-	console.info(`QoE global concurrency set to ${maxCpus}`);
+	logger.info({ maxCpus }, 'QoE global concurrency set');
 }
 
 export async function runQoEAnalysisBlocking(
@@ -72,7 +75,7 @@ export async function runQoEAnalysisBlocking(
 		files,
 		qoeConfig,
 	).then(() => {
-		console.log('Finished running QoE analysis');
+		logger.info('Finished running QoE analysis');
 	});
 	return files;
 }
@@ -106,13 +109,13 @@ async function runQoEAnalysis(
 	const promises: Promise<string[]>[] = [];
 	files.forEach(file => {
 		if (!file.toLowerCase().endsWith('.webm')) {
-			console.debug(`Skipping non-webm file: ${file}`);
+			logger.debug({ file }, 'Skipping non-webm file');
 			return;
 		}
 		const filePath = `${dir}/${file}`;
 		const fileName = file.split('/').pop();
 		if (!fileName) {
-			console.warn(`Skipping invalid file path: ${filePath}`);
+			logger.warn({ filePath }, 'Skipping invalid file path');
 			return;
 		}
 		const prefix = fileName.split('.')[0];
@@ -126,7 +129,7 @@ async function runQoEAnalysis(
 					return [];
 				})
 				.catch(err => {
-					console.error(err);
+					logger.error({ err }, 'QoE analysis single run failed');
 					nonBlockingCallbacks?.onFileProcessed?.();
 					return [];
 				}),
@@ -139,7 +142,7 @@ async function runQoEAnalysis(
 				info,
 				processingInfo,
 			).then(() => {
-				console.log('Finished uploading results to ELK');
+				logger.info('Finished uploading results to ELK');
 			});
 		}
 	});
@@ -173,7 +176,7 @@ async function runSingleAnalysis(
 }
 
 async function readJSONFile(prefix: string): Promise<string[]> {
-	console.log('Finished running script, reading JSON file...');
+	logger.info('Finished running script, reading JSON file...');
 	const qoeInfo = prefix.split('_');
 	const session = qoeInfo[1];
 	const userFrom = qoeInfo[2];
@@ -183,7 +186,7 @@ async function readJSONFile(prefix: string): Promise<string[]> {
 		filePrefix + '_cuts.json',
 		'utf-8',
 	);
-	console.log('JSON read');
+	logger.info('JSON read');
 	return [session, userFrom, userTo, jsonText];
 }
 

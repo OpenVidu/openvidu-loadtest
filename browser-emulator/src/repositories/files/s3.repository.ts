@@ -8,12 +8,18 @@ import {
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import type { RemotePersistenceRepository } from './remote-persistence.repository.js';
+import type { LoggerService } from '../../services/logger.service.ts';
 
 export class S3Repository implements RemotePersistenceRepository {
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 	private bucket = '';
 	private s3Client: S3Client | undefined;
 
 	private static readonly UPLOAD_PART_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+	constructor(loggerService: LoggerService) {
+		this.logger = loggerService.getLogger('S3Repository');
+	}
 
 	public initialize(
 		accessKey: string,
@@ -39,7 +45,7 @@ export class S3Repository implements RemotePersistenceRepository {
 		}
 
 		this.s3Client = new S3Client(config);
-		console.log('S3Repository initialized with provided credentials');
+		this.logger.info('S3Repository initialized with provided credentials');
 	}
 
 	public isInitialized(): boolean {
@@ -66,16 +72,16 @@ export class S3Repository implements RemotePersistenceRepository {
 			const data = await client.send(
 				new CreateBucketCommand({ Bucket: this.bucket }),
 			);
-			console.log('Bucket created', data.Location);
+			this.logger.info({ location: data.Location }, 'Bucket created');
 		} catch (err: unknown) {
 			if (
 				err instanceof BucketAlreadyExists ||
 				err instanceof BucketAlreadyOwnedByYou
 			) {
-				console.log('Bucket already exists');
+				this.logger.info('Bucket already exists');
 				return;
 			}
-			console.error('Error creating bucket', err);
+			this.logger.error({ err }, 'Error creating bucket');
 			throw err;
 		}
 	}
@@ -111,6 +117,6 @@ export class S3Repository implements RemotePersistenceRepository {
 		this.s3Client?.destroy();
 		this.s3Client = undefined;
 		this.bucket = '';
-		console.log('S3Repository cleaned up');
+		this.logger.info('S3Repository cleaned up');
 	}
 }

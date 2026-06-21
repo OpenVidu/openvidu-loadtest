@@ -1,6 +1,7 @@
 import type { Dirent } from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
+import logger from '../logger.service.ts';
 import { LocalFilesRepository } from '../../repositories/files/local-files.repository.ts';
 import type { RemotePersistenceRepository } from '../../repositories/files/remote-persistence.repository.ts';
 
@@ -43,7 +44,7 @@ export class RemotePersistenceService {
 			region,
 			host,
 		);
-		console.log(
+		logger.info(
 			'RemotePersistenceService initialized with provided credentials',
 		);
 	}
@@ -71,12 +72,14 @@ export class RemotePersistenceService {
 		const tasks = await this.collectUploadTasks();
 
 		if (tasks.length === 0) {
-			console.log('No files found to upload.');
+			logger.info('No files found to upload.');
 			return;
 		}
 
-		console.log(
-			`Starting upload of ${tasks.length} file(s) to target "${targetName}"...`,
+		logger.info(
+			'Starting upload of %d file(s) to target "%s"...',
+			tasks.length,
+			targetName,
 		);
 
 		const failed: { filePath: string; key: string; error: unknown }[] = [];
@@ -113,8 +116,10 @@ export class RemotePersistenceService {
 		}
 
 		const succeeded = tasks.length - failed.length;
-		console.log(
-			`Upload complete: ${succeeded}/${tasks.length} file(s) succeeded.`,
+		logger.info(
+			'Upload complete: %d/%d file(s) succeeded.',
+			succeeded,
+			tasks.length,
 		);
 
 		if (failed.length > 0) {
@@ -153,7 +158,7 @@ export class RemotePersistenceService {
 			});
 
 			if (!entries || entries.length === 0) {
-				console.warn(`Recordings directory "${dir}" is empty.`);
+				logger.warn('Recordings directory "%s" is empty.', dir);
 				return tasks;
 			}
 
@@ -166,7 +171,11 @@ export class RemotePersistenceService {
 				});
 			}
 		} catch (err) {
-			console.error(`Could not read recordings directory "${dir}":`, err);
+			logger.error(
+				{ err },
+				'Could not read recordings directory "%s"',
+				dir,
+			);
 		}
 
 		return tasks;
@@ -181,11 +190,15 @@ export class RemotePersistenceService {
 				withFileTypes: true,
 			});
 			if (!sessionEntries || sessionEntries.length === 0) {
-				console.warn(`Stats directory "${statsDir}" is empty.`);
+				logger.warn('Stats directory "%s" is empty.', statsDir);
 				return tasks;
 			}
 		} catch (err) {
-			console.error(`Could not read stats directory "${statsDir}":`, err);
+			logger.error(
+				{ err },
+				'Could not read stats directory "%s"',
+				statsDir,
+			);
 			return tasks;
 		}
 
@@ -215,9 +228,10 @@ export class RemotePersistenceService {
 				withFileTypes: true,
 			});
 		} catch (err) {
-			console.error(
-				`Could not read session directory "${sessionPath}":`,
-				err,
+			logger.error(
+				{ err },
+				'Could not read session directory "%s"',
+				sessionPath,
 			);
 			return tasks;
 		}
@@ -250,7 +264,11 @@ export class RemotePersistenceService {
 				withFileTypes: true,
 			});
 		} catch (err) {
-			console.error(`Could not read user directory "${userPath}":`, err);
+			logger.error(
+				{ err },
+				'Could not read user directory "%s"',
+				userPath,
+			);
 			return tasks;
 		}
 
@@ -279,14 +297,22 @@ export class RemotePersistenceService {
 					filePath,
 					key,
 				);
-				console.log(
-					`Uploaded [attempt ${attempt}/${maxRetries}]: ${filePath} -> ${this.remotePersistenceRepository.getBucketName()}/${key}`,
+				logger.info(
+					'Uploaded [attempt %d/%d]: %s -> %s/%s',
+					attempt,
+					maxRetries,
+					filePath,
+					this.remotePersistenceRepository.getBucketName(),
+					key,
 				);
 				return;
 			} catch (err) {
 				lastError = err;
-				console.warn(
-					`Attempt ${attempt}/${maxRetries} failed for "${filePath}":`,
+				logger.warn(
+					'Attempt %d/%d failed for "%s": %s',
+					attempt,
+					maxRetries,
+					filePath,
 					err instanceof Error ? err.message : err,
 				);
 
@@ -302,6 +328,6 @@ export class RemotePersistenceService {
 
 	public clean(): void {
 		this.remotePersistenceRepository.clean();
-		console.log('RemotePersistenceService cleaned up');
+		logger.info('RemotePersistenceService cleaned up');
 	}
 }

@@ -1,16 +1,19 @@
 import { AccessToken } from 'livekit-server-sdk';
 import type { LKCreateUserBrowser } from '../../types/com-modules/livekit.ts';
 import type { ConfigService } from '../../services/config.service.ts';
+import type { LoggerService } from '../../services/logger.service.ts';
 import BaseComModule from '../base.ts';
 import type { UserJoinProperties } from '../../types/create-user.type.ts';
 
 export default class LiveKitComModule extends BaseComModule {
 	private readonly _PUBLIC_DIR = `public-lk`;
 	private readonly configService: ConfigService;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
-	constructor(configService: ConfigService) {
+	constructor(configService: ConfigService, loggerService: LoggerService) {
 		super();
 		this.configService = configService;
+		this.logger = loggerService.getLogger('LiveKitComModule');
 	}
 
 	get PUBLIC_DIR(): string {
@@ -35,7 +38,7 @@ export default class LiveKitComModule extends BaseComModule {
 
 		request.token = token;
 
-		console.log(token);
+		this.logger.info({ token }, 'Generated LiveKit token');
 	}
 
 	areParametersCorrect(request: LKCreateUserBrowser): boolean {

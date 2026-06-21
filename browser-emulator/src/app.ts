@@ -4,6 +4,9 @@ import http from 'node:http';
 import express from 'express';
 import { getContainer, resetContainer } from './container.js';
 import { asyncExitHook } from 'exit-hook';
+import baseLogger from './services/logger.service.js';
+
+const logger = baseLogger.child({ module: 'app' });
 
 let app: express.Application;
 let server: http.Server | https.Server;
@@ -24,7 +27,7 @@ async function cleanup() {
 	try {
 		await browserManager.clean();
 	} catch (err) {
-		console.error(err);
+		logger.error(err);
 	}
 	remotePersistenceService.clean();
 	if (configService.isLegacyMode()) {
@@ -39,7 +42,7 @@ async function cleanup() {
 		emulatedFilePublishStreamService.stopPublishing(),
 		socketWriterService.stopAllWriters(),
 	]);
-	console.log('Cleanup finished');
+	logger.info('Cleanup finished');
 }
 
 async function createServer() {
@@ -100,29 +103,29 @@ export async function startServer() {
 		try {
 			asyncExitHook(
 				async () => {
-					console.log('Cleaning up before exit...');
+					logger.info('Cleaning up before exit...');
 					await cleanup();
-					console.log('Cleanup completed. Exiting now.');
+					logger.info('Cleanup completed. Exiting now.');
 				},
 				{ wait: 7.2e6 }, // 2 hours in milliseconds, to allow enough time for cleanup
 			);
 
-			console.log(
+			logger.info(
 				'---------------------------------------------------------',
 			);
-			console.log(' ');
-			console.log(
+			logger.info(' ');
+			logger.info(
 				`Service started with communication module: ${configService.getComModule()}`,
 			);
-			console.log(`API REST is listening in port ${serverPort}`);
-			console.log(' ');
-			console.log(
+			logger.info(`API REST is listening in port ${serverPort}`);
+			logger.info(' ');
+			logger.info(
 				'---------------------------------------------------------',
 			);
 			const instanceService = container.resolve('instanceService');
 			instanceService.setInstanceReady();
 		} catch (error) {
-			console.error(error);
+			logger.error(error);
 		}
 	});
 
@@ -141,10 +144,10 @@ export async function stopServer() {
 		return new Promise<void>((resolve, reject) => {
 			server.close(err => {
 				if (err) {
-					console.error('Error closing server:', err);
+					logger.error(err, 'Error closing server');
 					reject(err);
 				} else {
-					console.log('Server stopped');
+					logger.info('Server stopped');
 					resolve();
 				}
 			});

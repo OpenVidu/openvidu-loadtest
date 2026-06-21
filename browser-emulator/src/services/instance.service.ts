@@ -3,6 +3,7 @@ import type { ContainerCreateOptions } from 'dockerode';
 import { DockerService } from './docker.service.js';
 import { ContainerName } from '../types/container-info.type.js';
 import type { ConfigService } from './config.service.ts';
+import type { LoggerService } from './logger.service.ts';
 
 export class InstanceService {
 	private instanceReady = false;
@@ -14,13 +15,19 @@ export class InstanceService {
 	readonly WORKER_UUID: string = Date.now().toString();
 	private pullImagesRetries = 0;
 
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 	private readonly osutils = new OSUtils();
 	private readonly dockerService: DockerService;
 	private readonly configService: ConfigService;
 
-	constructor(dockerService: DockerService, configService: ConfigService) {
+	constructor(
+		dockerService: DockerService,
+		configService: ConfigService,
+		loggerService: LoggerService,
+	) {
 		this.dockerService = dockerService;
 		this.configService = configService;
+		this.logger = loggerService.getLogger('InstanceService');
 	}
 
 	public isInstanceReady() {
@@ -83,10 +90,10 @@ export class InstanceService {
 		try {
 			await this.dockerService.startContainer(options);
 		} catch (error: unknown) {
-			console.log('Error starting metricbeat', error);
+			this.logger.error({ error }, 'Error starting metricbeat');
 			const err = error as { statusCode?: number; message: string };
 			if (err.statusCode === 409 && err.message.includes('Conflict')) {
-				console.log('Retrying ...');
+				this.logger.info('Retrying ...');
 				await this.removeContainer(ContainerName.METRICBEAT);
 				await this.launchMetricBeat(
 					elasticsearchHost,
@@ -113,9 +120,8 @@ export class InstanceService {
 				await this.dockerService.pullImage(this.METRICBEAT_IMAGE);
 			}
 		} catch (err) {
-			console.error('Error pulling images: ');
-			console.error(err);
-			console.log('Retrying...');
+			this.logger.error('Error pulling images: %s', err);
+			this.logger.info('Retrying...');
 			// retry 5 times
 			if (this.pullImagesRetries < 5) {
 				this.pullImagesRetries++;

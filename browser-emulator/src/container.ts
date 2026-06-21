@@ -3,6 +3,7 @@ import type { AwilixContainer } from 'awilix';
 
 // Services
 import { ConfigService } from './services/config.service.js';
+import { LoggerService } from './services/logger.service.js';
 import { BrowserManagerService } from './services/browser/browser-manager.service.ts';
 import { RealBrowserService } from './services/browser/real/real-browser.service.js';
 import { EmulatedBrowserService } from './services/browser/emulated/emulated-browser.service.ts';
@@ -34,6 +35,7 @@ import { SocketWriterHealthService } from './services/streaming/socket-writer-he
 // Define the container interface for type safety
 export interface DIContainer {
 	configService: ConfigService;
+	loggerService: LoggerService;
 	browserManagerService: BrowserManagerService;
 	realBrowserService: RealBrowserService;
 	emulatedBrowserService: EmulatedBrowserService;
@@ -77,6 +79,7 @@ export async function configureContainer(): Promise<
 	container.register({
 		// Configuration
 		configService: asClass(ConfigService).singleton(),
+		loggerService: asClass(LoggerService).singleton(),
 
 		// Core services - singleton pattern
 		dockerService: asClass(DockerService).singleton(),

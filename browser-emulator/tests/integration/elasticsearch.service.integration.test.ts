@@ -9,12 +9,15 @@ import {
 } from 'vitest';
 import { Client } from '@elastic/elasticsearch';
 import type { StartedElasticsearchContainer } from '@testcontainers/elasticsearch';
+import baseLogger from '../../src/services/logger.service';
 import { ElasticSearchService } from '../../src/services/elasticsearch.service.ts';
 import type { JSONStreamsInfo } from '../../src/types/json.type.ts';
 import {
 	startElasticSearchTestContainer,
 	stopElasticSearchTestContainer,
 } from '../utils/elasticsearch-testcontainer-utils.ts';
+
+const logger = baseLogger.child({ module: 'elasticsearch-integration' });
 
 function createTestIndexName(): string {
 	return `test-loadtest-webrtc-stats-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -72,7 +75,7 @@ describe('ElasticSearchService Integration Tests', () => {
 				});
 			}
 		} catch (error) {
-			console.error(
+			logger.error(
 				`Error cleaning test index ${elasticSearchService.indexName}:`,
 				error,
 			);

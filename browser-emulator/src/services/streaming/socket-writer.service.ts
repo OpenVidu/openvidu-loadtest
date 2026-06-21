@@ -2,6 +2,7 @@ import * as net from 'node:net';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createReadStream, type ReadStream } from 'node:fs';
+import logger from '../logger.service.ts';
 import { sanitizePathSegment } from '../../utils/sanitize.ts';
 
 const OGG_CAPTURE_PATTERN = 'OggS';
@@ -213,8 +214,8 @@ export class SocketWriterService {
 					streamIteration++;
 
 					const handleStreamError = (err: Error) => {
-						console.error(
-							'Read error for %s/%s:',
+						logger.error(
+							'Read error for %s/%s: %s',
 							participantId,
 							type,
 							err.message,
@@ -233,8 +234,8 @@ export class SocketWriterService {
 					};
 
 					const handleSocketError = (err: Error) => {
-						console.error(
-							'Socket error for %s/%s:',
+						logger.error(
+							'Socket error for %s/%s: %s',
 							participantId,
 							type,
 							err.message,
@@ -275,8 +276,11 @@ export class SocketWriterService {
 					this.getKey(participantId, type),
 					writer,
 				);
-				console.log(
-					`Started socket writer for ${participantId}/${type} at ${socketPath}`,
+				logger.info(
+					'Started socket writer for %s/%s at %s',
+					participantId,
+					type,
+					socketPath,
 				);
 				resolve(socketPath);
 			});
@@ -299,8 +303,10 @@ export class SocketWriterService {
 			writer.server.close(() => {
 				void this.unlinkSafe(writer.socketPath).then(() => {
 					this.activeWriters.delete(key);
-					console.log(
-						`Stopped socket writer for ${participantId}/${type}`,
+					logger.info(
+						'Stopped socket writer for %s/%s',
+						participantId,
+						type,
 					);
 					resolve();
 				});
@@ -384,8 +390,10 @@ export class SocketWriterService {
 			const offset = findOggAudioDataOffset(buffer);
 			return Math.max(offset, 0);
 		} catch (error) {
-			console.warn(
-				`Failed to inspect Ogg headers for ${filePath}: ${String(error)}`,
+			logger.warn(
+				'Failed to inspect Ogg headers for %s: %s',
+				filePath,
+				String(error),
 			);
 			return 0;
 		}

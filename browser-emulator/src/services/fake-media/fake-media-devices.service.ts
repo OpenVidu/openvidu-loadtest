@@ -4,10 +4,12 @@ import os from 'node:os';
 import { LocalFilesRepository } from '../../repositories/files/local-files.repository.ts';
 import type { ChildProcess } from 'node:child_process';
 import type { ConfigService } from '../config.service.ts';
+import type { LoggerService } from '../logger.service.ts';
 
 export class FakeMediaDevicesService {
 	private readonly scriptRunnerService: ScriptRunnerService;
 	private readonly configService: ConfigService;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 	private readonly PULSEAUDIO_CONF_PATH = `${os.homedir()}/.config/pulse/client.conf`;
 	private ffmpegProcess: ChildProcess | undefined;
 	private xvfbProcess: ChildProcess | undefined;
@@ -17,9 +19,11 @@ export class FakeMediaDevicesService {
 	public constructor(
 		scriptRunnerService: ScriptRunnerService,
 		configService: ConfigService,
+		loggerService: LoggerService,
 	) {
 		this.scriptRunnerService = scriptRunnerService;
 		this.configService = configService;
+		this.logger = loggerService.getLogger('FakeMediaDevicesService');
 	}
 
 	private async createPulseaudioDevice() {
@@ -34,7 +38,7 @@ export class FakeMediaDevicesService {
 			this.PULSEAUDIO_CONF_PATH,
 			'default-source = virtmic\n',
 		);
-		console.log('Fake microphone created.');
+		this.logger.info('Fake microphone created.');
 	}
 
 	public async startFakeMediaDevices(
@@ -43,7 +47,7 @@ export class FakeMediaDevicesService {
 		vnc = false,
 	) {
 		if (!this.configService.isLegacyMode()) {
-			console.log(
+			this.logger.info(
 				'Legacy mode disabled, skipping fake media devices setup.',
 			);
 			return;
@@ -52,7 +56,7 @@ export class FakeMediaDevicesService {
 		// check install scripts for guidance
 
 		if (this.ffmpegProcess) {
-			console.log(
+			this.logger.info(
 				'Fake webcam & microphone already running, skipping start.',
 			);
 			return;
@@ -74,11 +78,12 @@ export class FakeMediaDevicesService {
 				fakeMediaLogFd,
 			);
 			await fakeMediaLogFd.close();
-			console.log(
-				`Started ffmpeg process for fake media devices with PID ${this.ffmpegProcess?.pid}, checking if it's ready...`,
+			this.logger.info(
+				{ pid: this.ffmpegProcess?.pid },
+				`Started ffmpeg process for fake media devices, checking if it's ready...`,
 			);
 			await this.isFfmpegDeviceProcessReadable();
-			console.log('Fake media devices are ready and readable.');
+			this.logger.info('Fake media devices are ready and readable.');
 		} catch (err) {
 			this.ffmpegProcess = undefined;
 			this.xvfbProcess = undefined;
@@ -234,10 +239,10 @@ export class FakeMediaDevicesService {
 				ready = true;
 			} catch {
 				if (attempts > retries) {
-					console.error(errorMsg);
+					this.logger.error(errorMsg);
 					throw new Error(errorMsg);
 				}
-				console.log(logMsg);
+				this.logger.info(logMsg);
 				await new Promise(resolve => setTimeout(resolve, delayMs));
 				attempts++;
 			}
@@ -246,7 +251,7 @@ export class FakeMediaDevicesService {
 
 	public async cleanupFakeMediaDevices() {
 		if (!this.configService.isLegacyMode()) {
-			console.log(
+			this.logger.info(
 				'Legacy mode disabled, skipping fake media devices cleanup.',
 			);
 			return;
@@ -300,16 +305,16 @@ export class FakeMediaDevicesService {
 			}
 		} catch (err) {
 			// PulseAudio might not be running, skip cleanup
-			console.warn(err);
+			this.logger.warn({ err }, 'PulseAudio cleanup warning');
 		} finally {
 			// Remove config file if it exists
 			try {
 				await fsPromises.unlink(this.PULSEAUDIO_CONF_PATH);
 			} catch (err) {
 				// File might not exist, ignore
-				console.warn(err);
+				this.logger.warn({ err }, 'Failed to remove pulse config');
 			}
-			console.log('Fake microphone cleaned up.');
+			this.logger.info('Fake microphone cleaned up.');
 		}
 	}
 }

@@ -1,6 +1,7 @@
 import Docker from 'dockerode';
 import fs from 'node:fs';
 import path from 'node:path';
+import logger from './logger.service.ts';
 import { sanitizeFilename } from '../utils/sanitize.ts';
 
 interface PullProgressEvent {
@@ -22,45 +23,45 @@ export class DockerService {
 		});
 		if (networks.length === 0) {
 			await this.docker.createNetwork({ Name: networkName });
-			console.log('Docker network ' + networkName + ' created');
+			logger.info('Docker network %s created', networkName);
 		} else {
-			console.log('Docker network ' + networkName + ' already exists');
+			logger.info('Docker network %s already exists', networkName);
 		}
 	}
 
 	async startContainer(
 		options: Docker.ContainerCreateOptions,
 	): Promise<string> {
-		console.log(`Starting ${options.Image}`);
+		logger.info('Starting %s', options.Image);
 		const container: Docker.Container =
 			await this.docker.createContainer(options);
 		await container.start();
-		console.log(`${options.Image} started: ${container.id}`);
+		logger.info('%s started: %s', options.Image, container.id);
 		return container.id;
 	}
 
 	async runAndWaitContainer(
 		options: Docker.ContainerCreateOptions,
 	): Promise<[number, string]> {
-		console.log(`Running ${options.Image} and waiting for completion`);
+		logger.info('Running %s and waiting for completion', options.Image);
 		const container: Docker.Container =
 			await this.docker.createContainer(options);
 		await container.start();
-		console.log(`${options.Image} started: ${container.id}`);
+		logger.info('%s started: %s', options.Image, container.id);
 
 		const waitResult = (await container.wait()) as {
 			StatusCode: number;
 			Error?: string;
 		};
 		const exitCode = waitResult.StatusCode;
-		console.log(`${options.Image} exited with code ${exitCode}`);
+		logger.info('%s exited with code %d', options.Image, exitCode);
 
 		const logs = await container.logs({
 			stdout: true,
 			stderr: true,
 		});
 		const logsString = logs.toString();
-		console.log(`Logs from ${options.Image}:\n${logsString}`);
+		logger.info('Logs from %s:\n%s', options.Image, logsString);
 		return [exitCode, logsString];
 	}
 
@@ -70,7 +71,7 @@ export class DockerService {
 	): Promise<void> {
 		const container = await this.getContainerByIdOrName(nameOrId);
 		if (!container) {
-			console.error('Container ' + nameOrId + ' does not exist');
+			logger.error('Container %s does not exist', nameOrId);
 			return;
 		}
 
@@ -91,9 +92,9 @@ export class DockerService {
 
 		const writeStream = fs.createWriteStream(safeDestPath, { flags: 'a' });
 		writeStream.on('error', err => {
-			console.error(
-				'Error writing selenium container logs to file:',
-				err,
+			logger.error(
+				{ err },
+				'Error writing selenium container logs to file',
 			);
 		});
 
@@ -136,23 +137,20 @@ export class DockerService {
 	public async stopContainer(nameOrId: string): Promise<void> {
 		const container = await this.getContainerByIdOrName(nameOrId);
 		if (!container) {
-			console.error(
-				'Container ' + nameOrId + ' does not exist, skipping',
-			);
+			logger.error('Container %s does not exist, skipping', nameOrId);
 			return;
 		}
 		try {
 			await container.stop();
-			console.log('Container ' + container.id + ' stopped');
+			logger.info('Container %s stopped', container.id);
 		} catch (error: unknown) {
 			if (error instanceof Error) {
-				console.warn(
-					'Container has already stopped. Skipping (' +
-						error.message +
-						')',
+				logger.warn(
+					'Container has already stopped. Skipping (%s)',
+					error.message,
 				);
 			} else {
-				console.error(
+				logger.error(
 					'Container has already stopped. Skipping (unknown error)',
 				);
 			}
@@ -164,11 +162,9 @@ export class DockerService {
 		if (container) {
 			try {
 				await container.remove({ force: true });
-				console.log('Container ' + containerNameOrId + ' removed');
+				logger.info('Container %s removed', containerNameOrId);
 			} catch {
-				console.error(
-					'Container ' + containerNameOrId + ' does not exist',
-				);
+				logger.error('Container %s does not exist', containerNameOrId);
 			}
 		}
 	}
@@ -183,11 +179,13 @@ export class DockerService {
 
 	private onPullProgress(this: void, event: PullProgressEvent) {
 		if (event.status === 'Downloading') {
-			console.log(
-				'    Downloading layer ' + event.id + ': ' + event.progress,
+			logger.info(
+				'    Downloading layer %s: %s',
+				event.id,
+				event.progress,
 			);
 		} else if (event.status === 'Download complete') {
-			console.log('    Layer ' + event.id + ' downloaded!');
+			logger.info('    Layer %s downloaded!', event.id);
 		}
 	}
 
@@ -197,11 +195,11 @@ export class DockerService {
 				if (err) {
 					reject(err);
 				} else {
-					console.log('Image ' + image + ' successfully pulled');
+					logger.info('Image %s successfully pulled', image);
 					resolve();
 				}
 			}
-			console.log('Pulling image ' + image);
+			logger.info('Pulling image %s', image);
 			void this.docker.pull(
 				image,
 				(err: Error, stream: NodeJS.ReadableStream) => {
@@ -235,17 +233,16 @@ export class DockerService {
 					Privileged: true,
 				});
 				await exec.start({});
-				console.log(
-					'Container ' +
-						containerId +
-						' successfully executed command ' +
-						command,
+				logger.info(
+					'Container %s successfully executed command %s',
+					containerId,
+					command,
 				);
 			} catch (error) {
-				console.error(error);
+				logger.error(error);
 			}
 		} else {
-			console.error('Container ' + containerId + ' does not exist');
+			logger.error('Container %s does not exist', containerId);
 		}
 	}
 
@@ -271,7 +268,7 @@ export class DockerService {
 	async getLogsFromContainer(nameOrId: string): Promise<string> {
 		const container = await this.getContainerByIdOrName(nameOrId);
 		if (!container) {
-			console.error('Container ' + nameOrId + ' does not exist');
+			logger.error('Container %s does not exist', nameOrId);
 			throw new Error('Container ' + nameOrId + ' not found');
 		}
 
@@ -285,7 +282,7 @@ export class DockerService {
 	async isContainerRunning(nameOrId: string): Promise<boolean> {
 		const container = await this.getContainerByIdOrName(nameOrId);
 		if (!container) {
-			console.error('Container ' + nameOrId + ' does not exist');
+			logger.error('Container %s does not exist', nameOrId);
 			return false;
 		}
 		const containerInfo = await container.inspect();

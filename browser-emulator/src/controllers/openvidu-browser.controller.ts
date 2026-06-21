@@ -1,6 +1,7 @@
 import * as express from 'express';
 import type { Request, Response } from 'express';
 import type BaseComModule from '../com-modules/base.js';
+import type { LoggerService } from '../services/logger.service.ts';
 import type { BrowserManagerService } from '../services/browser/browser-manager.service.ts';
 import {
 	type CreateUserBrowserResponse,
@@ -13,13 +14,16 @@ export class OpenViduBrowserController {
 	private readonly router: express.Router;
 	private readonly comModule: BaseComModule;
 	private readonly browserManagerService: BrowserManagerService;
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	constructor(
 		comModule: BaseComModule,
 		browserManagerService: BrowserManagerService,
+		loggerService: LoggerService,
 	) {
 		this.comModule = comModule;
 		this.browserManagerService = browserManagerService;
+		this.logger = loggerService.getLogger('OpenViduBrowserController');
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
 	}
@@ -91,14 +95,14 @@ export class OpenViduBrowserController {
 					);
 				res.status(200).send(response);
 			} else {
-				console.log(
-					'Problem with some body parameter' +
-						JSON.stringify(request),
+				this.logger.warn(
+					'Problem with some body parameter %s',
+					JSON.stringify(request),
 				);
 				res.status(400).send('Problem with some body parameter');
 			}
 		} catch (error: unknown) {
-			console.error(error);
+			this.logger.error(error);
 			res.status(500).send({
 				message: 'Internal server error',
 			});
@@ -109,12 +113,12 @@ export class OpenViduBrowserController {
 		req: Request,
 		res: Response,
 	): Promise<void> {
-		console.log('Deleting all participants');
+		this.logger.info('Deleting all participants');
 		try {
 			await this.browserManagerService.clean();
 			res.status(200).send(`Instance ${req.headers.host} is clean`);
 		} catch (error) {
-			console.error(error);
+			this.logger.error(error);
 			res.status(500).send('Internal server error');
 		}
 	}
@@ -132,13 +136,16 @@ export class OpenViduBrowserController {
 				);
 				return;
 			}
-			console.log('Deleting streams with connectionId: ' + connectionId);
+			this.logger.info(
+				'Deleting streams with connectionId: %s',
+				connectionId,
+			);
 			await this.browserManagerService.deleteStreamManagerWithConnectionId(
 				connectionId,
 			);
 			res.status(200).send({});
 		} catch (error) {
-			console.error(error);
+			this.logger.error(error);
 			res.status(500).send('Internal server error');
 		}
 	}
@@ -162,11 +169,10 @@ export class OpenViduBrowserController {
 				);
 				return;
 			}
-			console.log(
-				'Deleting streams with sessionId: ' +
-					sessionId +
-					' and userId: ' +
-					userId,
+			this.logger.info(
+				'Deleting streams with sessionId: %s and userId: %s',
+				sessionId,
+				userId,
 			);
 			await this.browserManagerService.deleteStreamManagerWithSessionAndUser(
 				sessionId,
@@ -174,7 +180,7 @@ export class OpenViduBrowserController {
 			);
 			res.status(200).send({});
 		} catch (error) {
-			console.error(error);
+			this.logger.error(error);
 			res.status(500).send('Internal server error');
 		}
 	}

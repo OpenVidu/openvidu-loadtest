@@ -37,6 +37,15 @@ const mockRemotePersistenceService = {
 	isInitialized: vi.fn().mockReturnValue(false),
 };
 
+const mockLoggerService = {
+	getLogger: vi.fn().mockReturnValue({
+		info: vi.fn(),
+		error: vi.fn(),
+		warn: vi.fn(),
+		debug: vi.fn(),
+	}),
+};
+
 vi.mock('../../src/services/config.service.js', () => ({
 	ConfigService: vi.fn().mockImplementation(() => mockConfigService),
 }));
@@ -139,6 +148,7 @@ describe('BrowserManagerService', () => {
 			mockInstanceService as never,
 			mockElasticSearchService as never,
 			mockRemotePersistenceService as never,
+			mockLoggerService as never,
 		);
 	});
 

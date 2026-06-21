@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import logger from '../logger.service.ts';
 
 export class SocketWriterHealthService {
 	private readonly checks = new Map<string, NodeJS.Timeout>();
@@ -19,8 +20,10 @@ export class SocketWriterHealthService {
 		}, this.checkInterval);
 
 		this.checks.set(key, intervalId);
-		console.log(
-			`Started health check for ${key} (interval: ${this.checkInterval}ms)`,
+		logger.info(
+			'Started health check for %s (interval: %dms)',
+			key,
+			this.checkInterval,
 		);
 	}
 
@@ -32,7 +35,7 @@ export class SocketWriterHealthService {
 		if (intervalId) {
 			clearInterval(intervalId);
 			this.checks.delete(key);
-			console.log(`Stopped health check for ${key}`);
+			logger.info('Stopped health check for %s', key);
 		}
 	}
 
@@ -42,7 +45,7 @@ export class SocketWriterHealthService {
 	stopAllChecks(): void {
 		for (const [key, intervalId] of this.checks) {
 			clearInterval(intervalId);
-			console.log(`Stopped health check for ${key}`);
+			logger.info('Stopped health check for %s', key);
 		}
 		this.checks.clear();
 	}
@@ -70,8 +73,9 @@ export class SocketWriterHealthService {
 	): Promise<void> {
 		const alive = await this.checkSocketAlive(socketPath);
 		if (!alive) {
-			console.error(
-				`Health check failed for ${key}: socket not accessible`,
+			logger.error(
+				'Health check failed for %s: socket not accessible',
+				key,
 			);
 			this.stopCheck(key);
 			onUnhealthy();

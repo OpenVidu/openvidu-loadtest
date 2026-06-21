@@ -4,6 +4,7 @@ import {
 	exec,
 	type StdioOptions,
 } from 'node:child_process';
+import logger from './logger.service.ts';
 
 /**
  * Options for running a script with ScriptRunnerService
@@ -36,9 +37,9 @@ export class ScriptRunnerService {
 		script: string,
 		options?: ScriptRunOptions,
 	): Promise<ChildProcess> {
-		console.log(`Running script: ${script}`);
+		logger.info('Running script: %s', script);
 		if (options) {
-			console.log(`With options: ${JSON.stringify(options)}`);
+			logger.info('With options: %j', options);
 		}
 		return new Promise((resolve, reject) => {
 			const detached = options?.detached ?? false;
@@ -103,8 +104,10 @@ export class ScriptRunnerService {
 		return new Promise<boolean>(resolve => {
 			const checkTimeout = setTimeout(() => {
 				clearInterval(checkInterval);
-				console.warn(
-					`Timeout (${timeoutMs}ms) waiting for process ${pid} to die`,
+				logger.warn(
+					'Timeout (%dms) waiting for process %d to die',
+					timeoutMs,
+					pid,
 				);
 				resolve(false);
 			}, timeoutMs);
@@ -113,7 +116,7 @@ export class ScriptRunnerService {
 					process.kill(pid, 0); // Check if process exists
 				} catch {
 					clearTimeout(checkTimeout);
-					console.log(`Process ${pid} confirmed killed`);
+					logger.info('Process %d confirmed killed', pid);
 					clearInterval(checkInterval);
 					resolve(true);
 				}
@@ -135,12 +138,17 @@ export class ScriptRunnerService {
 
 		if (groupExists) {
 			try {
-				console.log(`Sending ${signal} to PID: ${pid} (process group)`);
+				logger.info(
+					'Sending %s to PID: %d (process group)',
+					signal,
+					pid,
+				);
 				process.kill(-pid, signal);
 				return true;
 			} catch (err) {
-				console.warn(
-					`Process group kill failed, will try PID-only: ${String(err)}`,
+				logger.warn(
+					'Process group kill failed, will try PID-only: %s',
+					String(err),
 				);
 			}
 		}
@@ -149,8 +157,10 @@ export class ScriptRunnerService {
 		try {
 			process.kill(pid, 0);
 		} catch {
-			console.log(
-				`Process ${pid} does not exist, no need to send ${signal}`,
+			logger.info(
+				'Process %d does not exist, no need to send %s',
+				pid,
+				signal,
 			);
 			return true; // Process already dead, consider it a success
 		}
@@ -159,9 +169,11 @@ export class ScriptRunnerService {
 			process.kill(pid, signal);
 			return true;
 		} catch (retryError) {
-			console.error(
-				`Failed to send ${signal} to PID ${pid}:`,
-				retryError,
+			logger.error(
+				{ retryError },
+				'Failed to send %s to PID %d',
+				signal,
+				pid,
 			);
 			return false;
 		}
@@ -189,7 +201,7 @@ export class ScriptRunnerService {
 					continue;
 				} catch {
 					// Process doesn't exist, we're done
-					console.log(`Process ${pid} no longer exists`);
+					logger.info('Process %d no longer exists', pid);
 					return;
 				}
 			}
@@ -199,8 +211,10 @@ export class ScriptRunnerService {
 				return; // Successfully killed
 			}
 
-			console.warn(
-				`${signal} did not stop process ${pid}, escalating...`,
+			logger.warn(
+				'%s did not stop process %d, escalating...',
+				signal,
+				pid,
 			);
 		}
 
@@ -215,7 +229,7 @@ export class ScriptRunnerService {
 			execProcess.stdout,
 			options?.stdoutBufferCallback,
 			options?.stdoutCallback,
-			console.log,
+			(msg: string) => logger.info('%s', msg.trimEnd()),
 		);
 	}
 
@@ -227,7 +241,7 @@ export class ScriptRunnerService {
 			execProcess.stderr,
 			options?.stderrBufferCallback,
 			options?.stderrCallback,
-			console.error,
+			(msg: string) => logger.error('%s', msg.trimEnd()),
 		);
 	}
 
@@ -261,7 +275,7 @@ export class ScriptRunnerService {
 			if (code === 0) {
 				resolve(execProcess);
 			} else {
-				console.error(`exit code ${code}`);
+				logger.error('exit code %d', code!);
 				reject(
 					new Error(
 						`Script ${execProcess.pid} exited with code ${code}`,
@@ -271,19 +285,26 @@ export class ScriptRunnerService {
 		});
 		execProcess.on('error', err => {
 			options?.onErrorCallback?.(err);
-			console.error(`Error executing script ${execProcess.pid}: ${err}`);
+			logger.error(
+				'Error executing script %d: %s',
+				execProcess.pid!,
+				err,
+			);
 			reject(err);
 		});
 		execProcess.on('spawn', () => {
-			console.log(`Script started with PID ${execProcess.pid}`);
+			logger.info('Script started with PID %d', execProcess.pid!);
 		});
 		execProcess.on('disconnect', () => {
-			console.warn(`Child process ${execProcess.pid} disconnected`);
+			logger.warn('Child process %d disconnected', execProcess.pid!);
 		});
 		execProcess.on('exit', (code, signal) => {
 			const signalString = signal ? ` and signal ${signal}` : '';
-			console.log(
-				`Child process ${execProcess.pid} exited with code ${code}${signalString}`,
+			logger.info(
+				'Child process %d exited with code %d%s',
+				execProcess.pid!,
+				code!,
+				signalString,
 			);
 		});
 	}
@@ -296,20 +317,26 @@ export class ScriptRunnerService {
 			options?.onCloseCallback?.(code);
 			this.detachedProcessCache.delete(execProcess.pid!);
 			if (code === 0) {
-				console.log(
-					`Detached script ${execProcess.pid} exited successfully with code ${code}`,
+				logger.info(
+					'Detached script %d exited successfully with code %d',
+					execProcess.pid!,
+					code as number,
 				);
 			} else {
-				console.error(
-					`Detached script ${execProcess.pid} exited with code ${code}`,
+				logger.error(
+					'Detached script %d exited with code %d',
+					execProcess.pid!,
+					code!,
 				);
 			}
 		});
 
 		execProcess.on('error', err => {
 			options?.onErrorCallback?.(err);
-			console.error(
-				`Error in detached script with PID ${execProcess.pid}: ${err}`,
+			logger.error(
+				'Error in detached script with PID %d: %s',
+				execProcess.pid!,
+				err,
 			);
 		});
 	}
@@ -354,7 +381,7 @@ export class ScriptRunnerService {
 	public async killDetached(process: ChildProcess) {
 		const pid = process.pid;
 		if (!pid) {
-			console.warn('Process has no PID, cannot kill');
+			logger.warn('Process has no PID, cannot kill');
 			return;
 		}
 
@@ -365,19 +392,19 @@ export class ScriptRunnerService {
 	public async killAllDetached() {
 		const pids = Array.from(this.detachedProcessCache.keys());
 		if (pids.length === 0) {
-			console.log('No detached processes to kill');
+			logger.info('No detached processes to kill');
 			return;
 		}
-		console.log(`Detached processes to kill: `);
+		logger.info('Detached processes to kill: ');
 		for (const [pid, script] of this.detachedProcessCache.entries()) {
-			console.log(`${script} (PID: ${pid})`);
+			logger.info('%s (PID: %d)', script, pid);
 		}
 
 		const killPromises = pids.map(async pid => {
 			try {
 				await this.killProcessWithEscalation(pid);
 			} catch (err) {
-				console.error(`Failed to kill process ${pid}:`, err);
+				logger.error({ err }, 'Failed to kill process %d', pid);
 				// Continue killing other processes even if one fails
 			}
 		});

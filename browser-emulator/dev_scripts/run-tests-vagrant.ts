@@ -10,6 +10,8 @@ import {
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import baseLogger from '../src/services/logger.service';
+const logger = baseLogger.child({ module: 'run-tests-vagrant' });
 
 interface RunOptions {
 	livekit: boolean;
@@ -62,7 +64,7 @@ function ensureParentDir(filePath: string): void {
 }
 
 function printUsage(): void {
-	console.log(`Usage: pnpm run test:all -- [options]
+	logger.info(`Usage: pnpm run test:all -- [options]
 
 Options:
   --livekit           Wait for LiveKit readiness (default: wait for OpenVidu)
@@ -323,7 +325,7 @@ function parseProvisionFilesFromVagrantfile(): string[] {
 
 		return files;
 	} catch (error) {
-		console.warn(
+		logger.warn(
 			`Unable to parse Vagrantfile: ${error instanceof Error ? error.message : 'Unknown error'}. Falling back to default list.`,
 		);
 		return [
@@ -354,21 +356,21 @@ function handleVMState(machine: string): void {
 	const status = getVagrantStatus(machine);
 
 	if (status === 'down') {
-		console.log(`VM ${machine} is down. Bringing it up...`);
+		logger.info(`VM ${machine} is down. Bringing it up...`);
 		runVagrant(machine, 'up');
 	} else if (status === 'up') {
 		if (shouldProvision(machine)) {
-			console.log(
+			logger.info(
 				`VM ${machine} is up, but provisioning files changed. Running provisioning...`,
 			);
 			runVagrant(machine, 'up', '--provision');
 		} else {
-			console.log(
+			logger.info(
 				`VM ${machine} is already up and no provisioning needed.`,
 			);
 		}
 	} else {
-		console.warn(
+		logger.warn(
 			`VM ${machine} status is unknown. Attempting to bring it up...`,
 		);
 		runVagrant(machine, 'up');
@@ -386,14 +388,14 @@ function waitForPlatform(
 		? 'curl http://localhost:7880'
 		: `curl -k -H 'Authorization: Basic ${Buffer.from('OPENVIDUAPP:vagrant').toString('base64')}' https://localhost/openvidu/api/sessions >/dev/null`;
 
-	console.log(`Waiting for ${checkLabel} (${timeoutSeconds}s timeout)...`);
+	logger.info(`Waiting for ${checkLabel} (${timeoutSeconds}s timeout)...`);
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 		const result = runVagrantCapture(
 			nodeName,
 			`bash -lc "${checkCommand}"`,
 		);
 		if ((result.status ?? 1) === 0) {
-			console.log(`${checkLabel} is ready.`);
+			logger.info(`${checkLabel} is ready.`);
 			return;
 		}
 		if (attempt < maxAttempts) {
@@ -429,7 +431,7 @@ function collectGuestLogs(
 	for (const listCommand of listCommands) {
 		const listResult = runVagrantCapture(nodeName, listCommand);
 		if ((listResult.status ?? 1) !== 0) {
-			console.warn(
+			logger.warn(
 				`Could not list guest files with command: ${listCommand}`,
 			);
 			continue;
@@ -454,7 +456,7 @@ function collectGuestLogs(
 		const command = `bash -lc "if [ -f ${quotedLogPath} ]; then cat ${quotedLogPath}; fi"`;
 		const status = runVagrantToFile(nodeName, command, localPath);
 		if (status !== 0) {
-			console.warn(
+			logger.warn(
 				`Could not collect guest log ${guestLogPath} (exit code ${status}).`,
 			);
 		}
@@ -491,7 +493,7 @@ function runTestsInsideGuest(
 	}
 
 	const testCommand = `pnpm ${testCommandArgs.map(arg => bashSingleQuote(arg)).join(' ')}`;
-	console.log(`Running test command inside guest: ${testCommand}`);
+	logger.info(`Running test command inside guest: ${testCommand}`);
 
 	const command = `bash -lc "set -o pipefail; cd /opt/openvidu-loadtest/browser-emulator && CI=true pnpm install >/var/log/pnpm_install.log 2>&1 && ${testCommand} 2>&1 | tee /var/log/tests.log"`;
 	const result = runCommand('vagrant', vagrantSshArgs(nodeName, command), {
@@ -502,7 +504,7 @@ function runTestsInsideGuest(
 }
 
 function destroyVM(machine: string): void {
-	console.log(`Destroying VM ${machine}...`);
+	logger.info(`Destroying VM ${machine}...`);
 	runVagrant(machine, 'destroy', '-f');
 }
 
@@ -516,7 +518,7 @@ function main(): void {
 
 	waitForPlatform(nodeName, options.livekit, options.timeoutSeconds);
 
-	console.log('Running tests inside VM...');
+	logger.info('Running tests inside VM...');
 	const exitCode = runTestsInsideGuest(
 		nodeName,
 		options.coverage,
@@ -532,28 +534,28 @@ function main(): void {
 		'vagrant-tests',
 		nowStamp(),
 	);
-	console.log(`Collecting guest logs to ${artifactsDir}`);
+	logger.info(`Collecting guest logs to ${artifactsDir}`);
 	collectGuestLogs(nodeName, artifactsDir, options.coverage);
 
 	if (options.halt) {
-		console.log(`Halting VM ${nodeName}...`);
+		logger.info(`Halting VM ${nodeName}...`);
 		runVagrant(nodeName, 'halt');
 	} else if (options.destroy) {
 		destroyVM(nodeName);
 	}
 
 	if (exitCode !== 0) {
-		console.error(`Tests failed with exit code ${exitCode}`);
+		logger.error(`Tests failed with exit code ${exitCode}`);
 		process.exit(exitCode);
 	}
 
-	console.log('Tests completed successfully.');
+	logger.info('Tests completed successfully.');
 }
 
 try {
 	main();
 } catch (error) {
-	console.error(error instanceof Error ? error.message : error);
+	logger.error(error instanceof Error ? error.message : error);
 	process.exit(1);
 }
 function printOptions(options: RunOptions) {
@@ -570,8 +572,8 @@ function printOptions(options: RunOptions) {
 		`  Destroy after tests: ${options.destroy ? 'yes' : 'no'}`,
 	];
 
-	console.log('Running with options:');
+	logger.info('Running with options:');
 	for (const line of lines) {
-		console.log(line);
+		logger.info(line);
 	}
 }

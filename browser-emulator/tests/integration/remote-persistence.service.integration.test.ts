@@ -6,6 +6,7 @@ import {
 	afterAll,
 	beforeEach,
 	afterEach,
+	vi,
 } from 'vitest';
 import {
 	S3Client,
@@ -14,6 +15,7 @@ import {
 	DeleteObjectCommand,
 	NoSuchBucket,
 } from '@aws-sdk/client-s3';
+import baseLogger from '../../src/services/logger.service';
 import { RemotePersistenceService } from '../../src/services/files/remote-persistence.service.ts';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
 import { StartedS3MockContainer } from '@testcontainers/s3mock';
@@ -27,6 +29,8 @@ import {
 	startS3MockTestContainer,
 	stopS3MockTestContainer,
 } from '../utils/s3-utils.ts';
+
+const logger = baseLogger.child({ module: 'remote-persistence-integration' });
 
 /**
  * Helper function to convert a stream to string
@@ -85,7 +89,7 @@ describe('RemotePersistenceService Integration Tests', () => {
 				},
 			});
 		} catch (error) {
-			console.error('Failed to start S3Mock container:', error);
+			logger.error('Failed to start S3Mock container:', error);
 			throw error;
 		}
 	}, 180000);
@@ -121,11 +125,11 @@ describe('RemotePersistenceService Integration Tests', () => {
 						Bucket: testBucketName,
 					}),
 				);
-				console.log(`Deleted test bucket: ${testBucketName}`);
+				logger.info(`Deleted test bucket: ${testBucketName}`);
 			} catch (error: unknown) {
 				// Bucket doesn't exist, skip cleanup
 				if (error instanceof NoSuchBucket) {
-					console.log(
+					logger.info(
 						`Bucket ${testBucketName} does not exist, skipping S3 bucket cleanup`,
 					);
 				} else {
@@ -148,8 +152,19 @@ describe('RemotePersistenceService Integration Tests', () => {
 		testBucketName = `test-bucket-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
 		// Create fresh repository and service for each test
+		const mockLogger = {
+			info: vi.fn(),
+			error: vi.fn(),
+			warn: vi.fn(),
+			debug: vi.fn(),
+			trace: vi.fn(),
+			child: vi.fn().mockReturnThis(),
+		};
+		const mockLoggerService = {
+			getLogger: vi.fn().mockReturnValue(mockLogger),
+		};
 		remotePersistenceService = new RemotePersistenceService(
-			new S3Repository(),
+			new S3Repository(mockLoggerService),
 		);
 	});
 

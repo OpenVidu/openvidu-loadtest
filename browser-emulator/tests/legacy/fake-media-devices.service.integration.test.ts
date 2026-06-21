@@ -1,9 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import {
+	describe,
+	it,
+	expect,
+	beforeEach,
+	afterEach,
+	beforeAll,
+	vi,
+} from 'vitest';
+import baseLogger from '../../src/services/logger.service';
 import { FakeMediaDevicesService } from '../../src/services/fake-media/fake-media-devices.service.js';
 import { ScriptRunnerService } from '../../src/services/script-runner.service.js';
 import { LocalFilesService } from '../../src/services/files/local-files.service.js';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
 import { ConfigService } from '../../src/services/config.service.js';
+
+const logger = baseLogger.child({ module: 'fake-media-devices-integration' });
 
 // IMPORTANT: This test assumes it is running in a Linux machine that has installed the base dependencies (see install scripts).
 // Using the vagrant box available in this project should suffice.
@@ -15,9 +26,21 @@ describe('FakeMediaDevicesService', () => {
 	let audioPath: string;
 
 	beforeAll(async () => {
+		const mockLogger = {
+			info: vi.fn(),
+			error: vi.fn(),
+			warn: vi.fn(),
+			debug: vi.fn(),
+			trace: vi.fn(),
+			child: vi.fn().mockReturnThis(),
+		};
+		const mockLoggerService = {
+			getLogger: vi.fn().mockReturnValue(mockLogger),
+		};
+
 		// Download test media files if they don't exist
 		[videoPath, audioPath] = await new LocalFilesService(
-			new LocalFilesRepository(),
+			new LocalFilesRepository(mockLoggerService),
 		).downloadBrowserMediaFiles({
 			videoType: 'bunny',
 			videoInfo: {
@@ -69,7 +92,7 @@ describe('FakeMediaDevicesService', () => {
 			{
 				stdio: ['ignore', 'ignore', 'pipe'],
 				stderrCallback: (chunk: string) => {
-					console.log(chunk);
+					logger.info(chunk);
 					stderr += chunk;
 
 					// Quick input detection heuristics

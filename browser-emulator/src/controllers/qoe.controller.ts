@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { LoggerService } from '../services/logger.service.ts';
 import type { QoeAnalysisOrchestratorService } from '../services/qoe-analysis/qoe-analysis-orchestrator.service.ts';
 import { LocalFilesRepository } from '../repositories/files/local-files.repository.ts';
 import type { QoeAnalysisRequest } from '../types/qoe.type.ts';
@@ -25,11 +26,14 @@ export class QoeController {
 			error: 'Too many QoE recording uploads, please try again later',
 		},
 	});
+	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	constructor(
 		qoeAnalysisOrchestratorService: QoeAnalysisOrchestratorService,
+		loggerService: LoggerService,
 	) {
 		this.qoeAnalysisOrchestratorService = qoeAnalysisOrchestratorService;
+		this.logger = loggerService.getLogger('QoeController');
 		this.router = express.Router({ strict: true });
 		this.setupRoutes();
 	}
@@ -63,7 +67,7 @@ export class QoeController {
 			new Uint8Array(buffer),
 			err => {
 				if (err) {
-					console.error(err);
+					this.logger.error(err);
 					res.status(500).send('Internal server error');
 				} else {
 					res.status(200).send();
