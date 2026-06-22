@@ -15,6 +15,7 @@ import {
 	Role,
 } from '../../../types/create-user.type.ts';
 import type { LoggerService } from '../../logger.service.ts';
+import { shortenIdentifier } from '../../../utils/id-utils.ts';
 
 declare let localStorage: Storage;
 
@@ -226,11 +227,17 @@ export class RealBrowserService {
 		try {
 			const webappUrl = this.comModule.generateWebappUrl(request);
 			this.logger.info({ webappUrl }, 'Webapp URL');
+			const shortSession = shortenIdentifier(
+				request.properties.sessionName,
+				'session',
+			);
+			const shortUser = shortenIdentifier(
+				request.properties.userId,
+				'user',
+			);
 			const driver = await seleniumService.getDriver(
 				request.properties.browser,
-				request.properties.sessionName +
-					'_' +
-					request.properties.userId,
+				shortSession + '_' + shortUser,
 			);
 			driverId = (await driver.getSession()).getId();
 			this.driverMap.set(driverId, {

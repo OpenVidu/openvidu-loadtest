@@ -208,7 +208,7 @@ describe('EmulatedBrowserService', () => {
 				baseRequest as never,
 			);
 
-			expect(result).toContain('test-session_test-user_');
+			expect(result).toContain('s-76832d_u-42b27e_');
 			expect(mockDockerService.startContainer).toHaveBeenCalledTimes(2);
 		});
 
@@ -248,7 +248,7 @@ describe('EmulatedBrowserService', () => {
 				baseRequest as never,
 			);
 
-			expect(result).toContain('test-session_test-user_');
+			expect(result).toContain('s-76832d_u-42b27e_');
 		});
 
 		it('should check if LiveKit CLI image exists', async () => {
@@ -305,7 +305,7 @@ describe('EmulatedBrowserService', () => {
 				baseRequest as never,
 			);
 
-			expect(result).toContain('test-session_test-user_');
+			expect(result).toContain('s-76832d_u-42b27e_');
 			expect(result).toContain('containe'); // container-id-123 sliced to 8 chars
 		});
 

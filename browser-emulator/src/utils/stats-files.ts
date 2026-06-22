@@ -3,6 +3,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { JsonValue } from '../types/json.type.ts';
 import { sanitizeFilename } from './sanitize.ts';
+import { shortenIdentifier } from './id-utils.ts';
 import baseLogger from '../services/logger.service.ts';
 
 const logger = baseLogger.child({ module: 'stats-files' });
@@ -30,7 +31,7 @@ export async function createAllStatFilesForSession(
 }
 
 async function createFile(userId: string, sessionId: string, fileName: string) {
-	const filePath = `${STATS_DIR}${sanitizeFilename(sessionId)}/${sanitizeFilename(userId)}/${fileName}`;
+	const filePath = `${STATS_DIR}${sanitizeFilename(shortenIdentifier(sessionId, 'session'))}/${sanitizeFilename(shortenIdentifier(userId, 'user'))}/${fileName}`;
 	logger.info('Creating file: %s', filePath);
 	await fsp.mkdir(path.dirname(filePath), { recursive: true });
 	logger.info('Created dir for file: %s', filePath);
@@ -86,7 +87,7 @@ export function addSaveStatsToFileToQueue(
 	fileName: string,
 	data: JsonValue,
 ) {
-	const filePath = `${STATS_DIR}${sanitizeFilename(sessionId)}/${sanitizeFilename(userId)}/${fileName}`;
+	const filePath = `${STATS_DIR}${sanitizeFilename(shortenIdentifier(sessionId, 'session'))}/${sanitizeFilename(shortenIdentifier(userId, 'user'))}/${fileName}`;
 
 	// Initialize queue for the file if it does not exist
 	if (!queues.has(filePath)) {

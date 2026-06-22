@@ -136,7 +136,7 @@ describe('RealBrowserService', () => {
 			expect(result).toBe('driver-id-123');
 			expect(mockSeleniumService.getDriver).toHaveBeenCalledWith(
 				'chrome',
-				'test-session_test-user',
+				's-76832d_u-42b27e',
 			);
 		});
 	});

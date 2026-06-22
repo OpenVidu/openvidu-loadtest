@@ -23,6 +23,7 @@ import type { ContainerCreateOptions } from 'dockerode';
 import type { ChildProcess } from 'node:child_process';
 import type { ScriptRunnerService } from '../../script-runner.service.ts';
 import type { LoggerService } from '../../logger.service.ts';
+import { createBoundedId } from '../../../utils/id-utils.ts';
 
 export class SeleniumService {
 	private readonly chromeOptions = new chrome.Options();
@@ -327,7 +328,7 @@ export class SeleniumService {
 			/[^a-zA-Z0-9_.-]/g,
 			'-',
 		);
-		return `selenium-${browser}-${baseName}-${suffix}`.slice(0, 63);
+		return createBoundedId(`selenium-${browser}-${baseName}-${suffix}`, 60);
 	}
 
 	private async ensureDockerImage(image: string): Promise<void> {

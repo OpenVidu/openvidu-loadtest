@@ -17,6 +17,7 @@ import {
 } from '../../../utils/stats-files.ts';
 import * as fs from 'node:fs/promises';
 import type { LoggerService } from '../../logger.service.ts';
+import { createBoundedId, shortenIdentifier } from '../../../utils/id-utils.ts';
 
 interface EmulatedContainerInfo {
 	containerId: string;
@@ -184,8 +185,13 @@ export class EmulatedBrowserService {
 		let containerId: string | undefined;
 
 		// Generate unique identifier for this participant
-		const basesuffix = `${sessionName}-${userId}-${Date.now()}`;
-		const participantId = `emulated-${basesuffix}`;
+		const shortSession = shortenIdentifier(sessionName, 'session');
+		const shortUser = shortenIdentifier(userId, 'user');
+		const now = Date.now();
+		const participantId = createBoundedId(
+			`emulated-${shortSession}-${shortUser}-${now}`,
+			60,
+		);
 
 		// Start socket streaming for publishers
 		let videoSocket: string | undefined;
@@ -212,7 +218,10 @@ export class EmulatedBrowserService {
 			audioSocket,
 		);
 
-		const joinContainerName = `lk-emulated-${basesuffix}`;
+		const joinContainerName = createBoundedId(
+			`lk-emulated-${shortSession}-${shortUser}-${now}`,
+			60,
+		);
 		try {
 			// Start the LiveKit CLI container
 			// Note: AutoRemove is false so we can check logs after container exits
@@ -231,7 +240,10 @@ export class EmulatedBrowserService {
 			});
 
 			// Store container info (tracking for cleanup)
-			connectionId = `${sessionName}_${userId}_${containerId.slice(0, 8)}`;
+			connectionId = createBoundedId(
+				`${shortSession}_${shortUser}_${containerId.slice(0, 8)}`,
+				60,
+			);
 			this.containerMap.set(connectionId, {
 				containerId,
 				sessionName,
