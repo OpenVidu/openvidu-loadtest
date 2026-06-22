@@ -82,9 +82,8 @@ export DOCKER_GID="${DOCKER_GID:-1001}"
 # Ensure /tmp/openvidu-loadtest exists and is world-writable
 # Docker bind mounts create this directory as root:root 755 by default,
 # but browser-emulator (running as non-root UID 1000) needs write access.
-if [ ! -d /tmp/openvidu-loadtest ]; then
-	mkdir -m 777 /tmp/openvidu-loadtest
-fi
+mkdir -m 777 -p /tmp/openvidu-loadtest 2>/dev/null
+chmod 777 /tmp/openvidu-loadtest 2>/dev/null || true
 
 # Clean previous results to avoid false positives
 rm -f $LOCAL_RESULTS_DIR/results-*.txt $LOCAL_RESULTS_DIR/report-*.html $LOCAL_RESULTS_DIR/docker-compose.log

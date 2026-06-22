@@ -81,19 +81,8 @@ describe('Perf: emulated browsers', () => {
 			const result = await runBenchmark(app, 'bench-multi-room-mixed', {
 				topology: 'N:M',
 				sessions: 2,
-				publishersPerSession: 3,
+				publishersPerSession: 2,
 				subscribersPerSession: 10,
-			});
-			ALL_RESULTS.push(result);
-		});
-
-		it('bench-teaching', async () => {
-			await setupPerformanceTest(app);
-			const result = await runBenchmark(app, 'bench-teaching', {
-				topology: 'TEACHING',
-				sessions: 2,
-				publishersPerSession: 1,
-				subscribersPerSession: 20,
 			});
 			ALL_RESULTS.push(result);
 		});
@@ -181,50 +170,25 @@ describe('Perf: emulated browsers', () => {
 			const sessionBase = `Perf-Sat-MRM-${Date.now()}`;
 
 			let sessionIndex = 0;
-			let pubCreated = false;
-			const stepFn: SaturationStepFn = () => {
-				if (!pubCreated) {
-					pubCreated = true;
-					return {
-						sessionName: `${sessionBase}-S${sessionIndex + 1}`,
-						userId: 'Pub-1',
-						role: 'PUBLISHER',
-					};
-				}
-				pubCreated = false;
-				sessionIndex++;
-				return {
-					sessionName: `${sessionBase}-S${sessionIndex}`,
-					userId: 'Sub-1',
-					role: 'SUBSCRIBER',
-				};
-			};
-
-			const result = await runSaturation(app, stepFn, {
-				...DEFAULT_SATURATION_CONFIG,
-				topology: 'N:M',
-				description:
-					'New sessions with 1 pub + 1 sub each until failure',
-			});
-			ALL_RESULTS.push(result);
-		});
-
-		it('saturate-teaching', async () => {
-			await setupPerformanceTest(app);
-			const sessionBase = `Perf-Sat-T-${Date.now()}`;
-
-			let sessionIndex = 0;
+			const PUBS_PER_SESSION = 2;
 			const SUBS_PER_SESSION = 10;
 			let state: 'pub' | 'sub' = 'pub';
+			let pubCount = 0;
 			let subCount = 0;
 			const stepFn: SaturationStepFn = () => {
 				if (state === 'pub') {
-					sessionIndex++;
-					state = 'sub';
-					subCount = 0;
+					if (pubCount === 0) {
+						sessionIndex++;
+					}
+					pubCount++;
+					if (pubCount >= PUBS_PER_SESSION) {
+						state = 'sub';
+						subCount = 0;
+						pubCount = 0;
+					}
 					return {
 						sessionName: `${sessionBase}-S${sessionIndex}`,
-						userId: `Teacher-${sessionIndex}`,
+						userId: `Pub-${pubCount}-S${sessionIndex}`,
 						role: 'PUBLISHER',
 					};
 				}
@@ -241,9 +205,9 @@ describe('Perf: emulated browsers', () => {
 
 			const result = await runSaturation(app, stepFn, {
 				...DEFAULT_SATURATION_CONFIG,
-				topology: 'TEACHING',
+				topology: 'N:M',
 				description:
-					'New sessions with 1 teacher + 10 students each until failure',
+					'New sessions with 2 pubs + 10 subs each until failure',
 			});
 			ALL_RESULTS.push(result);
 		});

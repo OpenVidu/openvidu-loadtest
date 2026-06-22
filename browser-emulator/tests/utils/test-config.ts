@@ -1,4 +1,5 @@
 import https from 'node:https';
+import http from 'node:http';
 
 export const RUNNING_IN_DOCKER = process.env.RUNNING_IN_DOCKER === 'true';
 const openviduUrl = process.env.TEST_OPENVIDU_URL ?? 'http://localhost:4443';
@@ -25,7 +26,8 @@ export async function checkDeploymentReachable(
 	timeoutMs = 15000,
 ): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
-		const req = https.get(url, { rejectUnauthorized: false }, res => {
+		const mod = url.startsWith('https') ? https : http;
+		const req = mod.get(url, { rejectUnauthorized: false }, res => {
 			res.resume();
 			resolve();
 		});

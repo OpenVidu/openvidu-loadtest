@@ -28,6 +28,8 @@
 		"test:qoe": "vitest run --project=qoe",
 		"test:coverage": "vitest run --project=unit --project=integration --project=e2e --coverage",
 		"test:legacy": "tsx ./dev_scripts/run-tests-vagrant.ts",
+		"analyze:perf": "tsx ./dev_scripts/analyze-perf.ts",
+		"compare:perf": "tsx ./dev_scripts/compare-perf.ts",
 		"test:docker": "docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from browser-emulator-tests",
 		"qoe": "tsx ./src/qoe-cli.ts"
 	},

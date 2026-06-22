@@ -4,7 +4,9 @@ import type { Application } from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+
 import { OSUtils } from 'node-os-utils';
+import Docker from 'dockerode';
 import baseLogger from '../../src/services/logger.service.js';
 import { getConfig, checkDeploymentReachable } from '../utils/test-config.js';
 import { pingInstance, initializeInstance } from '../e2e/e2e-test-utils.js';
@@ -40,9 +42,27 @@ export interface PhaseRecord {
 	totalSubscribers: number;
 	cpu: number | null;
 	memoryRssMb: number | null;
+	containers?: ContainerMetric[];
+	containerGroups?: ContainerGroupSummary[];
 	creationLatencyMs: number | null;
 	failed: boolean;
 	failureReason?: string;
+}
+
+export interface ContainerMetric {
+	name: string;
+	group: 'browser-emulator' | 'livekit-cli' | 'local-deployment' | 'other';
+	cpuPercent: number;
+	memPercent: number;
+	memUsageMb: number;
+}
+
+export interface ContainerGroupSummary {
+	group: string;
+	containerCount: number;
+	totalCpuPercent: number;
+	avgCpuPercent: number;
+	totalMemUsageMb: number;
 }
 
 export interface SaturationCeiling {
@@ -124,6 +144,144 @@ export async function sampleMetrics(): Promise<MetricsSnapshot> {
 		memoryRssMb: Math.round((memUsage.rss / (1024 * 1024)) * 100) / 100,
 		timestamp: new Date().toISOString(),
 	};
+}
+
+// --- Container Monitoring ---
+
+const docker = new Docker();
+
+function classifyContainer(
+	name: string,
+	labels: Record<string, string>,
+): ContainerMetric['group'] {
+	if (name === 'browser-emulator-tests') return 'browser-emulator';
+	if (name.startsWith('lk-')) return 'livekit-cli';
+	if (labels['com.docker.compose.project'] === 'openvidu-local-deployment') {
+		return 'local-deployment';
+	}
+	return 'other';
+}
+
+export async function sampleContainerMetrics(): Promise<{
+	containers: ContainerMetric[];
+	groups: ContainerGroupSummary[];
+}> {
+	try {
+		const containerList = await docker.listContainers();
+		if (containerList.length === 0) {
+			return { containers: [], groups: [] };
+		}
+
+		const results = await Promise.allSettled(
+			containerList.map(async info => {
+				const name = (info.Names?.[0] ?? '').replace(/^\//, '');
+				if (!name) return null;
+
+				const container = docker.getContainer(info.Id);
+				const stats = (await container.stats({
+					stream: false,
+				})) as {
+					cpu_stats: {
+						cpu_usage: { total_usage: number };
+						system_cpu_usage: number;
+						online_cpus: number;
+					};
+					precpu_stats: {
+						cpu_usage: { total_usage: number };
+						system_cpu_usage: number;
+					};
+					memory_stats: {
+						usage: number;
+						limit: number;
+					};
+				};
+
+				const cpuDelta =
+					stats.cpu_stats.cpu_usage.total_usage -
+					stats.precpu_stats.cpu_usage.total_usage;
+				const systemDelta =
+					stats.cpu_stats.system_cpu_usage -
+					stats.precpu_stats.system_cpu_usage;
+				const cpuPercent =
+					systemDelta > 0
+						? Math.round(
+								(cpuDelta / systemDelta) *
+									100 *
+									(stats.cpu_stats.online_cpus ?? 1) *
+									100,
+							) / 100
+						: 0;
+
+				const memUsageMb =
+					Math.round(
+						((stats.memory_stats.usage ?? 0) / (1024 * 1024)) * 100,
+					) / 100;
+				const memLimitMb =
+					Math.round(
+						((stats.memory_stats.limit ?? 0) / (1024 * 1024)) * 100,
+					) / 100;
+				const memPercent =
+					memLimitMb > 0
+						? Math.round((memUsageMb / memLimitMb) * 100 * 100) /
+							100
+						: 0;
+
+				const group = classifyContainer(name, info.Labels ?? {});
+
+				return {
+					name,
+					group,
+					cpuPercent,
+					memPercent,
+					memUsageMb,
+				} satisfies ContainerMetric;
+			}),
+		);
+
+		const containers: ContainerMetric[] = [];
+		const groupAgg = new Map<
+			string,
+			{
+				count: number;
+				totalCpu: number;
+				totalMemMb: number;
+			}
+		>();
+
+		for (const result of results) {
+			if (result.status === 'fulfilled' && result.value) {
+				const c = result.value;
+				containers.push(c);
+
+				const agg = groupAgg.get(c.group) ?? {
+					count: 0,
+					totalCpu: 0,
+					totalMemMb: 0,
+				};
+				agg.count++;
+				agg.totalCpu += c.cpuPercent;
+				agg.totalMemMb += c.memUsageMb;
+				groupAgg.set(c.group, agg);
+			}
+		}
+
+		const groups: ContainerGroupSummary[] = [];
+		for (const [group, agg] of groupAgg) {
+			groups.push({
+				group,
+				containerCount: agg.count,
+				totalCpuPercent: Math.round(agg.totalCpu * 100) / 100,
+				avgCpuPercent:
+					Math.round((agg.totalCpu / agg.count) * 100) / 100,
+				totalMemUsageMb: Math.round(agg.totalMemMb * 100) / 100,
+			});
+		}
+
+		return { containers, groups };
+	} catch (error) {
+		logger.warn('Failed to sample container metrics: %s', String(error));
+		return { containers: [], groups: [] };
+	}
 }
 
 export async function createParticipant(
@@ -297,7 +455,10 @@ export async function runSaturation(
 			);
 		}
 
-		const metrics = await sampleMetrics();
+		const [metrics, containerStats] = await Promise.all([
+			sampleMetrics(),
+			sampleContainerMetrics(),
+		]);
 
 		if (metrics.cpu >= config.cpuSustainedThreshold) {
 			sustainedCount++;
@@ -318,6 +479,8 @@ export async function runSaturation(
 			totalSubscribers,
 			cpu: metrics.cpu,
 			memoryRssMb: metrics.memoryRssMb,
+			containers: containerStats.containers,
+			containerGroups: containerStats.groups,
 			creationLatencyMs: result.status === 200 ? result.latencyMs : null,
 			failed,
 			failureReason: failed
@@ -390,7 +553,10 @@ export async function runBenchmark(
 
 			await new Promise(resolve => setTimeout(resolve, 500));
 
-			const metrics = await sampleMetrics();
+			const [metrics, containerStats] = await Promise.all([
+				sampleMetrics(),
+				sampleContainerMetrics(),
+			]);
 			timeline.push({
 				phase: phaseIndex,
 				totalParticipants: totalPublishers + totalSubscribers,
@@ -398,6 +564,8 @@ export async function runBenchmark(
 				totalSubscribers,
 				cpu: metrics.cpu,
 				memoryRssMb: metrics.memoryRssMb,
+				containers: containerStats.containers,
+				containerGroups: containerStats.groups,
 				creationLatencyMs:
 					result.status === 200 ? result.latencyMs : null,
 				failed: result.status !== 200,
@@ -423,7 +591,10 @@ export async function runBenchmark(
 
 			await new Promise(resolve => setTimeout(resolve, 500));
 
-			const metrics = await sampleMetrics();
+			const [metrics, containerStats] = await Promise.all([
+				sampleMetrics(),
+				sampleContainerMetrics(),
+			]);
 			timeline.push({
 				phase: phaseIndex,
 				totalParticipants: totalPublishers + totalSubscribers,
@@ -431,6 +602,8 @@ export async function runBenchmark(
 				totalSubscribers,
 				cpu: metrics.cpu,
 				memoryRssMb: metrics.memoryRssMb,
+				containers: containerStats.containers,
+				containerGroups: containerStats.groups,
 				creationLatencyMs:
 					result.status === 200 ? result.latencyMs : null,
 				failed: result.status !== 200,

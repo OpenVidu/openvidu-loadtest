@@ -175,7 +175,10 @@ export class SocketWriterService {
 		const audioLoopStartOffset =
 			type === 'audio' ? await this.getAudioLoopStartOffset(filePath) : 0;
 
-		// Ensure directory exists
+		// Ensure base directory exists and is writable
+		await this.ensureBaseDir();
+
+		// Ensure participant directory exists
 		await fs.mkdir(path.dirname(socketPath), { recursive: true });
 
 		// Clean up any existing socket
@@ -354,6 +357,24 @@ export class SocketWriterService {
 			sanitizePathSegment(participantId),
 			`${sanitizePathSegment(type)}.sock`,
 		);
+	}
+
+	private async ensureBaseDir(): Promise<void> {
+		try {
+			await fs.mkdir(this.baseDir, { recursive: true, mode: 0o777 });
+			await fs.chmod(this.baseDir, 0o777);
+		} catch (error) {
+			logger.error(
+				'Failed to ensure base directory %s is writable: %s',
+				this.baseDir,
+				String(error),
+			);
+			throw new Error(
+				`Cannot write to ${this.baseDir}. ` +
+					`Please ensure the directory exists and is writable:\n` +
+					`  mkdir -m 777 -p ${this.baseDir}`,
+			);
+		}
 	}
 
 	private getKey(participantId: string, type: string): string {

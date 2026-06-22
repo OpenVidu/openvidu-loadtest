@@ -43,17 +43,10 @@ jobs:
 
       - name: Ensure output directories exist
         run: |
+          sudo rm -rf /tmp/openvidu-loadtest
           mkdir -m 777 -p /tmp/openvidu-loadtest
           mkdir -p browser-emulator/stats/perf-results
           mkdir -p browser-emulator/logs
-
-      - name: Start container CPU monitor
-        id: start-monitor
-        shell: bash
-        run: |
-          cd browser-emulator
-          nohup bash scripts/monitor-containers.sh > logs/monitor-containers.log 2>&1 &
-          echo "MONITOR_PID=$!" >> "$GITHUB_OUTPUT"
 
       - name: Run Browser Emulator Performance Tests in Docker
         env:
@@ -65,19 +58,6 @@ jobs:
         run: |
           cd browser-emulator
           docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from browser-emulator-tests
-
-      - name: Stop container CPU monitor
-        if: always()
-        shell: bash
-        run: |
-          PID="${{ steps.start-monitor.outputs.MONITOR_PID }}"
-          if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-            echo "Stopping container monitor (PID: $PID)"
-            kill "$PID"
-            wait "$PID" 2>/dev/null || true
-          else
-            echo "Container monitor not running"
-          fi
 
       - name: Capture all container logs
         if: always()
@@ -105,14 +85,6 @@ jobs:
         with:
           name: perf-test-results-${{ github.run_id }}
           path: browser-emulator/stats/perf-results/*.json
-          if-no-files-found: warn
-
-      - name: Upload CPU monitoring data
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
-        with:
-          name: cpu-monitoring-${{ github.run_id }}
-          path: browser-emulator/stats/perf-results/cpu-monitoring.csv
           if-no-files-found: warn
 
       - name: Upload container logs
