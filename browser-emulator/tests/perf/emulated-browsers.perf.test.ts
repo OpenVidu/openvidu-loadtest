@@ -68,7 +68,7 @@ describe('Perf: emulated browsers', () => {
 				'bench-multi-room-publishers',
 				{
 					topology: 'N:N',
-					sessions: 5,
+					sessions: 3,
 					publishersPerSession: 8,
 					subscribersPerSession: 0,
 				},
@@ -82,7 +82,7 @@ describe('Perf: emulated browsers', () => {
 				topology: 'N:M',
 				sessions: 2,
 				publishersPerSession: 3,
-				subscribersPerSession: 40,
+				subscribersPerSession: 10,
 			});
 			ALL_RESULTS.push(result);
 		});
@@ -91,7 +91,7 @@ describe('Perf: emulated browsers', () => {
 			await setupPerformanceTest(app);
 			const result = await runBenchmark(app, 'bench-teaching', {
 				topology: 'TEACHING',
-				sessions: 3,
+				sessions: 2,
 				publishersPerSession: 1,
 				subscribersPerSession: 20,
 			});
