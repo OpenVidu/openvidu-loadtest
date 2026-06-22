@@ -9,7 +9,7 @@ import {
 } from 'vitest';
 import { Client } from '@elastic/elasticsearch';
 import type { StartedElasticsearchContainer } from '@testcontainers/elasticsearch';
-import baseLogger from '../../src/services/logger.service';
+import baseLogger from '../../src/services/logger.service.js';
 import { ElasticSearchService } from '../../src/services/elasticsearch.service.ts';
 import type { JSONStreamsInfo } from '../../src/types/json.type.ts';
 import {

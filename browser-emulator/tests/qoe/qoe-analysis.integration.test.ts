@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import baseLogger, { LoggerService } from '../../src/services/logger.service';
+import baseLogger, {
+	LoggerService,
+} from '../../src/services/logger.service.js';
 import { QoeAnalysisOrchestratorService } from '../../src/services/qoe-analysis/qoe-analysis-orchestrator.service.ts';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
 

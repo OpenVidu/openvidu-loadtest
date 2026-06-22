@@ -36,7 +36,10 @@ describe('ElasticSearchService - path prefix handling', () => {
 		).rejects.toThrow();
 
 		expect(mockClientConstructor).toHaveBeenCalledTimes(1);
-		const calledWith = mockClientConstructor.mock.calls[0][0];
+		const calledWith = mockClientConstructor.mock.calls[0][0] as Record<
+			string,
+			unknown
+		>;
 		expect(calledWith).toHaveProperty('Connection', mockHttpConnection);
 		expect(calledWith).toHaveProperty('node', 'https://host/elasticsearch');
 	});
@@ -47,7 +50,10 @@ describe('ElasticSearchService - path prefix handling', () => {
 		await expect(service.initialize('https://host:9200')).rejects.toThrow();
 
 		expect(mockClientConstructor).toHaveBeenCalledTimes(1);
-		const calledWith = mockClientConstructor.mock.calls[0][0];
+		const calledWith = mockClientConstructor.mock.calls[0][0] as Record<
+			string,
+			unknown
+		>;
 		expect(calledWith).not.toHaveProperty('Connection');
 		expect(calledWith).toHaveProperty('node', 'https://host:9200');
 	});
@@ -60,7 +66,10 @@ describe('ElasticSearchService - path prefix handling', () => {
 		).rejects.toThrow();
 
 		expect(mockClientConstructor).toHaveBeenCalledTimes(1);
-		const calledWith = mockClientConstructor.mock.calls[0][0];
+		const calledWith = mockClientConstructor.mock.calls[0][0] as Record<
+			string,
+			unknown
+		>;
 		expect(calledWith).not.toHaveProperty('Connection');
 		expect(calledWith).toHaveProperty('node', 'https://host:9200/');
 	});
@@ -77,7 +86,10 @@ describe('ElasticSearchService - path prefix handling', () => {
 		).rejects.toThrow();
 
 		expect(mockClientConstructor).toHaveBeenCalledTimes(1);
-		const calledWith = mockClientConstructor.mock.calls[0][0];
+		const calledWith = mockClientConstructor.mock.calls[0][0] as Record<
+			string,
+			unknown
+		>;
 		expect(calledWith).toHaveProperty('Connection', mockHttpConnection);
 		expect(calledWith).toHaveProperty('auth', {
 			username: 'user',
@@ -93,7 +105,10 @@ describe('ElasticSearchService - path prefix handling', () => {
 		).rejects.toThrow();
 
 		expect(mockClientConstructor).toHaveBeenCalledTimes(1);
-		const calledWith = mockClientConstructor.mock.calls[0][0];
+		const calledWith = mockClientConstructor.mock.calls[0][0] as Record<
+			string,
+			unknown
+		>;
 		expect(calledWith).toHaveProperty('Connection', mockHttpConnection);
 		expect(calledWith).toHaveProperty('node', 'https://host/proxy/path/es');
 	});

@@ -82,7 +82,7 @@ describe('qoe-analysis-runner', () => {
 		expect(analyzeFileMock).toHaveBeenCalledTimes(1);
 		expect(analyzeFileMock).toHaveBeenCalledWith(
 			expect.objectContaining({
-				viewerPath: expect.stringContaining('.webm'),
+				viewerPath: expect.stringContaining('.webm') as string,
 			}),
 		);
 		expect(getTimestampsMock).not.toHaveBeenCalled();

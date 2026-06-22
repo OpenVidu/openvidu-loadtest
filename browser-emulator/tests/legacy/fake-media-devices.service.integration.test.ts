@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
-import baseLogger, { LoggerService } from '../../src/services/logger.service';
+import baseLogger, {
+	LoggerService,
+} from '../../src/services/logger.service.js';
 import { FakeMediaDevicesService } from '../../src/services/fake-media/fake-media-devices.service.js';
 import { ScriptRunnerService } from '../../src/services/script-runner.service.js';
 import { LocalFilesService } from '../../src/services/files/local-files.service.js';

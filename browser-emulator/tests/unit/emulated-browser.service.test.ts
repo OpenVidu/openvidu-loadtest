@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LoggerService } from '../../src/services/logger.service';
+import { LoggerService } from '../../src/services/logger.service.js';
 
 const loggerService = new LoggerService();
 
@@ -289,7 +289,7 @@ describe('EmulatedBrowserService', () => {
 						'--auto-subscribe',
 						'--fps',
 						expect.any(String),
-					]),
+					]) as string[],
 				}),
 			);
 		});
@@ -322,7 +322,9 @@ describe('EmulatedBrowserService', () => {
 				await vi.advanceTimersByTimeAsync(6000);
 
 				expect(mockWsService.send).toHaveBeenCalled();
-				const firstSendArg = mockWsService.send.mock.calls[0]?.[0];
+				const firstSendArg = mockWsService.send.mock.calls[0]?.[0] as
+					| string
+					| undefined;
 
 				const payload = JSON.parse(
 					String(firstSendArg ?? '{}'),

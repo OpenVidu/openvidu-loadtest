@@ -14,7 +14,9 @@ import {
 	DeleteObjectCommand,
 	NoSuchBucket,
 } from '@aws-sdk/client-s3';
-import baseLogger, { LoggerService } from '../../src/services/logger.service';
+import baseLogger, {
+	LoggerService,
+} from '../../src/services/logger.service.js';
 import { RemotePersistenceService } from '../../src/services/files/remote-persistence.service.ts';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.ts';
 import { StartedS3MockContainer } from '@testcontainers/s3mock';

@@ -3,7 +3,7 @@ import { Readable } from 'node:stream';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { removeAllFilesFromDir } from '../utils/files.ts';
-import { LoggerService } from '../../src/services/logger.service';
+import { LoggerService } from '../../src/services/logger.service.js';
 
 function createFakeDownloadStream(fakeContent = 'FAKE_FILE_DATA') {
 	const stream = new Readable();

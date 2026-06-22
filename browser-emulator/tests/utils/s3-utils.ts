@@ -1,4 +1,4 @@
-import baseLogger from '../../src/services/logger.service';
+import baseLogger from '../../src/services/logger.service.js';
 import {
 	S3Client,
 	ListObjectsV2Command,

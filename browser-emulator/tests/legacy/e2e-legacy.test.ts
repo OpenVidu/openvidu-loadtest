@@ -13,7 +13,7 @@ import type { Application } from 'express';
 import { createServer } from 'node:http';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
-import baseLogger from '../../src/services/logger.service';
+import baseLogger from '../../src/services/logger.service.js';
 import {
 	AvailableBrowsers,
 	Resolution,
@@ -135,10 +135,10 @@ async function createPublisherUser(
 
 	expect(createUserResponse.status).toBe(200);
 	expect(createUserResponse.body).toStrictEqual({
-		connectionId: expect.any(String),
+		connectionId: expect.any(String) as string,
 		streams: expectedStreams,
 		participants: expectedParticipants,
-		workerCpuUsage: expect.any(Number),
+		workerCpuUsage: expect.any(Number) as number,
 		sessionId: sessionName,
 		userId,
 	});

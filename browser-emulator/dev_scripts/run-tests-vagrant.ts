@@ -10,7 +10,7 @@ import {
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import baseLogger from '../src/services/logger.service';
+import baseLogger from '../src/services/logger.service.js';
 const logger = baseLogger.child({ module: 'run-tests-vagrant' });
 
 interface RunOptions {

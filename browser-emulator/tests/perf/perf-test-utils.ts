@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { OSUtils } from 'node-os-utils';
-import baseLogger from '../../src/services/logger.service';
+import baseLogger from '../../src/services/logger.service.js';
 import { getConfig, checkDeploymentReachable } from '../utils/test-config.js';
 import { pingInstance, initializeInstance } from '../e2e/e2e-test-utils.js';
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LoggerService } from '../../src/services/logger.service';
+import { LoggerService } from '../../src/services/logger.service.js';
 
 const loggerService = new LoggerService();
 
