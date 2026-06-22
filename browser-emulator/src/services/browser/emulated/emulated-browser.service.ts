@@ -479,22 +479,22 @@ export class EmulatedBrowserService {
 			}
 		}
 
-		for (const connectionId of toDelete) {
-			await this.deleteStreamManagerWithConnectionId(connectionId);
-		}
+		await Promise.allSettled(
+			toDelete.map(connectionId =>
+				this.deleteStreamManagerWithConnectionId(connectionId),
+			),
+		);
 	}
 
 	async clean(): Promise<void> {
 		this.logger.info('Cleaning emulated participants...');
 
 		const connectionIds = Array.from(this.containerMap.keys());
-		for (const connectionId of connectionIds) {
-			try {
-				await this.deleteStreamManagerWithConnectionId(connectionId);
-			} catch (error) {
-				this.logger.error({ connectionId, error }, 'Error cleaning');
-			}
-		}
+		await Promise.allSettled(
+			connectionIds.map(connectionId =>
+				this.deleteStreamManagerWithConnectionId(connectionId),
+			),
+		);
 
 		this.containerMap.clear();
 
