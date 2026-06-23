@@ -10,8 +10,9 @@ services:
         group_add:
           - "${DOCKER_GID:-1001}"
         environment:
-            # TEST_LIVEKIT_URL should be passed as an environment variable when running the tests, using either openvidu local deployment or a compatible deployment
-            TEST_LIVEKIT_URL: ${TEST_LIVEKIT_URL}
+            # TEST_LIVEKIT_URL should be passed as an environment variable when running the tests, using either openvidu local deployment or a compatible deployment.
+            # Defaults to localhost:7880 for local development with docker-compose.dev.yml.
+            TEST_LIVEKIT_URL: ${TEST_LIVEKIT_URL:-http://localhost:7880}
             SERVER_PORT: ${SERVER_PORT:-5000}
             WEBSOCKET_PORT: ${WEBSOCKET_PORT:-5001}
             COM_MODULE: ${COM_MODULE:-livekit}
@@ -21,8 +22,14 @@ services:
             MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/mediafiles}
             METRICBEAT_CONFIG: ${METRICBEAT_CONFIG:-${PWD}/src/assets/metricbeat-config/metricbeat.yml}
             SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/logs}
+            EMULATED_LAUNCHER_MODE: ${EMULATED_LAUNCHER_MODE:-docker}
+            PROFILER_STEADY_WAIT_MS: ${PROFILER_STEADY_WAIT_MS:-3000}
+            PROFILER_DURATION_MS: ${PROFILER_DURATION_MS:-15000}
+            PERF_RESULTS_SUFFIX: ${PERF_RESULTS_SUFFIX:-}
             # Set DOCKER_DEBUG=true to enable Node inspector on port 9229
             DOCKER_DEBUG: ${DOCKER_DEBUG:-false}
+        pid: host
+        privileged: true
         stop_grace_period: 60s
         ports:
             - '${SERVER_PORT:-5000}:${SERVER_PORT:-5000}'
@@ -40,7 +47,10 @@ services:
             - /tmp/openvidu-loadtest:/tmp/openvidu-loadtest
         # Override the container command to enable optional debugging
         # When DOCKER_DEBUG=true the app starts with the Node inspector
-        command: sh -lc "if [ \"${DOCKER_DEBUG:-false}\" = \"true\" ]; then pnpm run ${TEST_SCRIPT:-test:e2e} --inspect-brk=0.0.0.0:9229 --no-file-parallelism; else pnpm run ${TEST_SCRIPT:-test:e2e}; fi"
+        # Use $$ to escape compose variable substitution; the shell evaluates these
+        # at runtime using container environment variables (which include -e flags
+        # passed to "docker compose run")
+        command: sh -lc "if [ \"$${DOCKER_DEBUG:-false}\" = \"true\" ]; then pnpm run $${TEST_SCRIPT:-test:e2e} --inspect-brk=0.0.0.0:9229 --no-file-parallelism; else pnpm run $${TEST_SCRIPT:-test:e2e}; fi"
 networks:
     browseremulator:
         name: browseremulator
