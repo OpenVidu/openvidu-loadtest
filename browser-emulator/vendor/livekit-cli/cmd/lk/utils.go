@@ -100,6 +100,8 @@ var (
 	out *util.Printer
 
 	openFlag    = util.OpenFlag
+	cpuProfilePath string
+	memProfilePath string
 	globalFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:    "url",
@@ -163,6 +165,16 @@ var (
 			Value:       cloudDashboardURL,
 			Destination: &dashboardURL,
 			Hidden:      true,
+		},
+		&cli.StringFlag{
+			Name:        "cpuprofile",
+			Usage:       "Write CPU profile to `FILE` (go tool pprof)",
+			Destination: &cpuProfilePath,
+		},
+		&cli.StringFlag{
+			Name:        "memprofile",
+			Usage:       "Write heap profile to `FILE` (go tool pprof)",
+			Destination: &memProfilePath,
 		},
 	}
 )

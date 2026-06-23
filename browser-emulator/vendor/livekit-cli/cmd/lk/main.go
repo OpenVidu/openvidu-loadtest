@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"strings"
 	"syscall"
 
@@ -93,10 +94,25 @@ func main() {
 
 	checkForLegacyName()
 
-	if err := app.Run(ctx, os.Args); err != nil {
+	err := app.Run(ctx, os.Args)
+	stopProfiling()
+	if err != nil {
 		errStyle := lipgloss.NewStyle().Foreground(util.Error())
 		fmt.Fprintln(os.Stderr, errStyle.Render(err.Error()))
 		os.Exit(1)
+	}
+}
+
+func stopProfiling() {
+	if cpuProfilePath != "" {
+		pprof.StopCPUProfile()
+	}
+	if memProfilePath != "" {
+		f, err := os.Create(memProfilePath)
+		if err == nil {
+			pprof.WriteHeapProfile(f)
+			f.Close()
+		}
 	}
 }
 
@@ -138,6 +154,17 @@ func initLogger(ctx context.Context, cmd *cli.Command) (context.Context, error) 
 	if conf, err := config.LoadOrCreate(); err == nil {
 		if err := util.SetTheme(conf.Theme); err != nil {
 			out.Warnf("%v; using default theme", err)
+		}
+	}
+
+	if cpuProfilePath != "" {
+		f, err := os.Create(cpuProfilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create CPU profile: %w", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			f.Close()
+			return nil, fmt.Errorf("failed to start CPU profile: %w", err)
 		}
 	}
 
