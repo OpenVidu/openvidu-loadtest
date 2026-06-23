@@ -1,0 +1,10 @@
+FROM golang:1.26 AS builder
+RUN apt-get update && apt-get install -y portaudio19-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY vendor/livekit-cli /build
+RUN go build -tags portaudio_system -ldflags=-s=false -o /lk ./cmd/lk
+
+FROM debian:trixie-slim
+RUN apt-get update && apt-get install -y libportaudio2 ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /lk /lk
+ENTRYPOINT ["/lk"]

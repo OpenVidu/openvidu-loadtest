@@ -3,23 +3,34 @@ FROM node:24-trixie AS test
 WORKDIR /app
 ENV NODE_ENV=test
 
-RUN apt-get update && apt-get install -y procps curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y procps curl linux-perf golang portaudio19-dev libcap2-bin && rm -rf /var/lib/apt/lists/* && setcap cap_perfmon,cap_sys_admin+ep "$(readlink -f /usr/bin/perf || echo /usr/bin/perf)"
+
+# Build livekit-cli from vendored source with debug symbols (for perf profiling)
+# and pprof flags (for go tool pprof)
+COPY vendor/livekit-cli /tmp/livekit-cli
+RUN cd /tmp/livekit-cli && go build -tags portaudio_system -ldflags=-s=false -o /usr/local/bin/lk ./cmd/lk && \
+    rm -rf /tmp/livekit-cli
 
 COPY index-mappings.json ./index-mappings.json
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-RUN corepack enable && corepack use pnpm@10 && pnpm install --frozen-lockfile
+ENV COREPACK_HOME=/usr/local/share/corepack
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate && pnpm install --frozen-lockfile
 
-COPY tsconfig.json tsconfig.test.json vitest.config.ts eslint.config.js ./
-COPY public ./public
-COPY public-lk ./public-lk
-COPY src ./src
-COPY tests ./tests
+RUN mkdir -p /app/node_modules/.vitest && chown node:node /app/node_modules/.vitest
 
-RUN mkdir -p recordings/chrome recordings/qoe stats logs mediafiles
+COPY --chown=node:node tsconfig.json tsconfig.test.json vitest.config.ts eslint.config.js ./
+COPY --chown=node:node public ./public
+COPY --chown=node:node public-lk ./public-lk
+COPY --chown=node:node vendor ./vendor
+COPY --chown=node:node src ./src
+COPY --chown=node:node tests ./tests
 
-# Make /app writable by the node user (UID 1000) for vitest/vite temp files
-RUN chown -R node:node /app
+RUN mkdir -p recordings/chrome recordings/qoe stats logs mediafiles && \
+    chown node:node recordings/chrome recordings/qoe stats logs mediafiles
+
+# Make /app writable by the node user so vitest can create temp config files
+RUN chown node:node /app
 
 CMD ["pnpm","run","test"]
