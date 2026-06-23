@@ -20,9 +20,11 @@ export class ConfigService {
 
 	private readonly logLevel: string;
 	private readonly disableHttps: boolean;
+	private readonly emulatedLauncherMode: string;
 	private readonly mediaFilesHostDir: string;
 	private readonly scriptsLogsHostDir: string;
 	private readonly metricbeatConfig: string;
+	private readonly lkProfileDir: string;
 	private legacyMode = false;
 
 	constructor() {
@@ -33,6 +35,10 @@ export class ConfigService {
 		this.dockerizedBrowsersConfig = this.parseDockerizedBrowsersConfig();
 		this.logLevel = this.pickString(process.env.LOG_LEVEL, 'info');
 		this.disableHttps = this.parseBoolean(process.env.DISABLE_HTTPS, false);
+		this.emulatedLauncherMode = this.pickString(
+			process.env.EMULATED_LAUNCHER_MODE,
+			'docker',
+		);
 		this.mediaFilesHostDir = this.pickString(
 			process.env.MEDIAFILES_HOST_DIR,
 			LocalFilesRepository.MEDIAFILES_DIR,
@@ -45,6 +51,7 @@ export class ConfigService {
 			process.env.METRICBEAT_CONFIG,
 			InstanceService.METRICBEAT_YML_LOCATION,
 		);
+		this.lkProfileDir = this.pickString(process.env.LK_PROFILE_DIR, '');
 		this.legacyMode = false;
 
 		this.logConfiguration();
@@ -211,6 +218,7 @@ export class ConfigService {
 		if (this.disableHttps) {
 			console.log(`  DISABLE_HTTPS: ${this.disableHttps}`);
 		}
+		console.log(`  EMULATED_LAUNCHER_MODE: ${this.emulatedLauncherMode}`);
 		console.log(`  MEDIAFILES_HOST_DIR: ${this.mediaFilesHostDir}`);
 		console.log(`  LOG_LEVEL: ${this.logLevel}`);
 		console.log(`  SCRIPTS_LOGS_HOST_DIR: ${this.scriptsLogsHostDir}`);
@@ -218,6 +226,7 @@ export class ConfigService {
 		console.log(
 			`  BROWSER_EMULATOR_HOST_FOR_BROWSERS: ${this.getBrowserEmulatorHostForBrowsers()}`,
 		);
+		console.log(`  LK_PROFILE_DIR: ${this.lkProfileDir || '(not set)'}`);
 
 		if (this.legacyMode) {
 			console.log('  LEGACY_MODE: enabled');
@@ -267,6 +276,10 @@ export class ConfigService {
 		return this.disableHttps;
 	}
 
+	public getEmulatedLauncherMode(): string {
+		return this.emulatedLauncherMode;
+	}
+
 	public setLegacyMode(legacyMode: boolean): void {
 		this.legacyMode = legacyMode;
 	}
@@ -277,5 +290,9 @@ export class ConfigService {
 
 	public getLogLevel(): string {
 		return this.logLevel;
+	}
+
+	public getLkProfileDir(): string {
+		return this.lkProfileDir;
 	}
 }

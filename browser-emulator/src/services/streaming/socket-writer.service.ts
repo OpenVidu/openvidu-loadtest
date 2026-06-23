@@ -362,7 +362,11 @@ export class SocketWriterService {
 	private async ensureBaseDir(): Promise<void> {
 		try {
 			await fs.mkdir(this.baseDir, { recursive: true, mode: 0o777 });
-			await fs.chmod(this.baseDir, 0o777);
+			try {
+				await fs.chmod(this.baseDir, 0o777);
+			} catch {
+				await fs.access(this.baseDir, fs.constants.W_OK);
+			}
 		} catch (error) {
 			logger.error(
 				'Failed to ensure base directory %s is writable: %s',

@@ -1,4 +1,3 @@
-import type { DockerService } from '../../docker.service.ts';
 import type { ConfigService } from '../../config.service.ts';
 import type { WsService } from '../../ws.service.ts';
 import type { LocalFilesRepository } from '../../../repositories/files/local-files.repository.ts';
@@ -10,6 +9,10 @@ import {
 } from '../../../types/create-user.type.ts';
 import type { LKCreateUserBrowser } from '../../../types/com-modules/livekit.ts';
 import { EmulatedFilePublishStreamService } from './emulated-file-publish-stream.service.ts';
+import type {
+	EmulatedParticipantLauncher,
+	ParticipantHandle,
+} from './emulated-participant-launcher.ts';
 import type { JsonValue } from '../../../types/json.type.ts';
 import {
 	ERRORS_FILE,
@@ -19,49 +22,37 @@ import * as fs from 'node:fs/promises';
 import type { LoggerService } from '../../logger.service.ts';
 import { createBoundedId, shortenIdentifier } from '../../../utils/id-utils.ts';
 
-interface EmulatedContainerInfo {
-	containerId: string;
-	sessionName: string;
-	userName: string;
-	participantId: string;
-	videoSocket?: string; // Unix socket path for video
-	audioSocket?: string; // Unix socket path for audio
-	createdAt: Date;
-}
-
-interface FailedParticipantCreationContext extends Partial<EmulatedContainerInfo> {
+interface FailedParticipantCreationContext extends Partial<ParticipantHandle> {
 	connectionId?: string;
 }
 
 export class EmulatedBrowserService {
-	// Track container IDs for cleanup (browser-specific info)
-	private readonly containerMap = new Map<string, EmulatedContainerInfo>();
+	private readonly handleMap = new Map<string, ParticipantHandle>();
 	private readonly healthCheckIntervals = new Map<string, NodeJS.Timeout>();
 	private readonly reportedHealthErrors = new Set<string>();
 
-	private readonly dockerService: DockerService;
+	private readonly emulatedParticipantLauncher: EmulatedParticipantLauncher;
 	private readonly configService: ConfigService;
 	private readonly wsService: WsService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
 	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
-	private readonly LIVEKIT_CLI_IMAGE = 'livekit/livekit-cli';
-	private readonly ROOM_EMPTY_TIMEOUT = 600; // 10 minutes
+	private readonly ROOM_EMPTY_TIMEOUT = 600;
 	private readonly CREATE_PARTICIPANT_MAX_ATTEMPTS = 3;
 	private readonly CREATE_PARTICIPANT_RETRY_DELAY_MS = 1000;
 	private readonly LIVEKIT_HEALTHCHECK_INTERVAL_MS = 5000;
 	private readonly MAX_ERROR_LOG_CHARS = 3000;
 
 	constructor(
-		dockerService: DockerService,
+		emulatedParticipantLauncher: EmulatedParticipantLauncher,
 		configService: ConfigService,
 		wsService: WsService,
 		localFilesRepository: LocalFilesRepository,
 		emulatedFilePublishStreamService: EmulatedFilePublishStreamService,
 		loggerService: LoggerService,
 	) {
-		this.dockerService = dockerService;
+		this.emulatedParticipantLauncher = emulatedParticipantLauncher;
 		this.configService = configService;
 		this.wsService = wsService;
 		this.localFilesRepository = localFilesRepository;
@@ -83,7 +74,6 @@ export class EmulatedBrowserService {
 			'Creating emulated participant',
 		);
 
-		// Check streaming media files exist (H.264 and Ogg)
 		const streamingFilesExist =
 			await this.localFilesRepository.existStreamingMediaFiles();
 		if (!streamingFilesExist) {
@@ -102,10 +92,6 @@ export class EmulatedBrowserService {
 		}
 
 		try {
-			// Ensure LiveKit CLI image is available
-			await this.ensureLivekitCliImage();
-
-			// Create room if it doesn't exist
 			await this.createRoomIfNeeded(lkRequest, sessionName);
 		} catch (error) {
 			this.saveErrorToStats(userId, sessionName, {
@@ -182,9 +168,8 @@ export class EmulatedBrowserService {
 		userId: string,
 	): Promise<string> {
 		let connectionId: string | undefined;
-		let containerId: string | undefined;
+		let handle: ParticipantHandle | undefined;
 
-		// Generate unique identifier for this participant
 		const shortSession = shortenIdentifier(sessionName, 'session');
 		const shortUser = shortenIdentifier(userId, 'user');
 		const now = Date.now();
@@ -193,7 +178,6 @@ export class EmulatedBrowserService {
 			60,
 		);
 
-		// Start socket streaming for publishers
 		let videoSocket: string | undefined;
 		let audioSocket: string | undefined;
 
@@ -211,66 +195,45 @@ export class EmulatedBrowserService {
 			audioSocket = streamResult.audioSocket;
 		}
 
-		// Build the join command with socket paths
 		const joinCommand = this.buildJoinCommand(
 			lkRequest,
 			videoSocket,
 			audioSocket,
 		);
 
-		const joinContainerName = createBoundedId(
-			`lk-emulated-${shortSession}-${shortUser}-${now}`,
-			60,
-		);
 		try {
-			// Start the LiveKit CLI container
-			// Note: AutoRemove is false so we can check logs after container exits
-			containerId = await this.dockerService.startContainer({
-				Image: this.LIVEKIT_CLI_IMAGE,
-				name: joinContainerName,
-				Cmd: joinCommand,
-				HostConfig: {
-					AutoRemove: false,
-					NetworkMode:
-						this.configService.getDockerizedBrowsersConfig()
-							.networkName,
-					// Mount socket directory so LiveKit CLI can access Unix sockets
-					Binds: ['/tmp/openvidu-loadtest:/tmp/openvidu-loadtest:ro'],
-				},
-			});
-
-			// Store container info (tracking for cleanup)
-			connectionId = createBoundedId(
-				`${shortSession}_${shortUser}_${containerId.slice(0, 8)}`,
-				60,
-			);
-			this.containerMap.set(connectionId, {
-				containerId,
-				sessionName,
-				userName: userId,
+			handle = await this.emulatedParticipantLauncher.createParticipant(
+				joinCommand,
 				participantId,
+				sessionName,
+				userId,
 				videoSocket,
 				audioSocket,
-				createdAt: new Date(),
-			});
+			);
+
+			connectionId = createBoundedId(
+				`${shortSession}_${shortUser}_${handle.handleId.slice(0, 8)}`,
+				60,
+			);
+			this.handleMap.set(connectionId, handle);
 
 			await this.checkConnectionIsAliveAndCorrect(
 				properties,
-				joinContainerName,
+				handle,
 				participantId,
 			);
 
 			this.startParticipantHealthCheck(connectionId);
 
 			this.logger.info(
-				{ connectionId, containerId },
+				{ connectionId, handleId: handle.handleId },
 				'Emulated participant created',
 			);
 
 			return connectionId;
 		} catch (error) {
 			await this.cleanupFailedParticipantCreation({
-				containerId,
+				handleId: handle?.handleId,
 				connectionId,
 				participantId,
 				videoSocket,
@@ -283,50 +246,34 @@ export class EmulatedBrowserService {
 	}
 
 	private async cleanupFailedParticipantCreation(
-		containerInfo: FailedParticipantCreationContext,
+		context: FailedParticipantCreationContext,
 	): Promise<void> {
-		if (containerInfo.connectionId) {
-			this.stopParticipantHealthCheck(containerInfo.connectionId);
-			this.containerMap.delete(containerInfo.connectionId);
+		if (context.connectionId) {
+			this.stopParticipantHealthCheck(context.connectionId);
+			this.handleMap.delete(context.connectionId);
 		}
 
-		if (containerInfo.containerId) {
-			await Promise.allSettled([
-				this.dockerService.stopContainer(containerInfo.containerId),
-				this.dockerService.removeContainer(containerInfo.containerId),
-			]);
+		if (context.handleId) {
+			await this.emulatedParticipantLauncher.stop(context.handleId);
 		}
 
 		if (
-			containerInfo.participantId &&
-			(containerInfo.videoSocket || containerInfo.audioSocket)
+			context.participantId &&
+			(context.videoSocket || context.audioSocket)
 		) {
 			await this.emulatedFilePublishStreamService.stopPublishing(
-				containerInfo.participantId,
+				context.participantId,
 			);
 
 			await this.cleanupSockets({
-				containerId: containerInfo.containerId ?? '',
-				sessionName: containerInfo.sessionName ?? '',
-				userName: containerInfo.userName ?? '',
-				participantId: containerInfo.participantId,
-				videoSocket: containerInfo.videoSocket,
-				audioSocket: containerInfo.audioSocket,
-				createdAt: containerInfo.createdAt ?? new Date(),
+				participantId: context.participantId,
+				handleId: context.handleId ?? '',
+				sessionName: context.sessionName ?? '',
+				userName: context.userName ?? '',
+				videoSocket: context.videoSocket,
+				audioSocket: context.audioSocket,
+				createdAt: new Date(),
 			});
-		}
-	}
-
-	private async ensureLivekitCliImage(): Promise<void> {
-		const imageExists = await this.dockerService.imageExists(
-			this.LIVEKIT_CLI_IMAGE,
-		);
-		if (!imageExists) {
-			this.logger.info(
-				{ image: this.LIVEKIT_CLI_IMAGE },
-				'Pulling image...',
-			);
-			await this.dockerService.pullImage(this.LIVEKIT_CLI_IMAGE);
 		}
 	}
 
@@ -375,7 +322,6 @@ export class EmulatedBrowserService {
 			.replace('ws://', 'http://')
 			.replace('wss://', 'https://');
 
-		// Build the command parts
 		const parts: string[] = [
 			'room',
 			'join',
@@ -393,7 +339,6 @@ export class EmulatedBrowserService {
 		];
 
 		if (properties.role === Role.PUBLISHER) {
-			// Use Unix socket format: h264:///tmp/openvidu-loadtest/{id}/video.sock
 			if (properties.video && videoSocket) {
 				parts.push('--publish', `h264://${videoSocket}`);
 			}
@@ -402,7 +347,7 @@ export class EmulatedBrowserService {
 				parts.push('--publish', `opus://${audioSocket}`);
 			}
 		}
-		// Add room name at the end
+
 		parts.push(properties.sessionName);
 
 		return parts;
@@ -413,34 +358,30 @@ export class EmulatedBrowserService {
 	): Promise<void> {
 		this.logger.info({ connectionId }, 'Deleting emulated participant');
 
-		const containerInfo = this.containerMap.get(connectionId);
-		if (!containerInfo) {
-			this.logger.warn({ connectionId }, 'Container not found');
+		const handle = this.handleMap.get(connectionId);
+		if (!handle) {
+			this.logger.warn({ connectionId }, 'Handle not found');
 			return;
 		}
 
 		this.stopParticipantHealthCheck(connectionId);
 
-		// Stop and remove join container
 		try {
-			await this.dockerService.stopContainer(containerInfo.containerId);
-			await this.dockerService.removeContainer(containerInfo.containerId);
+			await this.emulatedParticipantLauncher.stop(handle.handleId);
 		} catch (error) {
 			this.logger.error(
 				{ connectionId, error },
-				'Error stopping/removing container',
+				'Error stopping participant',
 			);
 		}
 
-		// Stop streaming sockets after LiveKit CLI has released them
-		if (containerInfo.videoSocket || containerInfo.audioSocket) {
+		if (handle.videoSocket || handle.audioSocket) {
 			try {
 				await this.emulatedFilePublishStreamService.stopPublishing(
-					containerInfo.participantId,
+					handle.participantId,
 				);
 
-				// Clean up socket files
-				await this.cleanupSockets(containerInfo);
+				await this.cleanupSockets(handle);
 			} catch (error) {
 				this.logger.error(
 					{ connectionId, error },
@@ -449,19 +390,15 @@ export class EmulatedBrowserService {
 			}
 		}
 
-		// Remove container tracking
-		this.containerMap.delete(connectionId);
+		this.handleMap.delete(connectionId);
 
 		this.logger.info({ connectionId }, 'Emulated participant deleted');
 	}
 
-	private async cleanupSockets(
-		containerInfo: EmulatedContainerInfo,
-	): Promise<void> {
-		const socketsToClean = [
-			containerInfo.videoSocket,
-			containerInfo.audioSocket,
-		].filter(Boolean) as string[];
+	private async cleanupSockets(handle: ParticipantHandle): Promise<void> {
+		const socketsToClean = [handle.videoSocket, handle.audioSocket].filter(
+			Boolean,
+		) as string[];
 
 		for (const socketPath of socketsToClean) {
 			try {
@@ -482,10 +419,10 @@ export class EmulatedBrowserService {
 		);
 
 		const toDelete: string[] = [];
-		for (const [connectionId, containerInfo] of this.containerMap) {
+		for (const [connectionId, handle] of this.handleMap) {
 			if (
-				containerInfo.sessionName === sessionId &&
-				containerInfo.userName === userId
+				handle.sessionName === sessionId &&
+				handle.userName === userId
 			) {
 				toDelete.push(connectionId);
 			}
@@ -501,23 +438,22 @@ export class EmulatedBrowserService {
 	async clean(): Promise<void> {
 		this.logger.info('Cleaning emulated participants...');
 
-		const connectionIds = Array.from(this.containerMap.keys());
+		const connectionIds = Array.from(this.handleMap.keys());
 		await Promise.allSettled(
 			connectionIds.map(connectionId =>
 				this.deleteStreamManagerWithConnectionId(connectionId),
 			),
 		);
 
-		this.containerMap.clear();
+		this.handleMap.clear();
 
-		// Also clean up all socket streaming
 		await this.emulatedFilePublishStreamService.stopPublishing();
 
 		this.logger.info('Emulated participants cleaned');
 	}
 
 	getParticipantContainerId(connectionId: string): string | undefined {
-		return this.containerMap.get(connectionId)?.containerId;
+		return this.handleMap.get(connectionId)?.handleId;
 	}
 
 	private startParticipantHealthCheck(connectionId: string): void {
@@ -546,31 +482,27 @@ export class EmulatedBrowserService {
 			return;
 		}
 
-		const containerInfo = this.containerMap.get(connectionId);
-		if (!containerInfo) {
+		const handle = this.handleMap.get(connectionId);
+		if (!handle) {
 			this.stopParticipantHealthCheck(connectionId);
 			return;
 		}
 
 		try {
 			const [isRunning, streamFailed] = await Promise.all([
-				this.dockerService.isContainerRunning(
-					containerInfo.containerId,
-				),
+				this.emulatedParticipantLauncher.isRunning(handle.handleId),
 				Promise.resolve(
 					this.emulatedFilePublishStreamService.isParticipantFailed(
-						containerInfo.participantId,
+						handle.participantId,
 					),
 				),
 			]);
 
 			if (!isRunning) {
-				const logs = await this.getContainerLogsSafely(
-					containerInfo.containerId,
-				);
+				const logs = await this.getLogsSafely(handle.handleId);
 				await this.handleUnhealthyParticipant(
 					connectionId,
-					'container-not-running',
+					'participant-not-running',
 					logs,
 				);
 				return;
@@ -584,9 +516,7 @@ export class EmulatedBrowserService {
 				return;
 			}
 
-			const logs = await this.getContainerLogsSafely(
-				containerInfo.containerId,
-			);
+			const logs = await this.getLogsSafely(handle.handleId);
 			if (logs && this.hasFatalJoinIndicators(logs)) {
 				await this.handleUnhealthyParticipant(
 					connectionId,
@@ -615,9 +545,9 @@ export class EmulatedBrowserService {
 		this.reportedHealthErrors.add(connectionId);
 		this.stopParticipantHealthCheck(connectionId);
 
-		const containerInfo = this.containerMap.get(connectionId);
-		if (containerInfo) {
-			this.reportHealthError(containerInfo, connectionId, reason, logs);
+		const handle = this.handleMap.get(connectionId);
+		if (handle) {
+			this.reportHealthError(handle, connectionId, reason, logs);
 		}
 
 		await this.deleteStreamManagerWithConnectionId(connectionId).catch(
@@ -631,20 +561,20 @@ export class EmulatedBrowserService {
 	}
 
 	private reportHealthError(
-		containerInfo: EmulatedContainerInfo,
+		handle: ParticipantHandle,
 		connectionId: string,
 		reason: string,
 		logs?: string,
 	): void {
 		const payload: Record<string, string> = {
 			event: 'EMULATED_PARTICIPANT_HEALTH_ERROR',
-			source: 'livekit-cli-healthcheck',
-			participant: containerInfo.userName,
-			session: containerInfo.sessionName,
+			source: 'lk-healthcheck',
+			participant: handle.userName,
+			session: handle.sessionName,
 			timestamp: new Date().toISOString(),
 			connectionId,
-			participantId: containerInfo.participantId,
-			containerId: containerInfo.containerId,
+			participantId: handle.participantId,
+			handleId: handle.handleId,
 			reason,
 		};
 
@@ -653,11 +583,7 @@ export class EmulatedBrowserService {
 		}
 
 		this.wsService.send(JSON.stringify(payload));
-		this.saveErrorToStats(
-			containerInfo.userName,
-			containerInfo.sessionName,
-			payload,
-		);
+		this.saveErrorToStats(handle.userName, handle.sessionName, payload);
 		this.logger.error(
 			{ connectionId, reason },
 			'Healthcheck error reported',
@@ -672,15 +598,13 @@ export class EmulatedBrowserService {
 		addSaveStatsToFileToQueue(participant, session, ERRORS_FILE, errorData);
 	}
 
-	private async getContainerLogsSafely(
-		containerId: string,
-	): Promise<string | undefined> {
+	private async getLogsSafely(handleId: string): Promise<string | undefined> {
 		try {
-			return await this.dockerService.getLogsFromContainer(containerId);
+			return await this.emulatedParticipantLauncher.getLogs(handleId);
 		} catch (error) {
 			this.logger.warn(
-				{ containerId, error: String(error) },
-				'Failed to read logs from container',
+				{ handleId, error: String(error) },
+				'Failed to read logs',
 			);
 			return undefined;
 		}
@@ -696,7 +620,7 @@ export class EmulatedBrowserService {
 
 	private async checkConnectionIsAliveAndCorrect(
 		properties: UserJoinProperties,
-		joinContainerName: string,
+		handle: ParticipantHandle,
 		participantId: string,
 	): Promise<void> {
 		const errorMsg = `User ${properties.userId} failed to join LiveKit room ${properties.sessionName}`;
@@ -720,48 +644,46 @@ export class EmulatedBrowserService {
 		};
 
 		this.logger.info(
-			{ joinContainerName },
-			'Checking if join container is running...',
+			{ handleId: handle.handleId },
+			'Checking if participant is running...',
 		);
-		const joinRunning = await retry(() =>
-			this.dockerService.isContainerRunning(joinContainerName),
+		const isRunning = await retry(() =>
+			this.emulatedParticipantLauncher.isRunning(handle.handleId),
 		);
-		if (!joinRunning) {
+		if (!isRunning) {
 			this.logger.error(
-				{ joinContainerName },
-				'Join container is not running',
+				{ handleId: handle.handleId },
+				'Participant is not running',
 			);
 			throw new Error(errorMsg);
 		}
 		this.logger.info(
-			{ joinContainerName, joinRunning },
-			'Join container running check',
+			{ handleId: handle.handleId, isRunning },
+			'Participant running check',
 		);
 		this.logger.info(
-			{ joinContainerName },
-			'Checking join container logs for successful connection...',
+			{ handleId: handle.handleId },
+			'Checking participant logs for successful connection...',
 		);
 		const joinLogsOk = await retry(async () => {
-			const joinLogs =
-				await this.dockerService.getLogsFromContainer(
-					joinContainerName,
-				);
-			return this.hasSuccessfulJoinIndicators(joinLogs);
+			const logs = await this.emulatedParticipantLauncher.getLogs(
+				handle.handleId,
+			);
+			return this.hasSuccessfulJoinIndicators(logs);
 		}, 5);
 		if (!joinLogsOk) {
-			const joinLogs =
-				await this.dockerService.getLogsFromContainer(
-					joinContainerName,
-				);
+			const logs = await this.emulatedParticipantLauncher.getLogs(
+				handle.handleId,
+			);
 			this.logger.error(
-				{ joinContainerName, joinLogs },
-				'Missing connection indicators in container logs',
+				{ handleId: handle.handleId, logs },
+				'Missing connection indicators in logs',
 			);
 			throw new Error(errorMsg);
 		}
 		this.logger.info(
-			{ joinContainerName },
-			'Join container logs indicate successful connection',
+			{ handleId: handle.handleId },
+			'Logs indicate successful connection',
 		);
 
 		if (properties.role === Role.PUBLISHER) {
@@ -781,8 +703,6 @@ export class EmulatedBrowserService {
 	}
 
 	private normalizeContainerLogs(logs: string): string {
-		// Docker logs may include binary multiplexing markers. Keep only
-		// printable characters plus new lines/carriage returns/tabs.
 		const sanitizedChars = Array.from(logs).filter(char => {
 			const code = char.charCodeAt(0);
 			return code === 9 || code === 10 || code === 13 || code >= 32;
