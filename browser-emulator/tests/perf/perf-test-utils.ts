@@ -893,7 +893,7 @@ export async function runBenchmark(
 	const cleanupDurationMs = await deleteAll(app);
 
 	const launcherMode =
-		process.env.EMULATED_LAUNCHER_MODE === 'direct' ? 'direct' : 'docker';
+		process.env.EMULATED_LAUNCHER_MODE === 'docker' ? 'docker' : 'direct';
 
 	return {
 		name,

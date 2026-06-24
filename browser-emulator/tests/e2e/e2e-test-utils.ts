@@ -263,7 +263,7 @@ export async function waitForBrowsersToSendStats(emulationDuration: number) {
 }
 
 export async function assertNoLiveKitCliUnpublishedTracks(sessionName: string) {
-	const launcherMode = process.env.EMULATED_LAUNCHER_MODE ?? 'docker';
+	const launcherMode = process.env.EMULATED_LAUNCHER_MODE ?? 'direct';
 	if (launcherMode !== 'docker') {
 		return; // Direct mode doesn't use Docker containers
 	}

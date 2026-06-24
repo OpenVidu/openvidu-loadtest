@@ -37,7 +37,7 @@ export class ConfigService {
 		this.disableHttps = this.parseBoolean(process.env.DISABLE_HTTPS, false);
 		this.emulatedLauncherMode = this.pickString(
 			process.env.EMULATED_LAUNCHER_MODE,
-			'docker',
+			'direct',
 		);
 		this.mediaFilesHostDir = this.pickString(
 			process.env.MEDIAFILES_HOST_DIR,
