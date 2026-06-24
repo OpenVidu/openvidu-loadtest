@@ -28,8 +28,7 @@ RUN arch=$(dpkg --print-architecture) && \
     esac && \
     curl -fsSL "https://github.com/livekit/livekit-cli/releases/download/v${LIVEKIT_CLI_VERSION}/lk_${LIVEKIT_CLI_VERSION}_linux_${arch_alt}.tar.gz" \
     | tar xz -C /usr/local/bin && \
-    mv /usr/local/bin/lk /usr/local/bin/livekit-cli && \
-    chmod +x /usr/local/bin/livekit-cli
+    chmod +x /usr/local/bin/lk
 
 ENV NODE_ENV=production
 ENV SERVER_PORT=5000
