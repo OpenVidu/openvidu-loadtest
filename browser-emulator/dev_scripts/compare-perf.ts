@@ -16,6 +16,32 @@ interface PerfRunOutput {
 	results: unknown[];
 }
 
+interface ProcessProfile {
+	pid: number;
+	role: string;
+	cpuPct: number | null;
+	voluntaryCtxSw: number | null;
+	nonvoluntaryCtxSw: number | null;
+}
+
+interface PerfRecordFile {
+	phase: number;
+	role: string;
+	pid: number;
+	filePath: string;
+}
+
+interface PhaseRecord {
+	phase: number;
+	totalParticipants: number;
+	cpu: number | null;
+	memoryRssMb: number | null;
+	creationLatencyMs: number | null;
+	failed: boolean;
+	processProfiles?: ProcessProfile[];
+	perfFiles?: PerfRecordFile[];
+}
+
 interface BenchmarkResult {
 	name: string;
 	config: Record<string, unknown>;
@@ -31,6 +57,7 @@ interface BenchmarkResult {
 	errors: number;
 	totalDurationMs: number;
 	cleanupDurationMs: number;
+	launcherMode: string;
 }
 
 interface SaturationResult {
@@ -47,15 +74,6 @@ interface SaturationResult {
 	cleanupDurationMs: number;
 }
 
-interface PhaseRecord {
-	phase: number;
-	totalParticipants: number;
-	cpu: number | null;
-	memoryRssMb: number | null;
-	creationLatencyMs: number | null;
-	failed: boolean;
-}
-
 function load(file: string): PerfRunOutput {
 	const raw = readFileSync(file, 'utf8');
 	return JSON.parse(raw) as PerfRunOutput;
@@ -68,6 +86,31 @@ function findByName<T extends { name: string }>(
 	return results.find(r => r.name === name);
 }
 
+function avgProcessCpu(timeline: PhaseRecord[]): number | null {
+	const cpus = timeline
+		.flatMap(p => p.processProfiles ?? [])
+		.map(pp => pp.cpuPct)
+		.filter((v): v is number => v !== null);
+	return cpus.length > 0
+		? cpus.reduce((a, b) => a + b, 0) / cpus.length
+		: null;
+}
+
+function avgCtxSwitches(
+	timeline: PhaseRecord[],
+	type: 'voluntary' | 'nonvoluntary',
+): number | null {
+	const values = timeline
+		.flatMap(p => p.processProfiles ?? [])
+		.map(pp =>
+			type === 'voluntary' ? pp.voluntaryCtxSw : pp.nonvoluntaryCtxSw,
+		)
+		.filter((v): v is number => v !== null);
+	return values.length > 0
+		? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+		: null;
+}
+
 const files = argv.slice(2);
 if (files.length !== 2) {
 	console.error('Usage: pnpm compare:perf <baseline.json> <comparison.json>');
@@ -78,9 +121,20 @@ const [baseFile, compFile] = files;
 const base = load(baseFile);
 const comp = load(compFile);
 
+const baseMode =
+	(base.results.find(r => 'launcherMode' in r) as BenchmarkResult | undefined)
+		?.launcherMode ?? '?';
+const compMode =
+	(comp.results.find(r => 'launcherMode' in r) as BenchmarkResult | undefined)
+		?.launcherMode ?? '?';
+
 console.log('COMPARISON');
-console.log(`  Baseline:   ${base.runId} (${base.timestamp})`);
-console.log(`  Comparison: ${comp.runId} (${comp.timestamp})`);
+console.log(
+	`  Baseline:   ${base.runId} (${base.timestamp}) [mode=${baseMode}]`,
+);
+console.log(
+	`  Comparison: ${comp.runId} (${comp.timestamp}) [mode=${compMode}]`,
+);
 console.log(
 	`  System:     ${base.system.cpus} CPUs / ${base.system.totalMemoryGb}GB -> ${comp.system.cpus} CPUs / ${comp.system.totalMemoryGb}GB`,
 );
@@ -137,6 +191,31 @@ if (baseBenchmarks.length > 0 || compBenchmarks.length > 0) {
 		console.log(
 			`    err:  ${b.errors} -> ${c.errors}  ${errDiff > 0 ? '✗ NEW ERRORS' : errDiff < 0 ? '✓ FIXED' : '—'}`,
 		);
+
+		// Per-process CPU comparison
+		const bCpu = avgProcessCpu(b.timeline);
+		const cCpu = avgProcessCpu(c.timeline);
+		const bVol = avgCtxSwitches(b.timeline, 'voluntary');
+		const cVol = avgCtxSwitches(c.timeline, 'voluntary');
+		const bNv = avgCtxSwitches(b.timeline, 'nonvoluntary');
+		const cNv = avgCtxSwitches(c.timeline, 'nonvoluntary');
+
+		if (bCpu !== null || cCpu !== null) {
+			const cpuDiff = cCpu !== null && bCpu !== null ? cCpu - bCpu : null;
+			const volDiff = cVol !== null && bVol !== null ? cVol - bVol : null;
+			const nvDiff = cNv !== null && bNv !== null ? cNv - bNv : null;
+
+			console.log(
+				`    cpu:  ${bCpu !== null ? bCpu.toFixed(1) + '%' : '-'} -> ${cCpu !== null ? cCpu.toFixed(1) + '%' : '-'}  ${cpuDiff !== null ? (cpuDiff > 0 ? `↑ +${cpuDiff.toFixed(1)}%` : cpuDiff < 0 ? `↓ ${cpuDiff.toFixed(1)}%` : '—') : ''}`,
+			);
+			console.log(
+				`    vCtx: ${bVol !== null ? String(bVol) : '-'} -> ${cVol !== null ? String(cVol) : '-'}  ${volDiff !== null ? (volDiff > 0 ? `↑ +${volDiff}` : volDiff < 0 ? `↓ ${volDiff}` : '—') : ''}`,
+			);
+			console.log(
+				`    nvCtx:${bNv !== null ? String(bNv) : '-'} -> ${cNv !== null ? String(cNv) : '-'}  ${nvDiff !== null ? (nvDiff > 0 ? `↑ +${nvDiff}` : nvDiff < 0 ? `↓ ${nvDiff}` : '—') : ''}`,
+			);
+		}
+
 		console.log();
 	}
 

@@ -32,6 +32,7 @@ import {
 import type { StartedS3MockContainer } from '@testcontainers/s3mock';
 import type { StartedElasticsearchContainer } from '@testcontainers/elasticsearch';
 import { stopServer } from '../../src/app.js';
+import { shortenIdentifier } from '../../src/utils/id-utils.js';
 
 // Constants
 export const QOE_ANALYSIS_TIMEOUT_MS = 30 * 60 * 1000;
@@ -72,9 +73,12 @@ export async function getAvailablePorts(): Promise<[number, number]> {
 	return [firstPort, secondPort];
 }
 
-export async function deleteAllFilesFromDir(dir: string) {
+export async function deleteAllFilesFromDir(
+	dir: string,
+	exclude: string[] = [],
+) {
 	for (const file of await fsPromises.readdir(dir)) {
-		if (file !== '.gitkeep') {
+		if (file !== '.gitkeep' && !exclude.includes(file)) {
 			const filePath = path.join(dir, file);
 			await fsPromises.rm(filePath, { recursive: true, force: true });
 		}
@@ -194,7 +198,7 @@ export async function createPublisherUser(
 }
 
 export async function assertUserStats(statsDir: string, userId: string) {
-	const userStatsDir = path.join(statsDir, userId);
+	const userStatsDir = path.join(statsDir, shortenIdentifier(userId, 'user'));
 	const userDirExists = await pathExists(userStatsDir);
 	expect(userDirExists).toBe(true);
 
@@ -212,7 +216,10 @@ export async function assertUserStats(statsDir: string, userId: string) {
 }
 
 export async function assertSessionStats(sessionName: string) {
-	const statsDir = path.join(LocalFilesRepository.STATS_DIR, sessionName);
+	const statsDir = path.join(
+		LocalFilesRepository.STATS_DIR,
+		shortenIdentifier(sessionName, 'session'),
+	);
 	const statsDirExists = await pathExists(statsDir);
 	expect(statsDirExists).toBe(true);
 	await assertUserStats(statsDir, 'User1');
@@ -256,8 +263,13 @@ export async function waitForBrowsersToSendStats(emulationDuration: number) {
 }
 
 export async function assertNoLiveKitCliUnpublishedTracks(sessionName: string) {
+	const launcherMode = process.env.EMULATED_LAUNCHER_MODE ?? 'direct';
+	if (launcherMode !== 'docker') {
+		return; // Direct mode doesn't use Docker containers
+	}
 	const docker = new Docker();
-	const sessionPrefix = `/lk-emulated-${sessionName}-`;
+	const shortSession = shortenIdentifier(sessionName, 'session');
+	const sessionPrefix = `/lk-emulated-${shortSession}-`;
 	const containers = (await docker.listContainers({ all: true })).filter(
 		containerInfo =>
 			containerInfo.Names.some(name => name.startsWith(sessionPrefix)),
@@ -432,7 +444,7 @@ export async function assertS3SessionStats(
 	const uploadedKeys = await listBucketObjects(s3Client, bucketName);
 	for (const userId of ['User1', 'User2']) {
 		for (const expectedFile of EXPECTED_STATS_FILES) {
-			const expectedKey = `stats/${sessionName}/${userId}/${expectedFile}`;
+			const expectedKey = `stats/${shortenIdentifier(sessionName, 'session')}/${shortenIdentifier(userId, 'user')}/${expectedFile}`;
 			expect(uploadedKeys).toContain(expectedKey);
 		}
 	}
@@ -551,6 +563,6 @@ export async function cleanupServer() {
 	await Promise.all([
 		deleteAllFilesFromDir(LocalFilesRepository.FULLSCREEN_RECORDING_DIR),
 		deleteAllFilesFromDir(LocalFilesRepository.QOE_RECORDING_DIR),
-		deleteAllFilesFromDir(LocalFilesRepository.STATS_DIR),
+		deleteAllFilesFromDir(LocalFilesRepository.STATS_DIR, ['perf-results']),
 	]);
 }

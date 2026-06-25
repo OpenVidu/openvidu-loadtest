@@ -2,7 +2,7 @@ FROM node:24-trixie AS build
 
 WORKDIR /app
 
-RUN corepack enable && corepack use pnpm@10
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -19,6 +19,16 @@ FROM node:24-trixie-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y procps curl && rm -rf /var/lib/apt/lists/*
+
+ARG LIVEKIT_CLI_VERSION=2.16.6
+RUN arch=$(dpkg --print-architecture) && \
+    case "$arch" in \
+        amd64) arch_alt="amd64" ;; \
+        arm64) arch_alt="arm64" ;; \
+    esac && \
+    curl -fsSL "https://github.com/livekit/livekit-cli/releases/download/v${LIVEKIT_CLI_VERSION}/lk_${LIVEKIT_CLI_VERSION}_linux_${arch_alt}.tar.gz" \
+    | tar xz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/lk
 
 ENV NODE_ENV=production
 ENV SERVER_PORT=5000

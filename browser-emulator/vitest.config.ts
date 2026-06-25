@@ -68,8 +68,20 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
-					name: 'perf',
-					include: ['tests/perf/**/*.perf.test.ts'],
+					name: 'perf:benchmarks',
+					include: ['tests/perf/benchmarks.perf.test.ts'],
+					testTimeout: 3600000, // 1 hour per test
+					sequence: {
+						concurrent: false,
+					},
+					fileParallelism: false,
+				},
+			},
+			{
+				extends: true,
+				test: {
+					name: 'perf:saturation',
+					include: ['tests/perf/saturation.perf.test.ts'],
 					testTimeout: 3600000, // 1 hour per test
 					sequence: {
 						concurrent: false,

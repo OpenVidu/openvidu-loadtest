@@ -45,6 +45,22 @@ interface BenchmarkResult {
 	errors: number;
 	totalDurationMs: number;
 	cleanupDurationMs: number;
+	launcherMode: string;
+}
+
+interface ProcessProfile {
+	pid: number;
+	role: string;
+	cpuPct: number | null;
+	voluntaryCtxSw: number | null;
+	nonvoluntaryCtxSw: number | null;
+}
+
+interface PerfRecordFile {
+	phase: number;
+	role: string;
+	pid: number;
+	filePath: string;
 }
 
 interface PhaseRecord {
@@ -59,6 +75,8 @@ interface PhaseRecord {
 	creationLatencyMs: number | null;
 	failed: boolean;
 	failureReason?: string;
+	processProfiles?: ProcessProfile[];
+	perfFiles?: PerfRecordFile[];
 }
 
 interface ContainerMetric {
@@ -81,14 +99,20 @@ function analyze(filePath: string): void {
 	const raw = readFileSync(filePath, 'utf8');
 	const data = JSON.parse(raw) as PerfRunOutput;
 
+	const results = data.results;
+	const firstBenchmark = results.find(r => 'launcherMode' in r) as
+		| BenchmarkResult
+		| undefined;
+	const mode = firstBenchmark?.launcherMode ?? 'unknown';
+
 	console.log(`Run: ${data.runId}`);
 	console.log(`Timestamp: ${data.timestamp}`);
+	console.log(`Mode: ${mode}`);
 	console.log(
 		`System: ${data.system.cpus} CPUs / ${data.system.totalMemoryGb} GB RAM / ${data.system.platform} ${data.system.arch}`,
 	);
 	console.log();
 
-	const results = data.results;
 	const benchmarks = results.filter(
 		r => 'creationLatencyMs' in r,
 	) as BenchmarkResult[];
@@ -119,6 +143,48 @@ function analyze(filePath: string): void {
 			);
 		}
 		console.log();
+
+		// Per-process profiles
+		for (const r of benchmarks) {
+			const t = r.timeline;
+			const hasProfiles = t.some(
+				p => p.processProfiles && p.processProfiles.length > 0,
+			);
+			if (!hasProfiles) continue;
+
+			console.log(`  ${r.name} — Per-process CPU:`);
+			console.log(
+				`    ${'PID'.padEnd(8)} ${'Role'.padEnd(14)} ${'CPU%'.padEnd(10)} ${'vCtx'.padEnd(8)} ${'nvCtx'}`,
+			);
+			for (const p of t) {
+				if (!p.processProfiles) continue;
+				for (const pp of p.processProfiles) {
+					const cpuStr =
+						pp.cpuPct !== null ? pp.cpuPct.toFixed(1) + '%' : '-';
+					const vStr =
+						pp.voluntaryCtxSw !== null
+							? String(pp.voluntaryCtxSw)
+							: '-';
+					const nvStr =
+						pp.nonvoluntaryCtxSw !== null
+							? String(pp.nonvoluntaryCtxSw)
+							: '-';
+					console.log(
+						`    ${String(pp.pid).padEnd(8)} ${pp.role.padEnd(14)} ${cpuStr.padEnd(10)} ${vStr.padEnd(8)} ${nvStr}`,
+					);
+				}
+			}
+
+			// Perf data files
+			const perfFiles = t.flatMap(p => p.perfFiles ?? []);
+			if (perfFiles.length > 0) {
+				console.log(`  Perf data files:`);
+				for (const pf of perfFiles) {
+					console.log(`    ${pf.filePath}`);
+				}
+			}
+			console.log();
+		}
 	}
 
 	if (saturations.length > 0) {

@@ -1,0 +1,3 @@
+[submodule "browser-emulator/vendor/livekit-cli"]
+	path = browser-emulator/vendor/livekit-cli
+	url = https://github.com/livekit/livekit-cli.git

@@ -1,4 +1,4 @@
-import { createContainer, asClass, InjectionMode } from 'awilix';
+import { createContainer, asClass, asValue, InjectionMode } from 'awilix';
 import type { AwilixContainer } from 'awilix';
 
 // Services
@@ -31,6 +31,9 @@ import { QoeCommandRunner } from './services/qoe-analysis/qoe-command-runner.ts'
 import { EmulatedFilePublishStreamService } from './services/browser/emulated/emulated-file-publish-stream.service.ts';
 import { SocketWriterService } from './services/streaming/socket-writer.service.ts';
 import { SocketWriterHealthService } from './services/streaming/socket-writer-health.service.ts';
+import { DockerLauncher } from './services/browser/emulated/docker-launcher.ts';
+import { DirectLauncher } from './services/browser/emulated/direct-launcher.ts';
+import type { EmulatedParticipantLauncher } from './services/browser/emulated/emulated-participant-launcher.ts';
 
 // Define the container interface for type safety
 export interface DIContainer {
@@ -40,6 +43,9 @@ export interface DIContainer {
 	realBrowserService: RealBrowserService;
 	emulatedBrowserService: EmulatedBrowserService;
 	emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
+	emulatedParticipantLauncher: EmulatedParticipantLauncher;
+	dockerLauncher: DockerLauncher;
+	directLauncher: DirectLauncher;
 	socketWriterService: SocketWriterService;
 	healthService: SocketWriterHealthService;
 	instanceService: InstanceService;
@@ -100,6 +106,9 @@ export async function configureContainer(): Promise<
 		// Browser management services
 		seleniumService: asClass(SeleniumService).singleton(),
 		realBrowserService: asClass(RealBrowserService).singleton(),
+		dockerLauncher: asClass(DockerLauncher).singleton(),
+		directLauncher: asClass(DirectLauncher).singleton(),
+		lkCliPath: asValue(process.env.LIVEKIT_CLI_PATH ?? '/usr/local/bin/lk'),
 		emulatedBrowserService: asClass(EmulatedBrowserService).singleton(),
 		browserManagerService: asClass(BrowserManagerService).singleton(),
 		socketWriterService: asClass(SocketWriterService).singleton(),
@@ -120,6 +129,25 @@ export async function configureContainer(): Promise<
 		).singleton(),
 		qoeController: asClass(QoeController).singleton(),
 	});
+
+	// Dynamic launcher selection for emulated participants
+	const launcherMode = container
+		.resolve('configService')
+		.getEmulatedLauncherMode();
+
+	if (launcherMode === 'docker') {
+		container.register({
+			emulatedParticipantLauncher: asClass(DockerLauncher).singleton(),
+		});
+	} else if (launcherMode === 'direct') {
+		container.register({
+			emulatedParticipantLauncher: asClass(DirectLauncher).singleton(),
+		});
+	} else {
+		throw new Error(
+			`Unknown EMULATED_LAUNCHER_MODE="${launcherMode}". Valid options: docker, direct`,
+		);
+	}
 
 	const comModuleRegistry = await discoverComModules();
 
