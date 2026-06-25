@@ -1,0 +1,90 @@
+diff --git a/cmd/lk/main.go b/cmd/lk/main.go
+index 82b48c74..9eb136a9 100644
+--- a/cmd/lk/main.go
++++ b/cmd/lk/main.go
+@@ -19,6 +19,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/signal"
++	"runtime/pprof"
+ 	"strings"
+ 	"syscall"
+ 
+@@ -93,13 +94,28 @@ func main() {
+ 
+ 	checkForLegacyName()
+ 
+-	if err := app.Run(ctx, os.Args); err != nil {
++	err := app.Run(ctx, os.Args)
++	stopProfiling()
++	if err != nil {
+ 		errStyle := lipgloss.NewStyle().Foreground(util.Error())
+ 		fmt.Fprintln(os.Stderr, errStyle.Render(err.Error()))
+ 		os.Exit(1)
+ 	}
+ }
+ 
++func stopProfiling() {
++	if cpuProfilePath != "" {
++		pprof.StopCPUProfile()
++	}
++	if memProfilePath != "" {
++		f, err := os.Create(memProfilePath)
++		if err == nil {
++			pprof.WriteHeapProfile(f)
++			f.Close()
++		}
++	}
++}
++
+ func checkForLegacyName() {
+ 	if !strings.HasSuffix(os.Args[0], "lk") && !strings.HasSuffix(os.Args[0], "lk.exe") {
+ 		// Stays on raw os.Stderr: this runs before the cli command parses (so the
+@@ -141,6 +157,17 @@ func initLogger(ctx context.Context, cmd *cli.Command) (context.Context, error)
+ 		}
+ 	}
+ 
++	if cpuProfilePath != "" {
++		f, err := os.Create(cpuProfilePath)
++		if err != nil {
++			return nil, fmt.Errorf("failed to create CPU profile: %w", err)
++		}
++		if err := pprof.StartCPUProfile(f); err != nil {
++			f.Close()
++			return nil, fmt.Errorf("failed to start CPU profile: %w", err)
++		}
++	}
++
+ 	return nil, nil
+ }
+ 
+diff --git a/cmd/lk/utils.go b/cmd/lk/utils.go
+index 54e8a962..2712e114 100644
+--- a/cmd/lk/utils.go
++++ b/cmd/lk/utils.go
+@@ -100,6 +100,8 @@ var (
+ 	out *util.Printer
+ 
+ 	openFlag    = util.OpenFlag
++	cpuProfilePath string
++	memProfilePath string
+ 	globalFlags = []cli.Flag{
+ 		&cli.StringFlag{
+ 			Name:    "url",
+@@ -164,6 +166,16 @@ var (
+ 			Destination: &dashboardURL,
+ 			Hidden:      true,
+ 		},
++		&cli.StringFlag{
++			Name:        "cpuprofile",
++			Usage:       "Write CPU profile to `FILE` (go tool pprof)",
++			Destination: &cpuProfilePath,
++		},
++		&cli.StringFlag{
++			Name:        "memprofile",
++			Usage:       "Write heap profile to `FILE` (go tool pprof)",
++			Destination: &memProfilePath,
++		},
+ 	}
+ )
+ 

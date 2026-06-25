@@ -1,7 +1,11 @@
 FROM golang:1.26 AS builder
-RUN apt-get update && apt-get install -y portaudio19-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git portaudio19-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-COPY vendor/livekit-cli /build
+RUN git clone https://github.com/livekit/livekit-cli.git . && \
+    git checkout v2.16.6 && \
+    git submodule update --init --recursive
+COPY vendor/livekit-cli-profiling.patch /build/
+RUN git apply livekit-cli-profiling.patch && rm livekit-cli-profiling.patch
 RUN go build -tags portaudio_system -ldflags=-s=false -o /lk ./cmd/lk
 
 FROM debian:trixie-slim
