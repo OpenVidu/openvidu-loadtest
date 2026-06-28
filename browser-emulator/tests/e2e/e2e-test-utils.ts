@@ -321,8 +321,7 @@ export function isQoeAnalysisStatusResponse(
 		typeof value === 'object' &&
 		value !== null &&
 		'remainingFiles' in value &&
-		typeof (value as { remainingFiles: unknown }).remainingFiles ===
-			'number'
+		typeof value.remainingFiles === 'number'
 	);
 }
 

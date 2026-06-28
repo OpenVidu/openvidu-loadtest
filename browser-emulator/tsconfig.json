@@ -14,6 +14,7 @@
 
 		// Source Map (https://www.typescriptlang.org/tsconfig#sourceMap)
 		// Generate sourcemap files (*.js.map), for debugging.
+		"rootDir": "./src",
 		"sourceMap": true
 
 		// DEBUG - Uncomment when needed.

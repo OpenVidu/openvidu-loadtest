@@ -99,13 +99,13 @@ export class DockerService {
 		});
 
 		// Request the logs stream and pipe to file. follow=true keeps streaming until container stops.
-		const logStream: NodeJS.ReadableStream = (await container.logs({
+		const logStream: NodeJS.ReadableStream = await container.logs({
 			stdout: true,
 			stderr: true,
 			follow: true,
 			since: 0,
 			timestamps: true,
-		})) as unknown as NodeJS.ReadableStream;
+		});
 
 		// Some dockerode streams are multiplexed and need demuxing; attempt to demux if available.
 		const maybeModem = (

@@ -80,7 +80,7 @@ class AwsScaleIntegrationTest {
 
     @SuppressWarnings("resource")
     @Container
-    private static final FlociContainer floci = new FlociContainer();
+    private static final FlociContainer floci = new FlociContainer().withEc2Config(b -> b.mock(true));
 
     @DynamicPropertySource
     static void configureEc2Properties(DynamicPropertyRegistry registry) {

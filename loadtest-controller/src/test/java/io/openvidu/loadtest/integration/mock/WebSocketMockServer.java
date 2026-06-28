@@ -3,7 +3,6 @@ package io.openvidu.loadtest.integration.mock;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.io.IOException;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
@@ -15,19 +14,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
-import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -281,7 +281,7 @@ public class WebSocketMockServer {
      */
     public void registerWorker(Session session, String workerUrl) {
         sessionToWorker.put(session, workerUrl);
-        log.debug("Registered worker {} for session {}", workerUrl, session.getRemoteAddress());
+        log.debug("Registered worker {} for session {}", workerUrl, session.getRemoteSocketAddress());
     }
 
     /**
@@ -298,9 +298,9 @@ public class WebSocketMockServer {
         for (Session session : sessionToWorker.keySet()) {
             if (session.isOpen()) {
                 try {
-                    session.getRemote().sendString(message);
+                    session.sendText(message, Callback.NOOP);
                     log.debug("Message sent: {}", message);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.error("Error sending WebSocket message", e);
                 }
             }
@@ -333,7 +333,7 @@ public class WebSocketMockServer {
             // Send to only ONE WebSocket session to avoid duplicate processing
             for (Session wsSession : sessionToWorker.keySet()) {
                 if (wsSession.isOpen()) {
-                    wsSession.getRemote().sendString(eventJson);
+                    wsSession.sendText(eventJson, Callback.NOOP);
                     log.info("Sent sessionDisconnected event for {} in {} to one worker", participant, session);
                     return;
                 }
@@ -412,11 +412,11 @@ public class WebSocketMockServer {
     @WebSocket
     public class EventWebSocketHandler {
 
-        @OnWebSocketConnect
+        @OnWebSocketOpen
         public void onConnect(Session session) {
             sessionToWorker.put(session, "unknown");
             int count = connectionCount.incrementAndGet();
-            log.info("WebSocket connection #{} established from {}", count, session.getRemoteAddress());
+            log.info("WebSocket connection #{} established from {}", count, session.getRemoteSocketAddress());
         }
 
         @OnWebSocketMessage
