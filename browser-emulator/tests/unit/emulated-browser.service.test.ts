@@ -135,7 +135,7 @@ describe('EmulatedBrowserService', () => {
 			mockConfigService as never,
 			mockWsService as never,
 			mockLocalFilesRepository as never,
-			emulatedFilePublishStreamService as never,
+			emulatedFilePublishStreamService,
 			loggerService,
 		);
 	});
@@ -180,7 +180,7 @@ describe('EmulatedBrowserService', () => {
 				mockConfigService as never,
 				mockWsService as never,
 				failingLocalFilesRepository,
-				emulatedFailStreamService as never,
+				emulatedFailStreamService,
 				loggerService,
 			);
 

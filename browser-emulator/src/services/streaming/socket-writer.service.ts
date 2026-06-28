@@ -373,6 +373,7 @@ export class SocketWriterService {
 				`Cannot write to ${this.baseDir}. ` +
 					`Please ensure the directory exists and is writable:\n` +
 					`  mkdir -m 777 -p ${this.baseDir}`,
+				{ cause: error },
 			);
 		}
 	}

@@ -142,7 +142,7 @@ describe('BrowserManagerService', () => {
 			mockInstanceService as never,
 			mockElasticSearchService as never,
 			mockRemotePersistenceService as never,
-			loggerService as never,
+			loggerService,
 		);
 	});
 

@@ -126,6 +126,7 @@ export class LocalFilesRepository {
 						LocalFilesRepository.MEDIAFILES_DIR +
 						' is not writable\n' +
 						err.message,
+					{ cause: err },
 				);
 			}
 		}

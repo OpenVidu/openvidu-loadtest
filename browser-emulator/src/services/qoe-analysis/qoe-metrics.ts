@@ -240,8 +240,8 @@ async function runPesq(
 
 	// New: try to parse the compact P.862 line which contains both values, e.g.
 	// "P.862 Prediction (Raw MOS, MOS-LQO):  = 3.620   3.715"
-	let rawMos: number | null = null;
-	let mosLq0: number | null = null;
+	let rawMos: number | null;
+	let mosLq0: number | null;
 
 	const p862Match =
 		/P\.862 Prediction.*=\s*(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/i.exec(
