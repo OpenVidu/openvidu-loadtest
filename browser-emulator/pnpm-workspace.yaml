@@ -1,9 +1,15 @@
-ignoredBuiltDependencies:
-  - esbuild
-
 onlyBuiltDependencies:
   - bufferutil
   - cpu-features
+  - esbuild
   - protobufjs
   - ssh2
   - unrs-resolver
+
+allowBuilds:
+  bufferutil: true
+  cpu-features: true
+  esbuild: true
+  protobufjs: true
+  ssh2: true
+  unrs-resolver: true
