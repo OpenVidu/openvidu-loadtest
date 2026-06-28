@@ -73,9 +73,12 @@ export async function getAvailablePorts(): Promise<[number, number]> {
 	return [firstPort, secondPort];
 }
 
-export async function deleteAllFilesFromDir(dir: string) {
+export async function deleteAllFilesFromDir(
+	dir: string,
+	exclude: string[] = [],
+) {
 	for (const file of await fsPromises.readdir(dir)) {
-		if (file !== '.gitkeep') {
+		if (file !== '.gitkeep' && !exclude.includes(file)) {
 			const filePath = path.join(dir, file);
 			await fsPromises.rm(filePath, { recursive: true, force: true });
 		}
@@ -260,6 +263,10 @@ export async function waitForBrowsersToSendStats(emulationDuration: number) {
 }
 
 export async function assertNoLiveKitCliUnpublishedTracks(sessionName: string) {
+	const launcherMode = process.env.EMULATED_LAUNCHER_MODE ?? 'direct';
+	if (launcherMode !== 'docker') {
+		return; // Direct mode doesn't use Docker containers
+	}
 	const docker = new Docker();
 	const shortSession = shortenIdentifier(sessionName, 'session');
 	const sessionPrefix = `/lk-emulated-${shortSession}-`;
@@ -555,6 +562,6 @@ export async function cleanupServer() {
 	await Promise.all([
 		deleteAllFilesFromDir(LocalFilesRepository.FULLSCREEN_RECORDING_DIR),
 		deleteAllFilesFromDir(LocalFilesRepository.QOE_RECORDING_DIR),
-		deleteAllFilesFromDir(LocalFilesRepository.STATS_DIR),
+		deleteAllFilesFromDir(LocalFilesRepository.STATS_DIR, ['perf-results']),
 	]);
 }

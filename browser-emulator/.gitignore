@@ -7,3 +7,4 @@ coverage/
 dist/
 artifacts/
 dev_scripts/results/
+*.perf.data

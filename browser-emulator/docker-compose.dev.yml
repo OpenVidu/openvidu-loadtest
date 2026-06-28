@@ -13,6 +13,7 @@ services:
             RUNNING_IN_DOCKER: true
             DOCKER_NETWORK_NAME: browseremulator
             DOCKER_BROWSER_EMULATOR_HOST: browser-emulator
+            EMULATED_LAUNCHER_MODE: ${EMULATED_LAUNCHER_MODE:-direct}
             DISABLE_HTTPS: ${DISABLE_HTTPS:-true}
             MEDIAFILES_HOST_DIR: ${MEDIAFILES_HOST_DIR:-${PWD}/mediafiles}
             SCRIPTS_LOGS_HOST_DIR: ${SCRIPTS_LOGS_HOST_DIR:-${PWD}/logs}

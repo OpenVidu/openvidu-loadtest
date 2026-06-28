@@ -2,8 +2,10 @@ import { expect } from 'vitest';
 import request from 'supertest';
 import type { Application } from 'express';
 import fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { spawn, execSync } from 'node:child_process';
 
 import { OSUtils } from 'node-os-utils';
 import Docker from 'dockerode';
@@ -47,11 +49,13 @@ export interface PhaseRecord {
 	creationLatencyMs: number | null;
 	failed: boolean;
 	failureReason?: string;
+	processProfiles?: ProcessProfile[];
+	perfFiles?: PerfRecordFile[];
 }
 
 export interface ContainerMetric {
 	name: string;
-	group: 'browser-emulator' | 'livekit-cli' | 'local-deployment' | 'other';
+	group: 'browser-emulator' | 'lk' | 'local-deployment' | 'other';
 	cpuPercent: number;
 	memPercent: number;
 	memUsageMb: number;
@@ -90,6 +94,21 @@ export interface LatencyPercentiles {
 	avg: number;
 }
 
+export interface ProcessProfile {
+	pid: number;
+	role: 'publisher' | 'subscriber';
+	cpuPct: number | null;
+	voluntaryCtxSw: number | null;
+	nonvoluntaryCtxSw: number | null;
+}
+
+export interface PerfRecordFile {
+	phase: number;
+	role: 'publisher' | 'subscriber';
+	pid: number;
+	filePath: string;
+}
+
 export interface BenchmarkResult {
 	name: string;
 	config: Record<string, unknown>;
@@ -98,6 +117,7 @@ export interface BenchmarkResult {
 	errors: number;
 	totalDurationMs: number;
 	cleanupDurationMs: number;
+	launcherMode: 'docker' | 'direct';
 }
 
 export interface StepAction {
@@ -124,7 +144,34 @@ export const DEFAULT_SATURATION_CONFIG: SaturationConfig = {
 	consecutiveSustainedRequired: 3,
 };
 
+// --- Procfs Profiling Types ---
+
+interface LkProcess {
+	pid: number;
+	identity: string;
+	role: 'publisher' | 'subscriber';
+}
+
+interface ProcCpuTicks {
+	utime: number;
+	stime: number;
+}
+
+interface ProcCtxSwitches {
+	voluntary: number;
+	nonvoluntary: number;
+}
+
+interface ProcSnapshot {
+	cpu: ProcCpuTicks | null;
+	ctxSw: ProcCtxSwitches | null;
+}
+
 // --- Helpers ---
+
+function sleep(ms: number): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export async function ensureResultsDir(): Promise<void> {
 	await fs.mkdir(PERF_RESULTS_DIR, { recursive: true });
@@ -155,7 +202,7 @@ function classifyContainer(
 	labels: Record<string, string>,
 ): ContainerMetric['group'] {
 	if (name === 'browser-emulator-tests') return 'browser-emulator';
-	if (name.startsWith('lk-')) return 'livekit-cli';
+	if (name.startsWith('lk-')) return 'lk';
 	if (labels['com.docker.compose.project'] === 'openvidu-local-deployment') {
 		return 'local-deployment';
 	}
@@ -351,7 +398,7 @@ export async function deleteAll(app: Application): Promise<number> {
 		'/openvidu-browser/streamManager',
 	);
 	expect(response.status).toBe(200);
-	await new Promise(resolve => setTimeout(resolve, 2000));
+	await sleep(2000);
 	return Math.round(performance.now() - startTime);
 }
 
@@ -373,8 +420,6 @@ export function computeLatencyPercentiles(
 	};
 }
 
-// --- Setup ---
-
 export async function setupPerformanceTest(
 	app: Application,
 	platform: 'openvidu' | 'livekit' = 'livekit',
@@ -389,7 +434,480 @@ export async function setupPerformanceTest(
 	return { beforeMetrics };
 }
 
-// --- Saturation Loop ---
+// --- Procfs Profiling Helpers ---
+
+export async function findLkPids(sessionNames: string[]): Promise<LkProcess[]> {
+	const results: LkProcess[] = [];
+
+	try {
+		const procEntries = await fs.readdir('/proc');
+		const pidDirs = procEntries.filter(e => /^\d+$/.test(e)).map(Number);
+
+		for (const pid of pidDirs) {
+			try {
+				const cmdlinePath = `/proc/${pid}/cmdline`;
+				const cmdlineBuf = await fs.readFile(cmdlinePath);
+				const cmdline = cmdlineBuf.toString('utf8').replace(/\0/g, ' ');
+
+				if (
+					!cmdline.includes('lk room join') &&
+					!cmdline.includes('livekit-cli room join')
+				)
+					continue;
+
+				const matchesSession = sessionNames.some(name =>
+					cmdline.includes(name),
+				);
+				if (!matchesSession) continue;
+
+				const identityMatch = /--identity\s+(\S+)/.exec(cmdline);
+				const identity = identityMatch
+					? identityMatch[1]
+					: `unknown-${pid}`;
+
+				const role = cmdline.includes('--publish')
+					? ('publisher' as const)
+					: ('subscriber' as const);
+
+				results.push({ pid, identity, role });
+			} catch {
+				// Process exited between listing and reading
+			}
+		}
+	} catch {
+		logger.warn('/proc not accessible for PID scanning');
+	}
+
+	logger.info(
+		{
+			pids: results.map(p => ({
+				pid: p.pid,
+				identity: p.identity,
+				role: p.role,
+			})),
+		},
+		'Found lk processes',
+	);
+	return results;
+}
+
+export function readProcCpuTicks(pid: number): ProcCpuTicks | null {
+	try {
+		const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+		const parts = stat.split(' ');
+		return {
+			utime: parseInt(parts[13], 10),
+			stime: parseInt(parts[14], 10),
+		};
+	} catch {
+		return null;
+	}
+}
+
+export function readProcCtxSwitches(pid: number): ProcCtxSwitches | null {
+	try {
+		const status = readFileSync(`/proc/${pid}/status`, 'utf8');
+		const vMatch = /voluntary_ctxt_switches:\s+(\d+)/.exec(status);
+		const nvMatch = /nonvoluntary_ctxt_switches:\s+(\d+)/.exec(status);
+		if (!vMatch || !nvMatch) return null;
+		return {
+			voluntary: parseInt(vMatch[1], 10),
+			nonvoluntary: parseInt(nvMatch[1], 10),
+		};
+	} catch {
+		return null;
+	}
+}
+
+export function snapshotProc(pid: number): ProcSnapshot {
+	return {
+		cpu: readProcCpuTicks(pid),
+		ctxSw: readProcCtxSwitches(pid),
+	};
+}
+
+export function snapshotProcfsMap(pids: number[]): Map<number, ProcSnapshot> {
+	const map = new Map<number, ProcSnapshot>();
+	for (const pid of pids) {
+		const snap = snapshotProc(pid);
+		if (snap.cpu || snap.ctxSw) {
+			map.set(pid, snap);
+		}
+	}
+	return map;
+}
+
+export function calcProcDelta(
+	before: Map<number, ProcSnapshot>,
+	after: Map<number, ProcSnapshot>,
+	elapsedSec: number,
+	pidRoleMap: Map<number, string>,
+): ProcessProfile[] {
+	const profiles: ProcessProfile[] = [];
+	const clkTck = 100;
+
+	for (const [pid, afterSnap] of after) {
+		const beforeSnap = before.get(pid);
+		if (!beforeSnap || !afterSnap.cpu || !beforeSnap.cpu) continue;
+
+		const utimeDelta = afterSnap.cpu.utime - beforeSnap.cpu.utime;
+		const stimeDelta = afterSnap.cpu.stime - beforeSnap.cpu.stime;
+		const totalDelta = utimeDelta + stimeDelta;
+		const cpuPct =
+			elapsedSec > 0 ? (totalDelta / clkTck / elapsedSec) * 100 : null;
+
+		let voluntaryCtxSw: number | null = null;
+		let nonvoluntaryCtxSw: number | null = null;
+		if (beforeSnap.ctxSw && afterSnap.ctxSw) {
+			voluntaryCtxSw =
+				afterSnap.ctxSw.voluntary - beforeSnap.ctxSw.voluntary;
+			nonvoluntaryCtxSw =
+				afterSnap.ctxSw.nonvoluntary - beforeSnap.ctxSw.nonvoluntary;
+		}
+
+		profiles.push({
+			pid,
+			role:
+				(pidRoleMap.get(pid) as 'publisher' | 'subscriber') ??
+				'publisher',
+			cpuPct: cpuPct !== null ? Math.round(cpuPct * 10) / 10 : null,
+			voluntaryCtxSw,
+			nonvoluntaryCtxSw,
+		});
+	}
+
+	return profiles;
+}
+
+/**
+ * Extract the lk binary from the lk-profiling Docker image and register it
+ * in perf's buildid-cache so that cross-container perf.data files can
+ * resolve Go function names (build IDs may differ between test & profiling images).
+ */
+function ensureBuildIdCache(): void {
+	try {
+		const tmpDir = '/tmp/lk-perf-buildid';
+		execSync(`mkdir -p ${tmpDir}`, { stdio: 'ignore' });
+		// Extract lk binary from profiling image (entrypoint override needed because
+		// Dockerfile.lk-profiling sets ENTRYPOINT ["lk"])
+		execSync(
+			`id=$(docker create --entrypoint sh lk-profiling:latest 2>/dev/null) && ` +
+				`docker cp $id:/usr/local/bin/lk ${tmpDir}/lk 2>/dev/null && ` +
+				`docker rm $id >/dev/null 2>&1; ` +
+				`perf buildid-cache -a ${tmpDir}/lk 2>/dev/null`,
+			{ stdio: 'ignore', shell: true },
+		);
+	} catch {
+		// non-fatal; symbols may be unresolved in docker mode
+	}
+}
+
+export async function runPerfRecord(
+	pids: number[],
+	outfile: string,
+	durationMs: number,
+): Promise<boolean> {
+	return new Promise(resolve => {
+		const durationSec = Math.ceil(durationMs / 1000);
+		const pidList = pids.join(',');
+		const proc = spawn(
+			'perf',
+			[
+				'record',
+				'-g',
+				'-p',
+				pidList,
+				'-o',
+				outfile,
+				'--',
+				'sleep',
+				String(durationSec),
+			],
+			{
+				stdio: ['ignore', 'ignore', 'pipe'],
+			},
+		);
+
+		let stderr = '';
+		proc.stderr?.on('data', (data: Buffer) => {
+			stderr += data.toString();
+		});
+
+		proc.on('exit', code => {
+			if (code !== 0) {
+				logger.warn(
+					{ exitCode: code, stderr },
+					'perf record exited with non-zero',
+				);
+			}
+			resolve(code === 0);
+		});
+		proc.on('error', err => {
+			logger.warn({ error: err.message }, 'perf record failed to start');
+			resolve(false);
+		});
+	});
+}
+
+function extractIndex(identity: string): number {
+	const match = /-(\d+)$/.exec(identity);
+	return match ? parseInt(match[1], 10) : 0;
+}
+
+function pickQuarterEnds<T>(items: T[]): T[] {
+	if (items.length === 0) return [];
+	const q = Math.max(1, Math.ceil(items.length / 4));
+	if (q * 2 >= items.length) return [...items];
+	return [...items.slice(0, q), ...items.slice(-q)];
+}
+
+export function selectPerfTargets(
+	processes: LkProcess[],
+	totalConfiguredPublishers: number,
+	totalConfiguredSubscribers: number,
+): number[] {
+	const publishers = processes
+		.filter(p => p.role === 'publisher')
+		.sort((a, b) => extractIndex(a.identity) - extractIndex(b.identity));
+	const subscribers = processes
+		.filter(p => p.role === 'subscriber')
+		.sort((a, b) => extractIndex(a.identity) - extractIndex(b.identity));
+
+	const totalConfigured =
+		totalConfiguredPublishers + totalConfiguredSubscribers;
+
+	const pubCandidates = pickQuarterEnds(publishers);
+	const subCandidates = pickQuarterEnds(subscribers);
+
+	if (totalConfigured <= 10) {
+		return [
+			...pubCandidates.map(p => p.pid),
+			...subCandidates.map(p => p.pid),
+		];
+	}
+
+	const maxPub = Math.min(1, pubCandidates.length);
+	const maxSub = Math.min(4, subCandidates.length);
+	const selectedPubs = pubCandidates.slice(0, maxPub);
+	const selectedSubs = subCandidates.slice(0, maxSub);
+
+	return [...selectedPubs.map(p => p.pid), ...selectedSubs.map(p => p.pid)];
+}
+
+// --- Benchmark (parallel creation with profiling) ---
+
+export async function runBenchmark(
+	app: Application,
+	name: string,
+	config: {
+		topology: string;
+		sessions: number;
+		publishersPerSession: number;
+		subscribersPerSession: number;
+	},
+): Promise<BenchmarkResult> {
+	const startTime = Date.now();
+	const sessionBase = `Perf-${name}-${Date.now()}`;
+	const latencies: number[] = [];
+
+	const sessionNames: string[] = [];
+	for (let s = 0; s < config.sessions; s++) {
+		const sessionName =
+			config.sessions > 1 ? `${sessionBase}-S${s + 1}` : sessionBase;
+		sessionNames.push(sessionName);
+	}
+
+	const totalPublishers = config.sessions * config.publishersPerSession;
+	const totalSubscribers = config.sessions * config.subscribersPerSession;
+	const totalParticipants = totalPublishers + totalSubscribers;
+
+	// Phase 1: Create all publishers in parallel
+	let pubFailed = 0;
+	if (totalPublishers > 0) {
+		const pubPromises: Promise<CreateParticipantResult>[] = [];
+		for (const sessionName of sessionNames) {
+			for (let p = 1; p <= config.publishersPerSession; p++) {
+				pubPromises.push(
+					createParticipant(
+						app,
+						sessionName,
+						`Pub-${p}`,
+						'PUBLISHER',
+					).then(result => {
+						if (result.status === 200) {
+							latencies.push(result.latencyMs);
+						} else {
+							pubFailed++;
+						}
+						return result;
+					}),
+				);
+			}
+		}
+		await Promise.all(pubPromises);
+		logger.info(
+			{ totalPublishers, failed: pubFailed },
+			'All publishers created',
+		);
+	}
+
+	// Phase 2: Create all subscribers in parallel
+	let subFailed = 0;
+	if (totalSubscribers > 0) {
+		const subPromises: Promise<CreateParticipantResult>[] = [];
+		for (const sessionName of sessionNames) {
+			for (let c = 1; c <= config.subscribersPerSession; c++) {
+				subPromises.push(
+					createParticipant(
+						app,
+						sessionName,
+						`Sub-${c}`,
+						'SUBSCRIBER',
+					).then(result => {
+						if (result.status === 200) {
+							latencies.push(result.latencyMs);
+						} else {
+							subFailed++;
+						}
+						return result;
+					}),
+				);
+			}
+		}
+		await Promise.all(subPromises);
+		logger.info(
+			{ totalSubscribers, failed: subFailed },
+			'All subscribers created',
+		);
+	}
+
+	// Phase 3: Steady state wait
+	const steadyWaitMs = Number(process.env.PROFILER_STEADY_WAIT_MS ?? '3000');
+	await sleep(steadyWaitMs);
+
+	// Phase 4: Find lk PIDs
+	const lkProcesses = await findLkPids(sessionNames);
+
+	// Phase 5: Profile
+	const profiles: ProcessProfile[] = [];
+	const perfFiles: PerfRecordFile[] = [];
+	const profilingDurationMs = Number(
+		process.env.PROFILER_DURATION_MS ?? '15000',
+	);
+
+	if (lkProcesses.length > 0) {
+		const allPids = lkProcesses.map(p => p.pid);
+		const pidRoleMap = new Map<number, string>(
+			lkProcesses.map(p => [p.pid, p.role]),
+		);
+
+		// Select perf targets
+		const perfTargetPids = selectPerfTargets(
+			lkProcesses,
+			totalPublishers,
+			totalSubscribers,
+		);
+
+		// Before snapshot
+		const beforeMap = snapshotProcfsMap(allPids);
+
+		// Run perf record (single instance for all targets)
+		if (perfTargetPids.length > 0) {
+			// Register lk binary from profiling image in perf buildid-cache so
+			// cross-container perf.data resolves Go function names
+			ensureBuildIdCache();
+			const runId = new Date().toISOString().replace(/[:.]/g, '-');
+			const suffix = process.env.PERF_RESULTS_SUFFIX ?? '';
+			const outfile = path.join(
+				PERF_RESULTS_DIR,
+				`perf-${name}-${runId}${suffix ? `-${suffix}` : ''}.data`,
+			);
+			await ensureResultsDir();
+			const ok = await runPerfRecord(
+				perfTargetPids,
+				outfile,
+				profilingDurationMs,
+			);
+
+			if (ok) {
+				perfFiles.push({
+					phase: 1,
+					role:
+						lkProcesses.find(p => perfTargetPids.includes(p.pid))
+							?.role ?? 'publisher',
+					pid: perfTargetPids[0],
+					filePath: outfile,
+				});
+			}
+		} else {
+			await sleep(profilingDurationMs);
+		}
+
+		// After snapshot
+		const afterMap = snapshotProcfsMap(allPids);
+
+		// Compute deltas
+		profiles.push(
+			...calcProcDelta(
+				beforeMap,
+				afterMap,
+				profilingDurationMs / 1000,
+				pidRoleMap,
+			),
+		);
+	} else {
+		logger.warn('No lk processes found, skipping procfs profiling');
+		await sleep(profilingDurationMs);
+	}
+
+	// System metrics snapshot
+	const [metrics, containerStats] = await Promise.all([
+		sampleMetrics(),
+		sampleContainerMetrics(),
+	]);
+
+	const totalErrors = pubFailed + subFailed;
+
+	const timeline: PhaseRecord[] = [
+		{
+			phase: 1,
+			totalParticipants,
+			totalPublishers,
+			totalSubscribers,
+			cpu: metrics.cpu,
+			memoryRssMb: metrics.memoryRssMb,
+			containers: containerStats.containers,
+			containerGroups: containerStats.groups,
+			processProfiles: profiles.length > 0 ? profiles : undefined,
+			perfFiles: perfFiles.length > 0 ? perfFiles : undefined,
+			creationLatencyMs: null,
+			failed: totalErrors > 0,
+			failureReason:
+				totalErrors > 0
+					? `${totalErrors} participants failed`
+					: undefined,
+		},
+	];
+
+	// Cleanup
+	const cleanupDurationMs = await deleteAll(app);
+
+	const launcherMode =
+		process.env.EMULATED_LAUNCHER_MODE === 'docker' ? 'docker' : 'direct';
+
+	return {
+		name,
+		config,
+		timeline,
+		creationLatencyMs: computeLatencyPercentiles(latencies),
+		errors: totalErrors,
+		totalDurationMs: Date.now() - startTime,
+		cleanupDurationMs,
+		launcherMode,
+	};
+}
+
+// --- Saturation Loop (unchanged) ---
 
 export type SaturationStepFn = (
 	stepIndex: number,
@@ -450,9 +968,7 @@ export async function runSaturation(
 		}
 
 		if (config.stabilizeMs > 0) {
-			await new Promise(resolve =>
-				setTimeout(resolve, config.stabilizeMs),
-			);
+			await sleep(config.stabilizeMs);
 		}
 
 		const [metrics, containerStats] = await Promise.all([
@@ -514,121 +1030,6 @@ export async function runSaturation(
 	};
 }
 
-// --- Benchmark ---
-
-export async function runBenchmark(
-	app: Application,
-	name: string,
-	config: {
-		topology: string;
-		sessions: number;
-		publishersPerSession: number;
-		subscribersPerSession: number;
-	},
-): Promise<BenchmarkResult> {
-	const startTime = Date.now();
-	const sessionBase = `Perf-${name}-${Date.now()}`;
-	const latencies: number[] = [];
-	const timeline: PhaseRecord[] = [];
-	let totalPublishers = 0;
-	let totalSubscribers = 0;
-	let phaseIndex = 0;
-
-	for (let s = 0; s < config.sessions; s++) {
-		const sessionName =
-			config.sessions > 1 ? `${sessionBase}-S${s + 1}` : sessionBase;
-
-		for (let p = 1; p <= config.publishersPerSession; p++) {
-			phaseIndex++;
-			const result = await createParticipant(
-				app,
-				sessionName,
-				`Pub-${p}`,
-				'PUBLISHER',
-			);
-			totalPublishers++;
-			if (result.status === 200) {
-				latencies.push(result.latencyMs);
-			}
-
-			await new Promise(resolve => setTimeout(resolve, 500));
-
-			const [metrics, containerStats] = await Promise.all([
-				sampleMetrics(),
-				sampleContainerMetrics(),
-			]);
-			timeline.push({
-				phase: phaseIndex,
-				totalParticipants: totalPublishers + totalSubscribers,
-				totalPublishers,
-				totalSubscribers,
-				cpu: metrics.cpu,
-				memoryRssMb: metrics.memoryRssMb,
-				containers: containerStats.containers,
-				containerGroups: containerStats.groups,
-				creationLatencyMs:
-					result.status === 200 ? result.latencyMs : null,
-				failed: result.status !== 200,
-				failureReason:
-					result.status !== 200
-						? `${result.status} - ${JSON.stringify(result.body)}`
-						: undefined,
-			});
-		}
-
-		for (let c = 1; c <= config.subscribersPerSession; c++) {
-			phaseIndex++;
-			const result = await createParticipant(
-				app,
-				sessionName,
-				`Sub-${c}`,
-				'SUBSCRIBER',
-			);
-			totalSubscribers++;
-			if (result.status === 200) {
-				latencies.push(result.latencyMs);
-			}
-
-			await new Promise(resolve => setTimeout(resolve, 500));
-
-			const [metrics, containerStats] = await Promise.all([
-				sampleMetrics(),
-				sampleContainerMetrics(),
-			]);
-			timeline.push({
-				phase: phaseIndex,
-				totalParticipants: totalPublishers + totalSubscribers,
-				totalPublishers,
-				totalSubscribers,
-				cpu: metrics.cpu,
-				memoryRssMb: metrics.memoryRssMb,
-				containers: containerStats.containers,
-				containerGroups: containerStats.groups,
-				creationLatencyMs:
-					result.status === 200 ? result.latencyMs : null,
-				failed: result.status !== 200,
-				failureReason:
-					result.status !== 200
-						? `${result.status} - ${JSON.stringify(result.body)}`
-						: undefined,
-			});
-		}
-	}
-
-	const cleanupDurationMs = await deleteAll(app);
-	const errors = timeline.filter(p => p.failed).length;
-
-	return {
-		name,
-		config,
-		timeline,
-		creationLatencyMs: computeLatencyPercentiles(latencies),
-		errors,
-		totalDurationMs: Date.now() - startTime,
-		cleanupDurationMs,
-	};
-}
-
 // --- Result Serialization ---
 
 export interface PerfRunOutput {
@@ -662,7 +1063,11 @@ export async function saveRunResults(
 		results,
 	};
 
-	const filePath = path.join(PERF_RESULTS_DIR, `run-${runId}.json`);
+	const suffix = process.env.PERF_RESULTS_SUFFIX ?? '';
+	const filePath = path.join(
+		PERF_RESULTS_DIR,
+		`run-${runId}${suffix ? `-${suffix}` : ''}.json`,
+	);
 	await fs.writeFile(filePath, JSON.stringify(output, null, 2));
 	logger.info(`Performance results saved to ${filePath}`);
 	return filePath;
