@@ -8,8 +8,8 @@ Parameters:
         Default: ami-0b6c6ebed2801a5cb
     GitRef:
         Type: String
-        Description: Git tag or branch to checkout (e.g., 'v4.0.0', 'main', 'develop')
-        Default: 'v4.0.0'
+        Description: Git tag or branch to checkout (e.g., 'v4.1.0', 'main', 'develop')
+        Default: 'v4.1.0'
     KeyName:
         Type: String
         Description: (Optional) Name of an existing EC2 KeyPair to enable SSH access. Leave empty to not set a key.

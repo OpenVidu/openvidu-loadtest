@@ -114,8 +114,8 @@ The `aws-setup/setup-aws-workers.sh` script automates AWS infrastructure setup. 
 # Create AMI in default region (us-east-1) with defaults
 ./aws-setup/setup-aws-workers.sh
 
-# Create AMI in eu-west-1 from v4.0.0 git branch or tag
-  $0 --region eu-west-1 --git-ref v4.0.0
+# Create AMI in eu-west-1 from v4.1.0 git branch or tag
+  $0 --region eu-west-1 --git-ref v4.1.0
 
 # View all options
 ./aws-setup/setup-aws-workers.sh --help

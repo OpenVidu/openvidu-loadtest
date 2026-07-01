@@ -8,7 +8,7 @@ SECURITY_GROUP_NAME="openvidu-loadtest-sg"
 SECURITY_GROUP_DESCRIPTION="OpenVidu loadtest browser-emulator security group"
 
 AWS_DEFAULT_REGION="us-east-1"
-GIT_REF="v4.0.0"
+GIT_REF="v4.1.0"
 CACHE_MEDIAFILES_ARGS="bunny 480 30"
 SECURITY_GROUP_CIDR="0.0.0.0/0"
 DELETE_OLD_AMI=false
@@ -41,7 +41,7 @@ OPTIONS:
       AWS region where the AMI will be created (default: us-east-1)
 
   --git-ref <GIT_REF>
-      Git reference (branch or tag) to checkout (default: v4.0.0)
+      Git reference (branch or tag) to checkout (default: v4.1.0)
 
   --cache-mediafiles[=<ARGS>]
       Pre-download media files during AMI creation. Use without value for
@@ -85,8 +85,8 @@ EXAMPLES:
   # Create AMI in us-east-1 with defaults
   $0
 
-  # Create AMI in eu-west-1 from v4.0.0 git branch or tag
-  $0 --region eu-west-1 --git-ref v4.0.0
+  # Create AMI in eu-west-1 from v4.1.0 git branch or tag
+  $0 --region eu-west-1 --git-ref v4.1.0
 
   # Create AMI with specific media files and restricted CIDR
   $0 --cache-mediafiles="720x30" --security-group-cidr="10.0.0.0/8"
