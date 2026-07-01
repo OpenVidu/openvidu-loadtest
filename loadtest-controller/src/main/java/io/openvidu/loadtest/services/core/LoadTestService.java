@@ -98,7 +98,8 @@ public class LoadTestService {
                 loadTestConfig, workerUrlResolver);
         this.participantOrchestrator = new LoadTestParticipantOrchestrator(this, browserEmulatorClient, esClient,
                 loadTestConfig, sleeper);
-        this.loadTestModeOrchestrator = new LoadTestModeOrchestrator(this, browserEmulatorClient, loadTestConfig);
+        this.loadTestModeOrchestrator = new LoadTestModeOrchestrator(this, browserEmulatorClient, loadTestConfig,
+                this.participantOrchestrator);
         this.topologyOrchestrator = new LoadTestTopologyOrchestrator(this, loadTestConfig, kibanaClient,
                 browserEmulatorClient, workerUrlResolver, dataIO, loadTestModeOrchestrator);
 

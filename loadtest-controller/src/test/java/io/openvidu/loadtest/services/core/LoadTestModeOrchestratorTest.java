@@ -1,5 +1,6 @@
 package io.openvidu.loadtest.services.core;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,7 +29,9 @@ import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
 import io.openvidu.loadtest.models.testcase.WorkerType;
+import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.Sleeper;
 
 class LoadTestModeOrchestratorTest {
 
@@ -38,15 +41,24 @@ class LoadTestModeOrchestratorTest {
     private BrowserEmulatorClient browserEmulatorClient;
     @Mock
     private LoadTestConfig loadTestConfig;
+    @Mock
+    private ElasticSearchClient esClient;
+    @Mock
+    private Sleeper sleeper;
 
+    private LoadTestParticipantOrchestrator participantOrchestrator;
     private LoadTestModeOrchestrator orchestrator;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        orchestrator = new LoadTestModeOrchestrator(loadTestService, browserEmulatorClient, loadTestConfig);
+        participantOrchestrator = new LoadTestParticipantOrchestrator(loadTestService, browserEmulatorClient,
+                esClient, loadTestConfig, sleeper);
+        orchestrator = new LoadTestModeOrchestrator(loadTestService, browserEmulatorClient, loadTestConfig,
+                participantOrchestrator);
 
         when(loadTestConfig.getSessionNamePrefix()).thenReturn("session");
+        when(loadTestConfig.getUserNamePrefix()).thenReturn("User");
         when(loadTestConfig.isManualParticipantsAllocation()).thenReturn(false);
 
         // Enough workers for the finite-chunking tests; infinite tests configure a
@@ -198,5 +210,43 @@ class LoadTestModeOrchestratorTest {
         verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 0, 8);
         // Subsequent chunks: publishers exhausted, pure-subscriber chunks continue.
         verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session1", 0, 0, 10);
+    }
+
+    @Test
+    void runOneSessionNxM_recordsSessionAndParticipantsForReporting() throws NoWorkersAvailableException {
+        TestCase testCase = testCase(Topology.ONE_SESSION_NXM, Arrays.asList("10:5"), 1);
+
+        orchestrator.runOneSessionNxM(testCase, 10, 5);
+
+        assertEquals(1, participantOrchestrator.getSessionNumber());
+        assertEquals(15, participantOrchestrator.getTotalParticipants());
+        assertEquals(15, participantOrchestrator.getUserStartTimes().size());
+        // ONE_SESSION topologies don't track "completed" sessions in NORMAL mode either.
+        assertEquals(0, participantOrchestrator.getSessionsCompleted());
+    }
+
+    @Test
+    void runNxN_recordsOneCompletedSessionPerRoomForReporting() throws NoWorkersAvailableException {
+        TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 2);
+
+        orchestrator.runNxN(testCase, 3);
+
+        assertEquals(2, participantOrchestrator.getSessionNumber());
+        assertEquals(2, participantOrchestrator.getSessionsCompleted());
+        assertEquals(6, participantOrchestrator.getTotalParticipants());
+        assertEquals(6, participantOrchestrator.getUserStartTimes().size());
+    }
+
+    @Test
+    void runNxN_doesNotRecordParticipantsOrCompletionForFailedChunk() throws NoWorkersAvailableException {
+        when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
+                anyInt())).thenReturn(false);
+        TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 2);
+
+        orchestrator.runNxN(testCase, 3);
+
+        assertEquals(0, participantOrchestrator.getSessionsCompleted());
+        assertEquals(0, participantOrchestrator.getTotalParticipants());
+        assertTrue(participantOrchestrator.getUserStartTimes().isEmpty());
     }
 }

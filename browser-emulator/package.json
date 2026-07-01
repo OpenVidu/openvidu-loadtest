@@ -39,6 +39,8 @@
 		"test:docker:emulated": "docker compose -f docker-compose.test.yml run --rm -e TEST_SCRIPT='vitest:e2e:emulated' --build browser-emulator-tests",
 		"vitest:e2e:real-browsers": "vitest run --project=e2e tests/e2e/real-browsers.test.ts",
 		"test:docker:real-browsers": "docker compose -f docker-compose.test.yml run --rm -e TEST_SCRIPT='vitest:e2e:real-browsers' --build browser-emulator-tests",
+		"vitest:e2e:multi-emulated": "vitest run --project=e2e tests/e2e/multi-emulated-browsers.test.ts",
+		"test:docker:multi-emulated": "docker compose -f docker-compose.test.yml run --rm -e TEST_SCRIPT='vitest:e2e:multi-emulated' --build browser-emulator-tests",
 		"qoe": "tsx ./src/qoe-cli.ts"
 	},
 	"author": "Carlos Santos & Iván Chicano",

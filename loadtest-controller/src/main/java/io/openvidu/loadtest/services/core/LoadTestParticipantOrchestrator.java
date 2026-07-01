@@ -390,6 +390,46 @@ class LoadTestParticipantOrchestrator {
         return totalParticipants.get();
     }
 
+    /**
+     * Starts tracking a new LOADTEST-mode room as a "session", mirroring the
+     * per-session bookkeeping ({@code sessionNumber}/{@code userNumber}) that
+     * NORMAL mode does around each session, so LOADTEST-mode rooms are reflected
+     * in reports the same way NORMAL-mode sessions are.
+     */
+    int startLoadTestSession() {
+        int sessNum = sessionNumber.incrementAndGet();
+        userNumber.set(1);
+        return sessNum;
+    }
+
+    /** Marks a LOADTEST-mode session as completed, mirroring NORMAL mode's per-session tracking. */
+    void completeLoadTestSession() {
+        sessionsCompleted.incrementAndGet();
+    }
+
+    /**
+     * Records {@code count} synthetic participants of the given role for a
+     * LOADTEST-mode session, using the same session/user naming convention as
+     * NORMAL mode. A single {@code lk load-test} process simulates many users at
+     * once, so there's no real per-participant connectionId, CPU, or retry data to
+     * report; this only tracks what NORMAL mode's per-participant flow would have
+     * recorded as each synthetic user "joined": its id and start time.
+     */
+    void recordLoadTestParticipants(int sessionNum, Role role, int count) {
+        if (count <= 0) {
+            return;
+        }
+        String sessionId = loadTestConfig.getSessionNamePrefix() + sessionNum;
+        Calendar now = Calendar.getInstance();
+        for (int i = 0; i < count; i++) {
+            String userId = loadTestConfig.getUserNamePrefix() + userNumber.getAndIncrement();
+            totalParticipants.incrementAndGet();
+            addUserStartTime(now, sessionId, userId);
+            addParticipantResponse(new CreateParticipantResponse().setResponseOk(true)
+                    .setSessionId(sessionId).setUserId(userId).setRole(role));
+        }
+    }
+
     void addUserStartTime(Calendar startTime, String sessionId, String userId) {
         log.debug("addUserStartTime: sessionId={}, userId={}", sessionId, userId);
         List<String> sessionUserList = new ArrayList<>(2);

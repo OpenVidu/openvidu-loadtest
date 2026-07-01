@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.exceptions.NoWorkersAvailableException;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
+import io.openvidu.loadtest.models.testcase.Role;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
@@ -37,6 +38,14 @@ import io.openvidu.loadtest.services.BrowserEmulatorClient;
  * an infinite count is grown in fixed-size steps (one step per chunk):
  * {@code distribution.usersPerWorker} when manual allocation is enabled,
  * otherwise a built-in default.
+ *
+ * <p>
+ * Reporting reuses {@link LoadTestParticipantOrchestrator}'s session/participant
+ * counters and start-time tracking: each room counts as one session and each
+ * chunk's requested publishers/subscribers count as that many synthetic
+ * participants, using the same session/user naming convention as NORMAL mode.
+ * There is no real per-participant connectionId, CPU, or retry data to report,
+ * since a single {@code lk load-test} process simulates many users at once.
  */
 class LoadTestModeOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(LoadTestModeOrchestrator.class);
@@ -50,12 +59,14 @@ class LoadTestModeOrchestrator {
     private final LoadTestService loadTestService;
     private final BrowserEmulatorClient browserEmulatorClient;
     private final LoadTestConfig loadTestConfig;
+    private final LoadTestParticipantOrchestrator participantOrchestrator;
 
     LoadTestModeOrchestrator(LoadTestService loadTestService, BrowserEmulatorClient browserEmulatorClient,
-            LoadTestConfig loadTestConfig) {
+            LoadTestConfig loadTestConfig, LoadTestParticipantOrchestrator participantOrchestrator) {
         this.loadTestService = loadTestService;
         this.browserEmulatorClient = browserEmulatorClient;
         this.loadTestConfig = loadTestConfig;
+        this.participantOrchestrator = participantOrchestrator;
     }
 
     CreateParticipantResponse runNxN(TestCase testCase, int participantsBySession) throws NoWorkersAvailableException {
@@ -72,7 +83,8 @@ class LoadTestModeOrchestrator {
         String room = loadTestConfig.getSessionNamePrefix() + "1";
         log.info("[LOADTEST mode] Starting one session '{}' with {} video publishers", room,
                 describeCount(participantCount));
-        return runRoomChunks(new String[] { "" }, testCase, room, participantCount, 0);
+        int sessionNum = participantOrchestrator.startLoadTestSession();
+        return runRoomChunks(new String[] { "" }, testCase, room, sessionNum, participantCount, 0);
     }
 
     CreateParticipantResponse runOneSessionNxM(TestCase testCase, int publishers, int subscribers)
@@ -80,7 +92,8 @@ class LoadTestModeOrchestrator {
         String room = loadTestConfig.getSessionNamePrefix() + "1";
         log.info("[LOADTEST mode] Starting one session '{}' with {} video publishers and {} subscribers", room,
                 describeCount(publishers), describeCount(subscribers));
-        return runRoomChunks(new String[] { "" }, testCase, room, publishers, subscribers);
+        int sessionNum = participantOrchestrator.startLoadTestSession();
+        return runRoomChunks(new String[] { "" }, testCase, room, sessionNum, publishers, subscribers);
     }
 
     private CreateParticipantResponse runSessions(TestCase testCase, int publishers, int subscribers)
@@ -97,22 +110,24 @@ class LoadTestModeOrchestrator {
         // the first worker for every session.
         String[] workerCursor = { "" };
         CreateParticipantResponse lastResponse = new CreateParticipantResponse().setResponseOk(true);
-        int sessNum = 0;
-        while (infiniteSessions || sessNum < sessionsLimit) {
-            sessNum++;
-            String room = loadTestConfig.getSessionNamePrefix() + sessNum;
+        int sessionsStarted = 0;
+        while (infiniteSessions || sessionsStarted < sessionsLimit) {
+            sessionsStarted++;
+            int sessionNum = participantOrchestrator.startLoadTestSession();
+            String room = loadTestConfig.getSessionNamePrefix() + sessionNum;
             log.info("[LOADTEST mode] Starting session '{}' with {} video publishers and {} subscribers", room,
                     describeCount(publishers), describeCount(subscribers));
-            lastResponse = runRoomChunks(workerCursor, testCase, room, publishers, subscribers);
+            lastResponse = runRoomChunks(workerCursor, testCase, room, sessionNum, publishers, subscribers);
             if (!lastResponse.isResponseOk()) {
                 return lastResponse;
             }
+            participantOrchestrator.completeLoadTestSession();
         }
         return lastResponse;
     }
 
     private CreateParticipantResponse runRoomChunks(String[] workerCursor, TestCase testCase, String room,
-            int videoPublishers, int subscribers) throws NoWorkersAvailableException {
+            int sessionNum, int videoPublishers, int subscribers) throws NoWorkersAvailableException {
         int stepSize = resolveStepSize(room, videoPublishers, subscribers);
 
         int remainingPublishers = videoPublishers;
@@ -130,6 +145,9 @@ class LoadTestModeOrchestrator {
                 log.error(reason);
                 return new CreateParticipantResponse().setResponseOk(false).setStopReason(reason);
             }
+
+            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.PUBLISHER, chunkPublishers);
+            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.SUBSCRIBER, chunkSubscribers);
 
             remainingPublishers = decrement(remainingPublishers, chunkPublishers);
             remainingSubscribers = decrement(remainingSubscribers, chunkSubscribers);
