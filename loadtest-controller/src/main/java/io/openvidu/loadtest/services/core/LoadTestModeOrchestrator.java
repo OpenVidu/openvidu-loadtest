@@ -11,7 +11,7 @@ import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 
 /**
- * Orchestrates test cases running in {@code LoadTestMode.LOADTEST}: instead of
+ * Orchestrates test cases with {@code browser: multi-emulated}: instead of
  * creating one participant at a time, each room is filled by launching one or
  * more {@code lk load-test} chunks (one process per worker), each chunk
  * simulating a slice of the room's publishers/subscribers.

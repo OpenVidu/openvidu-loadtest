@@ -200,7 +200,7 @@ These topologies create multiple sessions with a specified number of participant
 | `topology`                 | **Yes**  | -         | `N:N`, `N:M`, or `TEACHING`                                                                                                       |
 | `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
 | `sessions`                 | **Yes**  | -         | Number of sessions or `infinite` for creating sessions until an error occurs the number of retry times configured.                |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, or `emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `emulated`, or `multi-emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) and [LOADTEST mode](#loadtest-mode) |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
 | `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
@@ -222,7 +222,7 @@ These topologies create a single session and fill it with users:
 | -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `topology`                 | **Yes**  | -         | `ONE_SESSION_NXN`, or `ONE_SESSION_NXM`                                                                                           |
 | `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, or `emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `emulated`, or `multi-emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) and [LOADTEST mode](#loadtest-mode) |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
 | `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
@@ -237,9 +237,9 @@ These topologies create a single session and fill it with users:
 
 ### LOADTEST mode
 
-`mode: LOADTEST` is an alternative, additive execution mode available for `emulated` test cases that should allow for introducing more users in the workers that `NORMAL` mode.
+`browser: multi-emulated` is an alternative, additive execution mode that should allow for introducing more users in the workers than `chrome`/`firefox`/`emulated` do.
 
-Enable it by adding `mode: LOADTEST` to a test case:
+Enable it by setting `browser: multi-emulated` on a test case:
 
 ```yaml
 testcases:
@@ -248,8 +248,7 @@ testcases:
       - "50:20"
     sessions: 1
     resolution: 1280x720
-    browser: emulated
-    mode: LOADTEST
+    browser: multi-emulated
     videoCodec: h264
     simulcast: true
 ```
@@ -258,8 +257,8 @@ LOADTEST-mode reuses most existing test case configuration:
 
 | Property                 | Reused as                                                                             |
 | ------------------------ | -------------------------------------------------------------------------------------- |
-| `topology`                | Determines publisher/subscriber split and number of rooms, same as NORMAL mode         |
-| `participants`, `sessions` | Same meaning as NORMAL mode (number of rooms / publishers / subscribers per room)     |
+| `topology`                | Determines publisher/subscriber split and number of rooms, same as other browsers      |
+| `participants`, `sessions` | Same meaning as with other browsers (number of rooms / publishers / subscribers per room) |
 | `resolution`               | Mapped to `lk load-test`'s coarse `low`/`medium`/`high` video resolution (180p, 360p, 720p)             |
 | `distribution.usersPerWorker` (with `distribution.manual: true`) | Used to split a room's publishers/subscribers into per-worker chunks |
 
@@ -267,7 +266,6 @@ It also adds LOADTEST-only fields:
 
 | Property     | Required | Default | Description                                                                 |
 | ------------- | -------- | ------- | ----------------------------------------------------------------------------- |
-| `mode`         | No       | `NORMAL` | Set to `LOADTEST` to use this execution mode                                |
 | `videoCodec`   | No       | (none)  | `h264` or `vp8`. Left to `lk load-test`'s default (both) if omitted          |
 | `simulcast`    | No       | `true`  | Simulcast is enabled by default; set to `false` to disable it                |
 
@@ -277,8 +275,8 @@ It also adds LOADTEST-only fields:
 - `frameRate` — no equivalent flag; the built-in clip has a fixed frame rate.
 - Original `resolution` values — only the coarse `low`/`medium`/`high` mapping applies.
 - `recordingMode`, `browserRecording`, `headlessBrowser`, `showBrowserVideoElements`, and QoE recording/analysis — these are browser/recording concepts that don't apply to `lk load-test` runs.
-- `startingParticipants` and the automatic CPU-based worker capacity estimation used in NORMAL mode — LOADTEST mode sizes worker chunks from `distribution.usersPerWorker` (manual allocation), or a built-in default step size for "infinite" rooms; otherwise a whole (finite) room runs as a single chunk on one worker.
-- Per-participant reporting: OpenVidu/LiveKit `connectionId`, per-user CPU at creation, and per-user retry counts are NORMAL-mode-only. LOADTEST mode reports at the chunk/session level, plus the platform metrics collected from Grafana/Prometheus (unchanged in both modes).
+- `startingParticipants` and the automatic CPU-based worker capacity estimation used with other browsers — LOADTEST mode sizes worker chunks from `distribution.usersPerWorker` (manual allocation), or a built-in default step size for "infinite" rooms; otherwise a whole (finite) room runs as a single chunk on one worker.
+- Per-participant reporting: OpenVidu/LiveKit `connectionId`, per-user CPU at creation, and per-user retry counts are only available with other browsers. LOADTEST mode reports at the chunk/session level, plus the platform metrics collected from Grafana/Prometheus (unchanged for all browsers).
 
 ### Choosing Emulated vs Real Browsers
 
