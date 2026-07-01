@@ -7,6 +7,7 @@ import type {
 	EmulatedParticipantLauncher,
 	ParticipantHandle,
 } from './emulated-participant-launcher.ts';
+import { shortenIdentifier } from '../../../utils/id-utils.ts';
 
 export class DockerLauncher implements EmulatedParticipantLauncher {
 	readonly mode = 'docker' as const;
@@ -82,12 +83,16 @@ export class DockerLauncher implements EmulatedParticipantLauncher {
 
 		const cmd = [...command, ...profilingFlags];
 
+		// The session name is kept as a leading, deterministic prefix (rather than
+		// being buried inside the joined command) so callers can reliably find all
+		// containers belonging to a session, e.g. to inspect their logs.
+		const shortSession = shortenIdentifier(sessionName, 'session');
 		const commandPrefix = cmd
 			.join('_')
 			.replace(/[^a-zA-Z0-9_.-]/g, '_')
-			.slice(0, 50);
+			.slice(0, 40);
 		const suffix = participantId.slice(-8);
-		const name = `lk-emulated-${commandPrefix}-${suffix}`;
+		const name = `lk-emulated-${shortSession}-${commandPrefix}-${suffix}`;
 
 		await this.dockerService.removeContainer(name).catch(() => {
 			// Ignore if container doesn't exist

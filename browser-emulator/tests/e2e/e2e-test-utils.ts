@@ -11,6 +11,11 @@ import {
 	Resolution,
 } from '../../src/types/create-user.type.js';
 import { LocalFilesRepository } from '../../src/repositories/files/local-files.repository.js';
+import { RoomServiceClient } from 'livekit-server-sdk';
+import type {
+	LoadTestRunRequest,
+	LoadTestRunResponse,
+} from '../../src/types/load-test.type.js';
 
 const logger = baseLogger.child({ module: 'e2e-test-utils' });
 import {
@@ -38,6 +43,7 @@ import { shortenIdentifier } from '../../src/utils/id-utils.js';
 export const QOE_ANALYSIS_TIMEOUT_MS = 30 * 60 * 1000;
 export const QOE_ANALYSIS_POLL_INTERVAL_MS = 2000;
 export const MIN_EMULATED_LIVEKIT_DURATION_SECONDS = 10;
+export const MIN_MULTI_EMULATED_LIVEKIT_DURATION_SECONDS = 10;
 export const EXPECTED_STATS_FILES = [
 	'connections.json',
 	'events.json',
@@ -411,6 +417,107 @@ export async function run2BrowserTest(
 		}
 	}
 	return sessionName;
+}
+
+export async function createLoadTestRun(
+	app: Application,
+	room: string,
+	options: Partial<LoadTestRunRequest> = {},
+): Promise<LoadTestRunResponse> {
+	const config = getConfig();
+	const requestBody: LoadTestRunRequest = {
+		openviduUrl: config.livekitUrl,
+		livekitApiKey: config.livekitApiKey,
+		livekitApiSecret: config.livekitApiSecret,
+		room,
+		...options,
+	};
+
+	const createLoadTestResponse = await request(app)
+		.post('/openvidu-browser/load-test')
+		.send(requestBody);
+
+	expect(createLoadTestResponse.status).toBe(200);
+	expect(createLoadTestResponse.body).toStrictEqual({
+		runId: expect.any(String) as string,
+		handleId: expect.any(String) as string,
+		room,
+		workerCpuUsage: expect.any(Number) as number,
+	});
+
+	return createLoadTestResponse.body as LoadTestRunResponse;
+}
+
+export async function assertLoadTestParticipantsJoined(
+	room: string,
+	expectedParticipants: number,
+	attempts = 15,
+	delayMs = 2000,
+): Promise<void> {
+	const config = getConfig();
+	const baseUrl = config.livekitUrl
+		.replace('ws://', 'http://')
+		.replace('wss://', 'https://');
+	const roomService = new RoomServiceClient(
+		baseUrl,
+		config.livekitApiKey,
+		config.livekitApiSecret,
+	);
+
+	for (let i = 0; i < attempts; i++) {
+		try {
+			const participants = await roomService.listParticipants(room);
+			if (participants.length >= expectedParticipants) {
+				return;
+			}
+			logger.info(
+				`Room ${room} has ${participants.length}/${expectedParticipants} participants (attempt ${i + 1}/${attempts})`,
+			);
+		} catch (error) {
+			logger.info(
+				`Room ${room} not ready yet (attempt ${i + 1}/${attempts}): ${String(error)}`,
+			);
+		}
+		if (i < attempts - 1) {
+			await new Promise(resolve => setTimeout(resolve, delayMs));
+		}
+	}
+
+	throw new Error(
+		`Expected at least ${expectedParticipants} participants in room ${room}, but they did not join in time`,
+	);
+}
+
+export async function runMultiEmulatedLoadTest(
+	app: Application,
+	videoPublishers = 2,
+	audioPublishers = 0,
+	subscribers = 0,
+	emulationDuration = MIN_MULTI_EMULATED_LIVEKIT_DURATION_SECONDS,
+): Promise<string> {
+	await pingInstance(app);
+	const config = getConfig();
+	await checkDeploymentReachable(config.livekitUrl);
+	await initializeInstance(app);
+	// Platforms might have some delay in cleaning sessions, so we avoid reusing the same room between tests
+	const room = 'Room' + Date.now();
+	await createLoadTestRun(app, room, {
+		videoPublishers,
+		audioPublishers,
+		subscribers,
+	});
+	const expectedParticipants =
+		videoPublishers + audioPublishers + subscribers;
+	await assertLoadTestParticipantsJoined(room, expectedParticipants);
+	await waitForBrowsersToSendStats(
+		Math.max(
+			emulationDuration,
+			MIN_MULTI_EMULATED_LIVEKIT_DURATION_SECONDS,
+		),
+	);
+	await assertNoLiveKitCliUnpublishedTracks(room);
+	await cleanUsers(app);
+	return room;
 }
 
 export async function setupS3MockContainer(): Promise<S3Setup> {

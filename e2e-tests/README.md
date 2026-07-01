@@ -47,14 +47,23 @@ The unified runner will:
 
 ```bash
 cd e2e-tests/scripts
-./run-e2e-test.sh emulated-smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+./run-e2e-test.sh smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
 ### Emulated Browser Test
 
 ```bash
 cd e2e-tests/scripts
-./run-e2e-test.sh smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+./run-e2e-test.sh emulated-smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+```
+
+### Multi-emulated Browser Test (LOADTEST mode)
+
+Requires a LiveKit platform (LOADTEST mode uses LiveKit's native `lk load-test`, see the root README's "LOADTEST mode" section).
+
+```bash
+cd e2e-tests/scripts
+./run-e2e-test.sh multi-emulated-smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
 ### ELK Smoke Test (validates Metricbeat + Kibana integration)
