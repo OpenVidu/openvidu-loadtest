@@ -8,6 +8,7 @@
 set -e
 
 RESULTS_DIR="${1:?Results directory required}"
+KEEP_RESULTS="${KEEP_RESULTS:-false}"
 
 EXIT_CODE=0
 
@@ -127,8 +128,8 @@ if [ -n "$TXT_REPORT" ] && [ -f "$TXT_REPORT" ]; then
         EXIT_CODE=1
     fi
     
-    # Delete result files only if validation passed
-    if [ $EXIT_CODE -eq 0 ]; then
+    # Delete result files only if validation passed and --keep-results was not requested
+    if [ $EXIT_CODE -eq 0 ] && [ "$KEEP_RESULTS" != true ]; then
         echo "Deleting result files..."
         rm -f $RESULTS_DIR/results-*.txt
         rm -f $RESULTS_DIR/report-*.html
