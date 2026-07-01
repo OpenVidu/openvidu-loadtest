@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.openvidu.loadtest.models.testcase.Browser;
+import io.openvidu.loadtest.models.testcase.LoadTestMode;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
@@ -153,7 +154,35 @@ public class DataIO {
         TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution,
                 openviduRecordingMode, headlessBrowser, browserRecording, showBrowserVideoElements, browser);
         testCase.setStartingParticipants(startingParticipants);
+        testCase.setMode(parseMode(element));
+        testCase.setVideoCodec(parseVideoCodec(element));
+        testCase.setSimulcast(parseSimulcast(element));
         return testCase;
+    }
+
+    private LoadTestMode parseMode(Map<String, Object> element) {
+        Object modeObj = element.get("mode");
+        if (modeObj == null || modeObj.toString().isBlank()) {
+            return LoadTestMode.NORMAL;
+        }
+        if (modeObj.toString().equalsIgnoreCase(LoadTestMode.LOADTEST.getValue())) {
+            return LoadTestMode.LOADTEST;
+        }
+        return LoadTestMode.NORMAL;
+    }
+
+    private String parseVideoCodec(Map<String, Object> element) {
+        Object codecObj = element.get("videoCodec");
+        return codecObj != null ? codecObj.toString() : "";
+    }
+
+    private boolean parseSimulcast(Map<String, Object> element) {
+        Object simulcastObj = element.get("simulcast");
+        // Simulcast is enabled by default in lk load-test; only disable when explicitly false.
+        if (simulcastObj instanceof Boolean simulcastBool) {
+            return simulcastBool;
+        }
+        return true;
     }
 
     private String parseTopology(Map<String, Object> element) {

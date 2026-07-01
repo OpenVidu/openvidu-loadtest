@@ -26,6 +26,14 @@ const mockEmulatedBrowserService = {
 	clean: vi.fn().mockResolvedValue(undefined),
 };
 
+const mockLoadTestRunnerService = {
+	startLoadTest: vi
+		.fn()
+		.mockResolvedValue({ runId: 'run-1', handleId: 'handle-1' }),
+	stopLoadTest: vi.fn().mockResolvedValue(undefined),
+	stopAll: vi.fn().mockResolvedValue(undefined),
+};
+
 const mockInstanceService = {
 	getCpuUsage: vi.fn().mockReturnValue(50),
 	WORKER_UUID: 'test-worker-uuid',
@@ -139,6 +147,7 @@ describe('BrowserManagerService', () => {
 			mockConfigService as never,
 			mockRealBrowserService as never,
 			mockEmulatedBrowserService as never,
+			mockLoadTestRunnerService as never,
 			mockInstanceService as never,
 			mockElasticSearchService as never,
 			mockRemotePersistenceService as never,

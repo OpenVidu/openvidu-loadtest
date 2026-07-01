@@ -30,12 +30,14 @@ import software.amazon.awssdk.services.ec2.model.Instance;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
+import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
 import io.openvidu.loadtest.models.testcase.CreateParticipantErrorContext;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.Role;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.UserInfo;
 import io.openvidu.loadtest.models.testcase.request.InitializeRequestBody;
+import io.openvidu.loadtest.models.testcase.request.LoadTestRunRequestBody;
 import io.openvidu.loadtest.models.testcase.request.QoeAnalysisBody;
 import io.openvidu.loadtest.models.testcase.request.CreateUserRequestBody;
 import io.openvidu.loadtest.models.testcase.request.CreateUserRequestBodyFactory;
@@ -664,6 +666,49 @@ public class BrowserEmulatorClient {
                     + " attempts";
         }
         return "Participant " + participant + "-" + session + " failed after " + attempts + " retries";
+    }
+
+    /**
+     * Launches an {@code lk load-test} chunk on the given worker, simulating
+     * {@code videoPublishers}/{@code audioPublishers}/{@code subscribers}
+     * participants in {@code room}. Used by LOADTEST mode instead of the
+     * per-participant {@link #createParticipant} path.
+     *
+     * @return {@code true} if the worker accepted the request
+     */
+    public boolean launchLoadTest(String workerUrl, TestCase testCase, String room, int videoPublishers,
+            int audioPublishers, int subscribers) {
+        if (!(this.loadTestConfig instanceof LKLoadTestConfig lkConfig)) {
+            log.error("LOADTEST mode requires a LiveKit platform configuration (lk load-test is LiveKit-only).");
+            return false;
+        }
+
+        LoadTestRunRequestBody body = new LoadTestRunRequestBody(lkConfig, testCase, room, videoPublishers,
+                audioPublishers, subscribers);
+        try {
+            log.info("Launching load-test chunk on worker {} for room {} ({} video publishers, {} audio "
+                    + "publishers, {} subscribers)", workerUrl, room, videoPublishers, audioPublishers, subscribers);
+            HttpResponse<String> response = this.httpClient.sendPost(
+                    this.httpProtocolPrefix + workerUrl + ":" + this.loadTestConfig.getWorkerHttpPort()
+                            + "/openvidu-browser/load-test",
+                    body.toJson(), null,
+                    getHeaders());
+            if (response.statusCode() != HTTP_STATUS_OK) {
+                log.error("Error launching load-test chunk on worker {}: {}", workerUrl, response.body());
+                return false;
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Load-test chunk response: {}", response.body());
+            }
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted while launching load-test chunk on worker {}: {}", workerUrl, e.getMessage());
+            return false;
+        } catch (IOException e) {
+            log.error("Error launching load-test chunk on worker {}: {}", workerUrl, e.getMessage());
+            return false;
+        }
     }
 
     private CreateUserRequestBody generateRequestBody(int userNumber, String sessionNumber, Role role,

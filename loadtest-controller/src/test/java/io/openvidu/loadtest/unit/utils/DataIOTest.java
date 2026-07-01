@@ -25,6 +25,7 @@ import org.springframework.core.env.Environment;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
+import io.openvidu.loadtest.models.testcase.LoadTestMode;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
@@ -104,6 +105,58 @@ class DataIOTest {
         assertEquals(1, cases.size(), "Should load one test case");
         TestCase tc = cases.get(0);
         assertEquals(Browser.EMULATED, tc.getBrowser(), "Browser should be emulated");
+    }
+
+    @Test
+    void testGetTestCasesFromJSON_defaultsToNormalMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+                testcases:
+                  - topology: N:N
+                    sessions: 1
+                    participants:
+                      - "2"
+                """;
+
+        Path cfg = tempDir.resolve("config.yaml");
+        Files.writeString(cfg, yaml);
+
+        when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn(cfg.toString());
+
+        List<TestCase> cases = dataIO.getTestCasesFromJSON();
+
+        TestCase tc = cases.get(0);
+        assertEquals(LoadTestMode.NORMAL, tc.getMode(), "Mode should default to NORMAL");
+        assertTrue(tc.isSimulcast(), "Simulcast should default to true");
+        assertEquals("", tc.getVideoCodec());
+    }
+
+    @Test
+    void testGetTestCasesFromJSON_loadTestMode(@TempDir Path tempDir) throws IOException {
+        String yaml = """
+                testcases:
+                  - topology: ONE_SESSION_NXM
+                    sessions: 1
+                    participants:
+                      - "10:5"
+                    browser: emulated
+                    mode: LOADTEST
+                    videoCodec: h264
+                    simulcast: false
+                """;
+
+        Path cfg = tempDir.resolve("config.yaml");
+        Files.writeString(cfg, yaml);
+
+        when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn(cfg.toString());
+
+        List<TestCase> cases = dataIO.getTestCasesFromJSON();
+
+        assertEquals(1, cases.size(), "Should load one test case");
+        TestCase tc = cases.get(0);
+        assertEquals(LoadTestMode.LOADTEST, tc.getMode(), "Mode should be LOADTEST");
+        assertTrue(tc.isLoadTestMode());
+        assertEquals("h264", tc.getVideoCodec());
+        assertEquals(false, tc.isSimulcast());
     }
 
     @Test

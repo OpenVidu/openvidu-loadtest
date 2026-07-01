@@ -33,16 +33,18 @@ class LoadTestTopologyOrchestrator {
     private final BrowserEmulatorClient browserEmulatorClient;
     private final WorkerUrlResolver workerUrlResolver;
     private final DataIO dataIO;
+    private final LoadTestModeOrchestrator loadTestModeOrchestrator;
 
     LoadTestTopologyOrchestrator(LoadTestService loadTestService, LoadTestConfig loadTestConfig,
             KibanaClient kibanaClient, BrowserEmulatorClient browserEmulatorClient,
-            WorkerUrlResolver workerUrlResolver, DataIO dataIO) {
+            WorkerUrlResolver workerUrlResolver, DataIO dataIO, LoadTestModeOrchestrator loadTestModeOrchestrator) {
         this.loadTestService = loadTestService;
         this.loadTestConfig = loadTestConfig;
         this.kibanaClient = kibanaClient;
         this.browserEmulatorClient = browserEmulatorClient;
         this.workerUrlResolver = workerUrlResolver;
         this.dataIO = dataIO;
+        this.loadTestModeOrchestrator = loadTestModeOrchestrator;
     }
 
     void startLoadTests(List<TestCase> testCasesList) {
@@ -112,6 +114,12 @@ class LoadTestTopologyOrchestrator {
             try {
                 int participantsBySession = testCase.getParticipantCount(0); // Always use first (and only) participant spec for N:N
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
+                if (testCase.isLoadTestMode()) {
+                    logNxNStart(testCase, participantsBySession);
+                    executeAndSave(testCase, String.valueOf(participantsBySession),
+                            () -> loadTestModeOrchestrator.runNxN(testCase, participantsBySession));
+                    continue;
+                }
                 boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, participantsBySession, 0,
                         false);
                 if (noEstimateError) {
@@ -141,6 +149,12 @@ class LoadTestTopologyOrchestrator {
                 int publishers = testCase.getPublisherCount(0); // Always use first (and only) participant spec for N:M
                 int subscribers = testCase.getSubscriberCount(0); // Always use first (and only) participant spec for N:M
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
+                if (testCase.isLoadTestMode()) {
+                    logNxMStart(testCase, publishers, subscribers);
+                    executeAndSave(testCase, participants,
+                            () -> loadTestModeOrchestrator.runNxM(testCase, publishers, subscribers));
+                    continue;
+                }
                 boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, publishers, subscribers,
                         false);
                 if (noEstimateError) {
@@ -194,6 +208,12 @@ class LoadTestTopologyOrchestrator {
     }
 
     private void runOneSessionNxM(TestCase testCase, String participants, boolean instancesInitialized, int publishers, int subscriberCount) {
+        if (testCase.isLoadTestMode()) {
+            log.info("[LOADTEST mode] Starting test with one session {}:{} topology", publishers, subscriberCount);
+            executeAndSave(testCase, participants,
+                    () -> loadTestModeOrchestrator.runOneSessionNxM(testCase, publishers, subscriberCount));
+            return;
+        }
         String[] parts = participants.split(":");
         boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, publishers, subscriberCount, false);
         if (noEstimateError) {
@@ -213,6 +233,12 @@ class LoadTestTopologyOrchestrator {
     }
 
     private void runOneSessionNxN(TestCase testCase, String participants, boolean instancesInitialized, int participantCount) {
+        if (testCase.isLoadTestMode()) {
+            log.info("[LOADTEST mode] Starting test with one session N:N topology");
+            executeAndSave(testCase, participants,
+                    () -> loadTestModeOrchestrator.runOneSessionNxN(testCase, participantCount));
+            return;
+        }
         boolean forceOneBrowserPerWorkerInDevOneSession = participantCount == Integer.MAX_VALUE;
         boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, participantCount, 0,
                 forceOneBrowserPerWorkerInDevOneSession);
