@@ -61,8 +61,8 @@ pnpm run format         # Prettier formatting
 # Tests (using Vitest)
 pnpm test               # Run all tests (unit + integration + e2e)
 pnpm run test:unit      # Unit tests only
-pnpm run test:integration  # Integration tests only
-pnpm run test:e2e       # E2E tests only
+pnpm run test:integration  # Integration tests only (requires Docker)
+pnpm run test:docker:e2e       # E2E tests only (requires Docker and an OpenVidu deployment)
 pnpm run test:qoe       # QoE analysis tests
 pnpm run test:coverage  # With coverage report
 

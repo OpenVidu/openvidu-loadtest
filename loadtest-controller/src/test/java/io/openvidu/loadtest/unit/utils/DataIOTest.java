@@ -25,7 +25,6 @@ import org.springframework.core.env.Environment;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
-import io.openvidu.loadtest.models.testcase.LoadTestMode;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
@@ -108,7 +107,7 @@ class DataIOTest {
     }
 
     @Test
-    void testGetTestCasesFromJSON_defaultsToNormalMode(@TempDir Path tempDir) throws IOException {
+    void testGetTestCasesFromJSON_defaultsToChromeBrowser(@TempDir Path tempDir) throws IOException {
         String yaml = """
                 testcases:
                   - topology: N:N
@@ -125,21 +124,20 @@ class DataIOTest {
         List<TestCase> cases = dataIO.getTestCasesFromJSON();
 
         TestCase tc = cases.get(0);
-        assertEquals(LoadTestMode.NORMAL, tc.getMode(), "Mode should default to NORMAL");
+        assertEquals(Browser.CHROME, tc.getBrowser(), "Browser should default to chrome");
         assertTrue(tc.isSimulcast(), "Simulcast should default to true");
         assertEquals("", tc.getVideoCodec());
     }
 
     @Test
-    void testGetTestCasesFromJSON_loadTestMode(@TempDir Path tempDir) throws IOException {
+    void testGetTestCasesFromJSON_multiEmulatedBrowser(@TempDir Path tempDir) throws IOException {
         String yaml = """
                 testcases:
                   - topology: ONE_SESSION_NXM
                     sessions: 1
                     participants:
                       - "10:5"
-                    browser: emulated
-                    mode: LOADTEST
+                    browser: multi-emulated
                     videoCodec: h264
                     simulcast: false
                 """;
@@ -153,7 +151,7 @@ class DataIOTest {
 
         assertEquals(1, cases.size(), "Should load one test case");
         TestCase tc = cases.get(0);
-        assertEquals(LoadTestMode.LOADTEST, tc.getMode(), "Mode should be LOADTEST");
+        assertEquals(Browser.MULTI_EMULATED, tc.getBrowser(), "Browser should be multi-emulated");
         assertTrue(tc.isLoadTestMode());
         assertEquals("h264", tc.getVideoCodec());
         assertEquals(false, tc.isSimulcast());

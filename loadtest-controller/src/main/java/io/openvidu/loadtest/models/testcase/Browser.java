@@ -3,7 +3,8 @@ package io.openvidu.loadtest.models.testcase;
 public enum Browser {
     CHROME("chrome"),
     FIREFOX("firefox"),
-    EMULATED("emulated");
+    EMULATED("emulated"),
+    MULTI_EMULATED("multi-emulated");
 
     private final String userBrowser;
 

@@ -139,10 +139,10 @@ paths:
       summary: Launch an lk load-test run
       description: >
         Starts a single `lk load-test` process that simulates many
-        publishers/subscribers in one room. Used by the controller's LOADTEST
-        execution mode. Simulcast is enabled by default. Unlike the
-        streamManager path, this does not publish custom/reference media
-        (lk load-test uses its own synthetic clip).
+        publishers/subscribers in one room. Used by the controller when a test
+        case's `browser` is set to `multi-emulated`. Simulcast is enabled by
+        default. Unlike the streamManager path, this does not publish
+        custom/reference media (lk load-test uses its own synthetic clip).
       operationId: runLoadTest
       requestBody:
         required: true

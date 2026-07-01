@@ -103,7 +103,7 @@
                             "type": "string",
                             "pattern": "^([0-9]+|infinite)(:([0-9]+|infinite))?$"
                         },
-                        "description": "List of participant counts. Each element creates a new test scenario. Format: 'N' or 'N:M' for N:M topology. 'infinite' can be used in place of a number (e.g. 'infinite', '2:infinite') to keep adding participants until an error occurs; supported in both NORMAL and LOADTEST modes."
+                        "description": "List of participant counts. Each element creates a new test scenario. Format: 'N' or 'N:M' for N:M topology. 'infinite' can be used in place of a number (e.g. 'infinite', '2:infinite') to keep adding participants until an error occurs; supported with any 'browser' value, including 'multi-emulated'."
                     },
                     "sessions": {
                         "oneOf": [
@@ -125,10 +125,11 @@
                         "enum": [
                             "chrome",
                             "firefox",
-                            "emulated"
+                            "emulated",
+                            "multi-emulated"
                         ],
                         "default": "chrome",
-                        "description": "Browser type to use for the test"
+                        "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'emulated' creates one lightweight simulated participant at a time. 'multi-emulated' launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room with native simulcast; only usable with a LiveKit platform. See README.md 'LOADTEST mode' section for options that don't apply with this browser value."
                     },
                     "resolution": {
                         "type": "string",
@@ -177,27 +178,18 @@
                         ],
                         "description": "Recording mode for media recording"
                     },
-                    "mode": {
-                        "type": "string",
-                        "enum": [
-                            "NORMAL",
-                            "LOADTEST"
-                        ],
-                        "default": "NORMAL",
-                        "description": "Execution mode. NORMAL creates one participant at a time (default). LOADTEST launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room with native simulcast; only usable with 'emulated' browser and a LiveKit platform. See README.md 'LOADTEST mode' section for options that don't apply in this mode."
-                    },
                     "videoCodec": {
                         "type": "string",
                         "enum": [
                             "h264",
                             "vp8"
                         ],
-                        "description": "LOADTEST mode only. Video codec passed to 'lk load-test --video-codec'. Defaults to lk load-test's own default (both) when omitted. Ignored outside LOADTEST mode."
+                        "description": "'multi-emulated' browser only. Video codec passed to 'lk load-test --video-codec'. Defaults to lk load-test's own default (both) when omitted. Ignored for other browser values."
                     },
                     "simulcast": {
                         "type": "boolean",
                         "default": true,
-                        "description": "LOADTEST mode only. Simulcast is enabled by default in 'lk load-test'; set to false to add '--no-simulcast'. Ignored outside LOADTEST mode."
+                        "description": "'multi-emulated' browser only. Simulcast is enabled by default in 'lk load-test'; set to false to add '--no-simulcast'. Ignored for other browser values."
                     },
                     "description": {
                         "type": "string",
