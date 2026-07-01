@@ -2,15 +2,17 @@
 
 # Unified e2e test runner for OpenVidu Load Test
 # This script discovers and runs all e2e tests sequentially
-# Usage: ./run-all-e2e-tests.sh [--keep-running|-k] <PLATFORM_URL> [API_KEY] [API_SECRET]
+# Usage: ./run-all-e2e-tests.sh [--keep-running|-k] [--keep-results|-r] <PLATFORM_URL> [API_KEY] [API_SECRET]
 # Example: ./run-all-e2e-tests.sh https://172-31-224-178.openvidu-local.dev:7443 devkey secret
 # Flags:
 #   --keep-running, -k  Keep Docker services running after test completion (useful for debugging)
+#   --keep-results, -r  Do not delete previous results before each test (reports from every test remain available for inspection)
 
 set -e
 
 KEEP_RUNNING=false
 KEEP_RUNNING_FLAG=""
+KEEP_RESULTS_FLAG=""
 
 # Parse flags
 PASSTHROUGH_ARGS=()
@@ -19,6 +21,9 @@ for arg in "$@"; do
         --keep-running|-k)
             KEEP_RUNNING=true
             KEEP_RUNNING_FLAG="--keep-running"
+            ;;
+        --keep-results|-r)
+            KEEP_RESULTS_FLAG="--keep-results"
             ;;
         *)
             PASSTHROUGH_ARGS+=("$arg")
@@ -37,7 +42,7 @@ fi
 
 # Check arguments
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 [--keep-running|-k] <PLATFORM_URL> [API_KEY] [API_SECRET]"
+    echo "Usage: $0 [--keep-running|-k] [--keep-results|-r] <PLATFORM_URL> [API_KEY] [API_SECRET]"
     echo "Example: $0 https://openvidu.example.com:7443 devkey secret"
     exit 1
 fi
@@ -120,7 +125,7 @@ for config_path in "${CONFIG_FILES[@]}"; do
     echo ""
     
     # Run the test
-    if bash "$SCRIPT_DIR/run-e2e-test.sh" --no-build $ELK_FLAG $KEEP_RUNNING_FLAG "$config_file" "$validation_script" "$PLATFORM_URL" "$PLATFORM_APIKEY" "$PLATFORM_APISECRET"; then
+    if bash "$SCRIPT_DIR/run-e2e-test.sh" --no-build $ELK_FLAG $KEEP_RUNNING_FLAG $KEEP_RESULTS_FLAG "$config_file" "$validation_script" "$PLATFORM_URL" "$PLATFORM_APIKEY" "$PLATFORM_APISECRET"; then
         echo "✓ Test '$test_name' PASSED"
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else

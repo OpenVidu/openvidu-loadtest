@@ -2,12 +2,13 @@
 
 # Central e2e test runner for OpenVidu Load Test
 # This script runs a load test with the specified configuration and validates results
-# Usage: ./run-e2e-test.sh [--keep-running|-k] [--no-build|-n] [--elk] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]
+# Usage: ./run-e2e-test.sh [--keep-running|-k] [--no-build|-n] [--elk] [--keep-results|-r] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]
 # Example: ./run-e2e-test.sh smoke-test-config.yaml validate-results.sh https://172-31-224-178.openvidu-local.dev:7443
 # Flags:
 #   --keep-running, -k  Keep Docker services running after test completion (useful for debugging)
 #   --no-build, -n      Skip docker image build (use existing images)
 #   --elk               Start ELK stack (Elasticsearch, Kibana, Metricbeat)
+#   --keep-results, -r  Do not delete previous results before running (reports remain available for inspection)
 
 set -e
 
@@ -15,6 +16,7 @@ EXIT_CODE=0
 KEEP_RUNNING=false
 NO_BUILD=false
 ELK_PROFILE=""
+KEEP_RESULTS=false
 
 # Parse flags
 PASSTHROUGH_ARGS=()
@@ -28,6 +30,9 @@ for arg in "$@"; do
             ;;
         --elk)
             ELK_PROFILE="elasticsearch kibana metricbeat-masternode metricbeat-medianode metricbeat-browseremulator"
+            ;;
+        --keep-results|-r)
+            KEEP_RESULTS=true
             ;;
         *)
             PASSTHROUGH_ARGS+=("$arg")
@@ -46,7 +51,7 @@ fi
 
 # Check arguments
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 [--keep-running|-k] [--no-build|-n] [--elk] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]"
+    echo "Usage: $0 [--keep-running|-k] [--no-build|-n] [--elk] [--keep-results|-r] <CONFIG_FILE> <VALIDATION_SCRIPT> <PLATFORM_URL> [API_KEY] [API_SECRET]"
     echo "Example: $0 smoke-test-config.yaml validate-results.sh https://openvidu.example.com:7443 devkey secret"
     exit 1
 fi
@@ -85,8 +90,17 @@ export DOCKER_GID="${DOCKER_GID:-1001}"
 mkdir -m 777 -p /tmp/openvidu-loadtest 2>/dev/null
 chmod 777 /tmp/openvidu-loadtest 2>/dev/null || true
 
-# Clean previous results to avoid false positives
-rm -f $LOCAL_RESULTS_DIR/results-*.txt $LOCAL_RESULTS_DIR/report-*.html $LOCAL_RESULTS_DIR/docker-compose.log
+# Clean previous results to avoid false positives (unless --keep-results is set)
+if [ "$KEEP_RESULTS" = true ]; then
+    echo "Skipping results cleanup (--keep-results flag is set); previous reports will remain in $LOCAL_RESULTS_DIR."
+else
+    rm -f $LOCAL_RESULTS_DIR/results-*.txt $LOCAL_RESULTS_DIR/report-*.html $LOCAL_RESULTS_DIR/docker-compose.log
+fi
+
+# Marker used to detect files produced by *this* run, regardless of whether
+# older results were left in place by --keep-results
+RESULTS_MARKER="$LOCAL_RESULTS_DIR/.e2e-test-marker"
+touch "$RESULTS_MARKER"
 
 # Start services
 echo "Starting services with docker compose..."
@@ -104,9 +118,11 @@ fi
 MAX_WAIT=120
 ELAPSED=0
 while [ $ELAPSED -lt $MAX_WAIT ]; do
-    # Check if loadtest-controller has finished (results and HTML report exist)
-    TXT_REPORT=$(ls -t $LOCAL_RESULTS_DIR/results-*.txt 2>/dev/null | head -1)
-    HTML_REPORT=$(ls -t $LOCAL_RESULTS_DIR/report-*.html 2>/dev/null | head -1)
+    # Check if loadtest-controller has finished (results and HTML report exist).
+    # Only consider files newer than the marker so leftover reports from a
+    # previous run (kept via --keep-results) aren't mistaken for this run's output.
+    TXT_REPORT=$(find "$LOCAL_RESULTS_DIR" -maxdepth 1 -name 'results-*.txt' -newer "$RESULTS_MARKER" 2>/dev/null | head -1)
+    HTML_REPORT=$(find "$LOCAL_RESULTS_DIR" -maxdepth 1 -name 'report-*.html' -newer "$RESULTS_MARKER" 2>/dev/null | head -1)
     if [ -n "$TXT_REPORT" ] && [ -n "$HTML_REPORT" ]; then
         echo "Results and HTML report found. Test appears to be complete."
         break
@@ -138,6 +154,8 @@ if [ $ELAPSED -ge $MAX_WAIT ]; then
     docker compose ps
     docker compose logs
 fi
+
+rm -f "$RESULTS_MARKER"
 
 # Save logs before stopping anything
 docker compose logs > "$LOCAL_RESULTS_DIR/docker-compose.log" 2>&1

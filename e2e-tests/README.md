@@ -22,16 +22,29 @@ The e2e test scripts follow a modular architecture:
 - **`run-e2e-test.sh`** - Central test runner for a single test (called by unified runner)
 - **`validate-default.sh`** - Default validation script for smoke test expectations
 
+### Common Flags
+
+Both `run-e2e-test.sh` and `run-all-e2e-tests.sh` accept:
+
+- `--keep-running`, `-k` - Keep Docker services running after the test completes (useful for debugging)
+- `--keep-results`, `-r` - Skip deleting `results/*.txt` and `results/*.html` before running; previous reports remain in the `results/` directory alongside the new ones
+
+`run-e2e-test.sh` additionally accepts `--no-build`/`-n` (skip image build) and `--elk` (start the ELK stack).
+
 ## Running All Tests
 
 To run all e2e tests in one command:
 
 ```bash
 cd e2e-tests/scripts
-./run-all-e2e-tests.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+./run-all-e2e-tests.sh [--keep-running|-k] [--keep-results|-r] <PLATFORM_URL> [API_KEY] [API_SECRET]
 
 # Example
 ./run-all-e2e-tests.sh https://172-31-224-178.openvidu-local.dev:7443 devkey secret
+
+# Keep the results/ directory from being wiped before each test, so every
+# test's results-*.txt and report-*.html remain available for inspection afterwards
+./run-all-e2e-tests.sh --keep-results https://172-31-224-178.openvidu-local.dev:7443 devkey secret
 ```
 
 The unified runner will:
@@ -48,6 +61,9 @@ The unified runner will:
 ```bash
 cd e2e-tests/scripts
 ./run-e2e-test.sh smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+
+# Keep previous results in place instead of deleting them before the run
+./run-e2e-test.sh --keep-results smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
 ### Emulated Browser Test
