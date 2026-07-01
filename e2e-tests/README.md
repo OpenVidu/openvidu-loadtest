@@ -164,6 +164,7 @@ The ELK smoke test (`elk-smoke-test-config.yaml`) adds these validations on top 
 - `metricbeat-*` has ≥1 document with `fields.node_role:medianode`
 - `metricbeat-*` has ≥1 document with `fields.node_role:browseremulator`
 - `loadtest-openvidu-metrics-*` has 0 documents (controller does not index platform metrics)
+- `loadtest-webrtc-stats-*` has exactly 2 documents: one with `new_participant_id:User1` and one with `new_participant_id:User2`, both with `node_role:browseremulator`
 
 **Kibana URL validation:**
 
