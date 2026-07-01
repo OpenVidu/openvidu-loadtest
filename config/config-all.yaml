@@ -40,6 +40,23 @@ testcases:
     showBrowserVideoElements: true
     description: "Basic 2-user test"
 
+  # LOADTEST mode: instead of creating one participant at a time, each room is
+  # filled by launching one or more `lk load-test` processes (LiveKit CLI),
+  # each simulating many publishers/subscribers with native simulcast.
+  # Requires a LiveKit platform (platform.url pointing at a LiveKit server).
+  # See README.md "LOADTEST mode" section for what config options do NOT
+  # apply in this mode (custom media, frameRate, exact resolution, etc.).
+  - topology: ONE_SESSION_NXM
+    participants:
+      - "50:20"
+    sessions: 1
+    resolution: 1280x720
+    browser: emulated
+    mode: LOADTEST
+    videoCodec: h264
+    simulcast: true
+    description: "LOADTEST mode: 50 publishers + 20 subscribers via lk load-test"
+
 # ---------- Workers ----------
 workers:
   urls: 

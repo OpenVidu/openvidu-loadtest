@@ -1,6 +1,7 @@
 import { InstanceService } from '../instance.service.ts';
 import { RealBrowserService } from './real/real-browser.service.ts';
 import { EmulatedBrowserService } from './emulated/emulated-browser.service.ts';
+import type { LoadTestRunnerService } from './emulated/load-test-runner.service.ts';
 import { ParticipantTracker } from './participant-tracker.ts';
 import { ElasticSearchService } from '../elasticsearch.service.ts';
 import type { ConfigService } from '../config.service.ts';
@@ -24,6 +25,10 @@ import type {
 	CreateUserBrowserResponse,
 	AvailableBrowsers,
 } from '../../types/create-user.type.ts';
+import type {
+	LoadTestRunRequest,
+	LoadTestRunResponse,
+} from '../../types/load-test.type.ts';
 import type { JSONStreamsInfo } from '../../types/json.type.ts';
 import type { LoggerService } from '../logger.service.ts';
 
@@ -32,6 +37,7 @@ export class BrowserManagerService {
 	private readonly configService: ConfigService;
 	private readonly realBrowserService: RealBrowserService;
 	private readonly emulatedBrowserService: EmulatedBrowserService;
+	private readonly loadTestRunnerService: LoadTestRunnerService;
 	private readonly instanceService: InstanceService;
 	private readonly elasticSearchService: ElasticSearchService;
 	private readonly remotePersistenceService: RemotePersistenceService;
@@ -42,6 +48,7 @@ export class BrowserManagerService {
 		configService: ConfigService,
 		realBrowserService: RealBrowserService,
 		emulatedBrowserService: EmulatedBrowserService,
+		loadTestRunnerService: LoadTestRunnerService,
 		instanceService: InstanceService,
 		elasticSearchService: ElasticSearchService,
 		remotePersistenceService: RemotePersistenceService,
@@ -50,6 +57,7 @@ export class BrowserManagerService {
 		this.configService = configService;
 		this.realBrowserService = realBrowserService;
 		this.emulatedBrowserService = emulatedBrowserService;
+		this.loadTestRunnerService = loadTestRunnerService;
 		this.instanceService = instanceService;
 		this.elasticSearchService = elasticSearchService;
 		this.remotePersistenceService = remotePersistenceService;
@@ -142,6 +150,29 @@ export class BrowserManagerService {
 		};
 	}
 
+	async runLoadTest(
+		request: LoadTestRunRequest,
+	): Promise<LoadTestRunResponse> {
+		this.logger.info(
+			{
+				room: request.room,
+				videoPublishers: request.videoPublishers,
+				audioPublishers: request.audioPublishers,
+				subscribers: request.subscribers,
+			},
+			'Starting load-test run',
+		);
+		const { runId, handleId } =
+			await this.loadTestRunnerService.startLoadTest(request);
+		const workerCpuUsage = await this.instanceService.getCpuUsage();
+		return {
+			runId,
+			handleId,
+			room: request.room,
+			workerCpuUsage,
+		};
+	}
+
 	async deleteStreamManagerWithConnectionId(
 		connectionId: string,
 	): Promise<void> {
@@ -195,6 +226,7 @@ export class BrowserManagerService {
 		await Promise.all([
 			this.realBrowserService.clean(),
 			this.emulatedBrowserService.clean(),
+			this.loadTestRunnerService.stopAll(),
 		]);
 		this.logger.info('Browsers cleaned');
 

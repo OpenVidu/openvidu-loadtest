@@ -9,6 +9,10 @@ import {
 	Role,
 	Resolution,
 } from '../types/create-user.type.ts';
+import type {
+	LoadTestRunRequestExpress,
+	LoadTestRunResponse,
+} from '../types/load-test.type.ts';
 
 export class OpenViduBrowserController {
 	private readonly router: express.Router;
@@ -33,6 +37,7 @@ export class OpenViduBrowserController {
 			'/streamManager',
 			this.handleStreamManagerPost.bind(this),
 		);
+		this.router.post('/load-test', this.handleLoadTestPost.bind(this));
 		this.router.delete(
 			'/streamManager',
 			this.handleStreamManagerDelete.bind(this),
@@ -101,6 +106,49 @@ export class OpenViduBrowserController {
 				);
 				res.status(400).send('Problem with some body parameter');
 			}
+		} catch (error: unknown) {
+			this.logger.error(error);
+			res.status(500).send({
+				message: 'Internal server error',
+			});
+		}
+	}
+
+	private async handleLoadTestPost(
+		req: LoadTestRunRequestExpress,
+		res: Response,
+	): Promise<void> {
+		try {
+			const request = req.body;
+
+			if (
+				!request.openviduUrl ||
+				!request.livekitApiKey ||
+				!request.livekitApiSecret ||
+				!request.room
+			) {
+				res.status(400).send({
+					message:
+						'openviduUrl, livekitApiKey, livekitApiSecret and room are required',
+				});
+				return;
+			}
+
+			const totalUsers =
+				(request.videoPublishers ?? 0) +
+				(request.audioPublishers ?? 0) +
+				(request.subscribers ?? 0);
+			if (totalUsers <= 0) {
+				res.status(400).send({
+					message:
+						'At least one of videoPublishers, audioPublishers or subscribers must be greater than 0',
+				});
+				return;
+			}
+
+			const response: LoadTestRunResponse =
+				await this.browserManagerService.runLoadTest(request);
+			res.status(200).send(response);
 		} catch (error: unknown) {
 			this.logger.error(error);
 			res.status(500).send({

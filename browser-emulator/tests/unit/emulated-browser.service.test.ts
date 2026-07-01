@@ -125,7 +125,7 @@ describe('EmulatedBrowserService', () => {
 		);
 
 		service = new EmulatedBrowserService(
-			mockLauncher as never,
+			mockLauncher,
 			mockConfigService as never,
 			mockWsService as never,
 			mockLocalFilesRepository as never,
@@ -170,7 +170,7 @@ describe('EmulatedBrowserService', () => {
 				);
 
 			service = new EmulatedBrowserService(
-				mockLauncher as never,
+				mockLauncher,
 				mockConfigService as never,
 				mockWsService as never,
 				failingLocalFilesRepository,

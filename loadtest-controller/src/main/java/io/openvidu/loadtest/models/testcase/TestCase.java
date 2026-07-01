@@ -16,6 +16,10 @@ public class TestCase {
     private boolean showBrowserVideoElements = true;
     private String recordingMetadata = "";
     private int startingParticipants = 0;
+    // LOADTEST mode fields (only used when mode == LOADTEST)
+    private LoadTestMode mode = LoadTestMode.NORMAL;
+    private String videoCodec = "";
+    private boolean simulcast = true;
 
     public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
             OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
@@ -46,6 +50,9 @@ public class TestCase {
         this.showBrowserVideoElements = testCase.showBrowserVideoElements;
         this.recordingMetadata = testCase.recordingMetadata;
         this.startingParticipants = testCase.startingParticipants;
+        this.mode = testCase.mode;
+        this.videoCodec = testCase.videoCodec;
+        this.simulcast = testCase.simulcast;
     }
 
     public boolean isNxN() {
@@ -202,6 +209,34 @@ public class TestCase {
         this.browser = browser;
     }
 
+    public LoadTestMode getMode() {
+        return mode;
+    }
+
+    public void setMode(LoadTestMode mode) {
+        this.mode = mode;
+    }
+
+    public boolean isLoadTestMode() {
+        return this.mode == LoadTestMode.LOADTEST;
+    }
+
+    public String getVideoCodec() {
+        return videoCodec;
+    }
+
+    public void setVideoCodec(String videoCodec) {
+        this.videoCodec = videoCodec;
+    }
+
+    public boolean isSimulcast() {
+        return simulcast;
+    }
+
+    public void setSimulcast(boolean simulcast) {
+        this.simulcast = simulcast;
+    }
+
     @Override
     public String toString() {
         // @formatter:off
@@ -209,6 +244,7 @@ public class TestCase {
 		String sessionLimit = sessions == -1 ? "No limit" : Integer.toString(sessions);
 		String startingParticipantString = startingParticipants == 0 ? "No starting participants" : Integer.toString(startingParticipants);
 		return "Session topology: " + topology
+				+ " | Mode: " + mode.getValue()
 				+ " | Participants in session: " + participants
 				+ " | Starting participants: " + startingParticipantString
 				+ " | Sessions limit: "	+ sessionLimit

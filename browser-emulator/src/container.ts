@@ -33,6 +33,7 @@ import { SocketWriterService } from './services/streaming/socket-writer.service.
 import { SocketWriterHealthService } from './services/streaming/socket-writer-health.service.ts';
 import { DockerLauncher } from './services/browser/emulated/docker-launcher.ts';
 import { DirectLauncher } from './services/browser/emulated/direct-launcher.ts';
+import { LoadTestRunnerService } from './services/browser/emulated/load-test-runner.service.ts';
 import type { EmulatedParticipantLauncher } from './services/browser/emulated/emulated-participant-launcher.ts';
 
 // Define the container interface for type safety
@@ -42,6 +43,7 @@ export interface DIContainer {
 	browserManagerService: BrowserManagerService;
 	realBrowserService: RealBrowserService;
 	emulatedBrowserService: EmulatedBrowserService;
+	loadTestRunnerService: LoadTestRunnerService;
 	emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
 	emulatedParticipantLauncher: EmulatedParticipantLauncher;
 	dockerLauncher: DockerLauncher;
@@ -110,6 +112,7 @@ export async function configureContainer(): Promise<
 		directLauncher: asClass(DirectLauncher).singleton(),
 		lkCliPath: asValue(process.env.LIVEKIT_CLI_PATH ?? '/usr/local/bin/lk'),
 		emulatedBrowserService: asClass(EmulatedBrowserService).singleton(),
+		loadTestRunnerService: asClass(LoadTestRunnerService).singleton(),
 		browserManagerService: asClass(BrowserManagerService).singleton(),
 		socketWriterService: asClass(SocketWriterService).singleton(),
 		healthService: asClass(SocketWriterHealthService).singleton(),

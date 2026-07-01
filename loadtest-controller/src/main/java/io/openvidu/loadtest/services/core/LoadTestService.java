@@ -57,6 +57,7 @@ public class LoadTestService {
     private final LoadTestEstimationOrchestrator estimationOrchestrator;
     private final LoadTestShutdownOrchestrator shutdownOrchestrator;
     private final LoadTestParticipantOrchestrator participantOrchestrator;
+    private final LoadTestModeOrchestrator loadTestModeOrchestrator;
     private final LoadTestTopologyOrchestrator topologyOrchestrator;
 
     private DataIO io;
@@ -97,8 +98,9 @@ public class LoadTestService {
                 loadTestConfig, workerUrlResolver);
         this.participantOrchestrator = new LoadTestParticipantOrchestrator(this, browserEmulatorClient, esClient,
                 loadTestConfig, sleeper);
+        this.loadTestModeOrchestrator = new LoadTestModeOrchestrator(this, browserEmulatorClient, loadTestConfig);
         this.topologyOrchestrator = new LoadTestTopologyOrchestrator(this, loadTestConfig, kibanaClient,
-                browserEmulatorClient, workerUrlResolver, dataIO);
+                browserEmulatorClient, workerUrlResolver, dataIO, loadTestModeOrchestrator);
 
         prodMode = loadTestConfig.getWorkerUrlList().isEmpty();
         devWorkersList = loadTestConfig.getWorkerUrlList();

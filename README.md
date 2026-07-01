@@ -235,6 +235,51 @@ These topologies create a single session and fill it with users:
 | `ONE_SESSION_NXN` | One session filled with N publishers (all publish and subscribe)         | Number for adding a specific number of participants and stopping the test when reached (e.g. `"100"`) or `"infinite"` for adding participants until an error occurs                                                                                                             |
 | `ONE_SESSION_NXM` | One session with N publishers and M subscribers (N publish, M subscribe) | Number of publishers:Number of subscribers for adding a specific number of participants and stopping the test when reached (e.g. `"10:50"`) or Number of publishers:`"infinite"` for adding subscribers to the number of publishers until an error occurs (e.g. `"2:infinite"`) |
 
+### LOADTEST mode
+
+`mode: LOADTEST` is an alternative, additive execution mode available for `emulated` test cases that should allow for introducing more users in the workers that `NORMAL` mode.
+
+Enable it by adding `mode: LOADTEST` to a test case:
+
+```yaml
+testcases:
+  - topology: ONE_SESSION_NXM
+    participants:
+      - "50:20"
+    sessions: 1
+    resolution: 1280x720
+    browser: emulated
+    mode: LOADTEST
+    videoCodec: h264
+    simulcast: true
+```
+
+LOADTEST-mode reuses most existing test case configuration:
+
+| Property                 | Reused as                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| `topology`                | Determines publisher/subscriber split and number of rooms, same as NORMAL mode         |
+| `participants`, `sessions` | Same meaning as NORMAL mode (number of rooms / publishers / subscribers per room)     |
+| `resolution`               | Mapped to `lk load-test`'s coarse `low`/`medium`/`high` video resolution (180p, 360p, 720p)             |
+| `distribution.usersPerWorker` (with `distribution.manual: true`) | Used to split a room's publishers/subscribers into per-worker chunks |
+
+It also adds LOADTEST-only fields:
+
+| Property     | Required | Default | Description                                                                 |
+| ------------- | -------- | ------- | ----------------------------------------------------------------------------- |
+| `mode`         | No       | `NORMAL` | Set to `LOADTEST` to use this execution mode                                |
+| `videoCodec`   | No       | (none)  | `h264` or `vp8`. Left to `lk load-test`'s default (both) if omitted          |
+| `simulcast`    | No       | `true`  | Simulcast is enabled by default; set to `false` to disable it                |
+
+**Not supported in LOADTEST mode** (these options are ignored, since `lk load-test` publishes its own built-in synthetic clip rather than a configurable stream):
+
+- Custom/personalized media: `video.type`, `video.customVideoUrl`, `video.customAudioUrl`.
+- `frameRate` — no equivalent flag; the built-in clip has a fixed frame rate.
+- Original `resolution` values — only the coarse `low`/`medium`/`high` mapping applies.
+- `recordingMode`, `browserRecording`, `headlessBrowser`, `showBrowserVideoElements`, and QoE recording/analysis — these are browser/recording concepts that don't apply to `lk load-test` runs.
+- `startingParticipants` and the automatic CPU-based worker capacity estimation used in NORMAL mode — LOADTEST mode sizes worker chunks from `distribution.usersPerWorker` (manual allocation), or a built-in default step size for "infinite" rooms; otherwise a whole (finite) room runs as a single chunk on one worker.
+- Per-participant reporting: OpenVidu/LiveKit `connectionId`, per-user CPU at creation, and per-user retry counts are NORMAL-mode-only. LOADTEST mode reports at the chunk/session level, plus the platform metrics collected from Grafana/Prometheus (unchanged in both modes).
+
 ### Choosing Emulated vs Real Browsers
 
 An emulated user is a lightweight simulated participant implemented by the browser-emulator. It joins sessions and performs signaling while sending or receiving pre-recorded or synthetic media streams, but it does not run a full browser (no UI rendering or real device capture). Emulated users consume far less CPU and memory and start faster than real browser instances, making them suitable for large-scale load testing where browser-level behaviour is not required.
