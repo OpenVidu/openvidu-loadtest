@@ -4,6 +4,7 @@
 # This script validates standard smoke test results AND ELK integration:
 #   - metricbeat-* has docs for masternode, medianode, browseremulator
 #   - loadtest-openvidu-metrics-* has zero documents
+#   - loadtest-webrtc-stats-* has exactly 2 documents (User1 and User2, node_role:browseremulator)
 #   - TXT and HTML reports contain a valid Kibana dashboard URL
 #
 # Usage: ./validate-elk-smoke-test.sh <RESULTS_DIR>
@@ -235,6 +236,40 @@ if [ "$ELK_VALIDATION_PASSED" = true ]; then
 		fi
 	else
 		echo "✓ loadtest-openvidu-metrics-* does not exist (no platform metrics indexed)"
+	fi
+
+	# Verify loadtest-webrtc-stats-* has exactly 2 documents: one per user (User1, User2),
+	# both indexed by the browser-emulator worker
+	WEBRTC_STATS_COUNT=$(count_docs "loadtest-webrtc-stats-*" "")
+	if [ "$WEBRTC_STATS_COUNT" -eq 2 ]; then
+		echo "✓ loadtest-webrtc-stats-* has exactly 2 documents"
+	else
+		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_COUNT} document(s) (expected 2)"
+		ELK_VALIDATION_PASSED=false
+	fi
+
+	WEBRTC_STATS_USER1_COUNT=$(count_docs "loadtest-webrtc-stats-*" "new_participant_id:User1")
+	if [ "$WEBRTC_STATS_USER1_COUNT" -eq 1 ]; then
+		echo "✓ loadtest-webrtc-stats-* has 1 document with new_participant_id:User1"
+	else
+		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_USER1_COUNT} document(s) with new_participant_id:User1 (expected 1)"
+		ELK_VALIDATION_PASSED=false
+	fi
+
+	WEBRTC_STATS_USER2_COUNT=$(count_docs "loadtest-webrtc-stats-*" "new_participant_id:User2")
+	if [ "$WEBRTC_STATS_USER2_COUNT" -eq 1 ]; then
+		echo "✓ loadtest-webrtc-stats-* has 1 document with new_participant_id:User2"
+	else
+		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_USER2_COUNT} document(s) with new_participant_id:User2 (expected 1)"
+		ELK_VALIDATION_PASSED=false
+	fi
+
+	WEBRTC_STATS_BROWSEREMULATOR_COUNT=$(count_docs "loadtest-webrtc-stats-*" "node_role:browseremulator")
+	if [ "$WEBRTC_STATS_BROWSEREMULATOR_COUNT" -eq 2 ]; then
+		echo "✓ loadtest-webrtc-stats-* has 2 document(s) with node_role:browseremulator"
+	else
+		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_BROWSEREMULATOR_COUNT} document(s) with node_role:browseremulator (expected 2)"
+		ELK_VALIDATION_PASSED=false
 	fi
 fi
 
