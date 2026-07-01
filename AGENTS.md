@@ -82,12 +82,16 @@ cd loadtest-controller
 mvn clean package    # Build JAR with Maven wrapper
 
 # Run tests
-mvn test             # Run all tests
+mvn test             # Run all tests (unit + integration)
+mvn test -Dtest='!*IntegrationTest'   # Run unit tests only (fast, ~1-2 seconds, 111 tests)
+mvn test -Dtest='*IntegrationTest'    # Run integration tests only (slow, requires Docker)
 mvn test -Dtest=TestClass#testMethod  # Run single test
 
 # Run application
 mvn spring-boot:run  # Start the controller
 ```
+
+**After code changes**: Run unit tests only (`mvn test -Dtest='!*IntegrationTest'`). Integration tests require Docker and take several minutes; run them only on CI or when explicitly requested.
 
 ### E2E Tests (Docker-based)
 
