@@ -12,6 +12,7 @@
 set -e
 
 RESULTS_DIR="${1:?Results directory required}"
+KEEP_RESULTS="${KEEP_RESULTS:-false}"
 
 EXIT_CODE=0
 
@@ -277,8 +278,8 @@ else
 	EXIT_CODE=1
 fi
 
-# Clean up result files only on success
-if [ $EXIT_CODE -eq 0 ]; then
+# Clean up result files only on success and when --keep-results was not requested
+if [ $EXIT_CODE -eq 0 ] && [ "$KEEP_RESULTS" != true ]; then
 	echo "Deleting result files..."
 	rm -f "$RESULTS_DIR"/results-*.txt
 	rm -f "$RESULTS_DIR"/report-*.html

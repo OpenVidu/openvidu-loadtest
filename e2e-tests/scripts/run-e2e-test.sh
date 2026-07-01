@@ -70,6 +70,7 @@ export PLATFORM_URL
 export PLATFORM_APIKEY
 export PLATFORM_APISECRET
 export LOADTEST_CONFIG="/config/$CONFIG_FILE"
+export KEEP_RESULTS
 export LOCAL_CONFIG_DIR="$E2E_TEST_DIR/config"
 export LOCAL_RESULTS_DIR="$E2E_TEST_DIR/results"
 export MEDIAFILES_HOST_DIR="$E2E_TEST_DIR/../browser-emulator/mediafiles"

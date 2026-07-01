@@ -27,7 +27,7 @@ The e2e test scripts follow a modular architecture:
 Both `run-e2e-test.sh` and `run-all-e2e-tests.sh` accept:
 
 - `--keep-running`, `-k` - Keep Docker services running after the test completes (useful for debugging)
-- `--keep-results`, `-r` - Skip deleting `results/*.txt` and `results/*.html` before running; previous reports remain in the `results/` directory alongside the new ones
+- `--keep-results`, `-r` - Skip deleting previous `results/*.txt`/`results/*.html` before the run, and skip the validation script's own cleanup of its result files on success; reports from every run remain in the `results/` directory
 
 `run-e2e-test.sh` additionally accepts `--no-build`/`-n` (skip image build) and `--elk` (start the ELK stack).
 
@@ -174,7 +174,7 @@ The ELK smoke test (`elk-smoke-test-config.yaml`) adds these validations on top 
 
 The test config sets `monitoring.elasticsearch.host` (so the controller passes it to the browser-emulator, which launches its own Metricbeat) and `monitoring.kibana.host` (so dashboards are imported and the report includes a dashboard URL). Grafana is intentionally omitted — the controller's `collectPlatformMetrics()` returns an empty list, so `indexPlatformMetrics()` is never called, and no documents are written to `loadtest-openvidu-metrics-*`.
 
-If validation fails, the result files are kept in the `results/` directory for debugging.
+If validation fails, the result files are kept in the `results/` directory for debugging. On success, the validation scripts normally delete the result files — pass `--keep-results`/`-r` to keep them regardless of the validation outcome.
 
 ## Notes
 
