@@ -406,14 +406,16 @@ Elasticsearch, Kibana and Grafana integration for metrics visualization. Expects
 
 Performance and retry settings.
 
+**Stopping on participant errors:** in NORMAL mode, exactly one of `advanced.retry` or `advanced.maxParticipantErrors` is active at a time - configuring one disables the other. If you configure neither, `advanced.maxParticipantErrors: 1` applies by default (test stops as soon as one participant errors, no retries). Set `advanced.retry.enabled: true` explicitly if you want retries instead. LOADTEST mode has no retry/reconnect mechanism, so it always uses `advanced.maxParticipantErrors` regardless of your `advanced.retry` settings, defaulting to `1` unless set explicitly.
+
 | Property                                 | Required | Default         | Description                                                                                                                                                              |
 | ---------------------------------------- | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `advanced.retry.enabled`                 | No       | `true`          | Enable participant insertion retries on failure                                                                                                                          |
+| `advanced.retry.enabled`                 | No       | `false`         | Enable participant insertion retries on failure (NORMAL mode only)                                                                                                       |
 | `advanced.retry.times`                   | No       | `5`             | Number of retry attempts                                                                                                                                                 |
 | `advanced.batches.enabled`               | No       | `true`          | Enable batch mode: Users will be inserted in batches                                                                                                                     |
 | `advanced.batches.maxConcurrentRequests` | No       | `CPU cores + 1` | Max concurrent requests when in batch mode                                                                                                                               |
 | `advanced.waitForCompletion`             | No       | `true`          | Wait for all participants in the batch to confirm insertion into the platform before inserting the next batch. Will wait for individual participants if `batches: false` |
-| `advanced.maxParticipantErrors`          | No       | (unlimited)     | Stop the test once this many distinct participants have errored, regardless of whether they were retried/reconnected successfully. Works in both NORMAL and LOADTEST mode. Unlike `advanced.retry`, this doesn't wait for retries to be exhausted—participants are simply allowed to fail. |
+| `advanced.maxParticipantErrors`          | No       | `1`             | Stop the test once this many distinct participants (NORMAL mode) or load-test runs (LOADTEST mode) have errored, regardless of whether they were retried/reconnected successfully. Unlike `advanced.retry`, this doesn't wait for retries to be exhausted - participants are simply allowed to fail. |
 
 ### Report Output Configuration
 

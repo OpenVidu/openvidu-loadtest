@@ -473,6 +473,35 @@ class BrowserEmulatorClientTests {
     }
 
     @Test
+    void recordLoadTestRunErrorTest_stopsTestAtEffectiveLoadTestThreshold() {
+        // LOADTEST mode always enforces its own effective threshold, regardless of
+        // how advanced.maxParticipantErrors/advanced.retry were resolved for NORMAL mode.
+        when(this.loadTestConfigMock.getEffectiveMaxParticipantErrorsForLoadTestMode()).thenReturn(2);
+
+        this.browserEmulatorClient.recordLoadTestRunError("loadtest-room1-1", "room1");
+        assertNull(this.browserEmulatorClient.getLastErrorReconnectingResponse());
+
+        this.browserEmulatorClient.recordLoadTestRunError("loadtest-room1-2", "room1");
+
+        assertEquals(2, this.browserEmulatorClient.getParticipantsWithErrorsCount());
+        CreateParticipantResponse response = this.browserEmulatorClient.getLastErrorReconnectingResponse();
+        assertNotNull(response);
+        assertFalse(response.isResponseOk());
+    }
+
+    @Test
+    void recordLoadTestRunErrorTest_ignoresMaxParticipantErrorsEnabledFlag() {
+        // Even if isMaxParticipantErrorsEnabled() is false (e.g. retry is the active
+        // NORMAL-mode mechanism), LOADTEST mode's own effective threshold still applies.
+        when(this.loadTestConfigMock.isMaxParticipantErrorsEnabled()).thenReturn(false);
+        when(this.loadTestConfigMock.getEffectiveMaxParticipantErrorsForLoadTestMode()).thenReturn(1);
+
+        this.browserEmulatorClient.recordLoadTestRunError("loadtest-room1-1", "room1");
+
+        assertNotNull(this.browserEmulatorClient.getLastErrorReconnectingResponse());
+    }
+
+    @Test
     void setEndOfTestTest() {
         this.browserEmulatorClient.setEndOfTest(true);
     }

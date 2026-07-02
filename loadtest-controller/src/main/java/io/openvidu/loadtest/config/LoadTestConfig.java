@@ -321,8 +321,12 @@ public abstract class LoadTestConfig {
 
     /**
      * Maximum number of distinct participants allowed to error out before the test
-     * is stopped, regardless of whether those participants ever reconnect. Applies
-     * to both NORMAL and LOADTEST mode. -1 (default) means disabled/unlimited.
+     * is stopped, regardless of whether those participants ever reconnect. For
+     * NORMAL mode, this is resolved by {@link #resolveRetryAndMaxParticipantErrorsDefaults}
+     * (-1 means disabled, e.g. when {@code advanced.retry} is the active
+     * mechanism instead). LOADTEST mode should use
+     * {@link #getEffectiveMaxParticipantErrorsForLoadTestMode()} instead, since it
+     * always enforces this stop condition.
      */
     public int getMaxParticipantErrors() {
         return maxParticipantErrors;
@@ -330,6 +334,17 @@ public abstract class LoadTestConfig {
 
     public boolean isMaxParticipantErrorsEnabled() {
         return maxParticipantErrors >= 0;
+    }
+
+    /**
+     * LOADTEST mode has no retry/reconnect mechanism, so it always enforces
+     * {@code advanced.maxParticipantErrors} regardless of how it was resolved for
+     * NORMAL mode (which may have left it disabled in favor of
+     * {@code advanced.retry}). Uses the explicitly configured value if set,
+     * otherwise defaults to 1.
+     */
+    public int getEffectiveMaxParticipantErrorsForLoadTestMode() {
+        return maxParticipantErrors >= 0 ? maxParticipantErrors : 1;
     }
 
     public List<String> getReportOutput() {
@@ -501,15 +516,50 @@ public abstract class LoadTestConfig {
     }
 
     private void initRetryAndQoeConfig() {
-        Boolean retryEnabled = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
-        retryMode = !Boolean.FALSE.equals(retryEnabled);
+        Boolean retryEnabledRaw = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
+        int maxParticipantErrorsRaw = asInt("advanced.maxParticipantErrors");
+        resolveRetryAndMaxParticipantErrorsDefaults(retryEnabledRaw, maxParticipantErrorsRaw);
         retryTimes = defaultIfMinusOne(asInt("advanced.retry.times"), 5);
-        // -1 (unset) means disabled: participants are allowed to error out without limit.
-        maxParticipantErrors = asInt("advanced.maxParticipantErrors");
         qoeAnalysisRecordings = asBoolean("qoe.recordStreams");
         qoeAnalysisInSitu = asBoolean("qoe.analyzeInSitu");
         paddingDuration = asInt("qoe.paddingDuration");
         fragmentDuration = asInt("qoe.fragmentDuration");
+    }
+
+    /**
+     * NORMAL mode always has exactly one active stop-on-error mechanism: either
+     * {@code advanced.retry} (gives up after exhausting retries) or
+     * {@code advanced.maxParticipantErrors} (stops as soon as N participants have
+     * errored, without needing to reconnect them first). When neither is
+     * explicitly configured, defaults to {@code maxParticipantErrors: 1} with
+     * retry disabled. Explicitly configuring one disables the other unless both
+     * are explicitly set, in which case both apply exactly as configured.
+     * <p>
+     * LOADTEST mode ignores {@code retryMode} entirely (it has no
+     * reconnect/retry mechanism) and always enforces
+     * {@link #getEffectiveMaxParticipantErrorsForLoadTestMode()} regardless of
+     * how this method resolves {@code maxParticipantErrors} for NORMAL mode.
+     */
+    private void resolveRetryAndMaxParticipantErrorsDefaults(Boolean retryEnabledRaw, int maxParticipantErrorsRaw) {
+        boolean retryExplicit = retryEnabledRaw != null;
+        boolean maxParticipantErrorsExplicit = maxParticipantErrorsRaw != -1;
+
+        if (retryExplicit && maxParticipantErrorsExplicit) {
+            retryMode = retryEnabledRaw;
+            maxParticipantErrors = maxParticipantErrorsRaw;
+        } else if (retryExplicit) {
+            retryMode = retryEnabledRaw;
+            // If the user explicitly disabled retry without configuring
+            // maxParticipantErrors, fall back to it so a stop-on-error mechanism
+            // is always active.
+            maxParticipantErrors = retryMode ? -1 : 1;
+        } else if (maxParticipantErrorsExplicit) {
+            retryMode = false;
+            maxParticipantErrors = maxParticipantErrorsRaw;
+        } else {
+            retryMode = false;
+            maxParticipantErrors = 1;
+        }
     }
 
     private void initVideoAndStorageConfig() {

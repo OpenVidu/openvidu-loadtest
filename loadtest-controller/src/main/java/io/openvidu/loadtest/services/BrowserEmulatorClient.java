@@ -168,23 +168,40 @@ public class BrowserEmulatorClient {
     }
 
     /**
-     * Records that a participant (NORMAL mode) or load-test run (LOADTEST mode)
-     * has errored, and stops the test once {@code advanced.maxParticipantErrors}
-     * distinct participants/runs have errored - regardless of whether they end up
-     * retried/reconnected successfully. Unlike NORMAL mode's retry-exhaustion stop
-     * condition, this doesn't require giving up on reconnecting first: participants
-     * are simply allowed to fail.
+     * Records that a NORMAL-mode participant has errored, and stops the test once
+     * {@code advanced.maxParticipantErrors} distinct participants have errored -
+     * regardless of whether they end up retried/reconnected successfully. Unlike
+     * NORMAL mode's retry-exhaustion stop condition, this doesn't require giving
+     * up on reconnecting first: participants are simply allowed to fail. Disabled
+     * (no-op threshold) when {@code advanced.retry} is the active mechanism
+     * instead - see {@link LoadTestConfig#getMaxParticipantErrors()}.
      */
     public void recordParticipantError(String participant, String session) {
+        int effectiveMax = this.loadTestConfig.isMaxParticipantErrorsEnabled()
+                ? this.loadTestConfig.getMaxParticipantErrors()
+                : -1;
+        recordError(participant, session, effectiveMax);
+    }
+
+    /**
+     * Records that a LOADTEST-mode run has errored. LOADTEST mode has no
+     * retry/reconnect mechanism, so this always enforces
+     * {@link LoadTestConfig#getEffectiveMaxParticipantErrorsForLoadTestMode()}
+     * (defaulting to 1) regardless of how {@code advanced.maxParticipantErrors}
+     * was resolved for NORMAL mode.
+     */
+    public void recordLoadTestRunError(String participant, String session) {
+        recordError(participant, session, this.loadTestConfig.getEffectiveMaxParticipantErrorsForLoadTestMode());
+    }
+
+    private void recordError(String participant, String session, int effectiveMax) {
         if (this.isClean.get()) {
             return;
         }
         this.participantsWithErrors.add(participant + "-" + session);
-        if (this.loadTestConfig.isMaxParticipantErrorsEnabled()
-                && this.participantsWithErrors.size() >= this.loadTestConfig.getMaxParticipantErrors()
+        if (effectiveMax >= 0 && this.participantsWithErrors.size() >= effectiveMax
                 && this.lastErrorReconnectingResponse == null) {
-            log.error("Max participant errors reached: {}/{}", this.participantsWithErrors.size(),
-                    this.loadTestConfig.getMaxParticipantErrors());
+            log.error("Max participant errors reached: {}/{}", this.participantsWithErrors.size(), effectiveMax);
             this.lastErrorReconnectingResponse = new CreateParticipantResponse()
                     .setResponseOk(false)
                     .setStopReason("Max participant errors reached (" + this.participantsWithErrors.size() + ")");
