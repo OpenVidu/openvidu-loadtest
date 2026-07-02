@@ -261,12 +261,26 @@ Most settings work the same as other browsers:
 | `distribution.usersPerWorker` | Controls how many participants are grouped together per test run |
 | `resolution` | Mapped to `low` (180p), `medium` (360p), or `high` (720p) |
 
-Video codec configuration:
+Video codec and layout configuration:
 
 | Property | Default | Description |
 | -------- | ------- | ----------- |
 | `videoCodec` | (random) | `h264` or `vp8`. If not specified, a codec will be selected randomly for each participant |
 | `simulcast` | `true` | Simulcast enabled by default; set to `false` to disable |
+| `layout` | (none) | **Subscribers only.** Controls how subscriber video is laid out. Determines maximum concurrent subscribers and, if simulcast is enabled, the resolution each subscriber receives |
+
+**Layout options** (subscribers only):
+
+The `layout` setting only applies to subscribers and affects both the maximum number of subscribers and the video quality they receive:
+
+| Layout | Max subscribers | Simulcast resolutions |
+| ------ | --------------- | -------------------- |
+| `speaker` | 1 | 1 track at HIGH, 5 at LOW |
+| `3x3` | 9 | All 9 at MEDIUM |
+| `4x4` | 16 | All 16 at LOW |
+| `5x5` | 25 | All 25 at LOW |
+
+When simulcast is enabled, subscribers receive the specified resolutions depending on the layout. If simulcast is disabled, all subscribers receive a single stream at the configured resolution.
 
 **Features not available in LOADTEST mode:**
 
