@@ -67,7 +67,7 @@ class LoadTestModeOrchestratorTest {
         mockWorkerPool("worker1", "worker2", "worker3", "worker4", "worker5", "worker6");
 
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
-                anyInt(), anyList())).thenReturn(true);
+                anyInt(), anyList())).thenReturn(new CreateParticipantResponse().setResponseOk(true));
     }
 
     /** Configures the round-robin worker mock to hand out exactly {@code pool}, then throw. */
@@ -103,6 +103,24 @@ class LoadTestModeOrchestratorTest {
         verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 6, 0, 0,
                 Arrays.asList("User1", "User2", "User3", "User4", "User5", "User6"));
         verify(loadTestService, times(1)).setAndInitializeNextWorker(anyString(), eq(WorkerType.WORKER));
+    }
+
+    @Test
+    void runOneSessionNxN_recordsWorkerUrlAndCpuFromLaunchResponseOnEachSyntheticParticipant()
+            throws NoWorkersAvailableException {
+        when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
+                anyInt(), anyList())).thenReturn(new CreateParticipantResponse().setResponseOk(true)
+                        .setWorkerUrl("worker1").setWorkerCpuPct(37.5));
+        TestCase testCase = testCase(Topology.ONE_SESSION_NXN, Arrays.asList("2"), 1);
+
+        orchestrator.runOneSessionNxN(testCase, 2);
+
+        List<CreateParticipantResponse> recorded = participantOrchestrator.getAllParticipantResponses();
+        assertEquals(2, recorded.size());
+        for (CreateParticipantResponse response : recorded) {
+            assertEquals("worker1", response.getWorkerUrl());
+            assertEquals(37.5, response.getWorkerCpuPct());
+        }
     }
 
     @Test
@@ -163,7 +181,8 @@ class LoadTestModeOrchestratorTest {
     @Test
     void runNxN_stopsAfterFirstFailedChunkAndSkipsRemainingSessions() throws NoWorkersAvailableException {
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
-                anyInt(), anyList())).thenReturn(false);
+                anyInt(), anyList())).thenReturn(new CreateParticipantResponse().setResponseOk(false)
+                        .setStopReason("launch failed"));
         TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 2);
 
         CreateParticipantResponse response = orchestrator.runNxN(testCase, 3);
@@ -317,7 +336,8 @@ class LoadTestModeOrchestratorTest {
     @Test
     void runNxN_doesNotRecordParticipantsOrCompletionForFailedChunk() throws NoWorkersAvailableException {
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
-                anyInt(), anyList())).thenReturn(false);
+                anyInt(), anyList())).thenReturn(new CreateParticipantResponse().setResponseOk(false)
+                        .setStopReason("launch failed"));
         TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 2);
 
         orchestrator.runNxN(testCase, 3);

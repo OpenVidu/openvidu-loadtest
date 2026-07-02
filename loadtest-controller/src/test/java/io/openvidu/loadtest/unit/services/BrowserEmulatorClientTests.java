@@ -788,4 +788,50 @@ class BrowserEmulatorClientTests {
         assertEquals(0, subsAfter);
     }
 
+    @Test
+    void launchLoadTestTest_parsesWorkerCpuUsageFromResponse() throws IOException, InterruptedException {
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.MULTI_EMULATED);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        JsonObject responseBody = new JsonObject();
+        responseBody.addProperty("runId", "loadtest-room1-123");
+        responseBody.addProperty("handleId", "handle-1");
+        responseBody.addProperty("room", "room1");
+        responseBody.addProperty("workerCpuUsage", 42.5);
+        String responseString = responseBody.toString();
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn(responseString);
+        when(jsonUtilsMock.getJson(responseString)).thenReturn(responseBody);
+        when(this.httpClientMock.sendPost(anyString(), any(), any(), any())).thenReturn(response);
+
+        CreateParticipantResponse cpr = this.browserEmulatorClient.launchLoadTest("localhost", testCase, "room1", 2,
+                0, 0, Arrays.asList("User1", "User2"));
+
+        assertTrue(cpr.isResponseOk());
+        assertEquals("localhost", cpr.getWorkerUrl());
+        assertEquals(42.5, cpr.getWorkerCpuPct());
+    }
+
+    @Test
+    void launchLoadTestTest_failureDoesNotSetWorkerCpuUsage() throws IOException, InterruptedException {
+        TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
+                30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
+                true, Browser.MULTI_EMULATED);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(500);
+        when(response.body()).thenReturn("Internal error");
+        when(this.httpClientMock.sendPost(anyString(), any(), any(), any())).thenReturn(response);
+
+        CreateParticipantResponse cpr = this.browserEmulatorClient.launchLoadTest("localhost", testCase, "room1", 2,
+                0, 0, Arrays.asList("User1", "User2"));
+
+        assertFalse(cpr.isResponseOk());
+        assertNotNull(cpr.getStopReason());
+    }
+
 }
