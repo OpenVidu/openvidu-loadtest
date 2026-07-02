@@ -35,6 +35,8 @@ export class LoadTestRunnerService {
 	 * run on every healthcheck tick once the offending log line is seen.
 	 */
 	private readonly reportedFatalIndicators = new Set<string>();
+	/** Length of each run's log output already scanned by {@link logUnrecognizedOutput}. */
+	private readonly lastScannedLogLength = new Map<string, number>();
 
 	private readonly emulatedParticipantLauncher: EmulatedParticipantLauncher;
 	private readonly wsService: WsService;
@@ -55,6 +57,21 @@ export class LoadTestRunnerService {
 	 * load-test` process startup and per-participant ICE/network negotiation.
 	 */
 	private readonly LOG_INDICATOR_WAIT_BUFFER_SECONDS = 15;
+	/**
+	 * Non-fatal `lk load-test` output known to be expected/benign, so it isn't
+	 * logged as unrecognized. Ids, ports and counts that vary per line (e.g.
+	 * "publishing audio track - sprgj_pub_1") are ignored by matching on the
+	 * fixed substrings/structure around them.
+	 */
+	private readonly KNOWN_INFORMATIONAL_LOG_PATTERNS: (string | RegExp)[] = [
+		'--- stdout ---',
+		'--- stderr ---',
+		'starting load test with',
+		'publishing audio track - ',
+		'publishing video track - ',
+		'publishing simulcast video track - ',
+		/subscribed to track \S+ \S+ (?:audio|video) \d+\/\d+/,
+	];
 
 	constructor(
 		emulatedParticipantLauncher: EmulatedParticipantLauncher,
@@ -132,6 +149,7 @@ export class LoadTestRunnerService {
 		}
 		this.runMap.delete(runId);
 		this.reportedFatalIndicators.delete(runId);
+		this.lastScannedLogLength.delete(runId);
 	}
 
 	async stopAll(): Promise<void> {
@@ -297,6 +315,7 @@ export class LoadTestRunnerService {
 		this.stopRunHealthCheck(runId);
 		this.reportedHealthErrors.delete(runId);
 		this.reportedFatalIndicators.delete(runId);
+		this.lastScannedLogLength.delete(runId);
 
 		const interval = setInterval(() => {
 			void this.runHealthCheck(runId);
@@ -335,6 +354,9 @@ export class LoadTestRunnerService {
 			}
 
 			const logs = await this.getLogsSafely(run.handle.handleId);
+			if (logs) {
+				this.logUnrecognizedOutput(runId, logs);
+			}
 			if (
 				logs &&
 				this.hasFatalLoadTestIndicators(logs) &&
@@ -428,6 +450,50 @@ export class LoadTestRunnerService {
 		}
 
 		return logs.slice(-this.MAX_ERROR_LOG_CHARS);
+	}
+
+	/**
+	 * Logs any new `lk load-test` output line that doesn't match a known
+	 * success/fatal/informational pattern, so unexpected output is surfaced
+	 * instead of silently ignored. Only lines appended since the previous
+	 * healthcheck are considered, so the same line isn't logged repeatedly.
+	 */
+	private logUnrecognizedOutput(runId: string, logs: string): void {
+		const previouslyScannedLength =
+			this.lastScannedLogLength.get(runId) ?? 0;
+		const newOutput = logs.slice(previouslyScannedLength);
+		this.lastScannedLogLength.set(runId, logs.length);
+
+		const newLines = newOutput
+			.split('\n')
+			.map(line => line.trim())
+			.filter(line => line.length > 0);
+
+		for (const line of newLines) {
+			if (!this.isRecognizedLoadTestLogLine(line)) {
+				this.logger.info(
+					{ runId, line },
+					'Unrecognized lk load-test log line',
+				);
+			}
+		}
+	}
+
+	private isRecognizedLoadTestLogLine(line: string): boolean {
+		if (
+			this.hasSuccessfulLoadTestIndicators(line) ||
+			this.hasFatalLoadTestIndicators(line)
+		) {
+			return true;
+		}
+
+		const normalizedLine = normalizeContainerLogs(line);
+
+		return this.KNOWN_INFORMATIONAL_LOG_PATTERNS.some(pattern =>
+			typeof pattern === 'string'
+				? normalizedLine.includes(pattern)
+				: pattern.test(normalizedLine),
+		);
 	}
 
 	/**

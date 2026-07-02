@@ -280,5 +280,85 @@ describe('LoadTestRunnerService', () => {
 
 			expect(mockLauncher.stop).not.toHaveBeenCalled();
 		});
+
+		it('logs a line that matches none of the known success/fatal/informational patterns', async () => {
+			const mockLogger = {
+				info: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+			const localService = new LoadTestRunnerService(
+				mockLauncher,
+				mockWsService as never,
+				{ getLogger: () => mockLogger } as never,
+			);
+			mockLauncher.getLogs.mockResolvedValue(
+				`some unexpected line from lk load-test\n${SUCCESSFUL_LOGS}`,
+			);
+
+			await localService.startLoadTest(baseRequest);
+			mockLogger.info.mockClear();
+
+			await vi.advanceTimersByTimeAsync(5000);
+
+			expect(mockLogger.info).toHaveBeenCalledWith(
+				expect.objectContaining({
+					line: 'some unexpected line from lk load-test',
+				}),
+				'Unrecognized lk load-test log line',
+			);
+
+			// Does not keep re-logging the same already-scanned line.
+			mockLogger.info.mockClear();
+			await vi.advanceTimersByTimeAsync(5000);
+			expect(mockLogger.info).not.toHaveBeenCalled();
+
+			await localService.stopAll();
+		});
+
+		it.each([
+			[
+				'a publishing audio track line',
+				'publishing audio track - sprgj_pub_1',
+			],
+			[
+				'a publishing simulcast video track line',
+				'publishing simulcast video track - sprgj_pub_0',
+			],
+			[
+				'a subscribed track line',
+				'subscribed to track sprgj_2 TR_AMB9K4wdmoNRFw audio 1/4',
+			],
+			['the finished-connecting line', SUCCESSFUL_LOGS],
+			['a fatal indicator line', 'could not connect Pub 0:'],
+		])('does not log %s as unrecognized', async (_label, knownLine) => {
+			const mockLogger = {
+				info: vi.fn(),
+				warn: vi.fn(),
+				error: vi.fn(),
+			};
+			const localService = new LoadTestRunnerService(
+				mockLauncher,
+				mockWsService as never,
+				{ getLogger: () => mockLogger } as never,
+			);
+			// Combined with the finished-connecting line so startup's own
+			// connection check succeeds regardless of which line is under test.
+			mockLauncher.getLogs.mockResolvedValue(
+				`${SUCCESSFUL_LOGS}\n${knownLine}`,
+			);
+
+			await localService.startLoadTest(baseRequest);
+			mockLogger.info.mockClear();
+
+			await vi.advanceTimersByTimeAsync(5000);
+
+			expect(mockLogger.info).not.toHaveBeenCalledWith(
+				expect.anything(),
+				'Unrecognized lk load-test log line',
+			);
+
+			await localService.stopAll();
+		});
 	});
 });
