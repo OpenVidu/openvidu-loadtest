@@ -130,8 +130,11 @@ aws_cmd() {
 
 check_dry_run() {
     local output
+    local exit_code
+    set +e
     output=$(aws_cmd "$@" 2>&1)
-    local exit_code=$?
+    exit_code=$?
+    set -e
 
     if echo "$output" | grep -q "DryRunOperation"; then
         return 0
@@ -600,8 +603,8 @@ log "  Security Group CIDR: ${SECURITY_GROUP_CIDR}"
 [ "$DRY_RUN" = true ] && log "  DRY RUN MODE - No resources will be created"
 
 check_prerequisites
-check_aws_permissions
 resolve_base_ami
+check_aws_permissions
 check_existing_ami
 
 if [ "$DRY_RUN" = true ]; then
