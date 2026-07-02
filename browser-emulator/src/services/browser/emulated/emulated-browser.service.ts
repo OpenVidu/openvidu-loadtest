@@ -21,6 +21,7 @@ import {
 import * as fs from 'node:fs/promises';
 import type { LoggerService } from '../../logger.service.ts';
 import { createBoundedId, shortenIdentifier } from '../../../utils/id-utils.ts';
+import { normalizeContainerLogs } from '../../../utils/log-normalize.ts';
 
 interface FailedParticipantCreationContext extends Partial<ParticipantHandle> {
 	connectionId?: string;
@@ -702,17 +703,8 @@ export class EmulatedBrowserService {
 		}
 	}
 
-	private normalizeContainerLogs(logs: string): string {
-		const sanitizedChars = Array.from(logs).filter(char => {
-			const code = char.charCodeAt(0);
-			return code === 9 || code === 10 || code === 13 || code >= 32;
-		});
-
-		return sanitizedChars.join('').toLowerCase();
-	}
-
 	private hasSuccessfulJoinIndicators(joinLogs: string): boolean {
-		const normalizedLogs = this.normalizeContainerLogs(joinLogs);
+		const normalizedLogs = normalizeContainerLogs(joinLogs);
 		const hasConnectedToRoom = normalizedLogs.includes('connected to room');
 		const hasIceConnected = normalizedLogs.includes(
 			'ice connection state changed: connected',
@@ -725,7 +717,7 @@ export class EmulatedBrowserService {
 	}
 
 	private hasFatalJoinIndicators(joinLogs: string): boolean {
-		const normalizedLogs = this.normalizeContainerLogs(joinLogs);
+		const normalizedLogs = normalizeContainerLogs(joinLogs);
 		const fatalPatterns = [
 			'peer connection state changed: failed',
 			'ice connection state changed: failed',

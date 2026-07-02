@@ -467,13 +467,21 @@ components:
           type: string
         videoPublishers:
           type: integer
-          description: Number of participants publishing video tracks
+          description: >-
+            Number of participants publishing video tracks. Each one also
+            publishes an audio track and subscribes to other participants'
+            tracks (mirroring a NORMAL-mode publisher), adding to
+            audioPublishers/subscribers below rather than replacing them.
         audioPublishers:
           type: integer
-          description: Number of participants publishing audio tracks
+          description: >-
+            Number of participants publishing only an audio track, in
+            addition to the audio publishers implied by videoPublishers
         subscribers:
           type: integer
-          description: Number of participants that only subscribe
+          description: >-
+            Number of participants that only subscribe, in addition to the
+            subscribers implied by videoPublishers
         numPerSecond:
           type: integer
           description: Number of testers to start every second (ramp)
@@ -491,6 +499,7 @@ components:
         layout:
           type: string
           enum: [speaker, 3x3, 4x4, 5x5]
+          description: Defaults to "5x5" when omitted (lk load-test itself defaults to "speaker")
         participantIds:
           type: array
           items:

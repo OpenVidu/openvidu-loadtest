@@ -19,6 +19,7 @@ public class TestCase {
     // LOADTEST mode fields (only used when browser == MULTI_EMULATED)
     private String videoCodec = "";
     private boolean simulcast = true;
+    private String layout = "";
 
     public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
             OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
@@ -51,6 +52,7 @@ public class TestCase {
         this.startingParticipants = testCase.startingParticipants;
         this.videoCodec = testCase.videoCodec;
         this.simulcast = testCase.simulcast;
+        this.layout = testCase.layout;
     }
 
     public boolean isNxN() {
@@ -225,6 +227,14 @@ public class TestCase {
 
     public void setSimulcast(boolean simulcast) {
         this.simulcast = simulcast;
+    }
+
+    public String getLayout() {
+        return layout;
+    }
+
+    public void setLayout(String layout) {
+        this.layout = layout;
     }
 
     @Override

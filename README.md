@@ -261,13 +261,15 @@ Most settings work the same as other browsers:
 | `distribution.usersPerWorker` | Controls how many participants are grouped together per test run |
 | `resolution` | Mapped to `low` (180p), `medium` (360p), or `high` (720p) |
 
+**Publishers also subscribe, just like other browsers:** in a `"100:50"` configuration, the 100 publishers each publish both audio and video *and* subscribe to other participants, on top of the 50 dedicated subscribers—matching how a publisher behaves with `chrome`/`firefox`/`emulated`.
+
 Video codec and layout configuration:
 
 | Property | Default | Description |
 | -------- | ------- | ----------- |
 | `videoCodec` | (random) | `h264` or `vp8`. If not specified, a codec will be selected randomly for each participant |
 | `simulcast` | `true` | Simulcast enabled by default; set to `false` to disable |
-| `layout` | (none) | **Subscribers only.** Controls how subscriber video is laid out. Determines maximum concurrent subscribers and, if simulcast is enabled, the resolution each subscriber receives |
+| `layout` | `5x5` | **Subscribers only.** Controls how subscriber video is laid out. Determines maximum concurrent subscribers and, if simulcast is enabled, the resolution each subscriber receives |
 
 **Layout options** (subscribers only):
 
