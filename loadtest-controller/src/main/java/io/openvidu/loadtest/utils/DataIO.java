@@ -155,12 +155,18 @@ public class DataIO {
         testCase.setStartingParticipants(startingParticipants);
         testCase.setVideoCodec(parseVideoCodec(element));
         testCase.setSimulcast(parseSimulcast(element));
+        testCase.setLayout(parseLayout(element));
         return testCase;
     }
 
     private String parseVideoCodec(Map<String, Object> element) {
         Object codecObj = element.get("videoCodec");
         return codecObj != null ? codecObj.toString() : "";
+    }
+
+    private String parseLayout(Map<String, Object> element) {
+        Object layoutObj = element.get("layout");
+        return layoutObj != null ? layoutObj.toString() : "";
     }
 
     private boolean parseSimulcast(Map<String, Object> element) {

@@ -127,6 +127,7 @@ class DataIOTest {
         assertEquals(Browser.CHROME, tc.getBrowser(), "Browser should default to chrome");
         assertTrue(tc.isSimulcast(), "Simulcast should default to true");
         assertEquals("", tc.getVideoCodec());
+        assertEquals("", tc.getLayout());
     }
 
     @Test
@@ -140,6 +141,7 @@ class DataIOTest {
                     browser: multi-emulated
                     videoCodec: h264
                     simulcast: false
+                    layout: 4x4
                 """;
 
         Path cfg = tempDir.resolve("config.yaml");
@@ -155,6 +157,7 @@ class DataIOTest {
         assertTrue(tc.isLoadTestMode());
         assertEquals("h264", tc.getVideoCodec());
         assertEquals(false, tc.isSimulcast());
+        assertEquals("4x4", tc.getLayout());
     }
 
     @Test
