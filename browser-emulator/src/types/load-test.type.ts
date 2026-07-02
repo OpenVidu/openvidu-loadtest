@@ -22,6 +22,13 @@ export interface LoadTestRunRequest {
 	simulcast?: boolean;
 	identityPrefix?: string;
 	layout?: string;
+	/**
+	 * Synthetic participant ids (e.g. "User1", "User2") assigned by the
+	 * controller to this chunk's publishers/subscribers, in order. Used to
+	 * index one webrtc-stats document per participant, matching the
+	 * per-participant reporting NORMAL mode produces.
+	 */
+	participantIds?: string[];
 }
 
 export interface LoadTestRunRequestExpress extends Request {

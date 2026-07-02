@@ -408,21 +408,41 @@ class LoadTestParticipantOrchestrator {
     }
 
     /**
-     * Records {@code count} synthetic participants of the given role for a
-     * LOADTEST-mode session, using the same session/user naming convention as
-     * NORMAL mode. A single {@code lk load-test} process simulates many users at
-     * once, so there's no real per-participant connectionId, CPU, or retry data to
-     * report; this only tracks what NORMAL mode's per-participant flow would have
-     * recorded as each synthetic user "joined": its id and start time.
+     * Reserves and returns {@code count} synthetic participant ids (e.g.
+     * "User1", "User2") for a LOADTEST-mode session, using the same
+     * session-scoped {@code userNumber} counter NORMAL mode's per-participant
+     * flow uses. Callers pass the returned ids both to the worker (so it can
+     * tag its webrtc-stats documents) and to {@link #recordLoadTestParticipants}
+     * (so reports reflect the same ids).
      */
-    void recordLoadTestParticipants(int sessionNum, Role role, int count) {
+    List<String> nextUserIds(int count) {
         if (count <= 0) {
+            return List.of();
+        }
+        List<String> userIds = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            userIds.add(loadTestConfig.getUserNamePrefix() + userNumber.getAndIncrement());
+        }
+        return userIds;
+    }
+
+    /**
+     * Records the given synthetic participants of a role for a LOADTEST-mode
+     * session, using the same session/user naming convention as NORMAL mode. A
+     * single {@code lk load-test} process simulates many users at once, so
+     * there's no real per-participant connectionId, CPU, or retry data to
+     * report; this only tracks what NORMAL mode's per-participant flow would
+     * have recorded as each synthetic user "joined": its id and start time.
+     *
+     * @param userIds ids previously reserved via {@link #nextUserIds}
+     */
+    void recordLoadTestParticipants(int sessionNum, Role role, List<String> userIds) {
+        if (userIds.isEmpty()) {
             return;
         }
         String sessionId = loadTestConfig.getSessionNamePrefix() + sessionNum;
         Calendar now = Calendar.getInstance();
-        for (int i = 0; i < count; i++) {
-            String userId = loadTestConfig.getUserNamePrefix() + userNumber.getAndIncrement();
+        for (String userId : userIds) {
             totalParticipants.incrementAndGet();
             addUserStartTime(now, sessionId, userId);
             addParticipantResponse(new CreateParticipantResponse().setResponseOk(true)

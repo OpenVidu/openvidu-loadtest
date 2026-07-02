@@ -1,5 +1,8 @@
 package io.openvidu.loadtest.models.testcase.request;
 
+import java.util.List;
+
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
@@ -23,9 +26,10 @@ public class LoadTestRunRequestBody {
     private final String videoResolution;
     private final String videoCodec;
     private final boolean simulcast;
+    private final List<String> participantIds;
 
     public LoadTestRunRequestBody(LKLoadTestConfig config, TestCase testCase, String room, int videoPublishers,
-            int audioPublishers, int subscribers) {
+            int audioPublishers, int subscribers, List<String> participantIds) {
         this.openviduUrl = config.getOpenViduUrl();
         this.livekitApiKey = config.getApiKey();
         this.livekitApiSecret = config.getApiSecret();
@@ -36,6 +40,7 @@ public class LoadTestRunRequestBody {
         this.videoResolution = mapResolution(testCase.getResolution());
         this.videoCodec = testCase.getVideoCodec();
         this.simulcast = testCase.isSimulcast();
+        this.participantIds = participantIds;
     }
 
     private static String mapResolution(Resolution resolution) {
@@ -69,6 +74,11 @@ public class LoadTestRunRequestBody {
             jsonBody.addProperty("videoCodec", this.videoCodec);
         }
         jsonBody.addProperty("simulcast", this.simulcast);
+        if (this.participantIds != null && !this.participantIds.isEmpty()) {
+            JsonArray participantIdsArray = new JsonArray();
+            this.participantIds.forEach(participantIdsArray::add);
+            jsonBody.add("participantIds", participantIdsArray);
+        }
         return jsonBody;
     }
 }

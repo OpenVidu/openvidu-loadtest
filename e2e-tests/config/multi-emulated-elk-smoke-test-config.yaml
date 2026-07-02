@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=../../schema/openvidu-loadtest-schema.json
+platform:
+  url: https://to-be-replaced:7443
+  apiKey: devkey
+  apiSecret: secret
+
+testcases:
+  - topology: N:N
+    participants:
+      - "2"
+    sessions: 1
+    browser: multi-emulated
+    description: "ELK smoke test with multi-emulated browsers (LOADTEST mode) - validates Metricbeat pipeline and Kibana reporting"
+
+workers:
+  urls:
+    - browser-emulator
+
+distribution:
+  usersPerWorker: 2
+
+advanced:
+  reportOutput:
+    - html
+    - txt
+
+monitoring:
+  elasticsearch:
+    host: http://elasticsearch:9200
+  kibana:
+    host: http://kibana:5601

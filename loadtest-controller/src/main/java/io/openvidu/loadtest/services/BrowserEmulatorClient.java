@@ -674,17 +674,20 @@ public class BrowserEmulatorClient {
      * participants in {@code room}. Used by LOADTEST mode instead of the
      * per-participant {@link #createParticipant} path.
      *
+     * @param participantIds synthetic ids (e.g. "User1", "User2") assigned to this
+     *                       chunk's publishers/subscribers, in order; the worker uses
+     *                       them to index one webrtc-stats document per participant
      * @return {@code true} if the worker accepted the request
      */
     public boolean launchLoadTest(String workerUrl, TestCase testCase, String room, int videoPublishers,
-            int audioPublishers, int subscribers) {
+            int audioPublishers, int subscribers, List<String> participantIds) {
         if (!(this.loadTestConfig instanceof LKLoadTestConfig lkConfig)) {
             log.error("LOADTEST mode requires a LiveKit platform configuration (lk load-test is LiveKit-only).");
             return false;
         }
 
         LoadTestRunRequestBody body = new LoadTestRunRequestBody(lkConfig, testCase, room, videoPublishers,
-                audioPublishers, subscribers);
+                audioPublishers, subscribers, participantIds);
         try {
             log.info("Launching load-test chunk on worker {} for room {} ({} video publishers, {} audio "
                     + "publishers, {} subscribers)", workerUrl, room, videoPublishers, audioPublishers, subscribers);

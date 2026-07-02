@@ -165,12 +165,39 @@ export class BrowserManagerService {
 		const { runId, handleId } =
 			await this.loadTestRunnerService.startLoadTest(request);
 		const workerCpuUsage = await this.instanceService.getCpuUsage();
+		await this.sendLoadTestParticipantsData(
+			request.participantIds,
+			request.room,
+		);
 		return {
 			runId,
 			handleId,
 			room: request.room,
 			workerCpuUsage,
 		};
+	}
+
+	private async sendLoadTestParticipantsData(
+		participantIds: string[] | undefined,
+		room: string,
+	): Promise<void> {
+		if (!participantIds?.length) {
+			return;
+		}
+		if (!this.elasticSearchService.isElasticSearchRunning()) {
+			return;
+		}
+		for (const participantId of participantIds) {
+			const json: JSONStreamsInfo = {
+				'@timestamp': new Date().toISOString(),
+				streams: 1,
+				node_role: 'browseremulator',
+				worker_name: `worker_${this.instanceService.WORKER_UUID}`,
+				new_participant_id: participantId,
+				new_participant_session: room,
+			};
+			await this.elasticSearchService.sendJson(json);
+		}
 	}
 
 	async deleteStreamManagerWithConnectionId(
