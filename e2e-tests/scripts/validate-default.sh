@@ -115,6 +115,26 @@ if [ -n "$TXT_REPORT" ] && [ -f "$TXT_REPORT" ]; then
             echo "✗ HTML missing 'User Connections'"
             HTML_VALIDATION_PASSED=false
         fi
+
+        # Worker CPU Utilization: the e2e docker-compose setup runs a single worker
+        # named "browser-emulator", so its CPU usage must be attributed to that real
+        # worker name, not fall back to "Unknown Worker" (regression check for the
+        # LOADTEST-mode bug where launchLoadTest discarded the response body).
+        if grep -q "Worker CPU Utilization" "$HTML_REPORT"; then
+            echo "✓ HTML contains 'Worker CPU Utilization'"
+            if grep -q "Unknown Worker" "$HTML_REPORT"; then
+                echo "✗ HTML shows 'Unknown Worker' instead of attributing CPU usage to a real worker"
+                HTML_VALIDATION_PASSED=false
+            elif grep -q ">browser-emulator<" "$HTML_REPORT"; then
+                echo "✓ HTML attributes CPU usage to the real worker 'browser-emulator'"
+            else
+                echo "✗ HTML missing worker 'browser-emulator' in the CPU utilization table"
+                HTML_VALIDATION_PASSED=false
+            fi
+        else
+            echo "✗ HTML missing 'Worker CPU Utilization'"
+            HTML_VALIDATION_PASSED=false
+        fi
     else
         echo "✗ HTML report not found"
         HTML_VALIDATION_PASSED=false
