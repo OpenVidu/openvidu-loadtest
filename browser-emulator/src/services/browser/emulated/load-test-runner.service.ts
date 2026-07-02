@@ -34,9 +34,19 @@ export class LoadTestRunnerService {
 
 	private readonly CONNECTION_CHECK_ATTEMPTS = 10;
 	private readonly CONNECTION_CHECK_DELAY_MS = 1000;
-	private readonly LOG_INDICATOR_CHECK_ATTEMPTS = 5;
 	private readonly HEALTHCHECK_INTERVAL_MS = 5000;
 	private readonly MAX_ERROR_LOG_CHARS = 3000;
+	/**
+	 * Conservative assumption of connections/second when `numPerSecond` isn't set
+	 * (`lk load-test` itself connects as fast as possible in that case), used only
+	 * to size the wait window below — not sent to the CLI.
+	 */
+	private readonly ASSUMED_UNTHROTTLED_CONNECTIONS_PER_SECOND = 2;
+	/**
+	 * Extra time budgeted on top of the estimated connection time, covering `lk
+	 * load-test` process startup and per-participant ICE/network negotiation.
+	 */
+	private readonly LOG_INDICATOR_WAIT_BUFFER_SECONDS = 15;
 
 	constructor(
 		emulatedParticipantLauncher: EmulatedParticipantLauncher,
@@ -74,8 +84,16 @@ export class LoadTestRunnerService {
 
 		this.runMap.set(runId, { handle, room: request.room, identity });
 
+		const { total: totalParticipants } =
+			this.resolveParticipantCounts(request);
+
 		try {
-			await this.checkLoadTestIsAliveAndCorrect(runId, handle);
+			await this.checkLoadTestIsAliveAndCorrect(
+				runId,
+				handle,
+				totalParticipants,
+				request.numPerSecond,
+			);
 		} catch (error) {
 			await this.stopLoadTest(runId);
 			throw error;
@@ -113,6 +131,32 @@ export class LoadTestRunnerService {
 		this.runMap.clear();
 	}
 
+	/**
+	 * A publisher in NORMAL mode publishes both audio and video and also
+	 * subscribes to other participants' tracks. `lk load-test` treats
+	 * video/audio publishers and subscribers as separate participant counts,
+	 * so mirror that behavior here: every video publisher adds one audio
+	 * publisher and one subscriber, on top of whatever was requested directly.
+	 */
+	private resolveParticipantCounts(request: LoadTestRunRequest): {
+		videoPublishers: number;
+		audioPublishers: number;
+		subscribers: number;
+		total: number;
+	} {
+		const videoPublishers = request.videoPublishers ?? 0;
+		const audioPublishers =
+			(request.audioPublishers ?? 0) + videoPublishers;
+		const subscribers = (request.subscribers ?? 0) + videoPublishers;
+
+		return {
+			videoPublishers,
+			audioPublishers,
+			subscribers,
+			total: videoPublishers + audioPublishers + subscribers,
+		};
+	}
+
 	private buildLoadTestCommand(request: LoadTestRunRequest): string[] {
 		const baseUrl = request.openviduUrl
 			.replace('ws://', 'http://')
@@ -130,15 +174,8 @@ export class LoadTestRunnerService {
 			request.room,
 		];
 
-		// A publisher in NORMAL mode publishes both audio and video and also
-		// subscribes to other participants' tracks. `lk load-test` treats
-		// video/audio publishers and subscribers as separate participant counts,
-		// so mirror that behavior here: every video publisher adds one audio
-		// publisher and one subscriber, on top of whatever was requested directly.
-		const videoPublishers = request.videoPublishers ?? 0;
-		const audioPublishers =
-			(request.audioPublishers ?? 0) + videoPublishers;
-		const subscribers = (request.subscribers ?? 0) + videoPublishers;
+		const { videoPublishers, audioPublishers, subscribers } =
+			this.resolveParticipantCounts(request);
 
 		if (videoPublishers > 0) {
 			parts.push('--video-publishers', String(videoPublishers));
@@ -174,16 +211,31 @@ export class LoadTestRunnerService {
 	}
 
 	/**
-	 * Verifies the `lk load-test` process is running and its logs show at least one
-	 * participant actually connected, mirroring {@link EmulatedBrowserService}'s
-	 * per-participant join check. A single process simulates many users at once, so
-	 * this is a coarse, run-level check rather than a per-participant one.
+	 * Verifies the `lk load-test` process is running and its logs show every
+	 * requested participant has finished connecting, mirroring
+	 * {@link EmulatedBrowserService}'s per-participant join check. A single
+	 * process simulates many users at once, so this is a coarse, run-level check
+	 * rather than a per-participant one. The wait window scales with the number
+	 * of participants and `numPerSecond` (when throttled, connecting can
+	 * legitimately take as long as `totalParticipants / numPerSecond` seconds).
 	 */
 	private async checkLoadTestIsAliveAndCorrect(
 		runId: string,
 		handle: ParticipantHandle,
+		totalParticipants: number,
+		numPerSecond?: number,
 	): Promise<void> {
 		const errorMsg = `Load-test run ${runId} failed to connect any participant`;
+		const connectionRate =
+			numPerSecond && numPerSecond > 0
+				? numPerSecond
+				: this.ASSUMED_UNTHROTTLED_CONNECTIONS_PER_SECOND;
+		const logIndicatorWaitSeconds =
+			totalParticipants / connectionRate +
+			this.LOG_INDICATOR_WAIT_BUFFER_SECONDS;
+		const logIndicatorCheckAttempts = Math.ceil(
+			(logIndicatorWaitSeconds * 1000) / this.CONNECTION_CHECK_DELAY_MS,
+		);
 
 		const retry = async (
 			fn: () => Promise<boolean>,
@@ -205,12 +257,13 @@ export class LoadTestRunnerService {
 			this.CONNECTION_CHECK_ATTEMPTS,
 		);
 		if (!isRunning) {
-			this.logger.error({ runId }, 'Load-test run is not running');
+			const logs = await this.getLogsSafely(handle.handleId);
+			this.logger.error({ runId, logs }, 'Load-test run is not running');
 			throw new Error(errorMsg);
 		}
 
 		this.logger.info(
-			{ runId },
+			{ runId, totalParticipants, logIndicatorCheckAttempts },
 			'Checking load-test logs for successful connection...',
 		);
 		const connectionLogsOk = await retry(async () => {
@@ -218,7 +271,7 @@ export class LoadTestRunnerService {
 				handle.handleId,
 			);
 			return this.hasSuccessfulLoadTestIndicators(logs);
-		}, this.LOG_INDICATOR_CHECK_ATTEMPTS);
+		}, logIndicatorCheckAttempts);
 		if (!connectionLogsOk) {
 			const logs = await this.getLogsSafely(handle.handleId);
 			this.logger.error(
@@ -337,7 +390,7 @@ export class LoadTestRunnerService {
 		this.wsService.send(JSON.stringify(payload));
 		addSaveStatsToFileToQueue(run.identity, run.room, ERRORS_FILE, payload);
 		this.logger.error(
-			{ runId, reason },
+			{ runId, reason, logs },
 			'Load-test healthcheck error reported',
 		);
 	}
@@ -363,27 +416,17 @@ export class LoadTestRunnerService {
 	}
 
 	/**
-	 * Detects at least one participant successfully connected/published/subscribed.
-	 * `lk load-test` output includes the connecting participant's identity or track
-	 * id in the middle/end of each line (e.g. "publishing audio track - sprgj_pub_1",
-	 * "subscribed to track sprgj_2 TR_AMB9K4wdmoNRFw audio 1/4"), so indicators match
-	 * on the fixed prefix/structure and ignore those variable ids.
+	 * Detects that every requested participant in this `lk load-test` run has
+	 * finished connecting. `lk load-test` only logs "finished connecting to room,
+	 * waiting ..." once, after its whole connect phase completes (i.e. once all
+	 * requested publishers/subscribers have joined) — earlier lines like
+	 * "publishing audio track - sprgj_pub_1" only prove a single participant
+	 * connected, so they are intentionally not treated as sufficient on their own.
 	 */
 	private hasSuccessfulLoadTestIndicators(logs: string): boolean {
 		const normalizedLogs = normalizeContainerLogs(logs);
 
-		const hasPublishedTrack =
-			normalizedLogs.includes('publishing audio track - ') ||
-			normalizedLogs.includes('publishing video track - ');
-		const hasSubscribedTrack =
-			/subscribed to track \S+ \S+ (?:audio|video) \d+\/\d+/.test(
-				normalizedLogs,
-			);
-		const hasFinishedConnecting = normalizedLogs.includes(
-			'finished connecting to room, waiting',
-		);
-
-		return hasPublishedTrack || hasSubscribedTrack || hasFinishedConnecting;
+		return normalizedLogs.includes('finished connecting to room, waiting');
 	}
 
 	/**
@@ -400,6 +443,7 @@ export class LoadTestRunnerService {
 			'could not connect sub',
 			'panic:',
 			'fatal',
+			'caught panic in consumetrack',
 		];
 
 		return fatalPatterns.some(pattern => normalizedLogs.includes(pattern));
