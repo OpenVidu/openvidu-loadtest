@@ -138,3 +138,7 @@ advanced:
     enabled: true
     maxConcurrentRequests:
   waitForCompletion: true
+  # Stop the test once this many distinct participants have errored, regardless
+  # of retries/reconnection outcome. Works in both NORMAL and LOADTEST mode.
+  # Leave unset to disable (no limit).
+  maxParticipantErrors:

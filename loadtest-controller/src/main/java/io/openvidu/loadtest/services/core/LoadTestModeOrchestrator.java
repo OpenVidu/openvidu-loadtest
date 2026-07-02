@@ -118,6 +118,10 @@ class LoadTestModeOrchestrator {
         CreateParticipantResponse lastResponse = new CreateParticipantResponse().setResponseOk(true);
         int sessionsStarted = 0;
         while (infiniteSessions || sessionsStarted < sessionsLimit) {
+            CreateParticipantResponse forcedStop = checkForcedStop();
+            if (forcedStop != null) {
+                return forcedStop;
+            }
             sessionsStarted++;
             int sessionNum = participantOrchestrator.startLoadTestSession();
             String room = loadTestConfig.getSessionNamePrefix() + sessionNum;
@@ -139,6 +143,10 @@ class LoadTestModeOrchestrator {
         int remainingPublishers = videoPublishers;
         int remainingSubscribers = subscribers;
         while (remainingPublishers > 0 || remainingSubscribers > 0) {
+            CreateParticipantResponse forcedStop = checkForcedStop();
+            if (forcedStop != null) {
+                return forcedStop;
+            }
             int chunkPublishers = capChunk(remainingPublishers, stepSize);
             int chunkSubscribers = capChunk(remainingSubscribers, stepSize - chunkPublishers);
 
@@ -189,6 +197,19 @@ class LoadTestModeOrchestrator {
             return DEFAULT_INFINITE_CHUNK_SIZE;
         }
         return Integer.MAX_VALUE; // whole (finite) room fits in a single chunk
+    }
+
+    /**
+     * Checks whether a global stop condition was raised asynchronously (e.g.
+     * {@code advanced.maxParticipantErrors} reached via a worker's WebSocket
+     * health-error report), independent of this chunk/session's own launch result.
+     */
+    private CreateParticipantResponse checkForcedStop() {
+        CreateParticipantResponse forcedStop = browserEmulatorClient.getLastErrorReconnectingResponse();
+        if (forcedStop != null) {
+            log.error("[LOADTEST mode] Stopping: {}", forcedStop.getStopReason());
+        }
+        return forcedStop;
     }
 
     /** Caps a (possibly infinite) remaining count to at most {@code limit} for one chunk. */

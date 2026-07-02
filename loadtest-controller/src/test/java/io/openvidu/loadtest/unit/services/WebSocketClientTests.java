@@ -1,5 +1,6 @@
 package io.openvidu.loadtest.unit.services;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -51,6 +52,24 @@ class WebSocketClientTests {
                 eq("User1"),
                 eq("SessionA"),
                 eq(true));
+    }
+
+    @Test
+    void onMessageLoadTestRunHealthErrorShouldRecordParticipantError() {
+        String message = "{" +
+                "\"event\":\"LOAD_TEST_RUN_HEALTH_ERROR\"," +
+                "\"participant\":\"loadtest-room1-123\"," +
+                "\"session\":\"room1\"" +
+                "}";
+
+        this.webSocketClient.onMessage(message);
+
+        verify(this.browserEmulatorClient).recordParticipantError(
+                eq("loadtest-room1-123"),
+                eq("room1"));
+        // LOADTEST-mode errors don't reconnect, so addClientFailure is never called
+        verify(this.browserEmulatorClient, never()).addClientFailure(
+                anyString(), anyString(), anyString(), eq(true));
     }
 
     @Test

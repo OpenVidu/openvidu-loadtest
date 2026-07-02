@@ -413,6 +413,7 @@ Performance and retry settings.
 | `advanced.batches.enabled`               | No       | `true`          | Enable batch mode: Users will be inserted in batches                                                                                                                     |
 | `advanced.batches.maxConcurrentRequests` | No       | `CPU cores + 1` | Max concurrent requests when in batch mode                                                                                                                               |
 | `advanced.waitForCompletion`             | No       | `true`          | Wait for all participants in the batch to confirm insertion into the platform before inserting the next batch. Will wait for individual participants if `batches: false` |
+| `advanced.maxParticipantErrors`          | No       | (unlimited)     | Stop the test once this many distinct participants have errored, regardless of whether they were retried/reconnected successfully. Works in both NORMAL and LOADTEST mode. Unlike `advanced.retry`, this doesn't wait for retries to be exhausted—participants are simply allowed to fail. |
 
 ### Report Output Configuration
 
