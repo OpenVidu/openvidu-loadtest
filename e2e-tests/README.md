@@ -162,6 +162,7 @@ All smoke tests should:
 - "User Connections" (mandatory)
  - Table columns: User, Session, Join Date, Retries, Retry Details
 - Two user rows (User1 and User2) present
+- "Worker CPU Utilization" (mandatory), attributing CPU usage to the real worker `browser-emulator` (the single worker the e2e docker-compose setup runs) rather than falling back to "Unknown Worker"
 
 ### ELK Smoke Test Additional Validation
 
