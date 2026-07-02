@@ -27,6 +27,14 @@ export class LoadTestRunnerService {
 	private readonly runMap = new Map<string, LoadTestRun>();
 	private readonly healthCheckIntervals = new Map<string, NodeJS.Timeout>();
 	private readonly reportedHealthErrors = new Set<string>();
+	/**
+	 * Runs for which a fatal log indicator (e.g. a single user failing to
+	 * connect/publish) was already reported over the websocket. A fatal
+	 * indicator is a per-user failure, not necessarily a process crash, so it
+	 * does not stop the run — this set only prevents re-notifying the same
+	 * run on every healthcheck tick once the offending log line is seen.
+	 */
+	private readonly reportedFatalIndicators = new Set<string>();
 
 	private readonly emulatedParticipantLauncher: EmulatedParticipantLauncher;
 	private readonly wsService: WsService;
@@ -123,6 +131,7 @@ export class LoadTestRunnerService {
 			this.logger.error({ runId, error }, 'Error stopping load-test run');
 		}
 		this.runMap.delete(runId);
+		this.reportedFatalIndicators.delete(runId);
 	}
 
 	async stopAll(): Promise<void> {
@@ -287,6 +296,7 @@ export class LoadTestRunnerService {
 	private startRunHealthCheck(runId: string): void {
 		this.stopRunHealthCheck(runId);
 		this.reportedHealthErrors.delete(runId);
+		this.reportedFatalIndicators.delete(runId);
 
 		const interval = setInterval(() => {
 			void this.runHealthCheck(runId);
@@ -325,12 +335,17 @@ export class LoadTestRunnerService {
 			}
 
 			const logs = await this.getLogsSafely(run.handle.handleId);
-			if (logs && this.hasFatalLoadTestIndicators(logs)) {
-				await this.handleUnhealthyRun(
-					runId,
-					'fatal-log-indicator',
-					logs,
-				);
+			if (
+				logs &&
+				this.hasFatalLoadTestIndicators(logs) &&
+				!this.reportedFatalIndicators.has(runId)
+			) {
+				// A fatal indicator reflects one user failing to connect/publish
+				// within the run, not the whole `lk load-test` process crashing
+				// (that case is caught by the isRunning check above), so the run
+				// is left running and only notified over the websocket.
+				this.reportedFatalIndicators.add(runId);
+				this.reportHealthError(run, runId, 'fatal-log-indicator', logs);
 			}
 		} catch (error) {
 			await this.handleUnhealthyRun(
@@ -439,6 +454,7 @@ export class LoadTestRunnerService {
 		const normalizedLogs = normalizeContainerLogs(logs);
 		const fatalPatterns = [
 			'fail to refresh permissions: transaction closed',
+			'fail to refresh permissions: all retransmissions failed',
 			'could not connect pub',
 			'could not connect sub',
 			'panic:',

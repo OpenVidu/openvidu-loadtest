@@ -233,23 +233,35 @@ describe('LoadTestRunnerService', () => {
 				'a permission-refresh disconnection',
 				'turnc ERROR: 2026/07/02 10:39:11 Fail to refresh permissions: transaction closed',
 			],
+			[
+				'a permission-refresh retransmission failure',
+				'turnc ERROR: 2026/07/02 19:59:43 Fail to refresh permissions: all retransmissions failed for ZKB9TmWYsXQzMacg',
+			],
 			['a failed publisher connection', 'could not connect Pub 0:'],
 			['a failed subscriber connection', 'could not connect Sub 0:'],
 			[
 				'a consumeTrack nil pointer panic',
 				'caught panic in consumeTrack runtime error: invalid memory address or nil pointer dereference',
 			],
-		])('stops the run when logs show %s', async (_label, fatalLine) => {
-			await service.startLoadTest(baseRequest);
-			mockLauncher.getLogs.mockResolvedValue(fatalLine);
+		])(
+			'notifies but does not stop the run when logs show %s (a single user failure, not a process crash)',
+			async (_label, fatalLine) => {
+				await service.startLoadTest(baseRequest);
+				mockLauncher.getLogs.mockResolvedValue(fatalLine);
 
-			await vi.advanceTimersByTimeAsync(5000);
+				await vi.advanceTimersByTimeAsync(5000);
 
-			expect(mockLauncher.stop).toHaveBeenCalledWith('container-id-123');
-			expect(mockWsService.send).toHaveBeenCalledWith(
-				expect.stringContaining('LOAD_TEST_RUN_HEALTH_ERROR'),
-			);
-		});
+				expect(mockLauncher.stop).not.toHaveBeenCalled();
+				expect(mockWsService.send).toHaveBeenCalledWith(
+					expect.stringContaining('LOAD_TEST_RUN_HEALTH_ERROR'),
+				);
+
+				// Does not keep re-notifying on every subsequent tick.
+				mockWsService.send.mockClear();
+				await vi.advanceTimersByTimeAsync(5000);
+				expect(mockWsService.send).not.toHaveBeenCalled();
+			},
+		);
 
 		it('stops the run when the process is no longer running', async () => {
 			await service.startLoadTest(baseRequest);
