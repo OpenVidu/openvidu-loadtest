@@ -430,13 +430,18 @@ class LoadTestParticipantOrchestrator {
      * Records the given synthetic participants of a role for a LOADTEST-mode
      * session, using the same session/user naming convention as NORMAL mode. A
      * single {@code lk load-test} process simulates many users at once, so
-     * there's no real per-participant connectionId, CPU, or retry data to
-     * report; this only tracks what NORMAL mode's per-participant flow would
-     * have recorded as each synthetic user "joined": its id and start time.
+     * there's no real per-participant connectionId or retry data to report;
+     * this only tracks what NORMAL mode's per-participant flow would have
+     * recorded as each synthetic user "joined": its id, start time, and the
+     * worker/CPU usage of the chunk that simulated it (shared by every
+     * synthetic participant in that chunk, since it's one process).
      *
-     * @param userIds ids previously reserved via {@link #nextUserIds}
+     * @param userIds       ids previously reserved via {@link #nextUserIds}
+     * @param workerUrl     worker that ran the {@code lk load-test} chunk
+     * @param workerCpuPct  worker CPU usage reported when the chunk was launched
      */
-    void recordLoadTestParticipants(int sessionNum, Role role, List<String> userIds) {
+    void recordLoadTestParticipants(int sessionNum, Role role, List<String> userIds, String workerUrl,
+            double workerCpuPct) {
         if (userIds.isEmpty()) {
             return;
         }
@@ -446,7 +451,8 @@ class LoadTestParticipantOrchestrator {
             totalParticipants.incrementAndGet();
             addUserStartTime(now, sessionId, userId);
             addParticipantResponse(new CreateParticipantResponse().setResponseOk(true)
-                    .setSessionId(sessionId).setUserId(userId).setRole(role));
+                    .setSessionId(sessionId).setUserId(userId).setRole(role)
+                    .setWorkerUrl(workerUrl).setWorkerCpuPct(workerCpuPct));
         }
     }
 

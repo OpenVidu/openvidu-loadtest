@@ -733,13 +733,18 @@ public class BrowserEmulatorClient {
      * @param participantIds synthetic ids (e.g. "User1", "User2") assigned to this
      *                       chunk's publishers/subscribers, in order; the worker uses
      *                       them to index one webrtc-stats document per participant
-     * @return {@code true} if the worker accepted the request
+     * @return a response with {@code responseOk} indicating whether the worker
+     *         accepted the request, and (on success) {@code workerUrl}/
+     *         {@code workerCpuPct} populated from the worker's response so LOADTEST
+     *         mode's synthetic participants can be reported like NORMAL mode's
      */
-    public boolean launchLoadTest(String workerUrl, TestCase testCase, String room, int videoPublishers,
-            int audioPublishers, int subscribers, List<String> participantIds) {
+    public CreateParticipantResponse launchLoadTest(String workerUrl, TestCase testCase, String room,
+            int videoPublishers, int audioPublishers, int subscribers, List<String> participantIds) {
+        CreateParticipantResponse cpr = new CreateParticipantResponse();
         if (!(this.loadTestConfig instanceof LKLoadTestConfig lkConfig)) {
             log.error("LOADTEST mode requires a LiveKit platform configuration (lk load-test is LiveKit-only).");
-            return false;
+            return cpr.setResponseOk(false)
+                    .setStopReason("LOADTEST mode requires a LiveKit platform configuration");
         }
 
         LoadTestRunRequestBody body = new LoadTestRunRequestBody(lkConfig, testCase, room, videoPublishers,
@@ -754,19 +759,28 @@ public class BrowserEmulatorClient {
                     getHeaders());
             if (response.statusCode() != HTTP_STATUS_OK) {
                 log.error("Error launching load-test chunk on worker {}: {}", workerUrl, response.body());
-                return false;
+                return cpr.setResponseOk(false)
+                        .setStopReason("Failed to launch load-test chunk on worker " + workerUrl);
             }
             if (log.isDebugEnabled()) {
                 log.debug("Load-test chunk response: {}", response.body());
             }
-            return true;
+            JsonObject jsonResponse = jsonUtils.getJson(response.body());
+            double workerCpuPct = jsonResponse.has("workerCpuUsage")
+                    && !jsonResponse.get("workerCpuUsage").isJsonNull()
+                            ? jsonResponse.get("workerCpuUsage").getAsDouble()
+                            : 0.0;
+            return cpr.setResponseOk(true).setWorkerUrl(workerUrl).setWorkerCpuPct(workerCpuPct);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.error("Interrupted while launching load-test chunk on worker {}: {}", workerUrl, e.getMessage());
-            return false;
+            return cpr.setResponseOk(false)
+                    .setStopReason("Interrupted while launching load-test chunk on worker " + workerUrl);
         } catch (IOException e) {
             log.error("Error launching load-test chunk on worker {}: {}", workerUrl, e.getMessage());
-            return false;
+            return cpr.setResponseOk(false)
+                    .setStopReason("Error launching load-test chunk on worker " + workerUrl + ": "
+                            + e.getMessage());
         }
     }
 

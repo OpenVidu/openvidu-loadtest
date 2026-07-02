@@ -156,17 +156,19 @@ class LoadTestModeOrchestrator {
             chunkParticipantIds.addAll(subscriberIds);
 
             workerCursor[0] = loadTestService.setAndInitializeNextWorker(workerCursor[0], WorkerType.WORKER);
-            boolean launched = browserEmulatorClient.launchLoadTest(workerCursor[0], testCase, room, chunkPublishers,
-                    0, chunkSubscribers, chunkParticipantIds);
-            if (!launched) {
-                String reason = "Failed to launch load-test chunk on worker " + workerCursor[0] + " for room "
-                        + room;
+            CreateParticipantResponse launchResponse = browserEmulatorClient.launchLoadTest(workerCursor[0], testCase,
+                    room, chunkPublishers, 0, chunkSubscribers, chunkParticipantIds);
+            if (!launchResponse.isResponseOk()) {
+                String reason = launchResponse.getStopReason() != null ? launchResponse.getStopReason()
+                        : "Failed to launch load-test chunk on worker " + workerCursor[0] + " for room " + room;
                 log.error(reason);
                 return new CreateParticipantResponse().setResponseOk(false).setStopReason(reason);
             }
 
-            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.PUBLISHER, publisherIds);
-            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.SUBSCRIBER, subscriberIds);
+            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.PUBLISHER, publisherIds,
+                    launchResponse.getWorkerUrl(), launchResponse.getWorkerCpuPct());
+            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.SUBSCRIBER, subscriberIds,
+                    launchResponse.getWorkerUrl(), launchResponse.getWorkerCpuPct());
 
             remainingPublishers = decrement(remainingPublishers, chunkPublishers);
             remainingSubscribers = decrement(remainingSubscribers, chunkSubscribers);
