@@ -435,6 +435,44 @@ class BrowserEmulatorClientTests {
     }
 
     @Test
+    void recordParticipantErrorTest_disabledByDefault() {
+        // isMaxParticipantErrorsEnabled() defaults to false when unstubbed
+        this.browserEmulatorClient.recordParticipantError("User1", "LoadTestSession1");
+
+        assertEquals(1, this.browserEmulatorClient.getParticipantsWithErrorsCount());
+        assertNull(this.browserEmulatorClient.getLastErrorReconnectingResponse());
+    }
+
+    @Test
+    void recordParticipantErrorTest_stopsTestWhenThresholdReached() {
+        when(this.loadTestConfigMock.isMaxParticipantErrorsEnabled()).thenReturn(true);
+        when(this.loadTestConfigMock.getMaxParticipantErrors()).thenReturn(2);
+
+        this.browserEmulatorClient.recordParticipantError("User1", "LoadTestSession1");
+        assertNull(this.browserEmulatorClient.getLastErrorReconnectingResponse());
+
+        this.browserEmulatorClient.recordParticipantError("User2", "LoadTestSession1");
+
+        assertEquals(2, this.browserEmulatorClient.getParticipantsWithErrorsCount());
+        CreateParticipantResponse response = this.browserEmulatorClient.getLastErrorReconnectingResponse();
+        assertNotNull(response);
+        assertFalse(response.isResponseOk());
+    }
+
+    @Test
+    void recordParticipantErrorTest_countsDistinctParticipantsOnly() {
+        when(this.loadTestConfigMock.isMaxParticipantErrorsEnabled()).thenReturn(true);
+        when(this.loadTestConfigMock.getMaxParticipantErrors()).thenReturn(2);
+
+        // Same participant erroring twice (e.g. retried) only counts once
+        this.browserEmulatorClient.recordParticipantError("User1", "LoadTestSession1");
+        this.browserEmulatorClient.recordParticipantError("User1", "LoadTestSession1");
+
+        assertEquals(1, this.browserEmulatorClient.getParticipantsWithErrorsCount());
+        assertNull(this.browserEmulatorClient.getLastErrorReconnectingResponse());
+    }
+
+    @Test
     void setEndOfTestTest() {
         this.browserEmulatorClient.setEndOfTest(true);
     }

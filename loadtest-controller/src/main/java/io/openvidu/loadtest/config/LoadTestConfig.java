@@ -103,6 +103,8 @@ public abstract class LoadTestConfig {
 
     private int retryTimes;
 
+    private int maxParticipantErrors;
+
     private List<String> reportOutput = new ArrayList<>(Arrays.asList("html"));
 
     private boolean qoeAnalysisRecordings;
@@ -317,6 +319,19 @@ public abstract class LoadTestConfig {
         return retryTimes;
     }
 
+    /**
+     * Maximum number of distinct participants allowed to error out before the test
+     * is stopped, regardless of whether those participants ever reconnect. Applies
+     * to both NORMAL and LOADTEST mode. -1 (default) means disabled/unlimited.
+     */
+    public int getMaxParticipantErrors() {
+        return maxParticipantErrors;
+    }
+
+    public boolean isMaxParticipantErrorsEnabled() {
+        return maxParticipantErrors >= 0;
+    }
+
     public List<String> getReportOutput() {
         return reportOutput;
     }
@@ -489,6 +504,8 @@ public abstract class LoadTestConfig {
         Boolean retryEnabled = yamlConfig.getBooleanOrNull("advanced.retry.enabled");
         retryMode = !Boolean.FALSE.equals(retryEnabled);
         retryTimes = defaultIfMinusOne(asInt("advanced.retry.times"), 5);
+        // -1 (unset) means disabled: participants are allowed to error out without limit.
+        maxParticipantErrors = asInt("advanced.maxParticipantErrors");
         qoeAnalysisRecordings = asBoolean("qoe.recordStreams");
         qoeAnalysisInSitu = asBoolean("qoe.analyzeInSitu");
         paddingDuration = asInt("qoe.paddingDuration");
@@ -554,6 +571,10 @@ public abstract class LoadTestConfig {
                 log.error("Retry times is undefined");
                 System.exit(1);
             }
+        }
+
+        if (isMaxParticipantErrorsEnabled()) {
+            log.info("Test will stop after {} participant(s) with errors", maxParticipantErrors);
         }
 
         log.info("");

@@ -106,6 +106,28 @@ public class WebSocketClient extends Endpoint {
         }
     }
 
+    /**
+     * Handles a LOADTEST-mode run health error. Unlike {@link #handleError}, this
+     * doesn't mark the connection for deletion or wait on in-flight connections:
+     * LOADTEST mode doesn't reconnect failed runs, it just records the failure so
+     * {@code advanced.maxParticipantErrors} can be evaluated.
+     */
+    private void handleLoadTestRunError(String message) {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            JsonNode json = mapper.readTree(message);
+            if (json.has("participant") && json.has("session")) {
+                String participant = json.get("participant").asText();
+                String session = json.get("session").asText();
+                this.beInstance.recordParticipantError(participant, session);
+            } else {
+                log.warn("Participant or session missing from load-test run error message: {}", message);
+            }
+        } catch (Exception e) {
+            log.error("Error parsing load-test run error message: {}", e.getMessage());
+        }
+    }
+
     @OnMessage
     public void onMessage(String message) {
         if (!markedForFullDeletion.get() && !markedForDeletion.get()) {
@@ -115,6 +137,9 @@ public class WebSocketClient extends Endpoint {
             } else if (message.contains("EMULATED_PARTICIPANT_HEALTH_ERROR")) {
                 log.error("Received emulated participant health error from {}: {}", this.wsEndpoint, message);
                 this.handleError(message, true);
+            } else if (message.contains("LOAD_TEST_RUN_HEALTH_ERROR")) {
+                log.error("Received load-test run health error from {}: {}", this.wsEndpoint, message);
+                this.handleLoadTestRunError(message);
             } else if (message.contains("error") || message.contains("Error")) {
                 log.warn("Received message from {}: {}", this.wsEndpoint, message);
             } else if (message.contains("Disconnected") && !message.contains("ParticipantDisconnected")) {

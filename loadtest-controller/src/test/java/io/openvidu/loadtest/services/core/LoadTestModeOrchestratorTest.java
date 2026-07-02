@@ -276,6 +276,45 @@ class LoadTestModeOrchestratorTest {
     }
 
     @Test
+    void runOneSessionNxM_stopsImmediatelyWhenMaxParticipantErrorsAlreadyReached() throws NoWorkersAvailableException {
+        CreateParticipantResponse forcedStop = new CreateParticipantResponse()
+                .setResponseOk(false)
+                .setStopReason("Max participant errors reached (5)");
+        when(browserEmulatorClient.getLastErrorReconnectingResponse()).thenReturn(forcedStop);
+        TestCase testCase = testCase(Topology.ONE_SESSION_NXM, Arrays.asList("10:5"), 1);
+
+        CreateParticipantResponse response = orchestrator.runOneSessionNxM(testCase, 10, 5);
+
+        assertFalse(response.isResponseOk());
+        assertEquals("Max participant errors reached (5)", response.getStopReason());
+        verify(browserEmulatorClient, times(0)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
+                anyInt(), anyInt(), anyInt(), anyList());
+    }
+
+    @Test
+    void runNxN_stopsBeforeStartingNextSessionWhenMaxParticipantErrorsReachedMidTest()
+            throws NoWorkersAvailableException {
+        CreateParticipantResponse forcedStop = new CreateParticipantResponse()
+                .setResponseOk(false)
+                .setStopReason("Max participant errors reached (3)");
+        // First session launches fine (checkForcedStop is polled once per session
+        // and once per chunk within it - two null answers cover session1's single
+        // chunk); the stop signal only appears once we're about to start session2
+        // (simulating an async WS error arriving mid-test).
+        when(browserEmulatorClient.getLastErrorReconnectingResponse())
+                .thenReturn(null, null, forcedStop);
+        TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 2);
+
+        CreateParticipantResponse response = orchestrator.runNxN(testCase, 3);
+
+        assertFalse(response.isResponseOk());
+        assertEquals("Max participant errors reached (3)", response.getStopReason());
+        verify(browserEmulatorClient, times(1)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
+                anyInt(), anyInt(), anyInt(), anyList());
+        assertEquals(1, participantOrchestrator.getSessionsCompleted());
+    }
+
+    @Test
     void runNxN_doesNotRecordParticipantsOrCompletionForFailedChunk() throws NoWorkersAvailableException {
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
                 anyInt(), anyList())).thenReturn(false);

@@ -61,6 +61,21 @@ class LoadTestConfigTest {
         // Same with retries
         assertTrue(cfg.isRetryMode());
         assertTrue(cfg.isExitOnEnd());
+
+        // advanced.maxParticipantErrors not defined in test YAML -> disabled
+        assertFalse(cfg.isMaxParticipantErrorsEnabled());
+        assertEquals(-1, cfg.getMaxParticipantErrors());
+    }
+
+    @Test
+    void readsMaxParticipantErrorsFromYaml() {
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("LOADTEST_CONFIG", "config/max-participant-errors-config.yaml");
+
+        TestLoadTestConfig cfg = new TestLoadTestConfig(env);
+
+        assertTrue(cfg.isMaxParticipantErrorsEnabled());
+        assertEquals(5, cfg.getMaxParticipantErrors());
     }
 
     @Test
