@@ -133,14 +133,7 @@
                     },
                     "resolution": {
                         "type": "string",
-                        "pattern": "^[0-9]+x[0-9]+$",
-                        "enum": [
-                            "640x480",
-                            "1280x720",
-                            "1920x1080"
-                        ],
-                        "default": "640x480",
-                        "description": "Video resolution to force (e.g., 640x480, 1280x720, 1920x1080)"
+                        "description": "Video resolution to force. For 'chrome'/'firefox'/'emulated': pixel resolution (640x480, 1280x720, 1920x1080; default 640x480). For 'multi-emulated': coarse quality (low, medium, high; default high)."
                     },
                     "frameRate": {
                         "type": "integer",
@@ -206,7 +199,45 @@
                         "type": "string",
                         "description": "Human-readable description of this test case"
                     }
-                }
+                },
+                "allOf": [
+                    {
+                        "if": {
+                            "required": [
+                                "browser"
+                            ],
+                            "properties": {
+                                "browser": {
+                                    "const": "multi-emulated"
+                                }
+                            }
+                        },
+                        "then": {
+                            "properties": {
+                                "resolution": {
+                                    "enum": [
+                                        "low",
+                                        "medium",
+                                        "high"
+                                    ],
+                                    "default": "high"
+                                }
+                            }
+                        },
+                        "else": {
+                            "properties": {
+                                "resolution": {
+                                    "enum": [
+                                        "640x480",
+                                        "1280x720",
+                                        "1920x1080"
+                                    ],
+                                    "default": "640x480"
+                                }
+                            }
+                        }
+                    }
+                ]
             }
         },
         "workers": {
