@@ -58,13 +58,16 @@ class LoadTestConfigTest {
         assertTrue(cfg.isBatches());
         // Same with waitCompletion, should default to true if not defined
         assertTrue(cfg.isWaitCompletion());
-        // Same with retries
-        assertTrue(cfg.isRetryMode());
         assertTrue(cfg.isExitOnEnd());
 
-        // advanced.maxParticipantErrors not defined in test YAML -> disabled
-        assertFalse(cfg.isMaxParticipantErrorsEnabled());
-        assertEquals(-1, cfg.getMaxParticipantErrors());
+        // Neither advanced.retry nor advanced.maxParticipantErrors defined in test
+        // YAML -> defaults to maxParticipantErrors=1 (retry disabled), so NORMAL
+        // mode always has exactly one active stop-on-error mechanism.
+        assertFalse(cfg.isRetryMode());
+        assertTrue(cfg.isMaxParticipantErrorsEnabled());
+        assertEquals(1, cfg.getMaxParticipantErrors());
+        // LOADTEST mode always enforces this regardless, defaulting to 1.
+        assertEquals(1, cfg.getEffectiveMaxParticipantErrorsForLoadTestMode());
     }
 
     @Test
@@ -74,6 +77,52 @@ class LoadTestConfigTest {
 
         TestLoadTestConfig cfg = new TestLoadTestConfig(env);
 
+        // Only maxParticipantErrors explicitly configured -> retry stays disabled
+        assertFalse(cfg.isRetryMode());
+        assertTrue(cfg.isMaxParticipantErrorsEnabled());
+        assertEquals(5, cfg.getMaxParticipantErrors());
+        assertEquals(5, cfg.getEffectiveMaxParticipantErrorsForLoadTestMode());
+    }
+
+    @Test
+    void retryEnabledOnlyDisablesMaxParticipantErrors() {
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("LOADTEST_CONFIG", "config/retry-enabled-only-config.yaml");
+
+        TestLoadTestConfig cfg = new TestLoadTestConfig(env);
+
+        // Only advanced.retry.enabled explicitly configured -> maxParticipantErrors
+        // stays disabled for NORMAL mode.
+        assertTrue(cfg.isRetryMode());
+        assertFalse(cfg.isMaxParticipantErrorsEnabled());
+        assertEquals(-1, cfg.getMaxParticipantErrors());
+        // LOADTEST mode still always enforces its own default regardless.
+        assertEquals(1, cfg.getEffectiveMaxParticipantErrorsForLoadTestMode());
+    }
+
+    @Test
+    void retryExplicitlyDisabledFallsBackToMaxParticipantErrorsDefault() {
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("LOADTEST_CONFIG", "config/retry-disabled-only-config.yaml");
+
+        TestLoadTestConfig cfg = new TestLoadTestConfig(env);
+
+        // Explicitly disabling retry without configuring maxParticipantErrors still
+        // must leave one stop-on-error mechanism active.
+        assertFalse(cfg.isRetryMode());
+        assertTrue(cfg.isMaxParticipantErrorsEnabled());
+        assertEquals(1, cfg.getMaxParticipantErrors());
+    }
+
+    @Test
+    void bothRetryAndMaxParticipantErrorsExplicitAreRespectedAsConfigured() {
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("LOADTEST_CONFIG", "config/retry-and-max-participant-errors-config.yaml");
+
+        TestLoadTestConfig cfg = new TestLoadTestConfig(env);
+
+        assertTrue(cfg.isRetryMode());
+        assertEquals(3, cfg.getRetryTimes());
         assertTrue(cfg.isMaxParticipantErrorsEnabled());
         assertEquals(5, cfg.getMaxParticipantErrors());
     }

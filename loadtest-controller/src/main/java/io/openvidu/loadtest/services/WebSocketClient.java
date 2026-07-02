@@ -119,7 +119,7 @@ public class WebSocketClient extends Endpoint {
             if (json.has("participant") && json.has("session")) {
                 String participant = json.get("participant").asText();
                 String session = json.get("session").asText();
-                this.beInstance.recordParticipantError(participant, session);
+                this.beInstance.recordLoadTestRunError(participant, session);
             } else {
                 log.warn("Participant or session missing from load-test run error message: {}", message);
             }

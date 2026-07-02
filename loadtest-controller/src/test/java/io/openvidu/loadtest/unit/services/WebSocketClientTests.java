@@ -64,7 +64,7 @@ class WebSocketClientTests {
 
         this.webSocketClient.onMessage(message);
 
-        verify(this.browserEmulatorClient).recordParticipantError(
+        verify(this.browserEmulatorClient).recordLoadTestRunError(
                 eq("loadtest-room1-123"),
                 eq("room1"));
         // LOADTEST-mode errors don't reconnect, so addClientFailure is never called

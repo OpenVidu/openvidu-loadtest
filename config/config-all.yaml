@@ -138,7 +138,13 @@ advanced:
     enabled: true
     maxConcurrentRequests:
   waitForCompletion: true
-  # Stop the test once this many distinct participants have errored, regardless
-  # of retries/reconnection outcome. Works in both NORMAL and LOADTEST mode.
-  # Leave unset to disable (no limit).
+  # Stop the test once this many distinct participants (NORMAL mode) or
+  # load-test runs (LOADTEST mode) have errored, regardless of whether they
+  # were retried/reconnected successfully.
+  # In NORMAL mode, this is mutually exclusive with retry.enabled above: since
+  # retry.enabled is explicitly set to true here, maxParticipantErrors stays
+  # disabled for NORMAL mode unless you also set it explicitly. Leaving both
+  # unset defaults to maxParticipantErrors: 1 (no retries).
+  # LOADTEST mode has no retry mechanism, so it always enforces this,
+  # defaulting to 1 if left unset here.
   maxParticipantErrors:
