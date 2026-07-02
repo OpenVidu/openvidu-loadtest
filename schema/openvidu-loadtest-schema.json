@@ -191,6 +191,17 @@
                         "default": true,
                         "description": "'multi-emulated' browser only. Simulcast is enabled by default in 'lk load-test'; set to false to add '--no-simulcast'. Ignored for other browser values."
                     },
+                    "layout": {
+                        "type": "string",
+                        "enum": [
+                            "speaker",
+                            "3x3",
+                            "4x4",
+                            "5x5"
+                        ],
+                        "default": "5x5",
+                        "description": "'multi-emulated' browser only. Subscriber layout passed to 'lk load-test --layout'; determines the maximum number of concurrent subscribers and, with simulcast enabled, the resolution each subscriber receives (speaker: 1 at HIGH + 5 at LOW; 3x3: 9 at MEDIUM; 4x4: 16 at LOW; 5x5: 25 at LOW). Ignored for other browser values."
+                    },
                     "description": {
                         "type": "string",
                         "description": "Human-readable description of this test case"
@@ -486,12 +497,12 @@
             "properties": {
                 "retry": {
                     "type": "object",
-                    "description": "Retry configuration for failed participant insertions",
+                    "description": "Retry configuration for failed participant insertions. NORMAL mode only (LOADTEST mode has no retry/reconnect mechanism). Mutually exclusive with maxParticipantErrors below: enabling retry disables maxParticipantErrors unless it is also set explicitly. If neither retry nor maxParticipantErrors is configured, maxParticipantErrors defaults to 1 (retry disabled).",
                     "properties": {
                         "enabled": {
                             "type": "boolean",
-                            "default": true,
-                            "description": "Enable retry on participant insertion failure"
+                            "default": false,
+                            "description": "Enable retry on participant insertion failure (NORMAL mode only)"
                         },
                         "times": {
                             "type": "integer",
@@ -500,6 +511,12 @@
                             "description": "Number of retry attempts"
                         }
                     }
+                },
+                "maxParticipantErrors": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 0,
+                    "description": "Stop the test once this many distinct participants (NORMAL mode) or load-test runs (LOADTEST mode) have errored, regardless of whether they were retried/reconnected successfully - participants are simply allowed to fail. In NORMAL mode this is mutually exclusive with retry.enabled above (set retry.enabled: true explicitly to use retries instead). LOADTEST mode always enforces this setting regardless of the retry section, defaulting to 1 if left unset."
                 },
                 "batches": {
                     "type": "object",
