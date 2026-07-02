@@ -237,79 +237,73 @@ These topologies create a single session and fill it with users:
 
 ### LOADTEST mode
 
-`browser: multi-emulated` is an alternative, additive execution mode that should allow for introducing more users in the workers than `chrome`/`firefox`/`emulated` do.
-
-Enable it by setting `browser: multi-emulated` on a test case:
+**Use LOADTEST mode for large-scale load and stress testing.** Set `browser: multi-emulated` on a test case:
 
 ```yaml
 testcases:
   - topology: ONE_SESSION_NXM
     participants:
-      - "50:20"
+      - "100:50"
     sessions: 1
-    resolution: 1280x720
     browser: multi-emulated
     videoCodec: h264
     simulcast: true
 ```
 
-LOADTEST-mode reuses most existing test case configuration:
+**Configuration in LOADTEST mode:**
 
-| Property                 | Reused as                                                                             |
-| ------------------------ | -------------------------------------------------------------------------------------- |
-| `topology`                | Determines publisher/subscriber split and number of rooms, same as other browsers      |
-| `participants`, `sessions` | Same meaning as with other browsers (number of rooms / publishers / subscribers per room) |
-| `resolution`               | Mapped to `lk load-test`'s coarse `low`/`medium`/`high` video resolution (180p, 360p, 720p)             |
-| `distribution.usersPerWorker` (with `distribution.manual: true`) | Used to split a room's publishers/subscribers into per-worker chunks |
+Most settings work the same as other browsers:
 
-It also adds LOADTEST-only fields:
+| Setting | Behavior |
+| ------- | --------- |
+| `topology` | `N:N`, `N:M`, `TEACHING`, `ONE_SESSION_NXN`, `ONE_SESSION_NXM` all work the same |
+| `participants`, `sessions` | Same meaning—number of rooms and participants per room |
+| `distribution.usersPerWorker` | Controls how many participants are grouped together per test run |
+| `resolution` | Mapped to `low` (180p), `medium` (360p), or `high` (720p) |
 
-| Property     | Required | Default | Description                                                                 |
-| ------------- | -------- | ------- | ----------------------------------------------------------------------------- |
-| `videoCodec`   | No       | (none)  | `h264` or `vp8`. Left to `lk load-test`'s default (both) if omitted          |
-| `simulcast`    | No       | `true`  | Simulcast is enabled by default; set to `false` to disable it                |
+Video codec configuration:
 
-**Not supported in LOADTEST mode** (these options are ignored, since `lk load-test` publishes its own built-in synthetic clip rather than a configurable stream):
+| Property | Default | Description |
+| -------- | ------- | ----------- |
+| `videoCodec` | (random) | `h264` or `vp8`. If not specified, a codec will be selected randomly for each participant |
+| `simulcast` | `true` | Simulcast enabled by default; set to `false` to disable |
 
-- Custom/personalized media: `video.type`, `video.customVideoUrl`, `video.customAudioUrl`.
-- `frameRate` — no equivalent flag; the built-in clip has a fixed frame rate.
-- Original `resolution` values — only the coarse `low`/`medium`/`high` mapping applies.
-- `recordingMode`, `browserRecording`, `headlessBrowser`, `showBrowserVideoElements`, and QoE recording/analysis — these are browser/recording concepts that don't apply to `lk load-test` runs.
-- `startingParticipants` and the automatic CPU-based worker capacity estimation used with other browsers — LOADTEST mode sizes worker chunks from `distribution.usersPerWorker` (manual allocation), or a built-in default step size for "infinite" rooms; otherwise a whole (finite) room runs as a single chunk on one worker.
-- Per-participant reporting: OpenVidu/LiveKit `connectionId`, per-user CPU at creation, and per-user retry counts are only available with other browsers. LOADTEST mode reports at the chunk/session level, plus the platform metrics collected from Grafana/Prometheus (unchanged for all browsers). When Elasticsearch monitoring is enabled, synthetic participant ids (e.g. `User1`, `User2`) are indexed in `loadtest-webrtc-stats-*` to maintain consistency with text/HTML reports.
+**Features not available in LOADTEST mode:**
 
-### Choosing Emulated vs Real Browsers
+The following configuration options are ignored in LOADTEST mode because the test uses a built-in synthetic video clip rather than real or configurable media:
 
-An emulated user is a lightweight simulated participant implemented by the browser-emulator. It joins sessions and performs signaling while sending or receiving pre-recorded or synthetic media streams, but it does not run a full browser (no UI rendering or real device capture). Emulated users consume far less CPU and memory and start faster than real browser instances, making them suitable for large-scale load testing where browser-level behaviour is not required.
+- Custom video/audio sources: `video.type`, `video.customVideoUrl`, `video.customAudioUrl`
+- `frameRate` — the synthetic clip has a fixed frame rate
+- `recordingMode`, `browserRecording` — recording not supported
+- `headlessBrowser`, `showBrowserVideoElements` — not applicable to synthetic test runs
+- QoE recording and analysis — not supported
 
-Decide between the `emulated` worker mode and real browsers based on the trade-off between scale and realism:
+Reports in LOADTEST mode focus on room/session-level metrics and platform metrics from Grafana/Prometheus, rather than per-user details like individual CPU usage or retry counts.
 
-- **Use `emulated` when**:
-  - You need to run very large-scale load or stress tests where resource efficiency is critical.
-  - You primarily need to exercise signaling, session creation, and media forwarding rather than browser-specific rendering or UI behaviour.
-  - Faster startup and lower CPU/memory usage per participant.
-- **Limitations of `emulated`**:
-  - Does not run a full browser; it won't reproduce browser-specific bugs, real media capture issues, record media for QoE analysis or get WebRTC stats.
-- **Use real browsers (`chrome` / `firefox`) when**:
-  - You need accurate end-to-end behaviour, QoE analysis, WebRTC stats or need to validate features that depend on actual browser APIs.
-  - You are debugging issues that may be caused by rendering or browser implementation differences.
+### Choosing a Browser Type
 
-Resource recommendations per participant:
-| Mode | CPU (vCPU) | Memory (GB) |
-| -------- | -------- | -------- |
-| `emulated` | 0.2 | 0.2 |
-| `chrome` or `firefox` | 1 | 1 |
-| `chrome` or `firefox` with full-screen recording | 2 | 2 |
-| `chrome` or `firefox` with Media Recorders for QoE Analysis | 4 | 8 |
+Choose a browser type based on what you need to test:
 
-For example, if using AWS EC2 `c5.xlarge` instances for the workers (4 vCPU, 8GB RAM), you can set the `distribution.usersPerWorker` to the following values based on the mode:
+| Browser | Use when | Limitations |
+| ------- | -------- | ----------- |
+| **`emulated`** | Testing large scale with limited infrastructure. Simulates realistic user signaling and media routing. | No real browser rendering, no QoE analysis or per-user WebRTC stats, faster startup |
+| **`chrome` / `firefox`** | Testing realistic end-to-end browser behavior, debugging UI issues, collecting QoE metrics and detailed stats. | Requires more CPU/memory per participant |
+| **`multi-emulated` (LOADTEST mode)** | Testing very large scale (hundreds of concurrent participants). | Limited reporting detail, no custom media, synthetic video only |
 
-| Mode                                                        | Users per Worker |
-| ----------------------------------------------------------- | ---------------- |
-| `emulated`                                                  | 20               |
-| `chrome` or `firefox`                                       | 4                |
-| `chrome` or `firefox` with full-screen recording            | 2                |
-| `chrome` or `firefox` with Media Recorders for QoE Analysis | 1                |
+**Resource requirements** are approximate and depend on your configuration:
+
+| Browser | Typical CPU per participant | Typical Memory per participant |
+| ------- | --------------------------- | ----------------------------- |
+| `emulated` | 0.2 vCPU | 0.2 GB |
+| `chrome` / `firefox` | 1 vCPU | 1 GB |
+| `chrome` / `firefox` + recording | 2 vCPU | 2 GB |
+| `multi-emulated` | Less than `emulated` | Less than `emulated` |
+
+**What you get in reports:**
+
+- **All browsers**: Session/room-level results, aggregated statistics, HTML and text reports
+- **`chrome` / `firefox`**: Per-user CPU usage at connection time, retry counts, individual WebRTC stats
+- **`multi-emulated`**: Platform-level metrics from Grafana/Prometheus (if configured)
 
 ### Workers
 
