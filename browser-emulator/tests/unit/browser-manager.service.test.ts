@@ -284,4 +284,83 @@ describe('BrowserManagerService', () => {
 			expect(mockEmulatedBrowserService.clean).toHaveBeenCalledTimes(1);
 		});
 	});
+
+	describe('runLoadTest', () => {
+		const baseRequest = {
+			openviduUrl: 'https://localhost:7443',
+			livekitApiKey: 'devkey',
+			livekitApiSecret: 'secret',
+			room: 'LoadTestSession1',
+			videoPublishers: 2,
+		};
+
+		it('should start the load test and return its response', async () => {
+			const result = await service.runLoadTest(baseRequest);
+
+			expect(
+				mockLoadTestRunnerService.startLoadTest,
+			).toHaveBeenCalledWith(baseRequest);
+			expect(result).toEqual({
+				runId: 'run-1',
+				handleId: 'handle-1',
+				room: 'LoadTestSession1',
+				workerCpuUsage: 50,
+			});
+		});
+
+		it('should index one webrtc-stats document per participant id when ElasticSearch is running', async () => {
+			mockElasticSearchService.isElasticSearchRunning.mockReturnValue(
+				true,
+			);
+
+			await service.runLoadTest({
+				...baseRequest,
+				participantIds: ['User1', 'User2'],
+			});
+
+			expect(mockElasticSearchService.sendJson).toHaveBeenCalledTimes(2);
+			expect(mockElasticSearchService.sendJson).toHaveBeenNthCalledWith(
+				1,
+				expect.objectContaining({
+					new_participant_id: 'User1',
+					new_participant_session: 'LoadTestSession1',
+					node_role: 'browseremulator',
+					streams: 1,
+				}),
+			);
+			expect(mockElasticSearchService.sendJson).toHaveBeenNthCalledWith(
+				2,
+				expect.objectContaining({
+					new_participant_id: 'User2',
+					new_participant_session: 'LoadTestSession1',
+					node_role: 'browseremulator',
+					streams: 1,
+				}),
+			);
+		});
+
+		it('should not index anything when participantIds is empty or missing', async () => {
+			mockElasticSearchService.isElasticSearchRunning.mockReturnValue(
+				true,
+			);
+
+			await service.runLoadTest(baseRequest);
+			await service.runLoadTest({ ...baseRequest, participantIds: [] });
+
+			expect(mockElasticSearchService.sendJson).not.toHaveBeenCalled();
+		});
+
+		it('should not index anything when ElasticSearch is not running', async () => {
+			mockElasticSearchService.isElasticSearchRunning.mockReturnValue(
+				false,
+			);
+
+			await service.runLoadTest({
+				...baseRequest,
+				participantIds: ['User1', 'User2'],
+			});
+
+			expect(mockElasticSearchService.sendJson).not.toHaveBeenCalled();
+		});
+	});
 });

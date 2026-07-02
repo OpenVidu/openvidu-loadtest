@@ -276,7 +276,7 @@ It also adds LOADTEST-only fields:
 - Original `resolution` values — only the coarse `low`/`medium`/`high` mapping applies.
 - `recordingMode`, `browserRecording`, `headlessBrowser`, `showBrowserVideoElements`, and QoE recording/analysis — these are browser/recording concepts that don't apply to `lk load-test` runs.
 - `startingParticipants` and the automatic CPU-based worker capacity estimation used with other browsers — LOADTEST mode sizes worker chunks from `distribution.usersPerWorker` (manual allocation), or a built-in default step size for "infinite" rooms; otherwise a whole (finite) room runs as a single chunk on one worker.
-- Per-participant reporting: OpenVidu/LiveKit `connectionId`, per-user CPU at creation, and per-user retry counts are only available with other browsers. LOADTEST mode reports at the chunk/session level, plus the platform metrics collected from Grafana/Prometheus (unchanged for all browsers).
+- Per-participant reporting: OpenVidu/LiveKit `connectionId`, per-user CPU at creation, and per-user retry counts are only available with other browsers. LOADTEST mode reports at the chunk/session level, plus the platform metrics collected from Grafana/Prometheus (unchanged for all browsers). When Elasticsearch monitoring is enabled, each synthetic participant (e.g. `User1`, `User2`) still gets one `loadtest-webrtc-stats-*` document with `node_role: browseremulator`, matching the ids used in the text/HTML reports — there's just no real per-participant WebRTC stats payload behind it (`streams` is a fixed placeholder), since a single `lk load-test` process doesn't expose per-user stats.
 
 ### Choosing Emulated vs Real Browsers
 

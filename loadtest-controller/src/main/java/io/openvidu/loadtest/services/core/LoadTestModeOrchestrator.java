@@ -1,5 +1,8 @@
 package io.openvidu.loadtest.services.core;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +49,9 @@ import io.openvidu.loadtest.services.BrowserEmulatorClient;
  * participants, using the same session/user naming convention as NORMAL mode.
  * There is no real per-participant connectionId, CPU, or retry data to report,
  * since a single {@code lk load-test} process simulates many users at once.
+ * The same synthetic ids are also sent to the worker so it can index one
+ * webrtc-stats document per participant in Elasticsearch, mirroring what
+ * NORMAL mode's per-participant flow indexes.
  */
 class LoadTestModeOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(LoadTestModeOrchestrator.class);
@@ -136,9 +142,14 @@ class LoadTestModeOrchestrator {
             int chunkPublishers = capChunk(remainingPublishers, stepSize);
             int chunkSubscribers = capChunk(remainingSubscribers, stepSize - chunkPublishers);
 
+            List<String> publisherIds = participantOrchestrator.nextUserIds(chunkPublishers);
+            List<String> subscriberIds = participantOrchestrator.nextUserIds(chunkSubscribers);
+            List<String> chunkParticipantIds = new ArrayList<>(publisherIds);
+            chunkParticipantIds.addAll(subscriberIds);
+
             workerCursor[0] = loadTestService.setAndInitializeNextWorker(workerCursor[0], WorkerType.WORKER);
             boolean launched = browserEmulatorClient.launchLoadTest(workerCursor[0], testCase, room, chunkPublishers,
-                    0, chunkSubscribers);
+                    0, chunkSubscribers, chunkParticipantIds);
             if (!launched) {
                 String reason = "Failed to launch load-test chunk on worker " + workerCursor[0] + " for room "
                         + room;
@@ -146,8 +157,8 @@ class LoadTestModeOrchestrator {
                 return new CreateParticipantResponse().setResponseOk(false).setStopReason(reason);
             }
 
-            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.PUBLISHER, chunkPublishers);
-            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.SUBSCRIBER, chunkSubscribers);
+            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.PUBLISHER, publisherIds);
+            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.SUBSCRIBER, subscriberIds);
 
             remainingPublishers = decrement(remainingPublishers, chunkPublishers);
             remainingSubscribers = decrement(remainingSubscribers, chunkSubscribers);

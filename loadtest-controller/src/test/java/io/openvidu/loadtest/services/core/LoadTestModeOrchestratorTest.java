@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -66,7 +67,7 @@ class LoadTestModeOrchestratorTest {
         mockWorkerPool("worker1", "worker2", "worker3", "worker4", "worker5", "worker6");
 
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
-                anyInt())).thenReturn(true);
+                anyInt(), anyList())).thenReturn(true);
     }
 
     /** Configures the round-robin worker mock to hand out exactly {@code pool}, then throw. */
@@ -99,8 +100,30 @@ class LoadTestModeOrchestratorTest {
         CreateParticipantResponse response = orchestrator.runOneSessionNxN(testCase, 6);
 
         assertTrue(response.isResponseOk());
-        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 6, 0, 0);
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 6, 0, 0,
+                Arrays.asList("User1", "User2", "User3", "User4", "User5", "User6"));
         verify(loadTestService, times(1)).setAndInitializeNextWorker(anyString(), eq(WorkerType.WORKER));
+    }
+
+    @Test
+    void runOneSessionNxN_passesGeneratedParticipantIdsToWorker() throws NoWorkersAvailableException {
+        TestCase testCase = testCase(Topology.ONE_SESSION_NXN, Arrays.asList("2"), 1);
+
+        orchestrator.runOneSessionNxN(testCase, 2);
+
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 0, 0,
+                Arrays.asList("User1", "User2"));
+    }
+
+    @Test
+    void runOneSessionNxM_passesSeparatePublisherAndSubscriberIdsInOrder() throws NoWorkersAvailableException {
+        TestCase testCase = testCase(Topology.ONE_SESSION_NXM, Arrays.asList("2:1"), 1);
+
+        orchestrator.runOneSessionNxM(testCase, 2, 1);
+
+        // Publisher ids are generated (and numbered) before subscriber ids within a chunk.
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 0, 1,
+                Arrays.asList("User1", "User2", "User3"));
     }
 
     @Test
@@ -112,10 +135,14 @@ class LoadTestModeOrchestratorTest {
         CreateParticipantResponse response = orchestrator.runOneSessionNxM(testCase, 10, 5);
 
         assertTrue(response.isResponseOk());
-        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 4, 0, 0);
-        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session1", 4, 0, 0);
-        verify(browserEmulatorClient).launchLoadTest("worker3", testCase, "session1", 2, 0, 2);
-        verify(browserEmulatorClient).launchLoadTest("worker4", testCase, "session1", 0, 0, 3);
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 4, 0, 0,
+                Arrays.asList("User1", "User2", "User3", "User4"));
+        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session1", 4, 0, 0,
+                Arrays.asList("User5", "User6", "User7", "User8"));
+        verify(browserEmulatorClient).launchLoadTest("worker3", testCase, "session1", 2, 0, 2,
+                Arrays.asList("User9", "User10", "User11", "User12"));
+        verify(browserEmulatorClient).launchLoadTest("worker4", testCase, "session1", 0, 0, 3,
+                Arrays.asList("User13", "User14", "User15"));
         verify(loadTestService, times(4)).setAndInitializeNextWorker(anyString(), eq(WorkerType.WORKER));
     }
 
@@ -126,21 +153,24 @@ class LoadTestModeOrchestratorTest {
         CreateParticipantResponse response = orchestrator.runNxN(testCase, 3);
 
         assertTrue(response.isResponseOk());
-        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 3, 0, 0);
-        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session2", 3, 0, 0);
+        // Each room/session resets the synthetic user numbering, matching NORMAL mode.
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 3, 0, 0,
+                Arrays.asList("User1", "User2", "User3"));
+        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session2", 3, 0, 0,
+                Arrays.asList("User1", "User2", "User3"));
     }
 
     @Test
     void runNxN_stopsAfterFirstFailedChunkAndSkipsRemainingSessions() throws NoWorkersAvailableException {
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
-                anyInt())).thenReturn(false);
+                anyInt(), anyList())).thenReturn(false);
         TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 2);
 
         CreateParticipantResponse response = orchestrator.runNxN(testCase, 3);
 
         assertFalse(response.isResponseOk());
         verify(browserEmulatorClient, times(1)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
-                anyInt(), anyInt(), anyInt());
+                anyInt(), anyInt(), anyInt(), anyList());
     }
 
     @Test
@@ -150,7 +180,7 @@ class LoadTestModeOrchestratorTest {
         orchestrator.runOneSessionNxM(testCase, 10, 5);
 
         verify(browserEmulatorClient, times(1)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
-                eq(10), eq(0), eq(5));
+                eq(10), eq(0), eq(5), anyList());
     }
 
     @Test
@@ -160,10 +190,12 @@ class LoadTestModeOrchestratorTest {
 
         assertThrows(NoWorkersAvailableException.class, () -> orchestrator.runNxM(testCase, 2, 1));
 
-        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 0, 1);
-        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session2", 2, 0, 1);
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 0, 1,
+                Arrays.asList("User1", "User2", "User3"));
+        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session2", 2, 0, 1,
+                Arrays.asList("User1", "User2", "User3"));
         verify(browserEmulatorClient, times(2)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
-                anyInt(), anyInt(), anyInt());
+                anyInt(), anyInt(), anyInt(), anyList());
     }
 
     @Test
@@ -176,11 +208,14 @@ class LoadTestModeOrchestratorTest {
         assertThrows(NoWorkersAvailableException.class,
                 () -> orchestrator.runOneSessionNxN(testCase, Integer.MAX_VALUE));
 
-        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 5, 0, 0);
-        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session1", 5, 0, 0);
-        verify(browserEmulatorClient).launchLoadTest("worker3", testCase, "session1", 5, 0, 0);
+        verify(browserEmulatorClient).launchLoadTest(eq("worker1"), eq(testCase), eq("session1"), eq(5), eq(0),
+                eq(0), anyList());
+        verify(browserEmulatorClient).launchLoadTest(eq("worker2"), eq(testCase), eq("session1"), eq(5), eq(0),
+                eq(0), anyList());
+        verify(browserEmulatorClient).launchLoadTest(eq("worker3"), eq(testCase), eq("session1"), eq(5), eq(0),
+                eq(0), anyList());
         verify(browserEmulatorClient, times(3)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
-                anyInt(), anyInt(), anyInt());
+                anyInt(), anyInt(), anyInt(), anyList());
     }
 
     @Test
@@ -192,7 +227,8 @@ class LoadTestModeOrchestratorTest {
         assertThrows(NoWorkersAvailableException.class,
                 () -> orchestrator.runOneSessionNxN(testCase, Integer.MAX_VALUE));
 
-        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 50, 0, 0);
+        verify(browserEmulatorClient).launchLoadTest(eq("worker1"), eq(testCase), eq("session1"), eq(50), eq(0),
+                eq(0), anyList());
     }
 
     @Test
@@ -207,9 +243,11 @@ class LoadTestModeOrchestratorTest {
                 () -> orchestrator.runOneSessionNxM(testCase, 2, Integer.MAX_VALUE));
 
         // First chunk: fixed 2 publishers fill the remaining capacity with subscribers.
-        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 0, 8);
+        verify(browserEmulatorClient).launchLoadTest(eq("worker1"), eq(testCase), eq("session1"), eq(2), eq(0),
+                eq(8), anyList());
         // Subsequent chunks: publishers exhausted, pure-subscriber chunks continue.
-        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session1", 0, 0, 10);
+        verify(browserEmulatorClient).launchLoadTest(eq("worker2"), eq(testCase), eq("session1"), eq(0), eq(0),
+                eq(10), anyList());
     }
 
     @Test
@@ -240,7 +278,7 @@ class LoadTestModeOrchestratorTest {
     @Test
     void runNxN_doesNotRecordParticipantsOrCompletionForFailedChunk() throws NoWorkersAvailableException {
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
-                anyInt())).thenReturn(false);
+                anyInt(), anyList())).thenReturn(false);
         TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 2);
 
         orchestrator.runNxN(testCase, 3);

@@ -491,6 +491,16 @@ components:
         layout:
           type: string
           enum: [speaker, 3x3, 4x4, 5x5]
+        participantIds:
+          type: array
+          items:
+            type: string
+          description: >-
+            Synthetic participant ids (e.g. "User1", "User2") assigned to this
+            chunk's publishers/subscribers, in order. When Elasticsearch
+            monitoring is enabled, one webrtc-stats document per id is indexed
+            with node_role: browseremulator, matching NORMAL mode's
+            per-participant reporting.
     LoadTestRunResponse:
       type: object
       properties:

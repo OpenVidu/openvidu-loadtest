@@ -86,7 +86,16 @@ cd e2e-tests/scripts
 
 ```bash
 cd e2e-tests/scripts
-./run-e2e-test.sh elk-smoke-test-config.yaml validate-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+./run-e2e-test.sh --elk elk-smoke-test-config.yaml validate-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+```
+
+### Multi-emulated ELK Smoke Test (LOADTEST mode + Metricbeat/Kibana integration)
+
+Same scenario and validations as the ELK Smoke Test above, but using multi-emulated browsers (LOADTEST mode) instead of Chrome. Requires a LiveKit platform.
+
+```bash
+cd e2e-tests/scripts
+./run-e2e-test.sh --elk multi-emulated-elk-smoke-test-config.yaml validate-multi-emulated-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
 ## Test Discovery and Validation Mapping
@@ -120,6 +129,7 @@ To add a new test type:
 | `smoke-test-config.yaml`          | `validate-smoke-test.sh`            | `validate-default.sh` |
 | `emulated-smoke-test-config.yaml` | `validate-emulated-smoke-test.sh`   | `validate-default.sh` |
 | `elk-smoke-test-config.yaml`      | `validate-elk-smoke-test.sh`        | `validate-default.sh` |
+| `multi-emulated-elk-smoke-test-config.yaml` | `validate-multi-emulated-elk-smoke-test.sh` (delegates to `validate-elk-smoke-test.sh`) | `validate-default.sh` |
 | `load-test-config.yaml`           | `validate-load-test.sh`             | `validate-default.sh` |
 
 ## Expected Results
