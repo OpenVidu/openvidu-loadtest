@@ -586,7 +586,7 @@ export class EmulatedBrowserService {
 		this.wsService.send(JSON.stringify(payload));
 		this.saveErrorToStats(handle.userName, handle.sessionName, payload);
 		this.logger.error(
-			{ connectionId, reason },
+			{ connectionId, reason, logs },
 			'Healthcheck error reported',
 		);
 	}
@@ -652,8 +652,9 @@ export class EmulatedBrowserService {
 			this.emulatedParticipantLauncher.isRunning(handle.handleId),
 		);
 		if (!isRunning) {
+			const logs = await this.getLogsSafely(handle.handleId);
 			this.logger.error(
-				{ handleId: handle.handleId },
+				{ handleId: handle.handleId, logs },
 				'Participant is not running',
 			);
 			throw new Error(errorMsg);

@@ -169,55 +169,48 @@ describe('LoadTestRunnerService', () => {
 	});
 
 	describe('connection verification', () => {
+		it('accepts logs showing the finished-connecting line as all participants connected', async () => {
+			mockLauncher.getLogs.mockResolvedValue(
+				'Finished connecting to room, waiting 1000h0m0s',
+			);
+
+			await expect(
+				service.startLoadTest(baseRequest),
+			).resolves.toMatchObject({ handleId: 'container-id-123' });
+		});
+
 		it.each([
 			[
-				'publishing an audio track',
+				'only a publishing track line (not all participants connected yet)',
 				'publishing audio track - sprgj_pub_1',
 			],
 			[
-				'publishing a video track',
-				'publishing video track - sprgj_pub_0',
-			],
-			[
-				'a subscribed audio track',
+				'only a subscribed track line (not all participants connected yet)',
 				'subscribed to track sprgj_2 TR_AMB9K4wdmoNRFw audio 1/4',
 			],
-			[
-				'a subscribed video track',
-				'subscribed to track sprgj_2 TR_VCEBkhNo7bjkC7 video 3/4',
-			],
-			[
-				'the finished-connecting line',
-				'Finished connecting to room, waiting 1000h0m0s',
-			],
+			['no useful output', 'no useful output here'],
 		])(
-			'accepts logs showing %s as a successful connection',
+			'throws and stops the run when logs show %s',
 			async (_label, logLine) => {
+				vi.useFakeTimers();
 				mockLauncher.getLogs.mockResolvedValue(logLine);
 
-				await expect(
-					service.startLoadTest(baseRequest),
-				).resolves.toMatchObject({ handleId: 'container-id-123' });
+				const promise = service.startLoadTest(baseRequest);
+				const assertion = expect(promise).rejects.toThrow(
+					/failed to connect any participant/,
+				);
+				await vi.runAllTimersAsync();
+				await assertion;
+
+				expect(mockLauncher.stop).toHaveBeenCalledWith(
+					'container-id-123',
+				);
 			},
 		);
 
 		it('throws and stops the run when the process never reports running', async () => {
 			vi.useFakeTimers();
 			mockLauncher.isRunning.mockResolvedValue(false);
-
-			const promise = service.startLoadTest(baseRequest);
-			const assertion = expect(promise).rejects.toThrow(
-				/failed to connect any participant/,
-			);
-			await vi.runAllTimersAsync();
-			await assertion;
-
-			expect(mockLauncher.stop).toHaveBeenCalledWith('container-id-123');
-		});
-
-		it('throws and stops the run when logs never show a connection indicator', async () => {
-			vi.useFakeTimers();
-			mockLauncher.getLogs.mockResolvedValue('no useful output here');
 
 			const promise = service.startLoadTest(baseRequest);
 			const assertion = expect(promise).rejects.toThrow(
@@ -242,6 +235,10 @@ describe('LoadTestRunnerService', () => {
 			],
 			['a failed publisher connection', 'could not connect Pub 0:'],
 			['a failed subscriber connection', 'could not connect Sub 0:'],
+			[
+				'a consumeTrack nil pointer panic',
+				'caught panic in consumeTrack runtime error: invalid memory address or nil pointer dereference',
+			],
 		])('stops the run when logs show %s', async (_label, fatalLine) => {
 			await service.startLoadTest(baseRequest);
 			mockLauncher.getLogs.mockResolvedValue(fatalLine);
