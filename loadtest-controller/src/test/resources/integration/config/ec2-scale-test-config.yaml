@@ -30,6 +30,9 @@ distribution:
   usersPerWorker: 4   # Allow up to 4 participants per worker
 
 advanced:
+  retry:
+    enabled: true
+    times: 5
   batches:
     enabled: true
     maxConcurrentRequests: 10
