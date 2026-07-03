@@ -544,13 +544,10 @@ export class LoadTestRunnerService {
 	private hasFatalLoadTestIndicators(logs: string): boolean {
 		const normalizedLogs = normalizeContainerLogs(logs);
 		const fatalPatterns = [
-			'fail to refresh permissions: transaction closed',
-			'fail to refresh permissions: all retransmissions failed',
-			'could not connect pub',
-			'could not connect sub',
+			'could not connect',
 			'panic:',
 			'fatal',
-			'caught panic in consumetrack',
+			'panic in consumetrack',
 		];
 
 		return fatalPatterns.some(pattern => normalizedLogs.includes(pattern));
