@@ -22,6 +22,19 @@ const mockComModule = {
 		.mockReturnValue('http://localhost:3000/?session=test&user=test'),
 };
 
+const mockWsService = {
+	send: vi.fn(),
+};
+
+const mockWebhookRoutingService = {
+	setCredentials: vi.fn(),
+	registerIdentity: vi.fn(),
+	unregisterIdentity: vi.fn(),
+	registerPrefix: vi.fn(),
+	unregisterPrefix: vi.fn(),
+	dispatch: vi.fn(),
+};
+
 vi.mock('../../src/services/selenium.service.js', () => ({
 	SeleniumService: vi.fn().mockImplementation(() => mockSeleniumService),
 }));
@@ -56,6 +69,8 @@ describe('RealBrowserService', () => {
 			mockSeleniumService as never,
 			mockComModule as never,
 			mockLocalFilesRepository as never,
+			mockWsService as never,
+			mockWebhookRoutingService as never,
 			loggerService,
 		);
 	});
@@ -139,6 +154,70 @@ describe('RealBrowserService', () => {
 				's-76832d_u-42b27e',
 			);
 		});
+
+		it('registers the participant identity for webhook routing and caches credentials', async () => {
+			const mockDriver = {
+				getSession: vi
+					.fn()
+					.mockResolvedValue({ getId: () => 'driver-id-123' }),
+				manage: vi.fn().mockReturnValue({
+					setTimeouts: vi.fn().mockResolvedValue(undefined),
+					window: { maximize: vi.fn().mockResolvedValue(undefined) },
+				}),
+				get: vi.fn().mockResolvedValue(undefined),
+				wait: vi.fn().mockResolvedValue(undefined),
+				sleep: vi.fn().mockResolvedValue(undefined),
+				findElements: vi.fn().mockResolvedValue([]),
+				executeScript: vi.fn().mockResolvedValue(undefined),
+			};
+			mockSeleniumService.getDriver.mockResolvedValue(mockDriver);
+
+			await service.launchBrowser({
+				...baseRequest,
+				livekitApiKey: 'test-api-key',
+				livekitApiSecret: 'test-api-secret',
+			} as never);
+
+			expect(
+				mockWebhookRoutingService.setCredentials,
+			).toHaveBeenCalledWith('test-api-key', 'test-api-secret');
+			expect(
+				mockWebhookRoutingService.registerIdentity,
+			).toHaveBeenCalledWith('test-user', expect.any(Function));
+		});
+
+		it('reports a webhook-triggered error once without stopping the driver', async () => {
+			const mockDriver = {
+				getSession: vi
+					.fn()
+					.mockResolvedValue({ getId: () => 'driver-id-123' }),
+				manage: vi.fn().mockReturnValue({
+					setTimeouts: vi.fn().mockResolvedValue(undefined),
+					window: { maximize: vi.fn().mockResolvedValue(undefined) },
+				}),
+				get: vi.fn().mockResolvedValue(undefined),
+				wait: vi.fn().mockResolvedValue(undefined),
+				sleep: vi.fn().mockResolvedValue(undefined),
+				findElements: vi.fn().mockResolvedValue([]),
+				executeScript: vi.fn().mockResolvedValue(undefined),
+			};
+			mockSeleniumService.getDriver.mockResolvedValue(mockDriver);
+
+			await service.launchBrowser(baseRequest as never);
+			const webhookHandler = mockWebhookRoutingService.registerIdentity
+				.mock.calls[0][1] as (eventType: string) => void;
+
+			webhookHandler('participant_left');
+			webhookHandler('participant_left');
+
+			expect(mockWsService.send).toHaveBeenCalledTimes(1);
+			const payload = JSON.parse(
+				mockWsService.send.mock.calls[0][0] as string,
+			) as Record<string, string>;
+			expect(payload.event).toBe('REAL_PARTICIPANT_WEBHOOK_ERROR');
+			expect(payload.reason).toBe('webhook-participant_left');
+			expect(mockSeleniumService.quitDriver).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('deleteStreamManagerWithConnectionId', () => {
@@ -187,6 +266,9 @@ describe('RealBrowserService', () => {
 			expect(mockSeleniumService.quitDriver).toHaveBeenCalledWith(
 				mockDriver,
 			);
+			expect(
+				mockWebhookRoutingService.unregisterIdentity,
+			).toHaveBeenCalledWith('test-user');
 		});
 	});
 

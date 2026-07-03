@@ -38,6 +38,15 @@ const mockWsService = {
 	send: vi.fn(),
 };
 
+const mockWebhookRoutingService = {
+	setCredentials: vi.fn(),
+	registerIdentity: vi.fn(),
+	unregisterIdentity: vi.fn(),
+	registerPrefix: vi.fn(),
+	unregisterPrefix: vi.fn(),
+	dispatch: vi.fn(),
+};
+
 const mockLocalFilesRepository = {
 	existMediaFiles: vi.fn().mockResolvedValue(true),
 	existStreamingMediaFiles: vi.fn().mockResolvedValue(true),
@@ -130,6 +139,7 @@ describe('EmulatedBrowserService', () => {
 			mockWsService as never,
 			mockLocalFilesRepository as never,
 			emulatedFilePublishStreamService,
+			mockWebhookRoutingService as never,
 			loggerService,
 		);
 	});
@@ -175,6 +185,7 @@ describe('EmulatedBrowserService', () => {
 				mockWsService as never,
 				failingLocalFilesRepository,
 				emulatedFailStreamService,
+				mockWebhookRoutingService as never,
 				loggerService,
 			);
 
@@ -332,6 +343,45 @@ describe('EmulatedBrowserService', () => {
 			} finally {
 				vi.useRealTimers();
 			}
+		});
+
+		it('registers the participant identity for webhook routing and caches credentials', async () => {
+			await service.createEmulatedParticipant(baseRequest as never);
+
+			expect(
+				mockWebhookRoutingService.setCredentials,
+			).toHaveBeenCalledWith('test-api-key', 'test-api-secret');
+			expect(
+				mockWebhookRoutingService.registerIdentity,
+			).toHaveBeenCalledWith('test-user', expect.any(Function));
+		});
+
+		it('unregisters the participant identity on teardown', async () => {
+			const connectionId = await service.createEmulatedParticipant(
+				baseRequest as never,
+			);
+
+			await service.deleteStreamManagerWithConnectionId(connectionId);
+
+			expect(
+				mockWebhookRoutingService.unregisterIdentity,
+			).toHaveBeenCalledWith('test-user');
+		});
+
+		it('reports a webhook-triggered error once via the registered handler', async () => {
+			await service.createEmulatedParticipant(baseRequest as never);
+			const webhookHandler = mockWebhookRoutingService.registerIdentity
+				.mock.calls[0][1] as (eventType: string) => void;
+
+			webhookHandler('participant_left');
+			webhookHandler('participant_left');
+
+			expect(mockWsService.send).toHaveBeenCalledTimes(1);
+			const payload = JSON.parse(
+				mockWsService.send.mock.calls[0][0] as string,
+			) as Record<string, string>;
+			expect(payload.event).toBe('EMULATED_PARTICIPANT_HEALTH_ERROR');
+			expect(payload.reason).toBe('webhook-participant_left');
 		});
 	});
 

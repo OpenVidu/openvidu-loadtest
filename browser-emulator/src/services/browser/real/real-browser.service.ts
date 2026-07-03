@@ -16,6 +16,13 @@ import {
 } from '../../../types/create-user.type.ts';
 import type { LoggerService } from '../../logger.service.ts';
 import { shortenIdentifier } from '../../../utils/id-utils.ts';
+import type { WsService } from '../../ws.service.ts';
+import type { WebhookRoutingService } from '../../webhook-routing.service.ts';
+import type { LKCreateUserBrowser } from '../../../types/com-modules/livekit.ts';
+import {
+	ERRORS_FILE,
+	addSaveStatsToFileToQueue,
+} from '../../../utils/stats-files.ts';
 
 declare let localStorage: Storage;
 
@@ -36,17 +43,24 @@ export class RealBrowserService {
 	private readonly seleniumService: SeleniumService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly comModule: BaseComModule;
+	private readonly wsService: WsService;
+	private readonly webhookRoutingService: WebhookRoutingService;
+	private readonly reportedWebhookErrors = new Set<string>();
 	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	constructor(
 		seleniumService: SeleniumService,
 		comModule: BaseComModule,
 		localFilesRepository: LocalFilesRepository,
+		wsService: WsService,
+		webhookRoutingService: WebhookRoutingService,
 		loggerService: LoggerService,
 	) {
 		this.seleniumService = seleniumService;
 		this.comModule = comModule;
 		this.localFilesRepository = localFilesRepository;
+		this.wsService = wsService;
+		this.webhookRoutingService = webhookRoutingService;
 		this.logger = loggerService.getLogger('RealBrowserService');
 	}
 
@@ -59,6 +73,8 @@ export class RealBrowserService {
 			this.keepAliveIntervals.delete(driverId);
 		}
 		if (value) {
+			this.webhookRoutingService.unregisterIdentity(value.userName);
+			this.reportedWebhookErrors.delete(driverId);
 			if (value.mediaRecorders) {
 				await this.saveQoERecordings(driverId);
 			}
@@ -160,6 +176,8 @@ export class RealBrowserService {
 			{ driverId: key, sessionName: value.sessionName },
 			'Quitting driver',
 		);
+		this.webhookRoutingService.unregisterIdentity(value.userName);
+		this.reportedWebhookErrors.delete(key);
 		try {
 			await this.seleniumService.quitDriver(value.driver);
 			this.logger.info(
@@ -248,6 +266,17 @@ export class RealBrowserService {
 				browser: request.properties.browser,
 				mediaRecorders: request.properties.mediaRecorders ?? false,
 			});
+
+			const lkRequest = request as LKCreateUserBrowser;
+			this.webhookRoutingService.setCredentials(
+				lkRequest.livekitApiKey,
+				lkRequest.livekitApiSecret,
+			);
+			this.webhookRoutingService.registerIdentity(
+				request.properties.userId,
+				eventType => this.reportWebhookError(driverId!, eventType),
+			);
+
 			await driver.manage().setTimeouts({ script: 1800000 });
 			await driver.get(webappUrl);
 
@@ -348,6 +377,46 @@ export class RealBrowserService {
 			});
 		}, 60000);
 		this.keepAliveIntervals.set(driverId, keepAliveInterval);
+	}
+
+	/**
+	 * Reports a LiveKit webhook signal (participant_left, participant_connection_aborted,
+	 * track_unpublished) for a real browser participant. This is purely a
+	 * traceability signal for the controller — real browsers already have
+	 * their own independent JS-event/health detection, so the driver/browser
+	 * itself is left running rather than forced to stop here.
+	 */
+	private reportWebhookError(driverId: string, eventType: string): void {
+		if (this.reportedWebhookErrors.has(driverId)) {
+			return;
+		}
+		this.reportedWebhookErrors.add(driverId);
+
+		const driverInfo = this.driverMap.get(driverId);
+		if (!driverInfo) {
+			return;
+		}
+
+		const payload: Record<string, string> = {
+			event: 'REAL_PARTICIPANT_WEBHOOK_ERROR',
+			source: 'lk-webhook',
+			participant: driverInfo.userName,
+			session: driverInfo.sessionName,
+			timestamp: new Date().toISOString(),
+			reason: `webhook-${eventType}`,
+		};
+
+		this.wsService.send(JSON.stringify(payload));
+		addSaveStatsToFileToQueue(
+			driverInfo.userName,
+			driverInfo.sessionName,
+			ERRORS_FILE,
+			payload,
+		);
+		this.logger.error(
+			{ driverId, eventType },
+			'Webhook error reported for real browser participant',
+		);
 	}
 
 	private async handleBrowserError(driverId: string): Promise<void> {

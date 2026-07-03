@@ -32,6 +32,8 @@ tags:
     description: Instance lifecycle management
   - name: QoE
     description: Quality of Experience analysis
+  - name: Webhooks
+    description: LiveKit server webhook receiver
 paths:
   /webrtcStats:
     post:
@@ -88,6 +90,32 @@ paths:
           description: Error event received successfully
         '500':
           description: Internal server error
+  /webhooks/livekit:
+    post:
+      tags:
+        - Webhooks
+      summary: Receive a LiveKit server webhook event
+      description: |
+        Receives webhook events from the LiveKit server (e.g. `participant_left`,
+        `participant_connection_aborted`, `track_unpublished`), used as a last-resort
+        signal for participant disconnections not caught by healthchecks or client-side
+        events. LiveKit broadcasts each event to every configured worker URL, so this
+        worker verifies the request signature and silently ignores events that don't
+        belong to a participant/loadtest run it created. Always responds `200` once
+        the request body has been read, regardless of whether the event was recognized,
+        verified, or acted upon.
+      operationId: postLiveKitWebhook
+      requestBody:
+        required: true
+        content:
+          application/webhook+json:
+            schema:
+              type: string
+              format: binary
+              description: Raw LiveKit WebhookEvent protobuf-JSON payload, signed via the Authorization header.
+      responses:
+        '200':
+          description: Event received (processing outcome is not reflected in the response)
   /openvidu-browser/streamManager:
     post:
       tags:
@@ -494,8 +522,6 @@ components:
         simulcast:
           type: boolean
           description: Simulcast is enabled by default; set false to disable (--no-simulcast)
-        identityPrefix:
-          type: string
         layout:
           type: string
           enum: [speaker, 3x3, 4x4, 5x5]

@@ -20,7 +20,6 @@ export interface LoadTestRunRequest {
 	videoCodec?: LoadTestVideoCodec;
 	/** Simulcast is enabled by default in lk load-test; set false to add --no-simulcast. */
 	simulcast?: boolean;
-	identityPrefix?: string;
 	layout?: string;
 	/**
 	 * Synthetic participant ids (e.g. "User1", "User2") assigned by the

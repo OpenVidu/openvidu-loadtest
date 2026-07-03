@@ -68,6 +68,10 @@ async function createServer() {
 		},
 	);
 
+	// Mounted before the JSON/urlencoded body parsers below, since webhook
+	// signature verification needs the raw request body.
+	app.use('/webhooks', container.resolve('webhookController').getRouter());
+
 	app.use(express.json({ limit: '50mb' }));
 	app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

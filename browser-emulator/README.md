@@ -23,6 +23,16 @@ To regenerate the docs after changes to the API:
 pnpm run docs
 ```
 
+## LiveKit webhooks (last-resort disconnection detection)
+
+Each worker exposes `POST /webhooks/livekit`, a LiveKit server webhook receiver used as a last-resort signal for participant disconnections that healthchecks or client-side events might miss (`participant_left`, `participant_connection_aborted`, `track_unpublished`).
+
+LiveKit broadcasts every webhook event to **every** URL configured in `webhook.urls`, so:
+
+- Add one entry per worker to the LiveKit server's `webhook.urls` config, e.g. `http://<worker-host>:<worker-port>/webhooks/livekit`, with `webhook.api_key`/`api_secret` matching the platform's LiveKit credentials.
+- Each worker verifies the signature and only acts on events for participants/loadtest runs it created itself — events for other workers' participants are received but ignored.
+- A webhook-detected error is only reported once per participant/run, and is skipped entirely if that participant/run already reported an error through its regular healthcheck (and vice versa).
+
 # Browser Emulator development
 
 ## Development Requirements and Constraints
