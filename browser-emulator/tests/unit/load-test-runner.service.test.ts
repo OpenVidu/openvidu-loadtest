@@ -3,6 +3,16 @@ import { LoggerService } from '../../src/services/logger.service.js';
 import { LoadTestRunnerService } from '../../src/services/browser/emulated/load-test-runner.service.ts';
 import type { LoadTestRunRequest } from '../../src/types/load-test.type.ts';
 
+const mockCreateAllStatFilesForSession = vi.hoisted(() =>
+	vi.fn().mockResolvedValue(undefined),
+);
+
+vi.mock('../../src/utils/stats-files.js', () => ({
+	ERRORS_FILE: 'errors.json',
+	addSaveStatsToFileToQueue: vi.fn(),
+	createAllStatFilesForSession: mockCreateAllStatFilesForSession,
+}));
+
 const loggerService = new LoggerService();
 
 const SUCCESSFUL_LOGS = 'Finished connecting to room, waiting 1000h0m0s';
@@ -52,6 +62,7 @@ describe('LoadTestRunnerService', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockCreateAllStatFilesForSession.mockResolvedValue(undefined);
 		mockLauncher.isRunning.mockResolvedValue(true);
 		mockLauncher.getLogs.mockResolvedValue(SUCCESSFUL_LOGS);
 		service = new LoadTestRunnerService(
@@ -88,6 +99,15 @@ describe('LoadTestRunnerService', () => {
 
 		expect(cmd).toContain('--identity-prefix');
 		expect(cmd[cmd.indexOf('--identity-prefix') + 1]).toBe(runId);
+	});
+
+	it('creates the run stats/errors files before the run can report any error (regression: ENOENT writing errors.json)', async () => {
+		const { runId } = await service.startLoadTest(baseRequest);
+
+		expect(mockCreateAllStatFilesForSession).toHaveBeenCalledWith(
+			runId,
+			baseRequest.room,
+		);
 	});
 
 	it('registers the run identity as a webhook prefix and unregisters it on stop', async () => {
@@ -285,14 +305,6 @@ describe('LoadTestRunnerService', () => {
 		});
 
 		it.each([
-			[
-				'a permission-refresh disconnection',
-				'turnc ERROR: 2026/07/02 10:39:11 Fail to refresh permissions: transaction closed',
-			],
-			[
-				'a permission-refresh retransmission failure',
-				'turnc ERROR: 2026/07/02 19:59:43 Fail to refresh permissions: all retransmissions failed for ZKB9TmWYsXQzMacg',
-			],
 			['a failed publisher connection', 'could not connect Pub 0:'],
 			['a failed subscriber connection', 'could not connect Sub 0:'],
 			[

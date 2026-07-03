@@ -11,6 +11,7 @@ import { normalizeContainerLogs } from '../../../utils/log-normalize.ts';
 import {
 	ERRORS_FILE,
 	addSaveStatsToFileToQueue,
+	createAllStatFilesForSession,
 } from '../../../utils/stats-files.ts';
 
 interface LoadTestRun {
@@ -99,6 +100,12 @@ export class LoadTestRunnerService {
 		// configurable by the controller), so webhook events can be reliably
 		// attributed back to the run that created them.
 		const identity = runId;
+
+		// Errors for this run are reported under (identity, room), but unlike
+		// per-participant NORMAL mode, nothing pre-creates that directory for
+		// loadtest runs, so create it here before anything could fail and try
+		// to write to it.
+		await createAllStatFilesForSession(identity, request.room);
 
 		const command = this.buildLoadTestCommand(request, identity);
 
