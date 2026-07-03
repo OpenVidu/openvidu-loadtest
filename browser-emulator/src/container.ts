@@ -22,6 +22,8 @@ import { InstanceController } from './controllers/instance.controller.js';
 import { EventsController } from './controllers/events.controller.js';
 import { OpenViduBrowserController } from './controllers/openvidu-browser.controller.js';
 import { QoeController } from './controllers/qoe.controller.js';
+import { WebhookController } from './controllers/webhook.controller.ts';
+import { WebhookRoutingService } from './services/webhook-routing.service.ts';
 import { discoverComModules } from './com-modules/discoverComModules.ts';
 import { LocalFilesService } from './services/files/local-files.service.ts';
 import { ScriptRunnerService } from './services/script-runner.service.ts';
@@ -70,6 +72,8 @@ export interface DIContainer {
 	eventsController: EventsController;
 	openViduBrowserController: OpenViduBrowserController;
 	qoeController: QoeController;
+	webhookController: WebhookController;
+	webhookRoutingService: WebhookRoutingService;
 }
 
 /**
@@ -94,6 +98,7 @@ export async function configureContainer(): Promise<
 		instanceService: asClass(InstanceService).singleton(),
 		elasticSearchService: asClass(ElasticSearchService).singleton(),
 		wsService: asClass(WsService).singleton(),
+		webhookRoutingService: asClass(WebhookRoutingService).singleton(),
 		localStorageService: asClass(LocalStorageService).singleton(),
 		qoeAnalysisOrchestratorService: asClass(
 			QoeAnalysisOrchestratorService,
@@ -131,6 +136,7 @@ export async function configureContainer(): Promise<
 			OpenViduBrowserController,
 		).singleton(),
 		qoeController: asClass(QoeController).singleton(),
+		webhookController: asClass(WebhookController).singleton(),
 	});
 
 	// Dynamic launcher selection for emulated participants

@@ -25,6 +25,15 @@ const mockWsService = {
 	send: vi.fn(),
 };
 
+const mockWebhookRoutingService = {
+	setCredentials: vi.fn(),
+	registerPrefix: vi.fn(),
+	unregisterPrefix: vi.fn(),
+	registerIdentity: vi.fn(),
+	unregisterIdentity: vi.fn(),
+	dispatch: vi.fn(),
+};
+
 const baseRequest: LoadTestRunRequest = {
 	openviduUrl: 'wss://ov.example.com',
 	livekitApiKey: 'devkey',
@@ -48,6 +57,7 @@ describe('LoadTestRunnerService', () => {
 		service = new LoadTestRunnerService(
 			mockLauncher,
 			mockWsService as never,
+			mockWebhookRoutingService as never,
 			loggerService,
 		);
 	});
@@ -72,14 +82,60 @@ describe('LoadTestRunnerService', () => {
 		expect(cmd[cmd.indexOf('--subscribers') + 1]).toBe('5');
 	});
 
+	it('always passes --identity-prefix set to the run id, not configurable by the caller', async () => {
+		const { runId } = await service.startLoadTest(baseRequest);
+		const cmd = getLaunchedCommand();
+
+		expect(cmd).toContain('--identity-prefix');
+		expect(cmd[cmd.indexOf('--identity-prefix') + 1]).toBe(runId);
+	});
+
+	it('registers the run identity as a webhook prefix and unregisters it on stop', async () => {
+		const { runId } = await service.startLoadTest(baseRequest);
+
+		expect(mockWebhookRoutingService.setCredentials).toHaveBeenCalledWith(
+			baseRequest.livekitApiKey,
+			baseRequest.livekitApiSecret,
+		);
+		expect(mockWebhookRoutingService.registerPrefix).toHaveBeenCalledWith(
+			runId,
+			expect.any(Function),
+		);
+
+		await service.stopLoadTest(runId);
+
+		expect(mockWebhookRoutingService.unregisterPrefix).toHaveBeenCalledWith(
+			runId,
+		);
+	});
+
+	it('reports a webhook-triggered error once, without stopping the run', async () => {
+		await service.startLoadTest(baseRequest);
+		const webhookHandler = mockWebhookRoutingService.registerPrefix.mock
+			.calls[0][1] as (eventType: string, room: string) => void;
+
+		webhookHandler('participant_left', 'room-1');
+		webhookHandler('participant_left', 'room-1');
+
+		expect(mockWsService.send).toHaveBeenCalledTimes(1);
+		expect(
+			JSON.parse(mockWsService.send.mock.calls[0][0] as string),
+		).toEqual(
+			expect.objectContaining({
+				event: 'LOAD_TEST_RUN_HEALTH_ERROR',
+				reason: 'webhook-participant_left',
+			}),
+		);
+		expect(mockLauncher.stop).not.toHaveBeenCalled();
+	});
+
 	it('does not disable simulcast by default and includes optional flags when set', async () => {
-		await service.startLoadTest({
+		const { runId } = await service.startLoadTest({
 			...baseRequest,
 			audioPublishers: 1,
 			numPerSecond: 5,
 			videoResolution: 'medium',
 			videoCodec: 'h264',
-			identityPrefix: 'pub',
 			layout: '3x3',
 		});
 		const cmd = getLaunchedCommand();
@@ -88,7 +144,7 @@ describe('LoadTestRunnerService', () => {
 		expect(cmd[cmd.indexOf('--num-per-second') + 1]).toBe('5');
 		expect(cmd[cmd.indexOf('--video-resolution') + 1]).toBe('medium');
 		expect(cmd[cmd.indexOf('--video-codec') + 1]).toBe('h264');
-		expect(cmd[cmd.indexOf('--identity-prefix') + 1]).toBe('pub');
+		expect(cmd[cmd.indexOf('--identity-prefix') + 1]).toBe(runId);
 		expect(cmd[cmd.indexOf('--layout') + 1]).toBe('3x3');
 	});
 
@@ -290,6 +346,7 @@ describe('LoadTestRunnerService', () => {
 			const localService = new LoadTestRunnerService(
 				mockLauncher,
 				mockWsService as never,
+				mockWebhookRoutingService as never,
 				{ getLogger: () => mockLogger } as never,
 			);
 			mockLauncher.getLogs.mockResolvedValue(
@@ -340,6 +397,7 @@ describe('LoadTestRunnerService', () => {
 			const localService = new LoadTestRunnerService(
 				mockLauncher,
 				mockWsService as never,
+				mockWebhookRoutingService as never,
 				{ getLogger: () => mockLogger } as never,
 			);
 			// Combined with the finished-connecting line so startup's own

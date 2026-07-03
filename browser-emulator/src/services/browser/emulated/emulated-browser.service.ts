@@ -22,6 +22,7 @@ import * as fs from 'node:fs/promises';
 import type { LoggerService } from '../../logger.service.ts';
 import { createBoundedId, shortenIdentifier } from '../../../utils/id-utils.ts';
 import { normalizeContainerLogs } from '../../../utils/log-normalize.ts';
+import type { WebhookRoutingService } from '../../webhook-routing.service.ts';
 
 interface FailedParticipantCreationContext extends Partial<ParticipantHandle> {
 	connectionId?: string;
@@ -37,6 +38,7 @@ export class EmulatedBrowserService {
 	private readonly wsService: WsService;
 	private readonly localFilesRepository: LocalFilesRepository;
 	private readonly emulatedFilePublishStreamService: EmulatedFilePublishStreamService;
+	private readonly webhookRoutingService: WebhookRoutingService;
 	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	private readonly ROOM_EMPTY_TIMEOUT = 600;
@@ -51,6 +53,7 @@ export class EmulatedBrowserService {
 		wsService: WsService,
 		localFilesRepository: LocalFilesRepository,
 		emulatedFilePublishStreamService: EmulatedFilePublishStreamService,
+		webhookRoutingService: WebhookRoutingService,
 		loggerService: LoggerService,
 	) {
 		this.emulatedParticipantLauncher = emulatedParticipantLauncher;
@@ -59,6 +62,7 @@ export class EmulatedBrowserService {
 		this.localFilesRepository = localFilesRepository;
 		this.emulatedFilePublishStreamService =
 			emulatedFilePublishStreamService;
+		this.webhookRoutingService = webhookRoutingService;
 		this.logger = loggerService.getLogger('EmulatedBrowserService');
 	}
 
@@ -69,6 +73,11 @@ export class EmulatedBrowserService {
 		const properties = request.properties;
 		const sessionName = properties.sessionName;
 		const userId = properties.userId;
+
+		this.webhookRoutingService.setCredentials(
+			lkRequest.livekitApiKey,
+			lkRequest.livekitApiSecret,
+		);
 
 		this.logger.info(
 			{ userId, sessionName },
@@ -217,6 +226,12 @@ export class EmulatedBrowserService {
 				60,
 			);
 			this.handleMap.set(connectionId, handle);
+			this.webhookRoutingService.registerIdentity(userId, eventType => {
+				void this.handleUnhealthyParticipant(
+					connectionId!,
+					`webhook-${eventType}`,
+				);
+			});
 
 			await this.checkConnectionIsAliveAndCorrect(
 				properties,
@@ -252,6 +267,9 @@ export class EmulatedBrowserService {
 		if (context.connectionId) {
 			this.stopParticipantHealthCheck(context.connectionId);
 			this.handleMap.delete(context.connectionId);
+		}
+		if (context.userName) {
+			this.webhookRoutingService.unregisterIdentity(context.userName);
 		}
 
 		if (context.handleId) {
@@ -366,6 +384,7 @@ export class EmulatedBrowserService {
 		}
 
 		this.stopParticipantHealthCheck(connectionId);
+		this.webhookRoutingService.unregisterIdentity(handle.userName);
 
 		try {
 			await this.emulatedParticipantLauncher.stop(handle.handleId);

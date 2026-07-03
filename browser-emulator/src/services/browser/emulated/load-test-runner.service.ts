@@ -1,5 +1,6 @@
 import type { LoggerService } from '../../logger.service.ts';
 import type { WsService } from '../../ws.service.ts';
+import type { WebhookRoutingService } from '../../webhook-routing.service.ts';
 import type {
 	EmulatedParticipantLauncher,
 	ParticipantHandle,
@@ -40,6 +41,7 @@ export class LoadTestRunnerService {
 
 	private readonly emulatedParticipantLauncher: EmulatedParticipantLauncher;
 	private readonly wsService: WsService;
+	private readonly webhookRoutingService: WebhookRoutingService;
 	private readonly logger: ReturnType<LoggerService['getLogger']>;
 
 	private readonly CONNECTION_CHECK_ATTEMPTS = 10;
@@ -76,24 +78,34 @@ export class LoadTestRunnerService {
 	constructor(
 		emulatedParticipantLauncher: EmulatedParticipantLauncher,
 		wsService: WsService,
+		webhookRoutingService: WebhookRoutingService,
 		loggerService: LoggerService,
 	) {
 		this.emulatedParticipantLauncher = emulatedParticipantLauncher;
 		this.wsService = wsService;
+		this.webhookRoutingService = webhookRoutingService;
 		this.logger = loggerService.getLogger('LoadTestRunnerService');
 	}
 
 	async startLoadTest(
 		request: LoadTestRunRequest,
 	): Promise<{ runId: string; handleId: string }> {
-		const command = this.buildLoadTestCommand(request);
-
 		const sanitizedRoom = request.room.replace(/[^a-zA-Z0-9_.-]/g, '_');
 		const runId = createBoundedId(
 			`loadtest-${sanitizedRoom}-${Date.now()}`,
 			60,
 		);
-		const identity = request.identityPrefix ?? runId;
+		// The LiveKit identity prefix is fully owned by the worker (not
+		// configurable by the controller), so webhook events can be reliably
+		// attributed back to the run that created them.
+		const identity = runId;
+
+		const command = this.buildLoadTestCommand(request, identity);
+
+		this.webhookRoutingService.setCredentials(
+			request.livekitApiKey,
+			request.livekitApiSecret,
+		);
 
 		this.logger.info(
 			{ runId, room: request.room, command: command.join(' ') },
@@ -108,6 +120,17 @@ export class LoadTestRunnerService {
 		);
 
 		this.runMap.set(runId, { handle, room: request.room, identity });
+		this.webhookRoutingService.registerPrefix(identity, eventType => {
+			if (this.reportedFatalIndicators.has(runId)) {
+				return;
+			}
+			this.reportedFatalIndicators.add(runId);
+			this.reportHealthError(
+				{ handle, room: request.room, identity },
+				runId,
+				`webhook-${eventType}`,
+			);
+		});
 
 		const { total: totalParticipants } =
 			this.resolveParticipantCounts(request);
@@ -142,6 +165,7 @@ export class LoadTestRunnerService {
 			this.logger.warn({ runId }, 'Load-test run not found');
 			return;
 		}
+		this.webhookRoutingService.unregisterPrefix(run.identity);
 		try {
 			await this.emulatedParticipantLauncher.stop(run.handle.handleId);
 		} catch (error) {
@@ -184,7 +208,10 @@ export class LoadTestRunnerService {
 		};
 	}
 
-	private buildLoadTestCommand(request: LoadTestRunRequest): string[] {
+	private buildLoadTestCommand(
+		request: LoadTestRunRequest,
+		identity: string,
+	): string[] {
 		const baseUrl = request.openviduUrl
 			.replace('ws://', 'http://')
 			.replace('wss://', 'https://');
@@ -222,9 +249,7 @@ export class LoadTestRunnerService {
 		if (request.videoCodec) {
 			parts.push('--video-codec', request.videoCodec);
 		}
-		if (request.identityPrefix) {
-			parts.push('--identity-prefix', request.identityPrefix);
-		}
+		parts.push('--identity-prefix', identity);
 		// Defaults to "5x5" (lk load-test itself defaults to "speaker") so
 		// subscribers receive a predictable resolution/count without requiring
 		// explicit configuration.
