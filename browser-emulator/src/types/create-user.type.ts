@@ -24,6 +24,12 @@ export interface UserJoinProperties {
 	headless?: boolean;
 	recordingMetadata?: string;
 	mediaRecorders?: boolean;
+	/**
+	 * Debug-only: for emulated PUBLISHER participants, omits --auto-subscribe
+	 * from the `lk room join` command so the publisher doesn't also subscribe
+	 * to other participants' tracks. Has no effect on SUBSCRIBER participants.
+	 */
+	disableAutoSubscribeForPublishers?: boolean;
 }
 export const Role = {
 	PUBLISHER: 'PUBLISHER',

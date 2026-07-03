@@ -462,6 +462,13 @@ components:
           type: string
         mediaRecorders:
           type: boolean
+        disableAutoSubscribeForPublishers:
+          type: boolean
+          description: >-
+            Debug-only. For emulated PUBLISHER participants, omits
+            --auto-subscribe from the underlying `lk room join` command so
+            the publisher doesn't also subscribe to other participants'
+            tracks. Has no effect on SUBSCRIBER participants.
     CreateUserBrowserResponse:
       type: object
       properties:

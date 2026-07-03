@@ -294,6 +294,37 @@ describe('EmulatedBrowserService', () => {
 			expect(typeof callArgs[5]).toBe('string');
 		});
 
+		it('omits --auto-subscribe for a publisher when disableAutoSubscribeForPublishers is true', async () => {
+			await service.createEmulatedParticipant({
+				...baseRequest,
+				properties: {
+					...baseRequest.properties,
+					disableAutoSubscribeForPublishers: true,
+				},
+			} as never);
+
+			const commandArgs = mockLauncher.createParticipant.mock
+				.calls[0][0] as string[];
+
+			expect(commandArgs).not.toContain('--auto-subscribe');
+		});
+
+		it('keeps --auto-subscribe for a subscriber even when disableAutoSubscribeForPublishers is true', async () => {
+			await service.createEmulatedParticipant({
+				...baseRequest,
+				properties: {
+					...baseRequest.properties,
+					role: Role.SUBSCRIBER,
+					disableAutoSubscribeForPublishers: true,
+				},
+			} as never);
+
+			const commandArgs = mockLauncher.createParticipant.mock
+				.calls[0][0] as string[];
+
+			expect(commandArgs).toContain('--auto-subscribe');
+		});
+
 		it('should start socket writers for publishers', async () => {
 			await service.createEmulatedParticipant(baseRequest as never);
 

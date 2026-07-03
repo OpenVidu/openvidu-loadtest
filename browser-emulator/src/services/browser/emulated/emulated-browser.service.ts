@@ -352,10 +352,16 @@ export class EmulatedBrowserService {
 			request.livekitApiSecret ?? '',
 			'--identity',
 			properties.userId,
-			'--auto-subscribe',
-			'--fps',
-			String(properties.frameRate),
 		];
+
+		const disableAutoSubscribe =
+			properties.role === Role.PUBLISHER &&
+			properties.disableAutoSubscribeForPublishers;
+		if (!disableAutoSubscribe) {
+			parts.push('--auto-subscribe');
+		}
+
+		parts.push('--fps', String(properties.frameRate));
 
 		if (properties.role === Role.PUBLISHER) {
 			if (properties.video && videoSocket) {
