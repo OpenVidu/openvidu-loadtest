@@ -41,6 +41,25 @@ function createMockRequestObject(callback: (response: unknown) => void) {
 	};
 }
 
+const createReadStreamSpy = vi.fn();
+
+vi.mock('node:fs', async importOriginal => {
+	const actual = await importOriginal<typeof import('node:fs')>();
+	const mockedModule = {
+		...actual,
+		createReadStream: (
+			...args: Parameters<typeof actual.createReadStream>
+		) => {
+			createReadStreamSpy(...args);
+			return actual.createReadStream(...args);
+		},
+	};
+	return {
+		...mockedModule,
+		default: mockedModule,
+	};
+});
+
 vi.mock('node:http', async importOriginal => {
 	const actual = await importOriginal<typeof import('node:http')>();
 	const mockedModule = {
@@ -229,4 +248,54 @@ describe('Local Files Service + Repository Integration Tests', () => {
 			);
 		},
 	);
+
+	it('reuses the SHA-256 computed at startup instead of re-hashing on download', async () => {
+		const videoPreset = VIDEO_PRESETS[VIDEO_PRESETS.length - 1]; // custom preset
+		const { videoFile } = getExpectedFileNames(videoPreset);
+		const filePath = path.join(
+			LocalFilesRepository.MEDIAFILES_DIR,
+			videoFile,
+		);
+
+		fs.writeFileSync(filePath, 'FAKE_FILE_DATA');
+		const { createHash } = await import('node:crypto');
+		const expectedSha256 = createHash('sha256')
+			.update('FAKE_FILE_DATA')
+			.digest('hex');
+
+		const https = await import('node:https');
+		vi.mocked(https.default.request).mockImplementation(
+			(_url, _options, callback: (response: unknown) => void) => {
+				return {
+					on: vi.fn().mockReturnThis(),
+					end: vi.fn(() => {
+						callback({
+							statusCode: 200,
+							statusMessage: 'OK',
+							headers: { 'x-amz-meta-sha256': expectedSha256 },
+						});
+					}),
+				};
+			},
+		);
+
+		const loggerService = new LoggerService();
+		const repository = new LocalFilesRepository(loggerService);
+		// Deterministically wait for the cache warm-up (fire-and-forget in the
+		// constructor) instead of racing it, then clear any reads it caused.
+		await (
+			repository as unknown as { warmSha256Cache(): Promise<void> }
+		).warmSha256Cache();
+
+		createReadStreamSpy.mockClear();
+		const service = new LocalFilesService(repository);
+		await service.downloadBrowserMediaFiles(videoPreset);
+
+		// The pre-existing (matching) file must not be re-hashed from disk,
+		// since its SHA-256 was already cached at startup.
+		const readCallsForCachedFile = createReadStreamSpy.mock.calls.filter(
+			call => call[0] === filePath,
+		);
+		expect(readCallsForCachedFile).toHaveLength(0);
+	});
 });

@@ -21,10 +21,54 @@ export class LocalFilesRepository {
 	private _fakeaudio: string | undefined;
 	private _fakevideoStreaming: string | undefined;
 	private _fakeaudioStreaming: string | undefined;
+	private readonly sha256Cache = new Map<string, string>();
 
 	constructor(loggerService: LoggerService) {
 		this.logger = loggerService.getLogger('LocalFilesRepository');
 		this.createNeededDirectories();
+		this.warmSha256Cache().catch(err =>
+			this.logger.error(
+				{ err },
+				'Failed to warm mediafiles SHA-256 cache',
+			),
+		);
+	}
+
+	/**
+	 * Calculate the SHA-256 of every file already present in the mediafiles
+	 * directory and store it in memory, so the /initialize endpoint doesn't
+	 * have to hash them again on every call.
+	 */
+	private async warmSha256Cache(): Promise<void> {
+		const entries = await fsPromises.readdir(
+			LocalFilesRepository.MEDIAFILES_DIR,
+			{ withFileTypes: true },
+		);
+		const files = entries.filter(entry => entry.isFile());
+		await Promise.all(
+			files.map(async entry => {
+				const filePath = path.join(
+					LocalFilesRepository.MEDIAFILES_DIR,
+					entry.name,
+				);
+				const sha256 = await this.calculateFileSha256(filePath);
+				this.sha256Cache.set(filePath, sha256);
+			}),
+		);
+		this.logger.info(
+			'Cached SHA-256 for %d mediafiles at startup',
+			files.length,
+		);
+	}
+
+	private async getLocalSha256(filePath: string): Promise<string> {
+		const cached = this.sha256Cache.get(filePath);
+		if (cached) {
+			return cached;
+		}
+		const sha256 = await this.calculateFileSha256(filePath);
+		this.sha256Cache.set(filePath, sha256);
+		return sha256;
 	}
 
 	public get fakevideo(): string | undefined {
@@ -136,7 +180,7 @@ export class LocalFilesRepository {
 		const fileExistsLocally = await this.fileExists(filePath);
 		if (fileExistsLocally) {
 			if (remoteSha256) {
-				const localSha256 = await this.calculateFileSha256(filePath);
+				const localSha256 = await this.getLocalSha256(filePath);
 				if (localSha256.toLowerCase() === remoteSha256.toLowerCase()) {
 					this.logger.info(
 						'File %s already exists with matching SHA-256',
@@ -149,7 +193,18 @@ export class LocalFilesRepository {
 
 		const file = fs.createWriteStream(filePath);
 		this.logger.info('Downloading %s to %s', fileUrl, filePath);
-		return this.download(fileUrl, filePath, file);
+		const downloadedPath = await this.download(fileUrl, filePath, file);
+		this.sha256Cache.delete(downloadedPath);
+		this.calculateFileSha256(downloadedPath)
+			.then(sha256 => this.sha256Cache.set(downloadedPath, sha256))
+			.catch(err =>
+				this.logger.error(
+					{ err },
+					'Failed to refresh cached SHA-256 for %s',
+					downloadedPath,
+				),
+			);
+		return downloadedPath;
 	}
 
 	private async fileExists(filePath: string): Promise<boolean> {
