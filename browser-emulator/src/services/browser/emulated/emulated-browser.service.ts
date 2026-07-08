@@ -46,6 +46,8 @@ export class EmulatedBrowserService {
 	private readonly CREATE_PARTICIPANT_RETRY_DELAY_MS = 1000;
 	private readonly LIVEKIT_HEALTHCHECK_INTERVAL_MS = 5000;
 	private readonly MAX_ERROR_LOG_CHARS = 3000;
+	private readonly CONNECTION_CHECK_ATTEMPTS = 30;
+	private readonly CONNECTION_CHECK_DELAY_MS = 1000;
 
 	constructor(
 		emulatedParticipantLauncher: EmulatedParticipantLauncher,
@@ -653,8 +655,8 @@ export class EmulatedBrowserService {
 
 		const retry = async (
 			fn: () => Promise<boolean>,
-			attempts = 10,
-			delayMs = 1000,
+			attempts = this.CONNECTION_CHECK_ATTEMPTS,
+			delayMs = this.CONNECTION_CHECK_DELAY_MS,
 		) => {
 			for (let i = 0; i < attempts; i++) {
 				if (await fn()) return true;
@@ -697,7 +699,7 @@ export class EmulatedBrowserService {
 				handle.handleId,
 			);
 			return this.hasSuccessfulJoinIndicators(logs);
-		}, 5);
+		}, this.CONNECTION_CHECK_ATTEMPTS);
 		if (!joinLogsOk) {
 			const logs = await this.emulatedParticipantLauncher.getLogs(
 				handle.handleId,
