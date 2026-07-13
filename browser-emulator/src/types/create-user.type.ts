@@ -25,9 +25,11 @@ export interface UserJoinProperties {
 	recordingMetadata?: string;
 	mediaRecorders?: boolean;
 	/**
-	 * Debug-only: for emulated PUBLISHER participants, omits --auto-subscribe
-	 * from the `lk room join` command so the publisher doesn't also subscribe
-	 * to other participants' tracks. Has no effect on SUBSCRIBER participants.
+	 * Debug-only: for PUBLISHER participants, disables auto-subscription so the
+	 * publisher doesn't also subscribe to other participants' tracks. For
+	 * emulated publishers it omits --auto-subscribe from the `lk room join`
+	 * command; for real-browser publishers it sets autoSubscribe=false in the
+	 * LiveKit room connect options. Has no effect on SUBSCRIBER participants.
 	 */
 	disableAutoSubscribeForPublishers?: boolean;
 }
