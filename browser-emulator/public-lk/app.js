@@ -15,6 +15,7 @@ var ROLE;
 var RECORDING_OUTPUT_MODE;
 var FRAME_RATE;
 var QOE_ANALYSIS;
+var DISABLE_AUTOSUBSCRIBE_FOR_PUBLISHERS;
 
 var session;
 var LivekitClient = window.LivekitClient;
@@ -34,6 +35,7 @@ window.onload = () => {
 	FRAME_RATE = url.searchParams.get("frameRate");
 	QOE_ANALYSIS = url.searchParams.get("qoeAnalysis") === 'true';
 	SHOW_VIDEO_ELEMENTS = url.searchParams.get("showVideoElements") === 'true';
+	DISABLE_AUTOSUBSCRIBE_FOR_PUBLISHERS = url.searchParams.get("disableAutoSubscribeForPublishers") === 'true';
 
 	const userCond = !!USER_ID && !!SESSION_ID && !!OPENVIDU_SERVER_URL;
 	const token = !!OPENVIDU_TOKEN;
@@ -339,7 +341,13 @@ async function joinSession() {
 		beConnector.sendEvent({ event: "VideoPlaybackStatusChanged" }, USER_ID, SESSION_ID);
 	});
 
-	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN)
+	// Mirror the emulated/multi-emulated behavior: publishers can be told not to
+	// auto-subscribe to other participants' tracks (debug-only). Auto-subscribe
+	// stays enabled by default and for every SUBSCRIBER.
+	const disableAutoSubscribe = ROLE === 'PUBLISHER' && DISABLE_AUTOSUBSCRIBE_FOR_PUBLISHERS;
+	const connectOptions = { autoSubscribe: !disableAutoSubscribe };
+
+	room.connect(OPENVIDU_SERVER_URL, OPENVIDU_TOKEN, connectOptions)
 		.then(async () => {
 			console.log("Connected to session " + SESSION_ID);
 			if (ROLE === 'PUBLISHER') {

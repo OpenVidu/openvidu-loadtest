@@ -78,6 +78,7 @@ export default class LiveKitComModule extends BaseComModule {
 			`resolution=${properties.resolution}&` +
 			`showVideoElements=${properties.showVideoElements}&` +
 			`frameRate=${properties.frameRate}&` +
+			`disableAutoSubscribeForPublishers=${!!properties.disableAutoSubscribeForPublishers}&` +
 			`qoeAnalysis=${qoeAnalysis}`
 		);
 	}
