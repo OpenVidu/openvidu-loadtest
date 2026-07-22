@@ -530,7 +530,7 @@ components:
           enum: [h264, vp8]
         simulcast:
           type: boolean
-          description: Simulcast is enabled by default; set false to disable (--no-simulcast)
+          description: Simulcast is disabled by default; set true to opt in
         layout:
           type: string
           enum: [speaker, 3x3, 4x4, 5x5]

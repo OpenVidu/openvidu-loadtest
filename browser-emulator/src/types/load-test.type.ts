@@ -18,7 +18,7 @@ export interface LoadTestRunRequest {
 	numPerSecond?: number;
 	videoResolution?: LoadTestVideoResolution;
 	videoCodec?: LoadTestVideoCodec;
-	/** Simulcast is enabled by default in lk load-test; set false to add --no-simulcast. */
+	/** Simulcast is disabled by default; set true to opt in (omits --no-simulcast). */
 	simulcast?: boolean;
 	layout?: string;
 	/**

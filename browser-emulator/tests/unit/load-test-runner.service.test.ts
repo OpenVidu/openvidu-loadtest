@@ -149,7 +149,7 @@ describe('LoadTestRunnerService', () => {
 		expect(mockLauncher.stop).not.toHaveBeenCalled();
 	});
 
-	it('does not disable simulcast by default and includes optional flags when set', async () => {
+	it('disables simulcast by default and includes optional flags when set', async () => {
 		const { runId } = await service.startLoadTest({
 			...baseRequest,
 			audioPublishers: 1,
@@ -160,7 +160,7 @@ describe('LoadTestRunnerService', () => {
 		});
 		const cmd = getLaunchedCommand();
 
-		expect(cmd).not.toContain('--no-simulcast');
+		expect(cmd).toContain('--no-simulcast');
 		expect(cmd[cmd.indexOf('--num-per-second') + 1]).toBe('5');
 		expect(cmd[cmd.indexOf('--video-resolution') + 1]).toBe('medium');
 		expect(cmd[cmd.indexOf('--video-codec') + 1]).toBe('h264');
@@ -171,6 +171,11 @@ describe('LoadTestRunnerService', () => {
 	it('adds --no-simulcast when simulcast is explicitly false', async () => {
 		await service.startLoadTest({ ...baseRequest, simulcast: false });
 		expect(getLaunchedCommand()).toContain('--no-simulcast');
+	});
+
+	it('omits --no-simulcast when simulcast is explicitly true', async () => {
+		await service.startLoadTest({ ...baseRequest, simulcast: true });
+		expect(getLaunchedCommand()).not.toContain('--no-simulcast');
 	});
 
 	it('omits publisher/subscriber flags when there are no video publishers', async () => {
