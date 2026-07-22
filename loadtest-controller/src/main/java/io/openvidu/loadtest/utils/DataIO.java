@@ -171,11 +171,11 @@ public class DataIO {
 
     private boolean parseSimulcast(Map<String, Object> element) {
         Object simulcastObj = element.get("simulcast");
-        // Simulcast is enabled by default in lk load-test; only disable when explicitly false.
+        // Simulcast is disabled by default; opt in by explicitly setting true.
         if (simulcastObj instanceof Boolean simulcastBool) {
             return simulcastBool;
         }
-        return true;
+        return false;
     }
 
     private String parseTopology(Map<String, Object> element) {

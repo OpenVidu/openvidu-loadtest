@@ -1,6 +1,7 @@
 package io.openvidu.loadtest.unit.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -125,7 +126,7 @@ class DataIOTest {
 
         TestCase tc = cases.get(0);
         assertEquals(Browser.CHROME, tc.getBrowser(), "Browser should default to chrome");
-        assertTrue(tc.isSimulcast(), "Simulcast should default to true");
+        assertFalse(tc.isSimulcast(), "Simulcast should default to false");
         assertEquals("", tc.getVideoCodec());
         assertEquals("", tc.getLayout());
     }
@@ -140,7 +141,7 @@ class DataIOTest {
                       - "10:5"
                     browser: emulated
                     videoCodec: h264
-                    simulcast: false
+                    simulcast: true
                     layout: 4x4
                 """;
 
@@ -156,7 +157,7 @@ class DataIOTest {
         assertEquals(Browser.EMULATED, tc.getBrowser(), "Browser should be emulated");
         assertTrue(tc.isLoadTestMode());
         assertEquals("h264", tc.getVideoCodec());
-        assertEquals(false, tc.isSimulcast());
+        assertEquals(true, tc.isSimulcast());
         assertEquals("4x4", tc.getLayout());
     }
 

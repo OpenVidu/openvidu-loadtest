@@ -129,7 +129,7 @@
                             "emulated"
                         ],
                         "default": "chrome",
-                        "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'custom-emulated' creates one lightweight simulated participant at a time. 'emulated' (recommended default for large-scale tests) launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room with native simulcast; only usable with a LiveKit platform. See README.md 'Emulated mode' section for options that don't apply with this browser value."
+                        "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'custom-emulated' creates one lightweight simulated participant at a time. 'emulated' (recommended default for large-scale tests) launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room; only usable with a LiveKit platform. See README.md 'Emulated mode' section for options that don't apply with this browser value."
                     },
                     "resolution": {
                         "type": "string",
@@ -181,8 +181,8 @@
                     },
                     "simulcast": {
                         "type": "boolean",
-                        "default": true,
-                        "description": "'emulated' browser only. Simulcast is enabled by default in 'lk load-test'; set to false to add '--no-simulcast'. Ignored for other browser values."
+                        "default": false,
+                        "description": "'emulated' browser only. Simulcast is disabled by default; set to true to opt in. Ignored for other browser values."
                     },
                     "layout": {
                         "type": "string",

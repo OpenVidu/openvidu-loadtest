@@ -51,7 +51,7 @@ distribution:
 - `topology: N:N`: All participants publish video/audio and subscribe to all other participants
 - `participants: ["2"]`: Test with 2 participants per session. If more elements are added to the list, the test will be repeated with each of those values (e.g. 2, 8, 100... participants)
 - `sessions: 1`: Create a single session with the number of participants established above. To create sessions until the platform fails, set this to `infinite`
-- `browser: emulated` (default): Emulates many participants publishing and subscribing to simulcast video, using a fraction of the CPU/memory that real browsers need—ideal for large-scale tests. You can use real browsers by changing this option to `chrome` or `firefox`, or use `custom-emulated` for per-participant simulated users that allow more customization. See [Choosing a Browser Type](#choosing-a-browser-type) for more information.
+- `browser: emulated` (default): Emulates many participants publishing and subscribing to video, using a fraction of the CPU/memory that real browsers need—ideal for large-scale tests. You can use real browsers by changing this option to `chrome` or `firefox`, or use `custom-emulated` for per-participant simulated users that allow more customization. See [Choosing a Browser Type](#choosing-a-browser-type) for more information.
 
 **workers**: Where the browsers run
 
@@ -237,7 +237,7 @@ These topologies create a single session and fill it with users:
 
 ### Emulated mode
 
-**`browser: emulated` is the default and recommended mode for large-scale load and stress testing.** It emulates many participants publishing and subscribing to simulcast video, using a fraction of the CPU/memory that real browsers need:
+**`browser: emulated` is the default and recommended mode for large-scale load and stress testing.** It emulates many participants publishing and subscribing to video, using a fraction of the CPU/memory that real browsers need:
 
 ```yaml
 testcases:
@@ -247,7 +247,7 @@ testcases:
     sessions: 1
     browser: emulated
     videoCodec: h264
-    simulcast: true
+    simulcast: true # opt-in; disabled by default
 ```
 
 **Configuration in emulated mode:**
@@ -268,7 +268,7 @@ Video codec and layout configuration:
 | Property | Default | Description |
 | -------- | ------- | ----------- |
 | `videoCodec` | (random) | `h264` or `vp8`. If not specified, a codec will be selected randomly for each participant |
-| `simulcast` | `true` | Simulcast enabled by default; set to `false` to disable |
+| `simulcast` | `false` | Disabled by default; set to `true` to opt in |
 | `layout` | `5x5` | **Subscribers only.** Controls how subscriber video is laid out. Determines maximum concurrent subscribers and, if simulcast is enabled, the resolution each subscriber receives |
 
 **Layout options** (subscribers only):

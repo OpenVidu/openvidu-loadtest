@@ -261,8 +261,8 @@ export class LoadTestRunnerService {
 		// subscribers receive a predictable resolution/count without requiring
 		// explicit configuration.
 		parts.push('--layout', request.layout ?? '5x5');
-		// Simulcast is enabled by default in lk load-test.
-		if (request.simulcast === false) {
+		// Simulcast is disabled by default; only omit --no-simulcast when explicitly opted in.
+		if (request.simulcast !== true) {
 			parts.push('--no-simulcast');
 		}
 

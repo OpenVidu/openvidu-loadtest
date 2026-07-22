@@ -18,7 +18,7 @@ public class TestCase {
     private int startingParticipants = 0;
     // LOADTEST mode fields (only used when browser == EMULATED)
     private String videoCodec = "";
-    private boolean simulcast = true;
+    private boolean simulcast = false;
     private String layout = "";
 
     public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
