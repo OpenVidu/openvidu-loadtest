@@ -66,9 +66,9 @@ cd e2e-tests/scripts
 ./run-e2e-test.sh --keep-results smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
-### Emulated Browser Test (LOADTEST mode, default)
+### Emulated Browser Test (default)
 
-Requires a LiveKit platform (LOADTEST mode uses LiveKit's native `lk load-test`, see the root README's "LOADTEST mode" section).
+Requires a LiveKit platform (emulated mode uses LiveKit's native `lk load-test`, see the root README's "Emulated mode" section).
 
 ```bash
 cd e2e-tests/scripts
@@ -89,9 +89,9 @@ cd e2e-tests/scripts
 ./run-e2e-test.sh --elk elk-smoke-test-config.yaml validate-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
-### Emulated ELK Smoke Test (LOADTEST mode + Metricbeat/Kibana integration)
+### Emulated ELK Smoke Test (Metricbeat/Kibana integration)
 
-Same scenario and validations as the ELK Smoke Test above, but using emulated browsers (LOADTEST mode) instead of Chrome. Requires a LiveKit platform.
+Same scenario and validations as the ELK Smoke Test above, but using emulated browsers instead of Chrome. Requires a LiveKit platform.
 
 ```bash
 cd e2e-tests/scripts

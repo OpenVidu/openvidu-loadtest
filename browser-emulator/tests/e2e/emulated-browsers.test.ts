@@ -27,7 +27,7 @@ afterEach(async () => {
 }, 30000);
 
 // IMPORTANT: This test assumes there is a LiveKit server running and accessible with the credentials specified in test configs
-describe('Browser-emulator - Emulated browsers (LOADTEST mode)', () => {
+describe('Browser-emulator - Emulated browsers', () => {
 	describe('LiveKit', () => {
 		beforeEach(async () => {
 			process.env.COM_MODULE = 'livekit';
