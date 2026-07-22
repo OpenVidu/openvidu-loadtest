@@ -103,7 +103,7 @@
                             "type": "string",
                             "pattern": "^([0-9]+|infinite)(:([0-9]+|infinite))?$"
                         },
-                        "description": "List of participant counts. Each element creates a new test scenario. Format: 'N' or 'N:M' for N:M topology. 'infinite' can be used in place of a number (e.g. 'infinite', '2:infinite') to keep adding participants until an error occurs; supported with any 'browser' value, including 'multi-emulated'."
+                        "description": "List of participant counts. Each element creates a new test scenario. Format: 'N' or 'N:M' for N:M topology. 'infinite' can be used in place of a number (e.g. 'infinite', '2:infinite') to keep adding participants until an error occurs; supported with any 'browser' value, including 'emulated'."
                     },
                     "sessions": {
                         "oneOf": [
@@ -125,15 +125,15 @@
                         "enum": [
                             "chrome",
                             "firefox",
-                            "emulated",
-                            "multi-emulated"
+                            "custom-emulated",
+                            "emulated"
                         ],
                         "default": "chrome",
-                        "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'emulated' creates one lightweight simulated participant at a time. 'multi-emulated' launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room with native simulcast; only usable with a LiveKit platform. See README.md 'LOADTEST mode' section for options that don't apply with this browser value."
+                        "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'custom-emulated' creates one lightweight simulated participant at a time. 'emulated' (recommended default for large-scale tests) launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room with native simulcast; only usable with a LiveKit platform. See README.md 'LOADTEST mode' section for options that don't apply with this browser value."
                     },
                     "resolution": {
                         "type": "string",
-                        "description": "Video resolution to force. For 'chrome'/'firefox'/'emulated': pixel resolution (640x480, 1280x720, 1920x1080; default 640x480). For 'multi-emulated': coarse quality (low, medium, high; default high)."
+                        "description": "Video resolution to force. For 'chrome'/'firefox'/'custom-emulated': pixel resolution (640x480, 1280x720, 1920x1080; default 640x480). For 'emulated': coarse quality (low, medium, high; default high)."
                     },
                     "frameRate": {
                         "type": "integer",
@@ -177,12 +177,12 @@
                             "h264",
                             "vp8"
                         ],
-                        "description": "'multi-emulated' browser only. Video codec passed to 'lk load-test --video-codec'. Defaults to lk load-test's own default (both) when omitted. Ignored for other browser values."
+                        "description": "'emulated' browser only. Video codec passed to 'lk load-test --video-codec'. Defaults to lk load-test's own default (both) when omitted. Ignored for other browser values."
                     },
                     "simulcast": {
                         "type": "boolean",
                         "default": true,
-                        "description": "'multi-emulated' browser only. Simulcast is enabled by default in 'lk load-test'; set to false to add '--no-simulcast'. Ignored for other browser values."
+                        "description": "'emulated' browser only. Simulcast is enabled by default in 'lk load-test'; set to false to add '--no-simulcast'. Ignored for other browser values."
                     },
                     "layout": {
                         "type": "string",
@@ -193,7 +193,7 @@
                             "5x5"
                         ],
                         "default": "5x5",
-                        "description": "'multi-emulated' browser only. Subscriber layout passed to 'lk load-test --layout'; determines the maximum number of concurrent subscribers and, with simulcast enabled, the resolution each subscriber receives (speaker: 1 at HIGH + 5 at LOW; 3x3: 9 at MEDIUM; 4x4: 16 at LOW; 5x5: 25 at LOW). Ignored for other browser values."
+                        "description": "'emulated' browser only. Subscriber layout passed to 'lk load-test --layout'; determines the maximum number of concurrent subscribers and, with simulcast enabled, the resolution each subscriber receives (speaker: 1 at HIGH + 5 at LOW; 3x3: 9 at MEDIUM; 4x4: 16 at LOW; 5x5: 25 at LOW). Ignored for other browser values."
                     },
                     "description": {
                         "type": "string",
@@ -208,7 +208,7 @@
                             ],
                             "properties": {
                                 "browser": {
-                                    "const": "multi-emulated"
+                                    "const": "emulated"
                                 }
                             }
                         },

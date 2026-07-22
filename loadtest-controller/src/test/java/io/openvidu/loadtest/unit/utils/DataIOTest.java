@@ -84,14 +84,14 @@ class DataIOTest {
     }
 
     @Test
-    void testGetTestCasesFromJSON_emulatedBrowser(@TempDir Path tempDir) throws IOException {
+    void testGetTestCasesFromJSON_customEmulatedBrowser(@TempDir Path tempDir) throws IOException {
         String yaml = """
                 testcases:
                   - topology: N:N
                     sessions: 1
                     participants:
                       - "4"
-                    browser: emulated
+                    browser: custom-emulated
                 """;
 
         Path cfg = tempDir.resolve("config.yaml");
@@ -103,7 +103,7 @@ class DataIOTest {
 
         assertEquals(1, cases.size(), "Should load one test case");
         TestCase tc = cases.get(0);
-        assertEquals(Browser.EMULATED, tc.getBrowser(), "Browser should be emulated");
+        assertEquals(Browser.CUSTOM_EMULATED, tc.getBrowser(), "Browser should be custom-emulated");
     }
 
     @Test
@@ -131,14 +131,14 @@ class DataIOTest {
     }
 
     @Test
-    void testGetTestCasesFromJSON_multiEmulatedBrowser(@TempDir Path tempDir) throws IOException {
+    void testGetTestCasesFromJSON_emulatedBrowser(@TempDir Path tempDir) throws IOException {
         String yaml = """
                 testcases:
                   - topology: ONE_SESSION_NXM
                     sessions: 1
                     participants:
                       - "10:5"
-                    browser: multi-emulated
+                    browser: emulated
                     videoCodec: h264
                     simulcast: false
                     layout: 4x4
@@ -153,7 +153,7 @@ class DataIOTest {
 
         assertEquals(1, cases.size(), "Should load one test case");
         TestCase tc = cases.get(0);
-        assertEquals(Browser.MULTI_EMULATED, tc.getBrowser(), "Browser should be multi-emulated");
+        assertEquals(Browser.EMULATED, tc.getBrowser(), "Browser should be emulated");
         assertTrue(tc.isLoadTestMode());
         assertEquals("h264", tc.getVideoCodec());
         assertEquals(false, tc.isSimulcast());

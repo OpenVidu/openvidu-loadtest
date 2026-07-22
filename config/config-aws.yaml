@@ -15,9 +15,9 @@ platform:
 testcases:
   - topology: N:N
     participants:
-      - "8"
+      - "2"
     sessions: infinite
-    browser: emulated
+    browser: custom-emulated
     description: "Large scale N:N topology"
 
 aws:
@@ -26,20 +26,20 @@ aws:
   secretAccessKey: your_secret_key
 
   # AMI ID - created by setup-aws-workers.sh
-  amiId: ami-0d79f4a8ab4101f6f
+  amiId: ami-03991a0ff8afdf715
 
   # EC2 instance type (see README for capacity recommendations)
   instanceType: t3.medium
 
   # SSH key pair name for debugging (optional)
-  keyPairName: your-key-pair
+  keyPairName: ivan-virginia-urjc-backup
 
   # Security group ID - controls access to worker ports (5000, 5001)
   # Created automatically by setup-aws-workers.sh
-  securityGroupId: sg-01f9c0f88131294c2
+  securityGroupId: sg-07d69e80c8d773047
 
   # AWS region where instances will be launched
-  region: us-east-1
+  region: us-west-1
 
   # Availability zone within the region
   availabilityZone: us-east-1a
@@ -52,8 +52,8 @@ aws:
 
   # Whether to terminate EC2 instances after test completion
   # Set to false to keep instances stopped for debugging
-  terminateWorkers: true
+  terminateWorkers: false
 
 distribution:
   # Maximum number of users (participants) per worker instance (see README for recommendations)
-  usersPerWorker: 10
+  usersPerWorker: 100

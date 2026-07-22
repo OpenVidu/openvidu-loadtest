@@ -51,7 +51,7 @@ distribution:
 - `topology: N:N`: All participants publish video/audio and subscribe to all other participants
 - `participants: ["2"]`: Test with 2 participants per session. If more elements are added to the list, the test will be repeated with each of those values (e.g. 2, 8, 100... participants)
 - `sessions: 1`: Create a single session with the number of participants established above. To create sessions until the platform fails, set this to `infinite`
-- `browser: emulated`: Use user emulation, adding users to the platform without using real browsers. You can use real browsers changing this option to `chrome` or `firefox`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) for more information.
+- `browser: emulated` (default): Launches one or more `lk load-test` processes (LiveKit CLI) that each simulate many publishers/subscribers per room with native simulcast, without launching real browsers. Requires a LiveKit-based platform, which OpenVidu 3 deployments already are. You can use real browsers by changing this option to `chrome` or `firefox`, or use `custom-emulated` for per-participant simulated users. See [Choosing a Browser Type](#choosing-a-browser-type) for more information.
 
 **workers**: Where the browsers run
 
@@ -200,7 +200,7 @@ These topologies create multiple sessions with a specified number of participant
 | `topology`                 | **Yes**  | -         | `N:N`, `N:M`, or `TEACHING`                                                                                                       |
 | `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
 | `sessions`                 | **Yes**  | -         | Number of sessions or `infinite` for creating sessions until an error occurs the number of retry times configured.                |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `emulated`, or `multi-emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) and [LOADTEST mode](#loadtest-mode) |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [LOADTEST mode](#loadtest-mode) |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
 | `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
@@ -222,7 +222,7 @@ These topologies create a single session and fill it with users:
 | -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `topology`                 | **Yes**  | -         | `ONE_SESSION_NXN`, or `ONE_SESSION_NXM`                                                                                           |
 | `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `emulated`, or `multi-emulated`. See [Choosing Emulated vs Real Browsers](#choosing-emulated-vs-real-browsers) and [LOADTEST mode](#loadtest-mode) |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [LOADTEST mode](#loadtest-mode) |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
 | `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
@@ -237,7 +237,7 @@ These topologies create a single session and fill it with users:
 
 ### LOADTEST mode
 
-**Use LOADTEST mode for large-scale load and stress testing.** Set `browser: multi-emulated` on a test case:
+**`browser: emulated` is the default and recommended mode for large-scale load and stress testing.** It requires a LiveKit-based platform (which OpenVidu 3 deployments already are):
 
 ```yaml
 testcases:
@@ -245,7 +245,7 @@ testcases:
     participants:
       - "100:50"
     sessions: 1
-    browser: multi-emulated
+    browser: emulated
     videoCodec: h264
     simulcast: true
 ```
@@ -261,7 +261,7 @@ Most settings work the same as other browsers:
 | `distribution.usersPerWorker` | Controls how many participants are grouped together per test run |
 | `resolution` | Mapped to `low` (180p), `medium` (360p), or `high` (720p) |
 
-**Publishers also subscribe, just like other browsers:** in a `"100:50"` configuration, the 100 publishers each publish both audio and video *and* subscribe to other participants, on top of the 50 dedicated subscribers—matching how a publisher behaves with `chrome`/`firefox`/`emulated`.
+**Publishers also subscribe, just like other browsers:** in a `"100:50"` configuration, the 100 publishers each publish both audio and video *and* subscribe to other participants, on top of the 50 dedicated subscribers—matching how a publisher behaves with `chrome`/`firefox`/`custom-emulated`.
 
 Video codec and layout configuration:
 
@@ -302,24 +302,40 @@ Choose a browser type based on what you need to test:
 
 | Browser | Use when | Limitations |
 | ------- | -------- | ----------- |
-| **`emulated`** | Testing large scale with limited infrastructure. Simulates realistic user signaling and media routing. | No real browser rendering, no QoE analysis or per-user WebRTC stats, faster startup |
+| **`emulated` (LOADTEST mode, default)** | Testing very large scale (hundreds of concurrent participants). | Limited reporting detail, no custom media, synthetic video only |
+| **`custom-emulated`** | Testing large scale with limited infrastructure, or when per-participant customization is needed. Simulates realistic user signaling and media routing. | No real browser rendering, no QoE analysis or per-user WebRTC stats, faster startup |
 | **`chrome` / `firefox`** | Testing realistic end-to-end browser behavior, debugging UI issues, collecting QoE metrics and detailed stats. | Requires more CPU/memory per participant |
-| **`multi-emulated` (LOADTEST mode)** | Testing very large scale (hundreds of concurrent participants). | Limited reporting detail, no custom media, synthetic video only |
 
 **Resource requirements** are approximate and depend on your configuration:
 
 | Browser | Typical CPU per participant | Typical Memory per participant |
 | ------- | --------------------------- | ----------------------------- |
-| `emulated` | 0.2 vCPU | 0.2 GB |
+| `emulated` | Less than `custom-emulated` | Less than `custom-emulated` |
+| `custom-emulated` | 0.2 vCPU | 0.2 GB |
 | `chrome` / `firefox` | 1 vCPU | 1 GB |
 | `chrome` / `firefox` + recording | 2 vCPU | 2 GB |
-| `multi-emulated` | Less than `emulated` | Less than `emulated` |
+
+**Participants per worker**, measured on a `t3.medium` (2 vCPUs) browser-emulator worker until saturation:
+
+| Mode | Participants per worker |
+| ---- | ------------------------ |
+| `emulated` | 115 |
+| `custom-emulated` | 40 |
+| `chrome` / `firefox` | 4 |
+
+With OpenVidu Pro and the mediasoup engine enabled, the same worker sustains more participants per mode:
+
+| Mode | Participants per worker (OpenVidu Pro, mediasoup) |
+| ---- | -------------------------------------------------- |
+| `emulated` | 175 |
+| `custom-emulated` | 55 |
+| `chrome` / `firefox` | 4 |
 
 **What you get in reports:**
 
 - **All browsers**: Session/room-level results, aggregated statistics, HTML and text reports
 - **`chrome` / `firefox`**: Per-user CPU usage at connection time, retry counts, individual WebRTC stats
-- **`multi-emulated`**: Platform-level metrics from Grafana/Prometheus (if configured)
+- **`emulated`**: Platform-level metrics from Grafana/Prometheus (if configured)
 
 ### Workers
 

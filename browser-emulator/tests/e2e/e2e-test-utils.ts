@@ -400,11 +400,11 @@ export async function run2BrowserTest(
 		mediaRecorders,
 	);
 	const effectiveDuration =
-		platform === 'livekit' && browser === 'emulated'
+		platform === 'livekit' && browser === 'custom-emulated'
 			? Math.max(emulationDuration, MIN_EMULATED_LIVEKIT_DURATION_SECONDS)
 			: emulationDuration;
 	await waitForBrowsersToSendStats(effectiveDuration);
-	if (platform === 'livekit' && browser === 'emulated') {
+	if (platform === 'livekit' && browser === 'custom-emulated') {
 		await assertNoLiveKitCliUnpublishedTracks(sessionName);
 	}
 	await cleanUsers(app);

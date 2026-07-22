@@ -792,7 +792,7 @@ class BrowserEmulatorClientTests {
     void launchLoadTestTest_parsesWorkerCpuUsageFromResponse() throws IOException, InterruptedException {
         TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
-                true, Browser.MULTI_EMULATED);
+                true, Browser.EMULATED);
 
         @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);
@@ -819,7 +819,7 @@ class BrowserEmulatorClientTests {
     void launchLoadTestTest_failureDoesNotSetWorkerCpuUsage() throws IOException, InterruptedException {
         TestCase testCase = new TestCase("N:N", Arrays.asList("2"), -1,
                 30, Resolution.MEDIUM, OpenViduRecordingMode.NONE, false, false,
-                true, Browser.MULTI_EMULATED);
+                true, Browser.EMULATED);
 
         @SuppressWarnings("unchecked")
         HttpResponse<String> response = mock(HttpResponse.class);

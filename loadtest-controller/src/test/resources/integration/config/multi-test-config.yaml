@@ -26,7 +26,7 @@ testcases:
     participants:
       - "1:100"
     sessions: 3
-    browser: emulated
+    browser: custom-emulated
     description: "Teaching topology test with 1 teacher and 100 students"
 
 workers:

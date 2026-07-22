@@ -157,7 +157,7 @@ describe('EmulatedBrowserService', () => {
 				video: true,
 				resolution: '640x480',
 				frameRate: 30,
-				browser: 'emulated' as const,
+				browser: 'custom-emulated' as const,
 			},
 		};
 
@@ -436,7 +436,7 @@ describe('EmulatedBrowserService', () => {
 					video: true,
 					resolution: '640x480',
 					frameRate: 30,
-					browser: 'emulated',
+					browser: 'custom-emulated',
 				},
 			} as never);
 
@@ -465,7 +465,7 @@ describe('EmulatedBrowserService', () => {
 					video: true,
 					resolution: '640x480',
 					frameRate: 30,
-					browser: 'emulated',
+					browser: 'custom-emulated',
 				},
 			} as never);
 
@@ -489,7 +489,7 @@ describe('EmulatedBrowserService', () => {
 					video: true,
 					resolution: '640x480',
 					frameRate: 30,
-					browser: 'emulated',
+					browser: 'custom-emulated',
 				},
 			} as never);
 
@@ -528,7 +528,7 @@ describe('EmulatedBrowserService', () => {
 					video: true,
 					resolution: '640x480',
 					frameRate: 30,
-					browser: 'emulated',
+					browser: 'custom-emulated',
 				},
 			} as never);
 
@@ -561,7 +561,7 @@ describe('EmulatedBrowserService', () => {
 					video: true,
 					resolution: '640x480',
 					frameRate: 30,
-					browser: 'emulated',
+					browser: 'custom-emulated',
 				},
 			} as never);
 

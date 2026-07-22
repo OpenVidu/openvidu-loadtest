@@ -16,7 +16,7 @@ public class TestCase {
     private boolean showBrowserVideoElements = true;
     private String recordingMetadata = "";
     private int startingParticipants = 0;
-    // LOADTEST mode fields (only used when browser == MULTI_EMULATED)
+    // LOADTEST mode fields (only used when browser == EMULATED)
     private String videoCodec = "";
     private boolean simulcast = true;
     private String layout = "";
@@ -210,7 +210,7 @@ public class TestCase {
     }
 
     public boolean isLoadTestMode() {
-        return this.browser == Browser.MULTI_EMULATED;
+        return this.browser == Browser.EMULATED;
     }
 
     public String getVideoCodec() {

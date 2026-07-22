@@ -190,12 +190,12 @@ describe('BrowserManagerService', () => {
 			expect(result.connectionId).toBe('real-connection-id');
 		});
 
-		it('should use EmulatedBrowserService when browser is emulated', async () => {
+		it('should use EmulatedBrowserService when browser is custom-emulated', async () => {
 			const request = {
 				...baseRequest,
 				properties: {
 					...baseRequest.properties,
-					browser: 'emulated' as const,
+					browser: 'custom-emulated' as const,
 				},
 			};
 
