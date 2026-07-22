@@ -10,7 +10,7 @@ testcases:
       - "2"
     sessions: 1
     browser: emulated
-    description: "ELK smoke test with emulated browsers (LOADTEST mode) - validates Metricbeat pipeline and Kibana reporting"
+    description: "ELK smoke test with emulated browsers - validates Metricbeat pipeline and Kibana reporting"
 
 workers:
   urls:

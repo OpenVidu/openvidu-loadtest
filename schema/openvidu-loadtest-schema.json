@@ -129,7 +129,7 @@
                             "emulated"
                         ],
                         "default": "chrome",
-                        "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'custom-emulated' creates one lightweight simulated participant at a time. 'emulated' (recommended default for large-scale tests) launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room with native simulcast; only usable with a LiveKit platform. See README.md 'LOADTEST mode' section for options that don't apply with this browser value."
+                        "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'custom-emulated' creates one lightweight simulated participant at a time. 'emulated' (recommended default for large-scale tests) launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room with native simulcast; only usable with a LiveKit platform. See README.md 'Emulated mode' section for options that don't apply with this browser value."
                     },
                     "resolution": {
                         "type": "string",
@@ -528,7 +528,7 @@
             "properties": {
                 "retry": {
                     "type": "object",
-                    "description": "Retry configuration for failed participant insertions. NORMAL mode only (LOADTEST mode has no retry/reconnect mechanism). Mutually exclusive with maxParticipantErrors below: enabling retry disables maxParticipantErrors unless it is also set explicitly. If neither retry nor maxParticipantErrors is configured, maxParticipantErrors defaults to 1 (retry disabled).",
+                    "description": "Retry configuration for failed participant insertions. NORMAL mode only (emulated mode has no retry/reconnect mechanism). Mutually exclusive with maxParticipantErrors below: enabling retry disables maxParticipantErrors unless it is also set explicitly. If neither retry nor maxParticipantErrors is configured, maxParticipantErrors defaults to 1 (retry disabled).",
                     "properties": {
                         "enabled": {
                             "type": "boolean",
@@ -547,7 +547,7 @@
                     "type": "integer",
                     "default": 1,
                     "minimum": 0,
-                    "description": "Stop the test once this many distinct participants (NORMAL mode) or load-test runs (LOADTEST mode) have errored, regardless of whether they were retried/reconnected successfully - participants are simply allowed to fail. In NORMAL mode this is mutually exclusive with retry.enabled above (set retry.enabled: true explicitly to use retries instead). LOADTEST mode always enforces this setting regardless of the retry section, defaulting to 1 if left unset."
+                    "description": "Stop the test once this many distinct participants (NORMAL mode) or load-test runs (emulated mode) have errored, regardless of whether they were retried/reconnected successfully - participants are simply allowed to fail. In NORMAL mode this is mutually exclusive with retry.enabled above (set retry.enabled: true explicitly to use retries instead). Emulated mode always enforces this setting regardless of the retry section, defaulting to 1 if left unset."
                 },
                 "batches": {
                     "type": "object",

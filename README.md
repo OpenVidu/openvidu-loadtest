@@ -200,7 +200,7 @@ These topologies create multiple sessions with a specified number of participant
 | `topology`                 | **Yes**  | -         | `N:N`, `N:M`, or `TEACHING`                                                                                                       |
 | `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
 | `sessions`                 | **Yes**  | -         | Number of sessions or `infinite` for creating sessions until an error occurs the number of retry times configured.                |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [LOADTEST mode](#loadtest-mode) |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [Emulated mode](#emulated-mode) |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
 | `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
@@ -222,7 +222,7 @@ These topologies create a single session and fill it with users:
 | -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `topology`                 | **Yes**  | -         | `ONE_SESSION_NXN`, or `ONE_SESSION_NXM`                                                                                           |
 | `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [LOADTEST mode](#loadtest-mode) |
+| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [Emulated mode](#emulated-mode) |
 | `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
 | `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
 | `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
@@ -235,7 +235,7 @@ These topologies create a single session and fill it with users:
 | `ONE_SESSION_NXN` | One session filled with N publishers (all publish and subscribe)         | Number for adding a specific number of participants and stopping the test when reached (e.g. `"100"`) or `"infinite"` for adding participants until an error occurs                                                                                                             |
 | `ONE_SESSION_NXM` | One session with N publishers and M subscribers (N publish, M subscribe) | Number of publishers:Number of subscribers for adding a specific number of participants and stopping the test when reached (e.g. `"10:50"`) or Number of publishers:`"infinite"` for adding subscribers to the number of publishers until an error occurs (e.g. `"2:infinite"`) |
 
-### LOADTEST mode
+### Emulated mode
 
 **`browser: emulated` is the default and recommended mode for large-scale load and stress testing.** It requires a LiveKit-based platform (which OpenVidu 3 deployments already are):
 
@@ -250,7 +250,7 @@ testcases:
     simulcast: true
 ```
 
-**Configuration in LOADTEST mode:**
+**Configuration in emulated mode:**
 
 Most settings work the same as other browsers:
 
@@ -284,9 +284,9 @@ The `layout` setting only applies to subscribers and affects both the maximum nu
 
 When simulcast is enabled, subscribers receive the specified resolutions depending on the layout. If simulcast is disabled, all subscribers receive a single stream at the configured resolution.
 
-**Features not available in LOADTEST mode:**
+**Features not available in emulated mode:**
 
-The following configuration options are ignored in LOADTEST mode because the test uses a built-in synthetic video clip rather than real or configurable media:
+The following configuration options are ignored in emulated mode because the test uses a built-in synthetic video clip rather than real or configurable media:
 
 - Custom video/audio sources: `video.type`, `video.customVideoUrl`, `video.customAudioUrl`
 - `frameRate` — the synthetic clip has a fixed frame rate
@@ -294,7 +294,7 @@ The following configuration options are ignored in LOADTEST mode because the tes
 - `headlessBrowser`, `showBrowserVideoElements` — not applicable to synthetic test runs
 - QoE recording and analysis — not supported
 
-Reports in LOADTEST mode focus on room/session-level metrics and platform metrics from Grafana/Prometheus, rather than per-user details like individual CPU usage or retry counts.
+Reports in emulated mode focus on room/session-level metrics and platform metrics from Grafana/Prometheus, rather than per-user details like individual CPU usage or retry counts.
 
 ### Choosing a Browser Type
 
@@ -302,7 +302,7 @@ Choose a browser type based on what you need to test:
 
 | Browser | Use when | Limitations |
 | ------- | -------- | ----------- |
-| **`emulated` (LOADTEST mode, default)** | Testing very large scale (hundreds of concurrent participants). | Limited reporting detail, no custom media, synthetic video only |
+| **`emulated` (default)** | Testing very large scale (hundreds of concurrent participants). | Limited reporting detail, no custom media, synthetic video only |
 | **`custom-emulated`** | Testing large scale with limited infrastructure, or when per-participant customization is needed. Simulates realistic user signaling and media routing. | No real browser rendering, no QoE analysis or per-user WebRTC stats, faster startup |
 | **`chrome` / `firefox`** | Testing realistic end-to-end browser behavior, debugging UI issues, collecting QoE metrics and detailed stats. | Requires more CPU/memory per participant |
 
@@ -422,7 +422,7 @@ Elasticsearch, Kibana and Grafana integration for metrics visualization. Expects
 
 Performance and retry settings.
 
-**Stopping on participant errors:** in NORMAL mode, exactly one of `advanced.retry` or `advanced.maxParticipantErrors` is active at a time - configuring one disables the other. If you configure neither, `advanced.maxParticipantErrors: 1` applies by default (test stops as soon as one participant errors, no retries). Set `advanced.retry.enabled: true` explicitly if you want retries instead. LOADTEST mode has no retry/reconnect mechanism, so it always uses `advanced.maxParticipantErrors` regardless of your `advanced.retry` settings, defaulting to `1` unless set explicitly.
+**Stopping on participant errors:** in NORMAL mode, exactly one of `advanced.retry` or `advanced.maxParticipantErrors` is active at a time - configuring one disables the other. If you configure neither, `advanced.maxParticipantErrors: 1` applies by default (test stops as soon as one participant errors, no retries). Set `advanced.retry.enabled: true` explicitly if you want retries instead. Emulated mode has no retry/reconnect mechanism, so it always uses `advanced.maxParticipantErrors` regardless of your `advanced.retry` settings, defaulting to `1` unless set explicitly.
 
 | Property                                 | Required | Default         | Description                                                                                                                                                              |
 | ---------------------------------------- | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -431,7 +431,7 @@ Performance and retry settings.
 | `advanced.batches.enabled`               | No       | `true`          | Enable batch mode: Users will be inserted in batches                                                                                                                     |
 | `advanced.batches.maxConcurrentRequests` | No       | `CPU cores + 1` | Max concurrent requests when in batch mode                                                                                                                               |
 | `advanced.waitForCompletion`             | No       | `true`          | Wait for all participants in the batch to confirm insertion into the platform before inserting the next batch. Will wait for individual participants if `batches: false` |
-| `advanced.maxParticipantErrors`          | No       | `1`             | Stop the test once this many distinct participants (NORMAL mode) or load-test runs (LOADTEST mode) have errored, regardless of whether they were retried/reconnected successfully. Unlike `advanced.retry`, this doesn't wait for retries to be exhausted - participants are simply allowed to fail. |
+| `advanced.maxParticipantErrors`          | No       | `1`             | Stop the test once this many distinct participants (NORMAL mode) or load-test runs (emulated mode) have errored, regardless of whether they were retried/reconnected successfully. Unlike `advanced.retry`, this doesn't wait for retries to be exhausted - participants are simply allowed to fail. |
 
 ### Report Output Configuration
 
