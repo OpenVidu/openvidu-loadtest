@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Validation script for the multi-emulated ELK smoke test
-# (multi-emulated-elk-smoke-test-config.yaml). The scenario and expected
+# Validation script for the emulated ELK smoke test
+# (emulated-elk-smoke-test-config.yaml). The scenario and expected
 # results are identical to the regular ELK smoke test, only the browser
-# type differs (multi-emulated instead of chrome), so this simply delegates
+# type differs (emulated instead of chrome), so this simply delegates
 # to validate-elk-smoke-test.sh to avoid duplicating validation logic.
 #
-# Usage: ./validate-multi-emulated-elk-smoke-test.sh <RESULTS_DIR>
+# Usage: ./validate-emulated-elk-smoke-test.sh <RESULTS_DIR>
 # Returns exit code 0 on success, 1 on failure
 
 set -e

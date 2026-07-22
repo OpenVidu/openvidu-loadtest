@@ -78,8 +78,8 @@ export class BrowserManagerService {
 		this.printRequestInfo(request);
 
 		try {
-			if (browser === 'emulated') {
-				// Use emulated browser with LiveKit CLI
+			if (browser === 'custom-emulated') {
+				// Use custom-emulated browser with LiveKit CLI
 				connectionId =
 					await this.emulatedBrowserService.createEmulatedParticipant(
 						request,

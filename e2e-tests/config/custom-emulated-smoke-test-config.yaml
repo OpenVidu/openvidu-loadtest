@@ -9,11 +9,11 @@ testcases:
     participants:
       - "2"
     sessions: 1
-    browser: multi-emulated
-    description: "Basic N:N topology test with multi-emulated browsers (LOADTEST mode)"
+    browser: custom-emulated
+    description: "Basic N:N topology test with custom-emulated browsers"
 
 workers:
-  urls:
+  urls: 
     - browser-emulator
 
 distribution:

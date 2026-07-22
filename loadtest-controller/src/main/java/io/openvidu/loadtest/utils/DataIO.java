@@ -263,8 +263,8 @@ public class DataIO {
             return Browser.FIREFOX;
         } else if (browserStr.equalsIgnoreCase(Browser.EMULATED.getValue())) {
             return Browser.EMULATED;
-        } else if (browserStr.equalsIgnoreCase(Browser.MULTI_EMULATED.getValue())) {
-            return Browser.MULTI_EMULATED;
+        } else if (browserStr.equalsIgnoreCase(Browser.CUSTOM_EMULATED.getValue())) {
+            return Browser.CUSTOM_EMULATED;
         }
         log.warn("Browser {} not recognized. Defaulting to Chrome.", browserStr);
         return Browser.CHROME;

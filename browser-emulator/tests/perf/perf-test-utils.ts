@@ -351,7 +351,7 @@ export async function createParticipant(
 			resolution: '640x480',
 			framerate: 30,
 			showVideoElements: false,
-			browser: 'emulated',
+			browser: 'custom-emulated',
 		},
 	};
 

@@ -61,13 +61,13 @@ export class OpenViduBrowserController {
 
 			if (
 				!request.properties?.browser ||
-				!['chrome', 'firefox', 'emulated'].includes(
+				!['chrome', 'firefox', 'custom-emulated'].includes(
 					request.properties.browser,
 				)
 			) {
 				res.status(400).send({
 					message:
-						'browser is required and must be "chrome", "firefox", or "emulated"',
+						'browser is required and must be "chrome", "firefox", or "custom-emulated"',
 				});
 				return;
 			}

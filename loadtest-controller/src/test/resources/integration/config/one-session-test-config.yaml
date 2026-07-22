@@ -11,13 +11,13 @@ testcases:
   - topology: ONE_SESSION_NXN
     participants:
       - "10"
-    browser: emulated
+    browser: custom-emulated
     description: "One Session NXN topology test with 10 participants"
 
   - topology: ONE_SESSION_NXM
     participants:
       - "5:10"
-    browser: emulated
+    browser: custom-emulated
     description: "One Session NXM topology test with 5 publishers and 10 subscribers"
 
 workers:

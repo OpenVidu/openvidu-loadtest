@@ -10,10 +10,10 @@ testcases:
       - "2"
     sessions: 1
     browser: emulated
-    description: "Basic N:N topology test with emulated browsers"
+    description: "Basic N:N topology test with emulated browsers (LOADTEST mode)"
 
 workers:
-  urls: 
+  urls:
     - browser-emulator
 
 distribution:

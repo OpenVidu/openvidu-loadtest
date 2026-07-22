@@ -90,7 +90,7 @@ class LoadTestModeOrchestratorTest {
 
     private TestCase testCase(Topology topology, List<String> participants, int sessions) {
         return new TestCase(topology.getValue(), participants, sessions, 30, Resolution.MEDIUM,
-                OpenViduRecordingMode.NONE, false, false, true, Browser.EMULATED);
+                OpenViduRecordingMode.NONE, false, false, true, Browser.CUSTOM_EMULATED);
     }
 
     @Test

@@ -66,20 +66,20 @@ cd e2e-tests/scripts
 ./run-e2e-test.sh --keep-results smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
-### Emulated Browser Test
+### Emulated Browser Test (LOADTEST mode, default)
+
+Requires a LiveKit platform (LOADTEST mode uses LiveKit's native `lk load-test`, see the root README's "LOADTEST mode" section).
 
 ```bash
 cd e2e-tests/scripts
 ./run-e2e-test.sh emulated-smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
-### Multi-emulated Browser Test (LOADTEST mode)
-
-Requires a LiveKit platform (LOADTEST mode uses LiveKit's native `lk load-test`, see the root README's "LOADTEST mode" section).
+### Custom-emulated Browser Test
 
 ```bash
 cd e2e-tests/scripts
-./run-e2e-test.sh multi-emulated-smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+./run-e2e-test.sh custom-emulated-smoke-test-config.yaml validate-default.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
 ### ELK Smoke Test (validates Metricbeat + Kibana integration)
@@ -89,13 +89,13 @@ cd e2e-tests/scripts
 ./run-e2e-test.sh --elk elk-smoke-test-config.yaml validate-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
-### Multi-emulated ELK Smoke Test (LOADTEST mode + Metricbeat/Kibana integration)
+### Emulated ELK Smoke Test (LOADTEST mode + Metricbeat/Kibana integration)
 
-Same scenario and validations as the ELK Smoke Test above, but using multi-emulated browsers (LOADTEST mode) instead of Chrome. Requires a LiveKit platform.
+Same scenario and validations as the ELK Smoke Test above, but using emulated browsers (LOADTEST mode) instead of Chrome. Requires a LiveKit platform.
 
 ```bash
 cd e2e-tests/scripts
-./run-e2e-test.sh --elk multi-emulated-elk-smoke-test-config.yaml validate-multi-emulated-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
+./run-e2e-test.sh --elk emulated-elk-smoke-test-config.yaml validate-emulated-elk-smoke-test.sh <PLATFORM_URL> [API_KEY] [API_SECRET]
 ```
 
 ## Test Discovery and Validation Mapping
@@ -108,7 +108,7 @@ The unified runner uses convention-based mapping to determine which validation s
 **Example:**
 
 - `smoke-test-config.yaml` → looks for `validate-smoke-test.sh` → falls back to `validate-default.sh`
-- `emulated-smoke-test-config.yaml` → looks for `validate-emulated-smoke-test.sh` → falls back to `validate-default.sh`
+- `custom-emulated-smoke-test-config.yaml` → looks for `validate-custom-emulated-smoke-test.sh` → falls back to `validate-default.sh`
 
 ## Adding New Test Types
 
@@ -127,9 +127,10 @@ To add a new test type:
 | Config file                       | Validation script (if exists)       | Fallback              |
 | --------------------------------- | ----------------------------------- | --------------------- |
 | `smoke-test-config.yaml`          | `validate-smoke-test.sh`            | `validate-default.sh` |
+| `custom-emulated-smoke-test-config.yaml` | `validate-custom-emulated-smoke-test.sh` | `validate-default.sh` |
 | `emulated-smoke-test-config.yaml` | `validate-emulated-smoke-test.sh`   | `validate-default.sh` |
 | `elk-smoke-test-config.yaml`      | `validate-elk-smoke-test.sh`        | `validate-default.sh` |
-| `multi-emulated-elk-smoke-test-config.yaml` | `validate-multi-emulated-elk-smoke-test.sh` (delegates to `validate-elk-smoke-test.sh`) | `validate-default.sh` |
+| `emulated-elk-smoke-test-config.yaml` | `validate-emulated-elk-smoke-test.sh` (delegates to `validate-elk-smoke-test.sh`) | `validate-default.sh` |
 | `load-test-config.yaml`           | `validate-load-test.sh`             | `validate-default.sh` |
 
 ## Expected Results

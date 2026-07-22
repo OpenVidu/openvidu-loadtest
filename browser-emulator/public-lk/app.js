@@ -341,7 +341,7 @@ async function joinSession() {
 		beConnector.sendEvent({ event: "VideoPlaybackStatusChanged" }, USER_ID, SESSION_ID);
 	});
 
-	// Mirror the emulated/multi-emulated behavior: publishers can be told not to
+	// Mirror the custom-emulated/emulated behavior: publishers can be told not to
 	// auto-subscribe to other participants' tracks (debug-only). Auto-subscribe
 	// stays enabled by default and for every SUBSCRIBER.
 	const disableAutoSubscribe = ROLE === 'PUBLISHER' && DISABLE_AUTOSUBSCRIBE_FOR_PUBLISHERS;

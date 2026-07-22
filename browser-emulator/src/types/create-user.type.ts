@@ -27,7 +27,7 @@ export interface UserJoinProperties {
 	/**
 	 * Debug-only: for PUBLISHER participants, disables auto-subscription so the
 	 * publisher doesn't also subscribe to other participants' tracks. For
-	 * emulated publishers it omits --auto-subscribe from the `lk room join`
+	 * custom-emulated publishers it omits --auto-subscribe from the `lk room join`
 	 * command; for real-browser publishers it sets autoSubscribe=false in the
 	 * LiveKit room connect options. Has no effect on SUBSCRIBER participants.
 	 */
@@ -48,7 +48,7 @@ export const Resolution = {
 
 export type Resolution = (typeof Resolution)[keyof typeof Resolution];
 
-export type AvailableBrowsers = 'chrome' | 'firefox' | 'emulated';
+export type AvailableBrowsers = 'chrome' | 'firefox' | 'custom-emulated';
 
 export interface CreateUserBrowserResponse {
 	connectionId: string;
