@@ -51,7 +51,7 @@ distribution:
 - `topology: N:N`: All participants publish video/audio and subscribe to all other participants
 - `participants: ["2"]`: Test with 2 participants per session. If more elements are added to the list, the test will be repeated with each of those values (e.g. 2, 8, 100... participants)
 - `sessions: 1`: Create a single session with the number of participants established above. To create sessions until the platform fails, set this to `infinite`
-- `browser: emulated` (default): Launches one or more `lk load-test` processes (LiveKit CLI) that each simulate many publishers/subscribers per room with native simulcast, without launching real browsers. Requires a LiveKit-based platform, which OpenVidu 3 deployments already are. You can use real browsers by changing this option to `chrome` or `firefox`, or use `custom-emulated` for per-participant simulated users. See [Choosing a Browser Type](#choosing-a-browser-type) for more information.
+- `browser: emulated` (default): Emulates many participants publishing and subscribing to simulcast video, using a fraction of the CPU/memory that real browsers need—ideal for large-scale tests. You can use real browsers by changing this option to `chrome` or `firefox`, or use `custom-emulated` for per-participant simulated users that allow more customization. See [Choosing a Browser Type](#choosing-a-browser-type) for more information.
 
 **workers**: Where the browsers run
 
@@ -237,7 +237,7 @@ These topologies create a single session and fill it with users:
 
 ### Emulated mode
 
-**`browser: emulated` is the default and recommended mode for large-scale load and stress testing.** It requires a LiveKit-based platform (which OpenVidu 3 deployments already are):
+**`browser: emulated` is the default and recommended mode for large-scale load and stress testing.** It emulates many participants publishing and subscribing to simulcast video, using a fraction of the CPU/memory that real browsers need:
 
 ```yaml
 testcases:
@@ -297,6 +297,8 @@ The following configuration options are ignored in emulated mode because the tes
 Reports in emulated mode focus on room/session-level metrics and platform metrics from Grafana/Prometheus, rather than per-user details like individual CPU usage or retry counts.
 
 ### Choosing a Browser Type
+
+`emulated` and `custom-emulated` both emulate real browsers using far fewer resources. The difference is that `custom-emulated` allows much more per-participant customization (custom video/audio sources, recording, QoE analysis) at the cost of using more resources per participant than `emulated`.
 
 Choose a browser type based on what you need to test:
 
