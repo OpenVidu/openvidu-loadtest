@@ -8,6 +8,7 @@ import type {
 import type { LoadTestRunRequest } from '../../../types/load-test.type.ts';
 import { createBoundedId } from '../../../utils/id-utils.ts';
 import { normalizeContainerLogs } from '../../../utils/log-normalize.ts';
+import { redactSecretCliArgs } from '../../../utils/sanitize.ts';
 import {
 	ERRORS_FILE,
 	addSaveStatsToFileToQueue,
@@ -115,7 +116,11 @@ export class LoadTestRunnerService {
 		);
 
 		this.logger.info(
-			{ runId, room: request.room, command: command.join(' ') },
+			{
+				runId,
+				room: request.room,
+				command: redactSecretCliArgs(command).join(' '),
+			},
 			'Starting load-test run',
 		);
 

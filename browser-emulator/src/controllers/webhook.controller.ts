@@ -1,4 +1,5 @@
 import * as express from 'express';
+import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import type { LoggerService } from '../services/logger.service.ts';
 import type { WebhookRoutingService } from '../services/webhook-routing.service.ts';
@@ -14,6 +15,18 @@ export class WebhookController {
 	private readonly router: express.Router;
 	private readonly webhookRoutingService: WebhookRoutingService;
 	private readonly logger: ReturnType<LoggerService['getLogger']>;
+	/**
+	 * Generous but bounded: a single load-test run can end with hundreds of
+	 * participants disconnecting within the same window, each firing a
+	 * handled event, so this only guards against abuse, not normal bursts.
+	 */
+	private readonly webhookLimiter = rateLimit({
+		windowMs: 60 * 1000,
+		max: 2000,
+		standardHeaders: true,
+		legacyHeaders: false,
+		message: { error: 'Too many webhook requests, please try again later' },
+	});
 
 	constructor(
 		webhookRoutingService: WebhookRoutingService,
@@ -28,6 +41,7 @@ export class WebhookController {
 	private setupRoutes(): void {
 		this.router.post(
 			'/livekit',
+			this.webhookLimiter,
 			express.raw({ type: '*/*', limit: '5mb' }),
 			this.handleLiveKitWebhook.bind(this),
 		);
