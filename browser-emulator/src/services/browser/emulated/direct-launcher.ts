@@ -6,6 +6,7 @@ import type {
 	EmulatedParticipantLauncher,
 	ParticipantHandle,
 } from './emulated-participant-launcher.ts';
+import { redactSecretCliArgs } from '../../../utils/sanitize.ts';
 
 const DEFAULT_LK_CLI_PATH = '/usr/local/bin/lk';
 
@@ -77,7 +78,7 @@ export class DirectLauncher implements EmulatedParticipantLauncher {
 		const fullCommand = this.buildCommand([...command, ...profilingFlags]);
 
 		this.logger.info(
-			{ participantId, command: fullCommand.join(' ') },
+			{ participantId, command: redactSecretCliArgs(fullCommand).join(' ') },
 			'Starting lk process',
 		);
 

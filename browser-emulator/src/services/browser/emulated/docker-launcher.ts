@@ -8,6 +8,7 @@ import type {
 	ParticipantHandle,
 } from './emulated-participant-launcher.ts';
 import { shortenIdentifier } from '../../../utils/id-utils.ts';
+import { redactSecretCliArgs } from '../../../utils/sanitize.ts';
 
 export class DockerLauncher implements EmulatedParticipantLauncher {
 	readonly mode = 'docker' as const;
@@ -87,7 +88,7 @@ export class DockerLauncher implements EmulatedParticipantLauncher {
 		// being buried inside the joined command) so callers can reliably find all
 		// containers belonging to a session, e.g. to inspect their logs.
 		const shortSession = shortenIdentifier(sessionName, 'session');
-		const commandPrefix = cmd
+		const commandPrefix = redactSecretCliArgs(cmd)
 			.join('_')
 			.replace(/[^a-zA-Z0-9_.-]/g, '_')
 			.slice(0, 40);

@@ -2,6 +2,19 @@ export function sanitizeFilename(input: string): string {
 	return input.replace(/[^a-zA-Z0-9_.-]/g, '_');
 }
 
+/** Flag names whose following argument value must never reach logs. */
+const SECRET_CLI_FLAGS = new Set(['--api-key', '--api-secret']);
+
+/**
+ * Redacts the value following any {@link SECRET_CLI_FLAGS} in a CLI argument
+ * list, for safe inclusion in logs (e.g. `lk load-test --api-secret <redacted>`).
+ */
+export function redactSecretCliArgs(args: readonly string[]): string[] {
+	return args.map((arg, index) =>
+		index > 0 && SECRET_CLI_FLAGS.has(args[index - 1]) ? '<redacted>' : arg,
+	);
+}
+
 export function sanitizePathSegment(input: string): string {
 	return input.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
