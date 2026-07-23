@@ -189,24 +189,20 @@ Naming and timing configuration for test sessions.
 
 ### Test Cases
 
-Define multiple test scenarios that run sequentially. The configurations available depend on the topology chosen for each test case. The main types of topologies are:
+Define multiple test scenarios that run sequentially. The configurations available depend on the topology chosen for each test case. The options below are the ones available with `browser: emulated`, the default and recommended mode for large-scale tests. If you use `custom-emulated`, `chrome`, or `firefox` instead, additional options become available—see [Additional options for custom-emulated / chrome / firefox](#additional-options-for-custom-emulated--chrome--firefox). The main types of topologies are:
 
 #### Multiple Session Topologies (N:N, N:M, TEACHING)
 
 These topologies create multiple sessions with a specified number of participants per session:
 
-| Property                   | Required | Default   | Description                                                                                                                       |
-| -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `topology`                 | **Yes**  | -         | `N:N`, `N:M`, or `TEACHING`                                                                                                       |
-| `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
-| `sessions`                 | **Yes**  | -         | Number of sessions or `infinite` for creating sessions until an error occurs the number of retry times configured.                |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [Emulated mode](#emulated-mode) |
-| `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
-| `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
-| `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
-| `headlessBrowser`          | No       | `false`   | Run browser in headless mode. Only usable with real browsers.                                                                     |
-| `browserRecording`         | No       | `false`   | Record browser output                                                                                                             |
-| `showBrowserVideoElements` | No       | `true`    | Show video elements in browser. Only usable with real browsers.                                                                   |
+| Property               | Required | Default   | Description                                                                                                                       |
+| ---------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `topology`             | **Yes**  | -         | `N:N`, `N:M`, or `TEACHING`                                                                                                       |
+| `participants`         | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
+| `sessions`             | **Yes**  | -         | Number of sessions or `infinite` for creating sessions until an error occurs the number of retry times configured.                |
+| `browser`              | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [Emulated mode](#emulated-mode) |
+| `resolution`           | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
+| `startingParticipants` | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
 
 | Topology   | Description                                                                  | Format                                                                            |
 | ---------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -218,22 +214,29 @@ These topologies create multiple sessions with a specified number of participant
 
 These topologies create a single session and fill it with users:
 
-| Property                   | Required | Default   | Description                                                                                                                       |
-| -------------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `topology`                 | **Yes**  | -         | `ONE_SESSION_NXN`, or `ONE_SESSION_NXM`                                                                                           |
-| `participants`             | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
-| `browser`                  | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [Emulated mode](#emulated-mode) |
-| `resolution`               | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
-| `frameRate`                | No       | `30`      | Try to force video frame rate                                                                                                     |
-| `startingParticipants`     | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
-| `headlessBrowser`          | No       | `false`   | Run browser in headless mode. Only usable with real browsers.                                                                     |
-| `browserRecording`         | No       | `false`   | Record browser output                                                                                                             |
-| `showBrowserVideoElements` | No       | `true`    | Show video elements in browser. Only usable with real browsers.                                                                   |
+| Property               | Required | Default   | Description                                                                                                                       |
+| ----------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `topology`             | **Yes**  | -         | `ONE_SESSION_NXN`, or `ONE_SESSION_NXM`                                                                                           |
+| `participants`         | **Yes**  | -         | List of participant counts. Each element of the list will create a new test scenario. Check table below for formatting.           |
+| `browser`              | No       | `chrome`  | Browser to use: `chrome`, `firefox`, `custom-emulated`, or `emulated` (recommended default for large-scale tests). See [Choosing a Browser Type](#choosing-a-browser-type) and [Emulated mode](#emulated-mode) |
+| `resolution`           | No       | `640x480` | Try to force video to resolution: `640x480`, `1280x720`, `1920x1080`                                                              |
+| `startingParticipants` | No       | `0`       | Adds a configurable initial batch of participants                                                                                 |
 
 | Topology          | Description                                                              | Format                                                                                                                                                                                                                                                                          |
 | ----------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ONE_SESSION_NXN` | One session filled with N publishers (all publish and subscribe)         | Number for adding a specific number of participants and stopping the test when reached (e.g. `"100"`) or `"infinite"` for adding participants until an error occurs                                                                                                             |
 | `ONE_SESSION_NXM` | One session with N publishers and M subscribers (N publish, M subscribe) | Number of publishers:Number of subscribers for adding a specific number of participants and stopping the test when reached (e.g. `"10:50"`) or Number of publishers:`"infinite"` for adding subscribers to the number of publishers until an error occurs (e.g. `"2:infinite"`) |
+
+#### Additional options for custom-emulated / chrome / firefox
+
+These properties apply to both topology groups above but are only meaningful when `browser` is set to `custom-emulated`, `chrome`, or `firefox`—they are ignored (or unavailable) in `emulated` mode. See [Features not available in emulated mode](#emulated-mode).
+
+| Property                   | Required | Default | Description                                                        |
+| -------------------------- | -------- | ------- | ------------------------------------------------------------------- |
+| `frameRate`                | No       | `30`    | Try to force video frame rate                                       |
+| `headlessBrowser`          | No       | `false` | Run browser in headless mode. Only usable with real browsers.       |
+| `browserRecording`         | No       | `false` | Record browser output                                                |
+| `showBrowserVideoElements` | No       | `true`  | Show video elements in browser. Only usable with real browsers.     |
 
 ### Emulated mode
 
@@ -296,9 +299,45 @@ The following configuration options are ignored in emulated mode because the tes
 
 Reports in emulated mode focus on room/session-level metrics and platform metrics from Grafana/Prometheus, rather than per-user details like individual CPU usage or retry counts.
 
+### Custom-emulated mode
+
+**`browser: custom-emulated`** simulates realistic user signaling and media routing without launching real browsers, using more resources per participant than `emulated` but allowing more per-participant customization:
+
+```yaml
+testcases:
+  - topology: N:M
+    participants:
+      - "5:50"
+    sessions: 1
+    browser: custom-emulated
+    frameRate: 30
+    video:
+      type: CUSTOM
+      customVideoUrl: https://example.com/video.mp4
+```
+
+**Configuration in custom-emulated mode:**
+
+Unlike `emulated`, custom-emulated honors these settings, matching real browsers:
+
+| Setting                                             | Behavior                                                                     |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `frameRate`                                         | Forces the configured frame rate                                             |
+| `video.type`, `video.customVideoUrl`, `video.customAudioUrl` | Uses the same configurable video source as real browsers—see [Video](#video) |
+
+**Limitations compared to real browsers (`chrome`/`firefox`):**
+
+- No real browser rendering—media is simulated rather than played back in an actual browser instance
+- `recordingMode`, `browserRecording` — recording not supported
+- `headlessBrowser`, `showBrowserVideoElements` — not applicable, there is no real browser window
+- QoE recording and analysis — not supported
+- No per-user WebRTC stats
+
+Reports in custom-emulated mode focus on room/session-level metrics, like in `emulated` mode, rather than per-user details such as individual CPU usage or detailed WebRTC stats.
+
 ### Choosing a Browser Type
 
-`emulated` and `custom-emulated` both emulate real browsers using far fewer resources. The difference is that `custom-emulated` allows much more per-participant customization (custom video/audio sources, recording, QoE analysis) at the cost of using more resources per participant than `emulated`.
+`emulated` and `custom-emulated` both emulate real browsers using far fewer resources than `chrome`/`firefox`. The difference is that `custom-emulated` allows more per-participant customization—it honors `frameRate` and uses the same configurable video source as real browsers (see [Video](#video)), neither of which `emulated` mode supports—at the cost of using more resources per participant than `emulated`. Neither emulated mode supports recording or QoE analysis; those require real browsers (`chrome`/`firefox`).
 
 Choose a browser type based on what you need to test:
 
@@ -312,8 +351,8 @@ Choose a browser type based on what you need to test:
 
 | Browser | Typical CPU per participant | Typical Memory per participant |
 | ------- | --------------------------- | ----------------------------- |
-| `emulated` | Less than `custom-emulated` | Less than `custom-emulated` |
-| `custom-emulated` | 0.2 vCPU | 0.2 GB |
+| `emulated` | ~0.1 vCPU | ~0.2 GB |
+| `custom-emulated` | ~0.2 vCPU | ~0.2 GB |
 | `chrome` / `firefox` | 1 vCPU | 1 GB |
 | `chrome` / `firefox` + recording | 2 vCPU | 2 GB |
 
