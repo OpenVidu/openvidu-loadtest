@@ -24,6 +24,22 @@ metricbeat.modules:
     enabled: true
     period: 5s
     cpu.metrics: [normalized_percentages]
+  # Per-container metrics, needed to attribute a node's CPU to individual
+  # OpenVidu services (openvidu-server, egress, ingress, caddy, redis...).
+  # Host-level `system.cpu` alone cannot tell an SFU-bound node from an
+  # egress-bound one, which matters when sizing a deployment or measuring the
+  # cost of a recording. Requires /var/run/docker.sock to be mounted (the
+  # documented run command already mounts it).
+  - module: docker
+    metricsets:
+      - container
+      - cpu
+      - memory
+      - network
+      - diskio
+    hosts: ["unix:///var/run/docker.sock"]
+    enabled: true
+    period: 10s
 fields:
     worker_name: ${NODE_TYPE}_${NODE_ID}
     node_role: ${NODE_TYPE}

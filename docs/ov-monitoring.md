@@ -2,6 +2,27 @@
 
 The configuration in [`server-resources/metricbeat-configs/metricbeat.yml`](../server-resources/metricbeat-configs/metricbeat.yml) is a [Metricbeat](https://www.elastic.co/beats/metricbeat) configuration designed to be deployed directly on an OpenVidu **media node** or **master node** host. It collects system-level metrics from the underlying machine and ships them to an Elasticsearch instance, where they can be visualized in Kibana dashboard product of a load test (see [Monitoring](../README.md#monitoring)).
 
+When Metricbeat is running on the nodes of the OpenVidu deployment under test, the loadtest controller also queries it at the end of each test case and includes per-node CPU and memory in the results report. See [Node Metrics in Reports](#node-metrics-in-reports).
+
+## Collected Metrics
+
+Two Metricbeat modules are enabled:
+
+| Module   | Metricsets                                            | Period | What it gives you                                                        |
+| -------- | ----------------------------------------------------- | ------ | ------------------------------------------------------------------------ |
+| `system` | `cpu`, `diskio`, `memory`, `network`, `filesystem`, `fsstat` | 5s     | Host-level resource usage of the whole node                              |
+| `docker` | `container`, `cpu`, `memory`, `network`, `diskio`      | 10s    | Per-container usage, so a node's CPU can be attributed to single services |
+
+The `docker` module matters when a node runs more than one CPU-hungry service. On a media node, `openvidu-server` (the SFU) and the Egress service share the same host, so host CPU alone cannot tell you how much a recording costs versus how much the media routing costs. Useful fields:
+
+| Field                     | Meaning                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `system.cpu.total.norm.pct` | Whole-node CPU, normalized to `0..1` regardless of core count                |
+| `docker.cpu.total.pct`    | Container CPU in cores (`2.0` means the container is using two full cores)     |
+| `docker.cpu.total.norm.pct` | Same, normalized by the host's core count                                    |
+| `docker.container.name`   | Container name, to group by service                                           |
+| `docker.memory.usage.total` | Container memory in bytes                                                    |
+
 ## Configuration Variables
 
 The configuration file ([`metricbeat.yml`](../server-resources/metricbeat-configs/metricbeat.yml)) is a template that uses environment variable substitution. Before starting Metricbeat, you must export the following variables in the environment of the process that runs it.
