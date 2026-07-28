@@ -208,7 +208,7 @@ These topologies create multiple sessions with a specified number of participant
 | ---------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `N:N`      | All participants publish video/audio and subscribe to all other participants | Number of publishers per session (e.g. `"10"`)                                    |
 | `N:M`      | N publishers, M subscribers                                                  | Number of publishers:Number of subscribers per session (e.g. `"5:50"`)            |
-| `TEACHING` | Publisher with audio-only subscribers                                        | Number of publishers:Number of audio-only subscribers per session (e.g. `"2:30"`) |
+| `TEACHING` | Publishers with audio-only participants                                      | Number of publishers:Number of audio-only participants per session (e.g. `"2:30"`) |
 
 Every element of `participants` is a separate scenario: they run one after another, each with its own results report. This makes a list the natural way to sweep one dimension of load:
 

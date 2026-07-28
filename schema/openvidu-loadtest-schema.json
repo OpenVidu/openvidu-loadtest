@@ -95,7 +95,7 @@
                              "ONE_SESSION_NXN",
                              "ONE_SESSION_NXM"
                          ],
-                         "description": "Topology type: N:N (all publish/subscribe), N:M (N publishers, M subscribers), TEACHING (publisher with audio-only subscribers), ONE_SESSION_NXN (one session filled with N publishers), ONE_SESSION_NXM (one session with N publishers filled with M subscribers)"
+                         "description": "Topology type: N:N (all publish/subscribe), N:M (N publishers, M subscribers), TEACHING (publisher plus audio-only participants), ONE_SESSION_NXN (one session filled with N publishers), ONE_SESSION_NXM (one session with N publishers filled with M subscribers)"
                      },
                     "participants": {
                         "type": "array",

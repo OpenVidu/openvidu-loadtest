@@ -346,4 +346,53 @@ class LoadTestModeOrchestratorTest {
         assertEquals(0, participantOrchestrator.getTotalParticipants());
         assertTrue(participantOrchestrator.getUserStartTimes().isEmpty());
     }
+
+    @Test
+    void runTeaching_requestsAudioOnlyPublishersSoTheyPublishAudioNotNothing()
+            throws NoWorkersAvailableException {
+        TestCase testCase = testCase(Topology.TEACHING, Arrays.asList("2:5"), 1);
+
+        CreateParticipantResponse response = orchestrator.runTeaching(testCase, 2, 5);
+
+        assertTrue(response.isResponseOk());
+        // 2 audio+video publishers, 5 audio-only publishers, 5 subscribers
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 5, 5,
+                Arrays.asList("User1", "User2", "User3", "User4", "User5", "User6", "User7", "User8", "User9",
+                        "User10", "User11", "User12"));
+    }
+
+    @Test
+    void runTeaching_isDifferentFromNxM() throws NoWorkersAvailableException {
+        TestCase teaching = testCase(Topology.TEACHING, Arrays.asList("2:5"), 1);
+        TestCase nxm = testCase(Topology.N_X_M, Arrays.asList("2:5"), 1);
+
+        orchestrator.runTeaching(teaching, 2, 5);
+        orchestrator.runNxM(nxm, 2, 5);
+
+        verify(browserEmulatorClient).launchLoadTest(anyString(), eq(teaching), anyString(), eq(2), eq(5), eq(5),
+                anyList());
+        // N:M has no audio-only publishers
+        verify(browserEmulatorClient).launchLoadTest(anyString(), eq(nxm), anyString(), eq(2), eq(0), eq(5),
+                anyList());
+    }
+
+    @Test
+    void runTeaching_splitsAllThreeParticipantKindsAcrossChunks() throws NoWorkersAvailableException {
+        when(loadTestConfig.isManualParticipantsAllocation()).thenReturn(true);
+        when(loadTestConfig.getUsersPerWorker()).thenReturn(4);
+        TestCase testCase = testCase(Topology.TEACHING, Arrays.asList("2:6"), 1);
+
+        CreateParticipantResponse response = orchestrator.runTeaching(testCase, 2, 6);
+
+        assertTrue(response.isResponseOk());
+        // Chunk 1 takes both video publishers, then fills up with audio-only ones
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 2, 2, 0,
+                Arrays.asList("User1", "User2", "User3", "User4"));
+        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session1", 0, 4, 0,
+                Arrays.asList("User5", "User6", "User7", "User8"));
+        verify(browserEmulatorClient).launchLoadTest("worker3", testCase, "session1", 0, 0, 4,
+                Arrays.asList("User9", "User10", "User11", "User12"));
+        verify(browserEmulatorClient).launchLoadTest("worker4", testCase, "session1", 0, 0, 2,
+                Arrays.asList("User13", "User14"));
+    }
 }

@@ -68,6 +68,7 @@ class LoadTestTopologyOrchestratorTest {
         CreateParticipantResponse ok = new CreateParticipantResponse().setResponseOk(true);
         when(modeOrchestrator.runNxN(any(), anyInt())).thenReturn(ok);
         when(modeOrchestrator.runNxM(any(), anyInt(), anyInt())).thenReturn(ok);
+        when(modeOrchestrator.runTeaching(any(), anyInt(), anyInt())).thenReturn(ok);
         when(modeOrchestrator.runOneSessionNxN(any(), anyInt())).thenReturn(ok);
         when(modeOrchestrator.runOneSessionNxM(any(), anyInt(), anyInt())).thenReturn(ok);
     }
@@ -131,6 +132,17 @@ class LoadTestTopologyOrchestratorTest {
 
         verify(modeOrchestrator).runOneSessionNxN(testCase, 10);
         verify(modeOrchestrator).runOneSessionNxN(testCase, Integer.MAX_VALUE);
+    }
+
+    @Test
+    void teachingUsesItsOwnGeometryInsteadOfNxM() throws NoWorkersAvailableException {
+        TestCase testCase = emulatedTestCase(Topology.TEACHING, List.of("1:100", "1:300"), 1);
+
+        orchestrator.startLoadTests(List.of(testCase));
+
+        verify(modeOrchestrator).runTeaching(testCase, 1, 100);
+        verify(modeOrchestrator).runTeaching(testCase, 1, 300);
+        verify(modeOrchestrator, never()).runNxM(any(), anyInt(), anyInt());
     }
 
     @Test

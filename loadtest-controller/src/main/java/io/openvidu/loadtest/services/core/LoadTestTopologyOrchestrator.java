@@ -154,8 +154,12 @@ class LoadTestTopologyOrchestrator {
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
                 if (testCase.isLoadTestMode()) {
                     logNxMStart(testCase, publishers, subscribers);
+                    // TEACHING's second number is audio-only participants, not plain
+                    // subscribers, so it needs its own emulated-mode geometry
                     executeAndSave(testCase, participants,
-                            () -> loadTestModeOrchestrator.runNxM(testCase, publishers, subscribers));
+                            testCase.isTeaching()
+                                    ? () -> loadTestModeOrchestrator.runTeaching(testCase, publishers, subscribers)
+                                    : () -> loadTestModeOrchestrator.runNxM(testCase, publishers, subscribers));
                     continue;
                 }
                 boolean noEstimateError = prepareEstimation(instancesInitialized, testCase, publishers, subscribers,
@@ -294,6 +298,13 @@ class LoadTestTopologyOrchestrator {
     }
 
     private void logNxMStart(TestCase testCase, int publishers, int subscribers) {
+        if (testCase.isTeaching()) {
+            log.info("Starting test with TEACHING session topology");
+            log.info("The number of session that will be created are {}", testCase.getSessions());
+            log.info("Each session will be composed by {} users. {} publishing audio and video and {} publishing "
+                    + "audio only", publishers + subscribers, publishers, subscribers);
+            return;
+        }
         log.info("Starting test with N:M session topology");
         log.info("The number of session that will be created are {}", testCase.getSessions());
         log.info("Each session will be composed by {} users. {} Publisher and {} Subscribers",

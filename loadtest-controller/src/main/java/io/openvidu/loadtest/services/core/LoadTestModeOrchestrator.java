@@ -84,13 +84,27 @@ class LoadTestModeOrchestrator {
         return runSessions(testCase, publishers, subscribers);
     }
 
+    /**
+     * TEACHING: {@code publishers} send audio and video while
+     * {@code audioOnlyParticipants} send audio only, as in NORMAL mode. {@code lk
+     * load-test} keeps publishers and subscribers as separate participants (a
+     * publisher never subscribes), so the audio-only side is requested as both
+     * audio publishers and subscribers: the published track counts match NORMAL
+     * mode exactly, at the cost of the audio-only side being split across two
+     * sets of participants instead of one.
+     */
+    CreateParticipantResponse runTeaching(TestCase testCase, int publishers, int audioOnlyParticipants)
+            throws NoWorkersAvailableException {
+        return runSessions(testCase, publishers, audioOnlyParticipants, audioOnlyParticipants);
+    }
+
     CreateParticipantResponse runOneSessionNxN(TestCase testCase, int participantCount)
             throws NoWorkersAvailableException {
         String room = loadTestConfig.getSessionNamePrefix() + "1";
         log.info("[LOADTEST mode] Starting one session '{}' with {} video publishers", room,
                 describeCount(participantCount));
         int sessionNum = participantOrchestrator.startLoadTestSession();
-        return runRoomChunks(new String[] { "" }, testCase, room, sessionNum, participantCount, 0);
+        return runRoomChunks(new String[] { "" }, testCase, room, sessionNum, participantCount, 0, 0);
     }
 
     CreateParticipantResponse runOneSessionNxM(TestCase testCase, int publishers, int subscribers)
@@ -99,11 +113,16 @@ class LoadTestModeOrchestrator {
         log.info("[LOADTEST mode] Starting one session '{}' with {} video publishers and {} subscribers", room,
                 describeCount(publishers), describeCount(subscribers));
         int sessionNum = participantOrchestrator.startLoadTestSession();
-        return runRoomChunks(new String[] { "" }, testCase, room, sessionNum, publishers, subscribers);
+        return runRoomChunks(new String[] { "" }, testCase, room, sessionNum, publishers, 0, subscribers);
     }
 
     private CreateParticipantResponse runSessions(TestCase testCase, int publishers, int subscribers)
             throws NoWorkersAvailableException {
+        return runSessions(testCase, publishers, 0, subscribers);
+    }
+
+    private CreateParticipantResponse runSessions(TestCase testCase, int publishers, int audioOnlyPublishers,
+            int subscribers) throws NoWorkersAvailableException {
         int sessionsLimit = testCase.getSessions();
         boolean infiniteSessions = sessionsLimit == -1;
         if (infiniteSessions) {
@@ -125,9 +144,11 @@ class LoadTestModeOrchestrator {
             sessionsStarted++;
             int sessionNum = participantOrchestrator.startLoadTestSession();
             String room = loadTestConfig.getSessionNamePrefix() + sessionNum;
-            log.info("[LOADTEST mode] Starting session '{}' with {} video publishers and {} subscribers", room,
-                    describeCount(publishers), describeCount(subscribers));
-            lastResponse = runRoomChunks(workerCursor, testCase, room, sessionNum, publishers, subscribers);
+            log.info("[LOADTEST mode] Starting session '{}' with {} video publishers, {} audio-only publishers "
+                    + "and {} subscribers", room, describeCount(publishers), describeCount(audioOnlyPublishers),
+                    describeCount(subscribers));
+            lastResponse = runRoomChunks(workerCursor, testCase, room, sessionNum, publishers, audioOnlyPublishers,
+                    subscribers);
             if (!lastResponse.isResponseOk()) {
                 return lastResponse;
             }
@@ -137,27 +158,33 @@ class LoadTestModeOrchestrator {
     }
 
     private CreateParticipantResponse runRoomChunks(String[] workerCursor, TestCase testCase, String room,
-            int sessionNum, int videoPublishers, int subscribers) throws NoWorkersAvailableException {
+            int sessionNum, int videoPublishers, int audioOnlyPublishers, int subscribers)
+            throws NoWorkersAvailableException {
         int stepSize = resolveStepSize(room, videoPublishers, subscribers);
 
         int remainingPublishers = videoPublishers;
+        int remainingAudioPublishers = audioOnlyPublishers;
         int remainingSubscribers = subscribers;
-        while (remainingPublishers > 0 || remainingSubscribers > 0) {
+        while (remainingPublishers > 0 || remainingAudioPublishers > 0 || remainingSubscribers > 0) {
             CreateParticipantResponse forcedStop = checkForcedStop();
             if (forcedStop != null) {
                 return forcedStop;
             }
             int chunkPublishers = capChunk(remainingPublishers, stepSize);
-            int chunkSubscribers = capChunk(remainingSubscribers, stepSize - chunkPublishers);
+            int chunkAudioPublishers = capChunk(remainingAudioPublishers, stepSize - chunkPublishers);
+            int chunkSubscribers = capChunk(remainingSubscribers,
+                    stepSize - chunkPublishers - chunkAudioPublishers);
 
             List<String> publisherIds = participantOrchestrator.nextUserIds(chunkPublishers);
+            List<String> audioPublisherIds = participantOrchestrator.nextUserIds(chunkAudioPublishers);
             List<String> subscriberIds = participantOrchestrator.nextUserIds(chunkSubscribers);
             List<String> chunkParticipantIds = new ArrayList<>(publisherIds);
+            chunkParticipantIds.addAll(audioPublisherIds);
             chunkParticipantIds.addAll(subscriberIds);
 
             workerCursor[0] = loadTestService.setAndInitializeNextWorker(workerCursor[0], WorkerType.WORKER);
             CreateParticipantResponse launchResponse = browserEmulatorClient.launchLoadTest(workerCursor[0], testCase,
-                    room, chunkPublishers, 0, chunkSubscribers, chunkParticipantIds);
+                    room, chunkPublishers, chunkAudioPublishers, chunkSubscribers, chunkParticipantIds);
             if (!launchResponse.isResponseOk()) {
                 String reason = launchResponse.getStopReason() != null ? launchResponse.getStopReason()
                         : "Failed to launch load-test chunk on worker " + workerCursor[0] + " for room " + room;
@@ -167,10 +194,13 @@ class LoadTestModeOrchestrator {
 
             participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.PUBLISHER, publisherIds,
                     launchResponse.getWorkerUrl(), launchResponse.getWorkerCpuPct());
+            participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.PUBLISHER, audioPublisherIds,
+                    launchResponse.getWorkerUrl(), launchResponse.getWorkerCpuPct());
             participantOrchestrator.recordLoadTestParticipants(sessionNum, Role.SUBSCRIBER, subscriberIds,
                     launchResponse.getWorkerUrl(), launchResponse.getWorkerCpuPct());
 
             remainingPublishers = decrement(remainingPublishers, chunkPublishers);
+            remainingAudioPublishers = decrement(remainingAudioPublishers, chunkAudioPublishers);
             remainingSubscribers = decrement(remainingSubscribers, chunkSubscribers);
         }
         return new CreateParticipantResponse().setResponseOk(true);
