@@ -67,3 +67,7 @@ browser-emulator/.awsconfig/
 docker/browser-emulator/browser-emulator/
 
 report*.html
+
+# Load test reports (keep the directory, ignore its contents)
+/results/*
+!/results/.gitkeep
