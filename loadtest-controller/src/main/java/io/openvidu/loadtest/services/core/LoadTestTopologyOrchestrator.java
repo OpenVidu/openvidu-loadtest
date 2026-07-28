@@ -110,9 +110,10 @@ class LoadTestTopologyOrchestrator {
     }
 
     private void runNxNCase(TestCase testCase) {
-        for (String participants : testCase.getParticipants()) {
+        List<String> participantsList = testCase.getParticipants();
+        for (int i = 0; i < participantsList.size(); i++) {
             try {
-                int participantsBySession = testCase.getParticipantCount(0); // Always use first (and only) participant spec for N:N
+                int participantsBySession = testCase.getParticipantCount(i);
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
                 if (testCase.isLoadTestMode()) {
                     logNxNStart(testCase, participantsBySession);
@@ -144,10 +145,12 @@ class LoadTestTopologyOrchestrator {
     }
 
     private void runNxMCase(TestCase testCase) {
-        for (String participants : testCase.getParticipants()) {
+        List<String> participantsList = testCase.getParticipants();
+        for (int i = 0; i < participantsList.size(); i++) {
+            String participants = participantsList.get(i);
             try {
-                int publishers = testCase.getPublisherCount(0); // Always use first (and only) participant spec for N:M
-                int subscribers = testCase.getSubscriberCount(0); // Always use first (and only) participant spec for N:M
+                int publishers = testCase.getPublisherCount(i);
+                int subscribers = testCase.getSubscriberCount(i);
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
                 if (testCase.isLoadTestMode()) {
                     logNxMStart(testCase, publishers, subscribers);
@@ -179,10 +182,12 @@ class LoadTestTopologyOrchestrator {
     }
 
     private void runOneSessionNxNCase(TestCase testCase) {
-        for (String participants : testCase.getParticipants()) {
+        List<String> participantsList = testCase.getParticipants();
+        for (int i = 0; i < participantsList.size(); i++) {
+            String participants = participantsList.get(i);
             try {
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
-                int participantCount = "infinite".equalsIgnoreCase(participants) ? Integer.MAX_VALUE : Integer.parseInt(participants);
+                int participantCount = testCase.getParticipantCount(i);
                 runOneSessionNxN(testCase, participants, instancesInitialized, participantCount);
             } catch (Exception e) {
                 log.error("Error occurred while running test case", e);
@@ -193,11 +198,13 @@ class LoadTestTopologyOrchestrator {
     }
 
     private void runOneSessionNxMCase(TestCase testCase) {
-        for (String participants : testCase.getParticipants()) {
+        List<String> participantsList = testCase.getParticipants();
+        for (int i = 0; i < participantsList.size(); i++) {
+            String participants = participantsList.get(i);
             try {
                 boolean instancesInitialized = loadTestService.launchInitialInstances();
-                int publishers = testCase.getPublisherCount(0); // Always use first (and only) participant spec for ONE_SESSION_NXM
-                int subscriberCount = testCase.getSubscriberCount(0); // Always use first (and only) participant spec for ONE_SESSION_NXM
+                int publishers = testCase.getPublisherCount(i);
+                int subscriberCount = testCase.getSubscriberCount(i);
                 runOneSessionNxM(testCase, participants, instancesInitialized, publishers, subscriberCount);
             } catch (Exception e) {
                 log.error("Error occurred while running test case", e);

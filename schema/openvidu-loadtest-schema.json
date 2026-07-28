@@ -103,7 +103,7 @@
                             "type": "string",
                             "pattern": "^([0-9]+|infinite)(:([0-9]+|infinite))?$"
                         },
-                        "description": "List of participant counts. Each element creates a new test scenario. Format: 'N' or 'N:M' for N:M topology. 'infinite' can be used in place of a number (e.g. 'infinite', '2:infinite') to keep adding participants until an error occurs; supported with any 'browser' value, including 'emulated'."
+                        "description": "List of participant counts. Each element creates a new test scenario, run one after another with its own results report. Format: 'N' or 'N:M' for N:M topology. 'infinite' can be used in place of a number (e.g. 'infinite', '2:infinite') to keep adding participants until an error occurs; supported with any 'browser' value, including 'emulated'."
                     },
                     "sessions": {
                         "oneOf": [

@@ -66,6 +66,18 @@ testcases:
     browser: custom-emulated
     description: "Custom-emulated participants, one process each"
 
+  # Each element of `participants` is its own scenario, run one after another
+  # with its own results report - handy for sweeping a load dimension.
+  - topology: ONE_SESSION_NXN
+    participants:
+      - "4"
+      - "16"
+      - "50"
+    browser: emulated
+    resolution: high
+    videoCodec: h264
+    description: "Room-size sweep: three scenarios, three reports"
+
 # ---------- Workers ----------
 workers:
   urls: 

@@ -210,6 +210,15 @@ These topologies create multiple sessions with a specified number of participant
 | `N:M`      | N publishers, M subscribers                                                  | Number of publishers:Number of subscribers per session (e.g. `"5:50"`)            |
 | `TEACHING` | Publisher with audio-only subscribers                                        | Number of publishers:Number of audio-only subscribers per session (e.g. `"2:30"`) |
 
+Every element of `participants` is a separate scenario: they run one after another, each with its own results report. This makes a list the natural way to sweep one dimension of load:
+
+```yaml
+testcases:
+  - topology: ONE_SESSION_NXN
+    participants: ["4", "16", "50"] # three scenarios, three reports
+    browser: emulated
+```
+
 #### Single Session Topologies (ONE_SESSION_NX)
 
 These topologies create a single session and fill it with users:
