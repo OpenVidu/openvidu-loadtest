@@ -160,6 +160,7 @@ public class DataIO {
         testCase.setSimulcast(parseSimulcast(element));
         testCase.setLayout(parseLayout(element));
         testCase.setEmulatedResolution(parseEmulatedResolution(element));
+        testCase.setPublishersAlsoSubscribe(parsePublishersAlsoSubscribe(element));
         return testCase;
     }
 
@@ -195,6 +196,23 @@ public class DataIO {
         }
         log.warn("Unrecognized resolution '{}'; using 'high' for browser 'emulated'.", resStr);
         return EMULATED_RESOLUTION_HIGH;
+    }
+
+    /**
+     * Whether every publisher additionally subscribes, which is how a real
+     * participant behaves. Enabled by default. Disabling it makes a room's
+     * geometry exactly what was requested (e.g. publishers with no subscribers
+     * at all), which is useful to measure the cost of inbound media on its own.
+     */
+    private boolean parsePublishersAlsoSubscribe(Map<String, Object> element) {
+        Object value = element.get("publishersAlsoSubscribe");
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value != null) {
+            return Boolean.parseBoolean(value.toString());
+        }
+        return true;
     }
 
     private String parseVideoCodec(Map<String, Object> element) {

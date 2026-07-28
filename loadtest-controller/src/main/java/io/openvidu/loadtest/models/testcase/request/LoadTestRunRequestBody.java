@@ -26,6 +26,7 @@ public class LoadTestRunRequestBody {
     private final String videoCodec;
     private final boolean simulcast;
     private final String layout;
+    private final boolean publishersAlsoSubscribe;
     private final List<String> participantIds;
 
     public LoadTestRunRequestBody(LKLoadTestConfig config, TestCase testCase, String room, int videoPublishers,
@@ -41,6 +42,7 @@ public class LoadTestRunRequestBody {
         this.videoCodec = testCase.getVideoCodec();
         this.simulcast = testCase.isSimulcast();
         this.layout = testCase.getLayout();
+        this.publishersAlsoSubscribe = testCase.isPublishersAlsoSubscribe();
         this.participantIds = participantIds;
     }
 
@@ -69,6 +71,7 @@ public class LoadTestRunRequestBody {
         if (this.layout != null && !this.layout.isBlank()) {
             jsonBody.addProperty("layout", this.layout);
         }
+        jsonBody.addProperty("publishersAlsoSubscribe", this.publishersAlsoSubscribe);
         if (this.participantIds != null && !this.participantIds.isEmpty()) {
             JsonArray participantIdsArray = new JsonArray();
             this.participantIds.forEach(participantIdsArray::add);

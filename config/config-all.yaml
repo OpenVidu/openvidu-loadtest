@@ -78,6 +78,16 @@ testcases:
     videoCodec: h264
     description: "Room-size sweep: three scenarios, three reports"
 
+  # publishersAlsoSubscribe: false gives exactly the requested geometry.
+  # By default every publisher also counts as a subscriber (like a real
+  # participant), so a room of N publishers always comes with N subscribers.
+  - topology: ONE_SESSION_NXM
+    participants:
+      - "50:0"
+    browser: emulated
+    publishersAlsoSubscribe: false
+    description: "Publishers only, to measure inbound media on its own"
+
 # ---------- Workers ----------
 workers:
   urls: 

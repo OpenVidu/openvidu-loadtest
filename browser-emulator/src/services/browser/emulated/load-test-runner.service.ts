@@ -197,9 +197,22 @@ export class LoadTestRunnerService {
 	/**
 	 * A publisher in NORMAL mode publishes both audio and video and also
 	 * subscribes to other participants' tracks. `lk load-test` treats
-	 * video/audio publishers and subscribers as separate participant counts,
-	 * so mirror that behavior here: every video publisher adds one audio
-	 * publisher and one subscriber, on top of whatever was requested directly.
+	 * video/audio publishers and subscribers as separate participant counts, so
+	 * mirror that behavior here: every video publisher adds one audio publisher
+	 * (it sends both kinds of media) and, unless `publishersAlsoSubscribe` is
+	 * explicitly false, one subscriber, on top of whatever was requested
+	 * directly.
+	 *
+	 * Setting `publishersAlsoSubscribe: false` makes the room's geometry exactly
+	 * what was requested — including rooms with publishers and no subscribers at
+	 * all, which `lk load-test` cannot otherwise produce, since a room of N
+	 * publishers would always come with N subscribers.
+	 *
+	 * Note that `lk load-test` counts `--audio-publishers` and
+	 * `--video-publishers` over the same participants (participant `i` publishes
+	 * video when `i < videoPublishers` and audio when `i < audioPublishers`), so
+	 * requesting more audio than video publishers yields audio-only
+	 * participants rather than extra ones.
 	 */
 	private resolveParticipantCounts(request: LoadTestRunRequest): {
 		videoPublishers: number;
@@ -210,13 +223,24 @@ export class LoadTestRunnerService {
 		const videoPublishers = request.videoPublishers ?? 0;
 		const audioPublishers =
 			(request.audioPublishers ?? 0) + videoPublishers;
-		const subscribers = (request.subscribers ?? 0) + videoPublishers;
+		const publishersAlsoSubscribe =
+			request.publishersAlsoSubscribe !== false;
+		const subscribers =
+			(request.subscribers ?? 0) +
+			(publishersAlsoSubscribe ? videoPublishers : 0);
+
+		// `lk load-test` runs max(audio, video) publisher participants plus
+		// `subscribers` subscriber participants
+		const publisherParticipants = Math.max(
+			videoPublishers,
+			audioPublishers,
+		);
 
 		return {
 			videoPublishers,
 			audioPublishers,
 			subscribers,
-			total: videoPublishers + audioPublishers + subscribers,
+			total: publisherParticipants + subscribers,
 		};
 	}
 

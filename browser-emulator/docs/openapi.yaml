@@ -506,9 +506,10 @@ components:
           type: integer
           description: >-
             Number of participants publishing video tracks. Each one also
-            publishes an audio track and subscribes to other participants'
-            tracks (mirroring a NORMAL-mode publisher), adding to
-            audioPublishers/subscribers below rather than replacing them.
+            publishes an audio track and, unless publishersAlsoSubscribe is
+            false, subscribes to other participants' tracks (mirroring a
+            NORMAL-mode publisher), adding to audioPublishers/subscribers below
+            rather than replacing them.
         audioPublishers:
           type: integer
           description: >-
@@ -519,6 +520,15 @@ components:
           description: >-
             Number of participants that only subscribe, in addition to the
             subscribers implied by videoPublishers
+        publishersAlsoSubscribe:
+          type: boolean
+          default: true
+          description: >-
+            Whether each video publisher additionally counts as a subscriber,
+            which is how a real participant behaves. Set false to get exactly
+            the requested geometry, e.g. publishers with no subscribers at all
+            (otherwise unreachable, since N publishers always imply N
+            subscribers). Publishers still publish audio either way.
         numPerSecond:
           type: integer
           description: Number of testers to start every second (ramp)

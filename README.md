@@ -282,6 +282,28 @@ Video codec and layout configuration:
 | `videoCodec` | (random) | `h264` or `vp8`. If not specified, a codec will be selected randomly for each participant |
 | `simulcast` | `false` | Disabled by default; set to `true` to opt in |
 | `layout` | `5x5` | **Subscribers only.** Controls how subscriber video is laid out. Determines maximum concurrent subscribers and, if simulcast is enabled, the resolution each subscriber receives |
+| `publishersAlsoSubscribe` | `true` | Whether every publisher also counts as a subscriber. Set to `false` for exactly the requested geometry—see [Room geometry in emulated mode](#room-geometry-in-emulated-mode) |
+
+#### Room geometry in emulated mode
+
+The topology describes what you want to simulate; it is worth knowing what actually reaches the server, because reports and platform metrics reflect the latter.
+
+`lk load-test` keeps publishers and subscribers as separate participants—a publisher never subscribes—so a room is filled as follows:
+
+```
+participants in room  = 2P + S
+inbound tracks        = P video + P audio
+subscriber count      = P + S
+tracks each subscriber receives = min(P, L) participants × 2 tracks
+                                  L = 6 / 9 / 16 / 25 for layout speaker / 3x3 / 4x4 / 5x5
+```
+
+where `P` is the requested publishers and `S` the requested subscribers. So `ONE_SESSION_NXN: "30"` with the default `5x5` layout puts 60 participants in the room: 30 publishing audio and video, and 30 subscribing to up to 25 publishers each.
+
+Two consequences:
+
+- **Subscribers never drop below the publisher count.** Set `publishersAlsoSubscribe: false` to get exactly the geometry you asked for, including a room of publishers with no subscribers at all. Publishers still publish both audio and video.
+- **`TEACHING` publishes audio.** Its second number is audio-only participants, which are requested as audio publishers *and* subscribers, so published track counts match the other browser modes. The audio-only side is therefore split across two sets of participants rather than one.
 
 **Layout options** (subscribers only):
 

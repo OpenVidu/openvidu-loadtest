@@ -195,6 +195,11 @@
                         "default": "5x5",
                         "description": "'emulated' browser only. Subscriber layout passed to 'lk load-test --layout'; determines the maximum number of concurrent subscribers and, with simulcast enabled, the resolution each subscriber receives (speaker: 1 at HIGH + 5 at LOW; 3x3: 9 at MEDIUM; 4x4: 16 at LOW; 5x5: 25 at LOW). Ignored for other browser values."
                     },
+                    "publishersAlsoSubscribe": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "'emulated' browser only. Whether every publisher also subscribes, mirroring how a real participant behaves. Set false to get exactly the requested geometry, for example publishers with no subscribers at all - useful to measure the cost of inbound media on its own. Publishers always publish both audio and video either way."
+                    },
                     "description": {
                         "type": "string",
                         "description": "Human-readable description of this test case"

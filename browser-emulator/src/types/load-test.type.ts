@@ -22,6 +22,12 @@ export interface LoadTestRunRequest {
 	simulcast?: boolean;
 	layout?: string;
 	/**
+	 * Whether each video publisher additionally counts as a subscriber, which is
+	 * how a real participant behaves. Defaults to true. Set false to get exactly
+	 * the requested geometry, e.g. publishers with no subscribers at all.
+	 */
+	publishersAlsoSubscribe?: boolean;
+	/**
 	 * Synthetic participant ids (e.g. "User1", "User2") assigned by the
 	 * controller to this chunk's publishers/subscribers, in order. Used to
 	 * index one webrtc-stats document per participant, matching the

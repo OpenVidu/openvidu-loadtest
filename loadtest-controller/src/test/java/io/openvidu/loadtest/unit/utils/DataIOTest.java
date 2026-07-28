@@ -221,6 +221,25 @@ class DataIOTest {
     }
 
     @Test
+    void publishersAlsoSubscribeDefaultsToTrue(@TempDir Path tempDir) throws IOException {
+        assertTrue(loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                """).isPublishersAlsoSubscribe());
+    }
+
+    @Test
+    void publishersAlsoSubscribeCanBeDisabled(@TempDir Path tempDir) throws IOException {
+        assertFalse(loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                    publishersAlsoSubscribe: false
+                """).isPublishersAlsoSubscribe());
+    }
+
+    @Test
     void testExportResults_writesResultsFile(@TempDir Path tempDir) throws IOException {
         when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn("nonexistent.yaml");
         when(loadTestConfig.getReportOutput()).thenReturn(Arrays.asList("txt")); // Only txt output

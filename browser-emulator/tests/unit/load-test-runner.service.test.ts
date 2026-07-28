@@ -222,6 +222,47 @@ describe('LoadTestRunnerService', () => {
 			expect(cmd[cmd.indexOf('--audio-publishers') + 1]).toBe('6');
 			expect(cmd[cmd.indexOf('--subscribers') + 1]).toBe('14');
 		});
+
+		it('still publishes audio for every video publisher when publishers do not subscribe', async () => {
+			await service.startLoadTest({
+				...baseRequest,
+				videoPublishers: 4,
+				subscribers: 0,
+				publishersAlsoSubscribe: false,
+			});
+			const cmd = getLaunchedCommand();
+
+			expect(cmd[cmd.indexOf('--video-publishers') + 1]).toBe('4');
+			// A publisher sends both kinds of media regardless of whether it subscribes
+			expect(cmd[cmd.indexOf('--audio-publishers') + 1]).toBe('4');
+			// A publish-only room is unreachable otherwise: N publishers would
+			// always come with N subscribers
+			expect(cmd).not.toContain('--subscribers');
+		});
+
+		it('keeps explicitly requested subscribers when publishers do not subscribe', async () => {
+			await service.startLoadTest({
+				...baseRequest,
+				videoPublishers: 4,
+				subscribers: 10,
+				publishersAlsoSubscribe: false,
+			});
+			const cmd = getLaunchedCommand();
+
+			expect(cmd[cmd.indexOf('--subscribers') + 1]).toBe('10');
+		});
+
+		it('mirrors subscribers when publishersAlsoSubscribe is explicitly true', async () => {
+			await service.startLoadTest({
+				...baseRequest,
+				videoPublishers: 4,
+				subscribers: 10,
+				publishersAlsoSubscribe: true,
+			});
+			const cmd = getLaunchedCommand();
+
+			expect(cmd[cmd.indexOf('--subscribers') + 1]).toBe('14');
+		});
 	});
 
 	describe('layout default', () => {

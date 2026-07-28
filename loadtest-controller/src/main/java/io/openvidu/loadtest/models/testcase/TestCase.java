@@ -22,6 +22,11 @@ public class TestCase {
     private String layout = "";
     /** Coarse quality preset `lk load-test` understands: low (180p), medium (360p) or high (720p). */
     private String emulatedResolution = "high";
+    /**
+     * Whether every publisher also subscribes, mirroring how a real participant
+     * behaves. Enabled by default; disable to get exactly the requested geometry.
+     */
+    private boolean publishersAlsoSubscribe = true;
 
     public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
             OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
@@ -56,6 +61,7 @@ public class TestCase {
         this.simulcast = testCase.simulcast;
         this.layout = testCase.layout;
         this.emulatedResolution = testCase.emulatedResolution;
+        this.publishersAlsoSubscribe = testCase.publishersAlsoSubscribe;
     }
 
     public boolean isNxN() {
@@ -247,6 +253,14 @@ public class TestCase {
 
     public void setEmulatedResolution(String emulatedResolution) {
         this.emulatedResolution = emulatedResolution;
+    }
+
+    public boolean isPublishersAlsoSubscribe() {
+        return publishersAlsoSubscribe;
+    }
+
+    public void setPublishersAlsoSubscribe(boolean publishersAlsoSubscribe) {
+        this.publishersAlsoSubscribe = publishersAlsoSubscribe;
     }
     @Override
     public String toString() {
