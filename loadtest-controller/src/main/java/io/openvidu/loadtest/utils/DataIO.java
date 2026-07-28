@@ -33,6 +33,9 @@ public class DataIO {
     private static final String DEFAULT_CONFIG = "config/config.yaml";
     private static final String CONFIG_ENV_VAR = "LOADTEST_CONFIG";
     private static final String TIMESTAMP_PATTERN = "yyyy-MM-dd_HH-mm-ss";
+    private static final String EMULATED_RESOLUTION_LOW = "low";
+    private static final String EMULATED_RESOLUTION_MEDIUM = "medium";
+    private static final String EMULATED_RESOLUTION_HIGH = "high";
 
     public static String generateTimestamp() {
         return new SimpleDateFormat(TIMESTAMP_PATTERN).format(new Date());
@@ -156,7 +159,42 @@ public class DataIO {
         testCase.setVideoCodec(parseVideoCodec(element));
         testCase.setSimulcast(parseSimulcast(element));
         testCase.setLayout(parseLayout(element));
+        testCase.setEmulatedResolution(parseEmulatedResolution(element));
         return testCase;
+    }
+
+    /**
+     * Resolution as {@code lk load-test} understands it: the coarse quality
+     * presets {@code low} (180p), {@code medium} (360p) and {@code high} (720p).
+     * Accepts those names directly, and maps pixel resolutions to the closest
+     * available preset. Emulated mode replays pre-encoded clips that stop at
+     * 720p, so 1080p is capped with a warning rather than silently downgraded.
+     */
+    private String parseEmulatedResolution(Map<String, Object> element) {
+        Object resolutionObj = element.get("resolution");
+        if (resolutionObj == null) {
+            return EMULATED_RESOLUTION_HIGH;
+        }
+        String resStr = resolutionObj.toString().trim();
+        if (resStr.equalsIgnoreCase(EMULATED_RESOLUTION_LOW)
+                || resStr.equalsIgnoreCase(EMULATED_RESOLUTION_MEDIUM)
+                || resStr.equalsIgnoreCase(EMULATED_RESOLUTION_HIGH)) {
+            return resStr.toLowerCase();
+        }
+        if (resStr.equals("640x480")) {
+            return EMULATED_RESOLUTION_MEDIUM;
+        }
+        if (resStr.equals("1280x720")) {
+            return EMULATED_RESOLUTION_HIGH;
+        }
+        if (resStr.equals("1920x1080")) {
+            log.warn("resolution '1920x1080' is not available with browser 'emulated' (its video clips stop at "
+                    + "720p); using 'high' (720p) instead. Use browser 'custom-emulated' or a real browser to "
+                    + "publish 1080p.");
+            return EMULATED_RESOLUTION_HIGH;
+        }
+        log.warn("Unrecognized resolution '{}'; using 'high' for browser 'emulated'.", resStr);
+        return EMULATED_RESOLUTION_HIGH;
     }
 
     private String parseVideoCodec(Map<String, Object> element) {
@@ -218,6 +256,12 @@ public class DataIO {
             return Resolution.HIGH;
         } else if (resStr.equalsIgnoreCase("1920x1080") || resStr.equalsIgnoreCase(Resolution.FULLHIGH.getValue())) {
             return Resolution.FULLHIGH;
+        }
+        if (!resStr.equals("640x480")) {
+            // The quality names low/medium/high only apply to browser 'emulated';
+            // a real browser needs a pixel resolution
+            log.warn("Unrecognized resolution '{}'; using 640x480. Valid values for real browsers and "
+                    + "'custom-emulated' are 640x480, 1280x720 and 1920x1080.", resStr);
         }
         return Resolution.MEDIUM;
     }

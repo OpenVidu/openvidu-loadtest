@@ -133,7 +133,7 @@
                     },
                     "resolution": {
                         "type": "string",
-                        "description": "Video resolution to force. For 'chrome'/'firefox'/'custom-emulated': pixel resolution (640x480, 1280x720, 1920x1080; default 640x480). For 'emulated': coarse quality (low, medium, high; default high)."
+                        "description": "Video resolution to force. For 'chrome'/'firefox'/'custom-emulated': pixel resolution (640x480, 1280x720, 1920x1080; default 640x480). For 'emulated': coarse quality (low = 180p, medium = 360p, high = 720p; default high). Emulated mode also accepts pixel resolutions and maps them to the closest preset (640x480 -> medium, 1280x720 -> high, 1920x1080 -> high, since its video clips stop at 720p)."
                     },
                     "frameRate": {
                         "type": "integer",
@@ -218,7 +218,10 @@
                                     "enum": [
                                         "low",
                                         "medium",
-                                        "high"
+                                        "high",
+                                        "640x480",
+                                        "1280x720",
+                                        "1920x1080"
                                     ],
                                     "default": "high"
                                 }

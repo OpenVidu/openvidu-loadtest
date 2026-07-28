@@ -20,6 +20,8 @@ public class TestCase {
     private String videoCodec = "";
     private boolean simulcast = false;
     private String layout = "";
+    /** Coarse quality preset `lk load-test` understands: low (180p), medium (360p) or high (720p). */
+    private String emulatedResolution = "high";
 
     public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
             OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
@@ -53,6 +55,7 @@ public class TestCase {
         this.videoCodec = testCase.videoCodec;
         this.simulcast = testCase.simulcast;
         this.layout = testCase.layout;
+        this.emulatedResolution = testCase.emulatedResolution;
     }
 
     public boolean isNxN() {
@@ -237,6 +240,14 @@ public class TestCase {
         this.layout = layout;
     }
 
+    /** Quality preset sent to {@code lk load-test}: {@code low}, {@code medium} or {@code high}. */
+    public String getEmulatedResolution() {
+        return emulatedResolution;
+    }
+
+    public void setEmulatedResolution(String emulatedResolution) {
+        this.emulatedResolution = emulatedResolution;
+    }
     @Override
     public String toString() {
         // @formatter:off

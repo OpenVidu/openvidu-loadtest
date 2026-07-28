@@ -6,7 +6,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import io.openvidu.loadtest.config.modules.LKLoadTestConfig;
-import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.TestCase;
 
 /**
@@ -38,20 +37,11 @@ public class LoadTestRunRequestBody {
         this.videoPublishers = videoPublishers;
         this.audioPublishers = audioPublishers;
         this.subscribers = subscribers;
-        this.videoResolution = mapResolution(testCase.getResolution());
+        this.videoResolution = testCase.getEmulatedResolution();
         this.videoCodec = testCase.getVideoCodec();
         this.simulcast = testCase.isSimulcast();
         this.layout = testCase.getLayout();
         this.participantIds = participantIds;
-    }
-
-    private static String mapResolution(Resolution resolution) {
-        if (resolution == Resolution.FULLHIGH) {
-            return "high";
-        } else if (resolution == Resolution.HIGH) {
-            return "medium";
-        }
-        return "low";
     }
 
     public JsonObject toJson() {

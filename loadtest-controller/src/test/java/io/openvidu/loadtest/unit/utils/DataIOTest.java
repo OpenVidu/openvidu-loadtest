@@ -161,6 +161,65 @@ class DataIOTest {
         assertEquals("4x4", tc.getLayout());
     }
 
+    /** Loads a single test case from an inline testcases YAML snippet. */
+    private TestCase loadSingleTestCase(Path tempDir, String testCaseYaml) throws IOException {
+        Path cfg = tempDir.resolve("config.yaml");
+        Files.writeString(cfg, "testcases:\n" + testCaseYaml);
+        when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn(cfg.toString());
+        List<TestCase> cases = dataIO.getTestCasesFromJSON();
+        assertEquals(1, cases.size(), "Should load one test case");
+        return cases.get(0);
+    }
+
+    @Test
+    void emulatedResolutionAcceptsTheDocumentedQualityNames(@TempDir Path tempDir) throws IOException {
+        TestCase low = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                    resolution: low
+                """);
+
+        assertEquals("low", low.getEmulatedResolution());
+    }
+
+    @Test
+    void emulatedResolutionMapsPixelResolutionsToTheClosestPreset(@TempDir Path tempDir) throws IOException {
+        assertEquals("medium", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                    resolution: 640x480
+                """).getEmulatedResolution());
+
+        assertEquals("high", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                    resolution: 1280x720
+                """).getEmulatedResolution());
+    }
+
+    @Test
+    void emulatedResolutionCaps1080pAtTheHighestAvailablePreset(@TempDir Path tempDir) throws IOException {
+        // Emulated mode replays clips that stop at 720p
+        assertEquals("high", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                    resolution: 1920x1080
+                """).getEmulatedResolution());
+    }
+
+    @Test
+    void emulatedResolutionDefaultsToHigh(@TempDir Path tempDir) throws IOException {
+        assertEquals("high", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                """).getEmulatedResolution());
+    }
+
     @Test
     void testExportResults_writesResultsFile(@TempDir Path tempDir) throws IOException {
         when(env.getProperty(eq("LOADTEST_CONFIG"), anyString())).thenReturn("nonexistent.yaml");

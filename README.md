@@ -262,7 +262,7 @@ Most settings work the same as other browsers:
 | `topology` | `N:N`, `N:M`, `TEACHING`, `ONE_SESSION_NXN`, `ONE_SESSION_NXM` all work the same |
 | `participants`, `sessions` | Same meaning—number of rooms and participants per room |
 | `distribution.usersPerWorker` | Controls how many participants are grouped together per test run |
-| `resolution` | Mapped to `low` (180p), `medium` (360p), or `high` (720p) |
+| `resolution` | `low` (180p @ 15fps), `medium` (360p @ 20fps) or `high` (720p @ 30fps), defaulting to `high`. Pixel resolutions are accepted too and map to the closest preset: `640x480`→`medium`, `1280x720`→`high`, `1920x1080`→`high` (the built-in clips stop at 720p; use `custom-emulated` or a real browser for 1080p) |
 
 **Publishers also subscribe, just like other browsers:** in a `"100:50"` configuration, the 100 publishers each publish both audio and video *and* subscribe to other participants, on top of the 50 dedicated subscribers—matching how a publisher behaves with `chrome`/`firefox`/`custom-emulated`.
 
