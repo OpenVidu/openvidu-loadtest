@@ -274,21 +274,23 @@ class ElasticSearchClientTest {
         when(loadTestConfig.getElasticsearchHost()).thenReturn("http://localhost:9200");
 
         StringTermsBucket caddy = stringBucket("caddy", 90, Map.of(
-                "cpu_avg", avg(0.10), "cpu_max", max(0.20), "mem_avg", avg(52428800.0)));
+                "cpu_avg", avg(0.10), "cpu_max", max(0.20), "cpu_samples", valueCount(90), "mem_avg", avg(52428800.0)));
         StringTermsBucket openviduServer = stringBucket("openvidu-server", 90, Map.of(
-                "cpu_avg", avg(2.50), "cpu_max", max(3.10), "mem_avg", avg(1073741824.0)));
+                "cpu_avg", avg(2.50), "cpu_max", max(3.10), "cpu_samples", valueCount(90), "mem_avg", avg(1073741824.0)));
         SearchResponse<Void> containerResponse = searchResponse(termsAggregate(
                 stringBucket("medianode_1", 90, Map.of("containers", termsAggregate(caddy, openviduServer)))));
 
         SearchResponse<Void> nodeResponse = searchResponse(termsAggregate(
                 stringBucket("masternode_1", 180, Map.of(
                         "role", terms("masternode"),
+                        "cpu_samples", valueCount(180),
                         "cpu_avg", avg(0.05),
                         "cpu_max", max(0.11),
                         "mem_avg", avg(0.30),
                         "mem_max", max(0.35))),
                 stringBucket("medianode_1", 180, Map.of(
                         "role", terms("medianode"),
+                        "cpu_samples", valueCount(180),
                         "cpu_avg", avg(0.6789),
                         "cpu_max", max(0.9),
                         "mem_avg", avg(0.42),
@@ -338,12 +340,15 @@ class ElasticSearchClientTest {
         SearchResponse<Void> nodeResponse = searchResponse(termsAggregate(
                 stringBucket("medianode_1", 12, Map.of(
                         "role", terms("medianode"),
+                        "cpu_samples", valueCount(12),
                         "cpu_avg", avg(0.5),
                         "cpu_max", max(0.5),
                         "mem_avg", avg(0.1),
                         "mem_max", max(0.1)))));
 
-        List<SearchResponse<Void>> responses = new ArrayList<>(List.of(emptyContainers, nodeResponse));
+        // Both container name spellings are tried before giving up on containers
+        List<SearchResponse<Void>> responses = new ArrayList<>(
+                List.of(emptyContainers, emptyContainers, nodeResponse));
         ElasticsearchClient mockClient = mock(ElasticsearchClient.class, invocation -> {
             if ("search".equals(invocation.getMethod().getName())) {
                 return responses.remove(0);
@@ -359,6 +364,46 @@ class ElasticSearchClientTest {
         assertEquals(1, nodes.size());
         assertEquals(50.0, nodes.get(0).getCpuAvgPct(), 0.001);
         assertTrue(nodes.get(0).getContainers().isEmpty());
+    }
+
+    @Test
+    void collectNodeMetrics_fallsBackToTheMetricbeat7ContainerNameField() throws Exception {
+        when(loadTestConfig.getElasticsearchHost()).thenReturn("http://localhost:9200");
+
+        // Metricbeat 8+ reports container.name; Metricbeat 7 reported
+        // docker.container.name, so the first query finds nothing on a 7.x node
+        SearchResponse<Void> noEcsContainers = searchResponse(termsAggregate());
+        SearchResponse<Void> legacyContainers = searchResponse(termsAggregate(
+                stringBucket("medianode_1", 30, Map.of("containers", termsAggregate(
+                        stringBucket("openvidu-server", 30, Map.of(
+                                "cpu_avg", avg(1.25), "cpu_max", max(1.9), "cpu_samples", valueCount(30), "mem_avg", avg(536870912.0))))))));
+        SearchResponse<Void> nodeResponse = searchResponse(termsAggregate(
+                stringBucket("medianode_1", 30, Map.of(
+                        "role", terms("medianode"),
+                        "cpu_samples", valueCount(30),
+                        "cpu_avg", avg(0.4),
+                        "cpu_max", max(0.6),
+                        "mem_avg", avg(0.2),
+                        "mem_max", max(0.25)))));
+
+        List<SearchResponse<Void>> responses = new ArrayList<>(
+                List.of(noEcsContainers, legacyContainers, nodeResponse));
+        ElasticsearchClient mockClient = mock(ElasticsearchClient.class, invocation -> {
+            if ("search".equals(invocation.getMethod().getName())) {
+                return responses.remove(0);
+            }
+            return null;
+        });
+        setPrivateField(esClientUnderTest, "client", mockClient);
+        setPrivateField(esClientUnderTest, "initialized", true);
+
+        List<NodeMetrics> nodes = esClientUnderTest.collectNodeMetrics("2026-07-01T10:00:00Z",
+                "2026-07-01T10:20:00Z");
+
+        assertEquals(1, nodes.size());
+        assertEquals(1, nodes.get(0).getContainers().size());
+        assertEquals("openvidu-server", nodes.get(0).getContainers().get(0).name());
+        assertEquals(1.25, nodes.get(0).getContainers().get(0).cpuAvgCores(), 0.001);
     }
 
     private static SearchResponse<Void> searchResponse(Aggregate nodesAggregate) {
@@ -385,6 +430,10 @@ class ElasticSearchClientTest {
     private static Aggregate terms(String key) {
         return Aggregate.of(a -> a.sterms(t -> t.buckets(b -> b.array(
                 List.of(StringTermsBucket.of(bb -> bb.key(FieldValue.of(key)).docCount(1)))))));
+    }
+
+    private static Aggregate valueCount(long count) {
+        return Aggregate.of(a -> a.valueCount(vc -> vc.value((double) count)));
     }
 
     private static Aggregate avg(double value) {

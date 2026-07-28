@@ -15,13 +15,13 @@ Two Metricbeat modules are enabled:
 
 The `docker` module matters when a node runs more than one CPU-hungry service. On a media node, `openvidu-server` (the SFU) and the Egress service share the same host, so host CPU alone cannot tell you how much a recording costs versus how much the media routing costs. Useful fields:
 
-| Field                     | Meaning                                                                       |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| `system.cpu.total.norm.pct` | Whole-node CPU, normalized to `0..1` regardless of core count                |
-| `docker.cpu.total.pct`    | Container CPU in cores (`2.0` means the container is using two full cores)     |
-| `docker.cpu.total.norm.pct` | Same, normalized by the host's core count                                    |
-| `docker.container.name`   | Container name, to group by service                                           |
-| `docker.memory.usage.total` | Container memory in bytes                                                    |
+| Field                       | Meaning                                                                     |
+| --------------------------- | --------------------------------------------------------------------------- |
+| `system.cpu.total.norm.pct` | Whole-node CPU, normalized to `0..1` regardless of core count               |
+| `docker.cpu.total.pct`      | Container CPU in cores (`2.0` means the container is using two full cores)   |
+| `docker.cpu.total.norm.pct` | Same, normalized by the host's core count                                   |
+| `container.name`            | Container name, to group by service (`docker.container.name` on Metricbeat 7) |
+| `docker.memory.usage.total` | Container memory in bytes                                                   |
 
 ## Configuration Variables
 
@@ -66,9 +66,12 @@ docker run -d \
   -e ELASTICSEARCH_HOSTNAME=http://elasticsearch.example.com:9200 \
   -e ELASTICSEARCH_USERNAME=elastic \
   -e ELASTICSEARCH_PASSWORD=changeme \
-  docker.elastic.co/beats/metricbeat-oss:7.12.0 \
-  /bin/bash -c "metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs"
+  docker.elastic.co/beats/metricbeat:9.4.2 \
+  metricbeat -e --strict.perms=false --system.hostfs=/hostfs
 ```
+
+> [!NOTE]
+> Use a Metricbeat version matching your Elasticsearch (9.x, see [Monitoring](../README.md#monitoring)). Metricbeat 7 and 8 also work, but 7 spells the container name field `docker.container.name` instead of `container.name`; the loadtest controller reads either.
 
 What each argument does:
 
@@ -76,7 +79,7 @@ What each argument does:
 - `-u root`: required so Metricbeat can read the bind-mounted host paths.
 - `-v /var/run/docker.sock:/var/run/docker.sock`, `-v ~/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro`, `-v /proc:/hostfs/proc:ro`, `-v /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro`, `-v /:/hostfs:ro`: the same bind mounts used by the browser-emulator. They expose the host's Docker socket, the configuration file, and the host's proc, cgroup and root filesystems (under `/hostfs`), so Metricbeat can collect system-level metrics from the underlying host.
 - `-e NODE_TYPE`, `-e NODE_ID`, `-e ELASTICSEARCH_HOSTNAME`, `-e ELASTICSEARCH_USERNAME`, `-e ELASTICSEARCH_PASSWORD`: inject the values defined in [Configuration Variables](#configuration-variables).
-- `/bin/bash -c "metricbeat -e -strict.perms=false -e -system.hostfs=/hostfs"`: the same entrypoint used by the browser-emulator. The `-e` flag enables verbose logging, `-strict.perms=false` avoids permission warnings on the rendered config, the second `-e` is kept for parity with the browser-emulator command, and `-system.hostfs=/hostfs` tells the `system` module to read host metrics from the bind-mounted paths.
+- `metricbeat -e --strict.perms=false --system.hostfs=/hostfs`: `-e` logs to stderr, `--strict.perms=false` avoids permission warnings on the bind-mounted configuration file, and `--system.hostfs=/hostfs` tells the `system` module to read host metrics from the bind-mounted paths.
 
 ### 3. Verify the metrics are reaching Elasticsearch
 

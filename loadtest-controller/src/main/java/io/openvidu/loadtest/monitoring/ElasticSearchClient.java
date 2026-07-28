@@ -59,6 +59,17 @@ public class ElasticSearchClient {
     /** Custom Metricbeat fields set by server-resources/metricbeat-configs/metricbeat.yml */
     private static final String NODE_NAME_FIELD = "fields.worker_name";
     private static final String NODE_ROLE_FIELD = "fields.node_role";
+    /**
+     * Container name as Metricbeat 8 and later report it (ECS), then as
+     * Metricbeat 7 did, so either version can be used on the OpenVidu nodes.
+     */
+    private static final List<String> CONTAINER_NAME_FIELDS = List.of("container.name", "docker.container.name");
+    /** Container CPU in cores: 2.0 means the container is using two full cores. */
+    private static final String CONTAINER_CPU_FIELD = "docker.cpu.total.pct";
+    private static final String CONTAINER_MEMORY_FIELD = "docker.memory.usage.total";
+    /** Whole-node CPU, normalized to 0..1 regardless of how many cores the node has. */
+    private static final String NODE_CPU_FIELD = "system.cpu.total.norm.pct";
+    private static final String NODE_MEMORY_FIELD = "system.memory.actual.used.pct";
     private static final int MAX_NODES = 100;
     private static final int MAX_ROLES = 5;
     private static final int MAX_CONTAINERS = 30;
@@ -227,32 +238,41 @@ public class ElasticSearchClient {
 
         try {
             Map<String, List<ContainerMetrics>> containersByNode = collectContainerMetrics(startTime, endTime);
+            // Metricbeat emits one document per metricset, so a CPU sample carries no
+            // memory field and vice versa. The query must not filter on one of them,
+            // or the other averages over zero documents; each aggregation already
+            // ignores the documents that don't carry its field.
             SearchResponse<Void> response = this.client.search(s -> s
                     .index(METRICBEAT_INDEX)
                     .size(0)
                     .query(q -> q.bool(b -> b
                             .filter(f -> f.range(r -> r.date(d -> d.field(TIMESTAMP_FIELD)
-                                    .gte(startTime).lte(endTime))))
-                            .filter(f -> f.exists(e -> e.field("system.cpu.total.norm.pct")))))
+                                    .gte(startTime).lte(endTime))))))
                     .aggregations("nodes", a -> a
                             .terms(t -> t.field(NODE_NAME_FIELD).size(MAX_NODES))
                             .aggregations("role", sa -> sa.terms(t -> t.field(NODE_ROLE_FIELD).size(MAX_ROLES)))
-                            .aggregations("cpu_avg", sa -> sa.avg(av -> av.field("system.cpu.total.norm.pct")))
-                            .aggregations("cpu_max", sa -> sa.max(mx -> mx.field("system.cpu.total.norm.pct")))
-                            .aggregations("mem_avg", sa -> sa.avg(av -> av.field("system.memory.actual.used.pct")))
-                            .aggregations("mem_max", sa -> sa.max(mx -> mx.field("system.memory.actual.used.pct")))),
+                            .aggregations("cpu_avg", sa -> sa.avg(av -> av.field(NODE_CPU_FIELD)))
+                            .aggregations("cpu_max", sa -> sa.max(mx -> mx.field(NODE_CPU_FIELD)))
+                            .aggregations("cpu_samples", sa -> sa.valueCount(vc -> vc.field(NODE_CPU_FIELD)))
+                            .aggregations("mem_avg", sa -> sa.avg(av -> av.field(NODE_MEMORY_FIELD)))
+                            .aggregations("mem_max", sa -> sa.max(mx -> mx.field(NODE_MEMORY_FIELD)))),
                     Void.class);
 
             List<NodeMetrics> nodes = new ArrayList<>();
             for (StringTermsBucket bucket : response.aggregations().get("nodes").sterms().buckets().array()) {
                 String nodeName = bucket.key().stringValue();
                 String nodeRole = firstTermKey(bucket.aggregations().get("role"));
+                long cpuSamples = (long) orZero(bucket.aggregations().get("cpu_samples").valueCount().value());
+                if (cpuSamples == 0) {
+                    // Documents from this node, but no CPU among them
+                    continue;
+                }
                 nodes.add(new NodeMetrics(nodeName, nodeRole,
                         toPercentage(bucket.aggregations().get("cpu_avg").avg().value()),
                         toPercentage(bucket.aggregations().get("cpu_max").max().value()),
                         toPercentage(bucket.aggregations().get("mem_avg").avg().value()),
                         toPercentage(bucket.aggregations().get("mem_max").max().value()),
-                        bucket.docCount(),
+                        cpuSamples,
                         containersByNode.getOrDefault(nodeName, List.of())));
             }
             // Media nodes first, then alphabetically, so the busiest role leads the report
@@ -274,24 +294,44 @@ public class ElasticSearchClient {
     /**
      * Per-container CPU/memory for the window, grouped by node. Returns an empty
      * map when the Metricbeat {@code docker} module isn't enabled on the nodes.
+     *
+     * <p>
+     * Metricbeat renamed the container name field when it adopted ECS, so both
+     * spellings are tried: {@code container.name} (Metricbeat 8 and later) and
+     * {@code docker.container.name} (Metricbeat 7).
      */
     private Map<String, List<ContainerMetrics>> collectContainerMetrics(String startTime, String endTime) {
+        for (String containerNameField : CONTAINER_NAME_FIELDS) {
+            Map<String, List<ContainerMetrics>> containersByNode = collectContainerMetrics(startTime, endTime,
+                    containerNameField);
+            if (!containersByNode.isEmpty()) {
+                return containersByNode;
+            }
+        }
+        log.info("Per-container metrics not available. Enable the Metricbeat 'docker' module on the OpenVidu "
+                + "nodes to attribute a node's CPU to individual services.");
+        return Map.of();
+    }
+
+    private Map<String, List<ContainerMetrics>> collectContainerMetrics(String startTime, String endTime,
+            String containerNameField) {
         try {
             SearchResponse<Void> response = this.client.search(s -> s
                     .index(METRICBEAT_INDEX)
                     .size(0)
                     .query(q -> q.bool(b -> b
                             .filter(f -> f.range(r -> r.date(d -> d.field(TIMESTAMP_FIELD)
-                                    .gte(startTime).lte(endTime))))
-                            .filter(f -> f.exists(e -> e.field("docker.cpu.total.pct")))))
+                                    .gte(startTime).lte(endTime))))))
                     .aggregations("nodes", a -> a
                             .terms(t -> t.field(NODE_NAME_FIELD).size(MAX_NODES))
                             .aggregations("containers", sa -> sa
-                                    .terms(t -> t.field("docker.container.name").size(MAX_CONTAINERS))
-                                    .aggregations("cpu_avg", ca -> ca.avg(av -> av.field("docker.cpu.total.pct")))
-                                    .aggregations("cpu_max", ca -> ca.max(mx -> mx.field("docker.cpu.total.pct")))
+                                    .terms(t -> t.field(containerNameField).size(MAX_CONTAINERS))
+                                    .aggregations("cpu_avg", ca -> ca.avg(av -> av.field(CONTAINER_CPU_FIELD)))
+                                    .aggregations("cpu_max", ca -> ca.max(mx -> mx.field(CONTAINER_CPU_FIELD)))
+                                    .aggregations("cpu_samples",
+                                            ca -> ca.valueCount(vc -> vc.field(CONTAINER_CPU_FIELD)))
                                     .aggregations("mem_avg",
-                                            ca -> ca.avg(av -> av.field("docker.memory.usage.total"))))),
+                                            ca -> ca.avg(av -> av.field(CONTAINER_MEMORY_FIELD))))),
                     Void.class);
 
             Map<String, List<ContainerMetrics>> containersByNode = new HashMap<>();
@@ -299,18 +339,22 @@ public class ElasticSearchClient {
                 List<ContainerMetrics> containers = new ArrayList<>();
                 for (StringTermsBucket containerBucket : nodeBucket.aggregations().get("containers").sterms()
                         .buckets().array()) {
+                    if (containerBucket.aggregations().get("cpu_samples").valueCount().value() == 0) {
+                        continue;
+                    }
                     containers.add(new ContainerMetrics(containerBucket.key().stringValue(),
                             orZero(containerBucket.aggregations().get("cpu_avg").avg().value()),
                             orZero(containerBucket.aggregations().get("cpu_max").max().value()),
                             orZero(containerBucket.aggregations().get("mem_avg").avg().value())));
                 }
                 containers.sort(Comparator.comparingDouble(ContainerMetrics::cpuAvgCores).reversed());
-                containersByNode.put(nodeBucket.key().stringValue(), containers);
+                if (!containers.isEmpty()) {
+                    containersByNode.put(nodeBucket.key().stringValue(), containers);
+                }
             }
             return containersByNode;
         } catch (Exception e) {
-            log.info("Per-container metrics not available ({}). Enable the Metricbeat 'docker' module on the "
-                    + "OpenVidu nodes to attribute a node's CPU to individual services.", e.getMessage());
+            log.debug("Per-container metrics query on '{}' failed: {}", containerNameField, e.getMessage());
             return Map.of();
         }
     }
