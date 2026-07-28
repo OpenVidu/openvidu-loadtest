@@ -1,6 +1,6 @@
 {
 	"name": "browser-emulator",
-	"version": "4.1.0",
+	"version": "5.0.1",
 	"description": "Load testing tool for OpenVidu",
 	"main": "server.ts",
 	"engines": {
