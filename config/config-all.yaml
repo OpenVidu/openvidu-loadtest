@@ -88,6 +88,28 @@ testcases:
     publishersAlsoSubscribe: false
     description: "Publishers only, to measure inbound media on its own"
 
+  # Recordings run alongside the load, through the OpenVidu Egress service.
+  # They start once every participant is connected, run for the whole
+  # session.secondsBeforeTestFinished hold, and are stopped before the report
+  # is written. See README.md "Recording" section.
+  - topology: N:N
+    participants:
+      - "8"
+    sessions: 8
+    browser: emulated
+    egress:
+      # ROOM_COMPOSITE | PARTICIPANT | TRACK_COMPOSITE | TRACK
+      type: ROOM_COMPOSITE
+      rooms: 4 # 0 (default) records every room
+      jobsPerRoom: 1 # ignored for ROOM_COMPOSITE
+      startAfterSeconds: 120
+      preset: H264_720P_30
+      layout: grid
+      audioOnly: false
+      fileType: MP4
+      filePrefix: loadtest
+    description: "8 rooms of 8, recording 4 of them"
+
 # ---------- Workers ----------
 workers:
   urls: 

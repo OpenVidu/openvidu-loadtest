@@ -29,6 +29,7 @@ import com.samskivert.mustache.Template;
 import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
+import io.openvidu.loadtest.models.testcase.EgressJob;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
@@ -127,6 +128,28 @@ public class HtmlReportGenerator {
             rows.add(objectRow("worker", safeString(worker), "avgCpu", avgFormatted,
                     "maxCpu", maxFormatted, "avgCpuColor", getCpuColorClass(avg), "maxCpuColor", getCpuColorClass(max),
                     "isAllWorkers", isAllWorkers));
+        }
+        return rows;
+    }
+
+    /** One row per recording that ran during the test case. */
+    private List<Map<String, Object>> buildEgressRows(List<EgressJob> jobs) {
+        if (jobs == null || jobs.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (EgressJob job : jobs) {
+            String status = job.isStarted() ? "Recorded" : "Failed";
+            rows.add(objectRow("type", job.getType().getValue(),
+                    "room", safeString(job.getRoom()),
+                    "target", job.getTarget().isEmpty() ? "-" : job.getTarget(),
+                    "egressId", job.isStarted() ? job.getEgressId() : "-",
+                    "startedAt", job.getStartedAt() != null ? formatDate(job.getStartedAt()) : "-",
+                    "duration", job.isStarted() ? job.getDurationSeconds() + "s" : "-",
+                    "status", status,
+                    "failed", !job.isStarted(),
+                    "error", safeString(job.getError())));
         }
         return rows;
     }
@@ -620,6 +643,12 @@ public class HtmlReportGenerator {
         List<Map<String, Object>> nodeMetricRows = buildNodeMetricRows(result.getNodeMetrics());
         ctx.put("hasNodeMetrics", !nodeMetricRows.isEmpty());
         ctx.put("nodeMetricRows", nodeMetricRows);
+
+        List<Map<String, Object>> egressRows = buildEgressRows(result.getEgressJobs());
+        ctx.put("hasEgressRows", !egressRows.isEmpty());
+        ctx.put("egressRows", egressRows);
+        ctx.put("egressCount", egressRows.size());
+
         List<Map<String, Object>> userRows = buildUserRows(result);
         ctx.put("hasUsers", !userRows.isEmpty());
         ctx.put("userRows", userRows);

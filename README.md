@@ -324,7 +324,7 @@ The following configuration options are ignored in emulated mode because the tes
 
 - Custom video/audio sources: `video.type`, `video.customVideoUrl`, `video.customAudioUrl`
 - `frameRate` — the synthetic clip has a fixed frame rate
-- `recordingMode`, `browserRecording` — recording not supported
+- `recordingMode`, `browserRecording` — worker-side recording not supported. Server-side recording works in every mode, see [Recording](#recording)
 - `headlessBrowser`, `showBrowserVideoElements` — not applicable to synthetic test runs
 - QoE recording and analysis — not supported
 
@@ -365,6 +365,50 @@ Unlike `emulated`, custom-emulated honors these settings, matching real browsers
 - No per-user WebRTC stats
 
 Reports in custom-emulated mode focus on room/session-level metrics, like in `emulated` mode, rather than per-user details such as individual CPU usage or detailed WebRTC stats.
+
+### Recording
+
+A test case can record its rooms while the load runs, using the OpenVidu Egress service. Recording is a server-side operation, so it works with any `browser` value, including `emulated`. It requires an OpenVidu 3 (LiveKit) deployment with Egress running.
+
+```yaml
+testcases:
+  - topology: N:N
+    participants: ["8"]
+    sessions: 8
+    browser: emulated
+    egress:
+      type: ROOM_COMPOSITE
+      rooms: 4 # record 4 of the 8 rooms
+      startAfterSeconds: 120
+      preset: H264_720P_30
+```
+
+Recordings start once every participant of the test case is connected, run for the whole `session.secondsBeforeTestFinished` hold, and are stopped before the results report is written. The report lists every recording with its egress id and how long it ran, so the report always covers a known number of recordings over a known window.
+
+| Property            | Required | Default    | Description                                                                                                                                     |
+| ------------------- | -------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`              | **Yes**  | -          | `ROOM_COMPOSITE`, `PARTICIPANT`, `TRACK_COMPOSITE` or `TRACK`                                                                                     |
+| `rooms`             | No       | `0`        | How many of the test's rooms to record. `0` records every room                                                                                    |
+| `jobsPerRoom`       | No       | `1`        | Recordings per room. Ignored for `ROOM_COMPOSITE`, which produces one output per room. For `TRACK`, each participant contributes one job per track |
+| `startAfterSeconds` | No       | `0`        | Seconds to wait after the room is full before recording, leaving a stretch of the same load without recordings to compare against                  |
+| `preset`            | No       | -          | Egress encoding preset, e.g. `H264_720P_30` or `H264_1080P_30`. Ignored for `TRACK`, which does not transcode                                      |
+| `layout`            | No       | `grid`     | `ROOM_COMPOSITE` layout, e.g. `grid` or `speaker`                                                                                                 |
+| `audioOnly`         | No       | `false`    | Record audio only                                                                                                                                 |
+| `fileType`          | No       | -          | `MP4` or `OGG`. Omit for the Egress default                                                                                                       |
+| `filePrefix`        | No       | `loadtest` | Prefix for output file paths                                                                                                                      |
+
+**Recording types differ enormously in cost.** Only some of them transcode, which matters when sizing a deployment:
+
+| Type              | What it produces                                                     | Cost                                                              |
+| ----------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `ROOM_COMPOSITE`  | One file with every track of the room composited into a layout       | Highest: runs a headless browser plus an encoder per recording     |
+| `PARTICIPANT`     | One file per participant, with that participant's audio and video    | Transcodes, but no browser                                        |
+| `TRACK_COMPOSITE` | One file per participant from one audio and one video track          | Transcodes, but no browser                                        |
+| `TRACK`           | One file per track, written as it arrives                            | Lowest: no transcoding                                            |
+
+**Where recordings are written:** if the load test has a [`storage`](docs/advanced-options.md#storage-configuration) block, recordings are uploaded there. With no `storage` block, the Egress service writes to whatever storage the OpenVidu deployment itself is configured with.
+
+To measure what a recording costs the deployment, combine this with the per-container CPU that Metricbeat reports for the Egress service—see [Monitoring OpenVidu media and master nodes](docs/ov-monitoring.md).
 
 ### Choosing a Browser Type
 

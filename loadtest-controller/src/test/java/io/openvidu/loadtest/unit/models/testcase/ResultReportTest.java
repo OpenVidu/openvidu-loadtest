@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 
 import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
+import io.openvidu.loadtest.models.testcase.EgressJob;
+import io.openvidu.loadtest.models.testcase.EgressType;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 
 class ResultReportTest {
@@ -294,6 +296,41 @@ class ResultReportTest {
 
         assertFalse(resultReport.toString().contains("OpenVidu nodes resource usage"));
     }
+
+    @Test
+    void toStringReportsEachRecordingWithItsWindow() {
+        Calendar startedAt = Calendar.getInstance();
+        Calendar stoppedAt = (Calendar) startedAt.clone();
+        stoppedAt.add(Calendar.SECOND, 900);
+        EgressJob job = new EgressJob("EG_abc", EgressType.ROOM_COMPOSITE, "LoadTestSession1", "", startedAt);
+        job.setStoppedAt(stoppedAt);
+        withTimes(resultReport).setEgressJobs(List.of(job));
+
+        String toString = resultReport.toString();
+        assertTrue(toString.contains("Recordings:"), toString);
+        assertTrue(toString.contains("ROOM_COMPOSITE | room LoadTestSession1"), toString);
+        assertTrue(toString.contains("EG_abc"), toString);
+        assertTrue(toString.contains("duration 900s"), toString);
+    }
+
+    @Test
+    void toStringReportsARecordingThatFailedToStart() {
+        EgressJob failed = EgressJob.failed(EgressType.PARTICIPANT, "LoadTestSession1", "User1",
+                "egress service unavailable");
+        withTimes(resultReport).setEgressJobs(List.of(failed));
+
+        String toString = resultReport.toString();
+        assertTrue(toString.contains("NOT STARTED"), toString);
+        assertTrue(toString.contains("error: egress service unavailable"), toString);
+    }
+
+    @Test
+    void toStringOmitsRecordingSectionWhenNothingWasRecorded() {
+        withTimes(resultReport);
+
+        assertFalse(resultReport.toString().contains("Recordings:"));
+    }
+
     /** toString() needs start and end times to compute the test duration. */
     private ResultReport withTimes(ResultReport report) {
         Calendar startTime = Calendar.getInstance();

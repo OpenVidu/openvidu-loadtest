@@ -200,6 +200,72 @@
                         "default": true,
                         "description": "'emulated' browser only. Whether every publisher also subscribes, mirroring how a real participant behaves. Set false to get exactly the requested geometry, for example publishers with no subscribers at all - useful to measure the cost of inbound media on its own. Publishers always publish both audio and video either way."
                     },
+                    "egress": {
+                        "type": "object",
+                        "title": "Recording",
+                        "description": "Recordings to run alongside this test case's load, through the OpenVidu Egress service (requires a LiveKit platform). Recordings start once every participant is connected, run for the whole 'session.secondsBeforeTestFinished' hold, and are stopped before the results report is written, so the report covers a known number of recordings running for a known window.",
+                        "required": [
+                            "type"
+                        ],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "ROOM_COMPOSITE",
+                                    "PARTICIPANT",
+                                    "TRACK_COMPOSITE",
+                                    "TRACK"
+                                ],
+                                "description": "Kind of recording. ROOM_COMPOSITE composites every track of a room into one file (most expensive: it runs a browser and an encoder). PARTICIPANT records one participant's audio and video into one file. TRACK_COMPOSITE combines one audio and one video track. TRACK writes a single track out without transcoding (cheapest)."
+                            },
+                            "rooms": {
+                                "type": "integer",
+                                "default": 0,
+                                "minimum": 0,
+                                "description": "How many of the test's rooms to record. 0 records every room."
+                            },
+                            "jobsPerRoom": {
+                                "type": "integer",
+                                "default": 1,
+                                "minimum": 1,
+                                "description": "Recordings to start per room. Ignored for ROOM_COMPOSITE, which produces a single output for the whole room. For TRACK, each participant contributes one job per track."
+                            },
+                            "startAfterSeconds": {
+                                "type": "integer",
+                                "default": 0,
+                                "minimum": 0,
+                                "description": "Seconds to wait after the room is full before starting to record, to leave a stretch of the same load without recordings to compare against"
+                            },
+                            "preset": {
+                                "type": "string",
+                                "description": "Egress encoding preset, e.g. H264_720P_30 or H264_1080P_30. Omit to use the Egress default. Ignored for TRACK, which does not transcode."
+                            },
+                            "layout": {
+                                "type": "string",
+                                "default": "grid",
+                                "description": "ROOM_COMPOSITE layout, e.g. grid or speaker"
+                            },
+                            "audioOnly": {
+                                "type": "boolean",
+                                "default": false,
+                                "description": "Record audio only, skipping video"
+                            },
+                            "fileType": {
+                                "type": "string",
+                                "enum": [
+                                    "MP4",
+                                    "OGG"
+                                ],
+                                "description": "Output container. Omit to use the Egress default."
+                            },
+                            "filePrefix": {
+                                "type": "string",
+                                "default": "loadtest",
+                                "description": "Prefix for output file paths, so recordings of different runs can be told apart"
+                            }
+                        },
+                        "additionalProperties": false
+                    },
                     "description": {
                         "type": "string",
                         "description": "Human-readable description of this test case"

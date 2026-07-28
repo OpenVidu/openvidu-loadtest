@@ -30,6 +30,7 @@ import io.openvidu.loadtest.monitoring.GrafanaPrometheusClient;
 import io.openvidu.loadtest.monitoring.KibanaClient;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
 import io.openvidu.loadtest.services.Ec2Client;
+import io.openvidu.loadtest.services.LiveKitEgressClient;
 import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.services.WebSocketConnectionFactory;
@@ -60,6 +61,7 @@ public class LoadTestService {
     private final LoadTestParticipantOrchestrator participantOrchestrator;
     private final LoadTestModeOrchestrator loadTestModeOrchestrator;
     private final LoadTestTopologyOrchestrator topologyOrchestrator;
+    private final LoadTestEgressOrchestrator egressOrchestrator;
 
     private DataIO io;
     private String timestamp;
@@ -80,7 +82,7 @@ public class LoadTestService {
             KibanaClient kibanaClient, ElasticSearchClient esClient, GrafanaPrometheusClient grafanaClient,
             Ec2Client ec2Client,
             WebSocketConnectionFactory webSocketConnectionFactory, DataIO dataIO, Sleeper sleeper,
-            WorkerUrlResolver workerUrlResolver) {
+            WorkerUrlResolver workerUrlResolver, LiveKitEgressClient egressClient) {
         this.browserEmulatorClient = browserEmulatorClient;
         this.loadTestConfig = loadTestConfig;
         this.kibanaClient = kibanaClient;
@@ -103,6 +105,7 @@ public class LoadTestService {
                 this.participantOrchestrator);
         this.topologyOrchestrator = new LoadTestTopologyOrchestrator(this, loadTestConfig, kibanaClient,
                 browserEmulatorClient, workerUrlResolver, dataIO, loadTestModeOrchestrator);
+        this.egressOrchestrator = new LoadTestEgressOrchestrator(egressClient, sleeper);
 
         prodMode = loadTestConfig.getWorkerUrlList().isEmpty();
         devWorkersList = loadTestConfig.getWorkerUrlList();
@@ -268,7 +271,11 @@ public class LoadTestService {
 
     void completeTestAndSave(TestCase testCase, String participantsBySession, CreateParticipantResponse lastCPR) {
         browserEmulatorClient.setEndOfTest(true);
+        // Recordings run for the steady-state hold below, so the report covers a
+        // known number of them running for a known window
+        egressOrchestrator.startEgressIfConfigured(testCase, participantOrchestrator.getCreatedRoomNames());
         sleeper.sleep(loadTestConfig.getSecondsToWaitBeforeTestFinished(), "time before test finished");
+        egressOrchestrator.stopAllEgress();
         this.saveResultReport(testCase, participantsBySession, lastCPR);
     }
 
@@ -349,6 +356,7 @@ public class LoadTestService {
         workerLifecycleOrchestrator.cleanup();
         estimationOrchestrator.cleanup();
         shutdownOrchestrator.cleanup();
+        egressOrchestrator.cleanup();
         browserEmulatorClient.clean();
         sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenTestCases(), "time cleaning environment");
         waitToMediaServerLiveAgain();
@@ -492,6 +500,7 @@ public class LoadTestService {
                 .setUserRetryAttempts(browserEmulatorClient.getPerUserRetryAttempts())
                 .setPlatformMetrics(platformMetrics)
                 .setNodeMetrics(nodeMetrics)
+                .setEgressJobs(egressOrchestrator.getJobs())
                 .build();
 
         allReports.add(rr);

@@ -59,6 +59,7 @@ public class ResultReport {
     private Map<String, String> roleByUser = new TreeMap<>();
     private List<PlatformMetric> platformMetrics = new ArrayList<>();
     private List<NodeMetrics> nodeMetrics = new ArrayList<>();
+    private List<EgressJob> egressJobs = new ArrayList<>();
 
     public ResultReport() {
     }
@@ -74,7 +75,7 @@ public class ResultReport {
                 this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
                 this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
                 this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts, this.roleByUser,
-                this.platformMetrics, this.nodeMetrics);
+                this.platformMetrics, this.nodeMetrics, this.egressJobs);
     }
 
     public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -267,6 +268,16 @@ public class ResultReport {
         return nodeMetrics;
     }
 
+    public ResultReport setEgressJobs(List<EgressJob> egressJobs) {
+        this.egressJobs = egressJobs != null ? egressJobs : new ArrayList<>();
+        return this;
+    }
+
+    /** Recordings that ran during this test case, with the window each one covered. */
+    public List<EgressJob> getEgressJobs() {
+        return egressJobs;
+    }
+
     private void computeAggregates() {
         // Compute per-worker and global CPU stats
         Map<String, List<Double>> cpuPerWorker = new TreeMap<>();
@@ -394,7 +405,7 @@ public class ResultReport {
             double[] userStartDelaysPercentiles, Map<String, Calendar> userDisconnectTimestamps,
             Map<String, Calendar> userSuccessTimestamps, Map<String, Integer> userRetryCounts,
             Map<String, List<RetryAttempt>> userRetryAttempts, Map<String, String> roleByUser,
-            List<PlatformMetric> platformMetrics, List<NodeMetrics> nodeMetrics) {
+            List<PlatformMetric> platformMetrics, List<NodeMetrics> nodeMetrics, List<EgressJob> egressJobs) {
         this.totalParticipants = totalParticipants;
         this.numSessionsCompleted = numSessionsCompleted;
         this.numSessionsCreated = numSessionsCreated;
@@ -432,6 +443,7 @@ public class ResultReport {
         this.roleByUser = roleByUser != null ? roleByUser : new TreeMap<>();
         this.platformMetrics = platformMetrics != null ? platformMetrics : new ArrayList<>();
         this.nodeMetrics = nodeMetrics != null ? nodeMetrics : new ArrayList<>();
+        this.egressJobs = egressJobs != null ? egressJobs : new ArrayList<>();
     }
 
     private String getDuration() {
@@ -467,6 +479,30 @@ public class ResultReport {
                         .append(String.format("%.0f MB", container.memAvgBytes() / (1024 * 1024)))
                         .append("\n");
             }
+        }
+        return sb.toString();
+    }
+
+    /** One line per recording, with the window it covered. */
+    private String getEgressSummary() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n");
+        for (EgressJob job : egressJobs) {
+            sb.append("  ").append(job.getType()).append(" | room ").append(job.getRoom());
+            if (!job.getTarget().isEmpty()) {
+                sb.append(" | ").append(job.getTarget());
+            }
+            if (job.isStarted()) {
+                sb.append(" | ").append(job.getEgressId())
+                        .append(" | started ").append(job.getStartedAt().getTime())
+                        .append(" | duration ").append(job.getDurationSeconds()).append("s");
+            } else {
+                sb.append(" | NOT STARTED");
+            }
+            if (job.getError() != null && !job.getError().isBlank()) {
+                sb.append(" | error: ").append(job.getError());
+            }
+            sb.append("\n");
         }
         return sb.toString();
     }
@@ -590,6 +626,7 @@ public class ResultReport {
                 + (timePerRecordingWorker.isEmpty() ? ""
                         : "Time each worker has been alive (minutes, recording workers): " + timePerRecordingWorker
                                 + lineSeparator)
+                + (egressJobs.isEmpty() ? "" : "Recordings: " + getEgressSummary())
                 + (nodeMetrics.isEmpty() ? ""
                         : "OpenVidu nodes resource usage: " + getNodeMetricsSummary())
                 + "Test duration: " + getDuration() + lineSeparator + "Kibana url: " + kibanaUrl

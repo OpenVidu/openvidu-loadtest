@@ -27,6 +27,8 @@ public class TestCase {
      * behaves. Enabled by default; disable to get exactly the requested geometry.
      */
     private boolean publishersAlsoSubscribe = true;
+    /** Recordings to run alongside the load, through the OpenVidu Egress service. */
+    private EgressConfig egress = EgressConfig.disabled();
 
     public TestCase(String topology, List<String> participants, int sessions, int frameRate, Resolution resolution,
             OpenViduRecordingMode openviduRecordingMode, boolean headlessBrowser, boolean browserRecording,
@@ -62,6 +64,7 @@ public class TestCase {
         this.layout = testCase.layout;
         this.emulatedResolution = testCase.emulatedResolution;
         this.publishersAlsoSubscribe = testCase.publishersAlsoSubscribe;
+        this.egress = testCase.egress;
     }
 
     public boolean isNxN() {
@@ -262,6 +265,15 @@ public class TestCase {
     public void setPublishersAlsoSubscribe(boolean publishersAlsoSubscribe) {
         this.publishersAlsoSubscribe = publishersAlsoSubscribe;
     }
+
+    public EgressConfig getEgress() {
+        return egress;
+    }
+
+    public void setEgress(EgressConfig egress) {
+        this.egress = egress != null ? egress : EgressConfig.disabled();
+    }
+
     @Override
     public String toString() {
         // @formatter:off
@@ -277,7 +289,8 @@ public class TestCase {
                 + " | Browser: " + browser.getValue()
 				+ " | Headless browser: " + isHeadlessBrowser()
 				+ " | Browser recording: " + isBrowserRecording()
-				+ " | Browser show video elements: " + isShowBrowserVideoElements();
+				+ " | Browser show video elements: " + isShowBrowserVideoElements()
+				+ (egress.isEnabled() ? " | Egress recording: " + egress : "");
 		
 		// @formatter:on
 

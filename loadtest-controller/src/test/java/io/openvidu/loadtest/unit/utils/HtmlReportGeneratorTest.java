@@ -19,6 +19,8 @@ import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
+import io.openvidu.loadtest.models.testcase.EgressJob;
+import io.openvidu.loadtest.models.testcase.EgressType;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 import io.openvidu.loadtest.utils.HtmlReportGenerator;
@@ -783,6 +785,33 @@ class HtmlReportGeneratorTest {
         String content = render(baseReport(), tempDir);
 
         assertFalse(content.contains("OpenVidu Nodes Resource Usage"));
+    }
+
+    @Test
+    void recordingsSectionShowsEachJob(@TempDir Path tempDir) throws IOException {
+        Calendar startedAt = Calendar.getInstance();
+        Calendar stoppedAt = (Calendar) startedAt.clone();
+        stoppedAt.add(Calendar.SECOND, 900);
+        EgressJob composite = new EgressJob("EG_abc", EgressType.ROOM_COMPOSITE, "LoadTestSession1", "", startedAt);
+        composite.setStoppedAt(stoppedAt);
+        EgressJob failed = EgressJob.failed(EgressType.TRACK, "LoadTestSession2", "TR_V1", "no such track");
+
+        String content = render(baseReport().setEgressJobs(List.of(composite, failed)), tempDir);
+
+        assertTrue(content.contains("Recordings"), "section title missing");
+        assertTrue(content.contains("(2 total)"));
+        assertTrue(content.contains("ROOM_COMPOSITE"));
+        assertTrue(content.contains("EG_abc"));
+        assertTrue(content.contains("900s"));
+        assertTrue(content.contains("Failed"));
+        assertTrue(content.contains("no such track"));
+    }
+
+    @Test
+    void recordingsSectionIsAbsentWhenNothingWasRecorded(@TempDir Path tempDir) throws IOException {
+        String content = render(baseReport(), tempDir);
+
+        assertFalse(content.contains("(0 total)"));
     }
 
     @Test

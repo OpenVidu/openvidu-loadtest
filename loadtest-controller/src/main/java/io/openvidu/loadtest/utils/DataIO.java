@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.openvidu.loadtest.models.testcase.Browser;
+import io.openvidu.loadtest.models.testcase.EgressConfig;
+import io.openvidu.loadtest.models.testcase.EgressType;
 import io.openvidu.loadtest.models.testcase.OpenViduRecordingMode;
 import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
@@ -161,7 +163,67 @@ public class DataIO {
         testCase.setLayout(parseLayout(element));
         testCase.setEmulatedResolution(parseEmulatedResolution(element));
         testCase.setPublishersAlsoSubscribe(parsePublishersAlsoSubscribe(element));
+        testCase.setEgress(parseEgress(element));
         return testCase;
+    }
+
+    /**
+     * Recordings to run alongside this test case's load. Absent or with an
+     * unrecognized {@code type}, no recording is started.
+     */
+    private EgressConfig parseEgress(Map<String, Object> element) {
+        Object egressObj = element.get("egress");
+        if (!(egressObj instanceof Map)) {
+            return EgressConfig.disabled();
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> egress = (Map<String, Object>) egressObj;
+
+        Object typeObj = egress.get("type");
+        EgressType type = EgressType.fromValue(typeObj != null ? typeObj.toString() : null);
+        if (type == EgressType.NONE) {
+            if (typeObj != null) {
+                log.warn("Unrecognized egress type '{}'; no recording will be started. Valid values are "
+                        + "ROOM_COMPOSITE, PARTICIPANT, TRACK_COMPOSITE and TRACK.", typeObj);
+            }
+            return EgressConfig.disabled();
+        }
+
+        return new EgressConfig(type,
+                parseOptionalInt(egress, "rooms", 0),
+                parseOptionalInt(egress, "jobsPerRoom", 1),
+                parseOptionalInt(egress, "startAfterSeconds", 0),
+                parseOptionalString(egress, "preset"),
+                parseOptionalString(egress, "layout"),
+                parseOptionalBoolean(egress, "audioOnly"),
+                parseOptionalString(egress, "fileType"),
+                parseOptionalString(egress, "filePrefix"));
+    }
+
+    private int parseOptionalInt(Map<String, Object> element, String key, int defaultValue) {
+        Object value = element.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value.toString().trim());
+        } catch (NumberFormatException e) {
+            log.warn("Invalid value '{}' for '{}'; using {}", value, key, defaultValue);
+            return defaultValue;
+        }
+    }
+
+    private String parseOptionalString(Map<String, Object> element, String key) {
+        Object value = element.get(key);
+        return value != null ? value.toString().trim() : "";
+    }
+
+    private boolean parseOptionalBoolean(Map<String, Object> element, String key) {
+        Object value = element.get(key);
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return value != null && Boolean.parseBoolean(value.toString());
     }
 
     /**

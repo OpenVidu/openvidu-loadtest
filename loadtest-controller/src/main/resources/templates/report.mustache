@@ -636,6 +636,47 @@
             </div>
             {{/hasCpuRows}}
 
+            {{#hasEgressRows}}
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                        </svg>
+                        Recordings
+                        <span style="font-size:13px;font-weight:400;color:var(--text-muted)">({{egressCount}} total)</span>
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Type</th><th>Room</th><th>Target</th><th>Egress ID</th><th>Started</th><th>Duration</th><th>Status</th></tr>
+                            </thead>
+                            <tbody>
+                                {{#egressRows}}
+                                <tr>
+                                    <td>{{type}}</td>
+                                    <td>{{room}}</td>
+                                    <td>{{target}}</td>
+                                    <td>{{egressId}}</td>
+                                    <td>{{startedAt}}</td>
+                                    <td>{{duration}}</td>
+                                    <td>{{status}}{{#failed}}<div class="metric-desc">{{error}}</div>{{/failed}}</td>
+                                </tr>
+                                {{/egressRows}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {{/hasEgressRows}}
 
             {{#hasNodeMetrics}}
             <div class="section">

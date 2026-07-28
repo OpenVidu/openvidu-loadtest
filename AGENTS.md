@@ -32,7 +32,19 @@ This is a distributed load testing system for OpenVidu video conferencing platfo
 2. Controller distributes test cases to browser-emulator workers via WebSocket
 3. Browser-emulator launches Selenium-controlled browsers
 4. Browsers connect to OpenVidu and execute test scenarios (N:N, N:M, TEACHING, ONE_SESSION_NXN, ONE_SESSION_NXM)
-5. Results collected in `/results/` directory
+5. Each element of a test case's `participants` list is a separate scenario with its own results report
+6. If the test case has an `egress` block, the controller starts recordings through the OpenVidu Egress API once every participant is connected, and stops them before writing the report
+7. Results collected in `/results/` directory
+
+### Platform Interactions
+
+The controller talks to the platform directly for control-plane operations, and to workers for load generation:
+
+- `LiveKitEgressClient` drives the Egress and Room services over their Twirp API, authenticated with tokens built by `LiveKitAccessToken` (HS256, no JWT dependency). Recordings must be stoppable after the load-generating workers are gone, so they are not driven through a worker.
+- `ElasticSearchClient.collectNodeMetrics` reads the Metricbeat samples the OpenVidu nodes ship, to report CPU and memory of the deployment under test (per node, and per container when the Metricbeat `docker` module is enabled).
+- `GrafanaPrometheusClient` reads platform traffic metrics through the Grafana datasource proxy.
+
+Monitoring is always optional: every collector returns empty and logs a warning rather than failing a test.
 
 ### Docker Support
 

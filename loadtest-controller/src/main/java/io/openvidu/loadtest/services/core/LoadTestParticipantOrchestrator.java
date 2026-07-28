@@ -382,6 +382,20 @@ class LoadTestParticipantOrchestrator {
         return sessionsCompleted.get();
     }
 
+    /**
+     * Names of the rooms this test case created, in creation order. Rooms are
+     * named after {@code session.namePrefix} plus a 1-based index, in both NORMAL
+     * and emulated mode, so the list can be derived from the session counter.
+     */
+    List<String> getCreatedRoomNames() {
+        int sessions = sessionNumber.get();
+        List<String> rooms = new ArrayList<>(Math.max(0, sessions));
+        for (int i = 1; i <= sessions; i++) {
+            rooms.add(loadTestConfig.getSessionNamePrefix() + i);
+        }
+        return rooms;
+    }
+
     int incrementAndGetTotalParticipants() {
         return totalParticipants.incrementAndGet();
     }

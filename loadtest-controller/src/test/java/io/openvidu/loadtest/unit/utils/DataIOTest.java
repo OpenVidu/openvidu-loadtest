@@ -26,6 +26,8 @@ import org.springframework.core.env.Environment;
 
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
+import io.openvidu.loadtest.models.testcase.EgressConfig;
+import io.openvidu.loadtest.models.testcase.EgressType;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
@@ -237,6 +239,95 @@ class DataIOTest {
                     browser: emulated
                     publishersAlsoSubscribe: false
                 """).isPublishersAlsoSubscribe());
+    }
+
+    @Test
+    void noEgressBlockMeansNoRecording(@TempDir Path tempDir) throws IOException {
+        TestCase tc = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                """);
+
+        assertFalse(tc.getEgress().isEnabled());
+        assertEquals(EgressType.NONE, tc.getEgress().getType());
+    }
+
+    @Test
+    void egressBlockIsParsedInFull(@TempDir Path tempDir) throws IOException {
+        TestCase tc = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["8"]
+                    sessions: 8
+                    browser: emulated
+                    egress:
+                      type: ROOM_COMPOSITE
+                      rooms: 4
+                      startAfterSeconds: 60
+                      preset: H264_1080P_30
+                      layout: speaker
+                      audioOnly: false
+                      fileType: MP4
+                      filePrefix: s9a
+                """);
+
+        EgressConfig egress = tc.getEgress();
+        assertTrue(egress.isEnabled());
+        assertEquals(EgressType.ROOM_COMPOSITE, egress.getType());
+        assertEquals(4, egress.getRooms());
+        assertEquals(60, egress.getStartAfterSeconds());
+        assertEquals("H264_1080P_30", egress.getPreset());
+        assertEquals("speaker", egress.getLayout());
+        assertFalse(egress.isAudioOnly());
+        assertEquals("MP4", egress.getFileType());
+        assertEquals("s9a", egress.getFilePrefix());
+    }
+
+    @Test
+    void egressDefaultsAreFilledIn(@TempDir Path tempDir) throws IOException {
+        TestCase tc = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["8"]
+                    browser: emulated
+                    egress:
+                      type: track
+                """);
+
+        EgressConfig egress = tc.getEgress();
+        assertEquals(EgressType.TRACK, egress.getType(), "type should be case-insensitive");
+        assertEquals(0, egress.getRooms(), "0 means every room");
+        assertEquals(1, egress.getJobsPerRoom());
+        assertEquals(0, egress.getStartAfterSeconds());
+        assertEquals("grid", egress.getLayout());
+        assertEquals("loadtest", egress.getFilePrefix());
+    }
+
+    @Test
+    void unrecognizedEgressTypeDisablesRecording(@TempDir Path tempDir) throws IOException {
+        TestCase tc = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["8"]
+                    browser: emulated
+                    egress:
+                      type: WEB_EGRESS
+                """);
+
+        assertFalse(tc.getEgress().isEnabled());
+    }
+
+    @Test
+    void egressJobsPerRoomIsIgnoredForRoomComposite(@TempDir Path tempDir) throws IOException {
+        TestCase tc = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["8"]
+                    browser: emulated
+                    egress:
+                      type: ROOM_COMPOSITE
+                      jobsPerRoom: 4
+                """);
+
+        // A room composite produces one output for the whole room
+        assertEquals(1, tc.getEgress().getJobsPerRoom());
     }
 
     @Test

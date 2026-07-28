@@ -36,6 +36,7 @@ import io.openvidu.loadtest.services.Ec2Client;
 import io.openvidu.loadtest.services.Sleeper;
 import io.openvidu.loadtest.services.WebSocketClient;
 import io.openvidu.loadtest.services.WebSocketConnectionFactory;
+import io.openvidu.loadtest.services.LiveKitEgressClient;
 import io.openvidu.loadtest.services.WorkerUrlResolver;
 import io.openvidu.loadtest.services.core.LoadTestService;
 import io.openvidu.loadtest.utils.DataIO;
@@ -71,6 +72,9 @@ class LoadTestServiceTests {
 
     @Mock
     private WorkerUrlResolver workerUrlResolver;
+
+    @Mock
+    private LiveKitEgressClient egressClient;
 
     private LoadTestService loadTestController;
 
@@ -133,7 +137,8 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         // Create list of instances for ec2 client mock
         List<Instance> instances = new ArrayList<>(workersAtStart);
         for (int i = 0; i < workersAtStart; i++) {
@@ -229,7 +234,8 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         // Create list of instances for ec2 client mock
         List<Instance> instances = new ArrayList<>(workersAtStart);
         for (int i = 0; i < workersAtStart; i++) {
@@ -325,7 +331,8 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getBatchMaxRequests()).thenReturn(17);
 
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         // Create list of instances for ec2 client mock
         Instance instance1 = generateRandomInstance();
         Instance instance2 = generateRandomInstance();
@@ -444,7 +451,8 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(1);
 
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         // Create list of instances for ec2 client mock
         List<Instance> instances = new ArrayList<>(workersAtStart);
         for (int i = 0; i < workersAtStart; i++) {
@@ -519,11 +527,13 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getWorkerMaxLoad()).thenReturn(75);
 
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         // Create list of instances for ec2 client mock
 
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         List<Instance> instances = new ArrayList<>(workersAtStart);
         for (int i = 0; i < workersAtStart; i++) {
             instances.add(generateRandomInstance());
@@ -548,7 +558,8 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getWorkersRumpUp()).thenReturn(1);
         when(this.loadTestConfig.isManualParticipantsAllocation()).thenReturn(false);
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         // Create list of instances for ec2 client mock
         Instance instance1 = generateRandomInstance();
         String instance1Url = instance1.publicDnsName();
@@ -588,7 +599,8 @@ class LoadTestServiceTests {
         int usersPerWorker = 10;
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(usersPerWorker);
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         List<String> participants = List.of("8");
 
         TestCase testCase = new TestCase("N:N", participants, 3,
@@ -665,7 +677,8 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getUsersPerWorker()).thenReturn(8);
         String estimationWorker = devWorkers.get(0);
         this.loadTestController = new LoadTestService(browserEmulatorClient, loadTestConfig, kibanaClient,
-                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver);
+                elasticSearchClient, grafanaPrometheusClient, ec2Client, webSocketConnectionFactory, dataIO, sleeper, workerUrlResolver,
+                egressClient);
         List<String> participants = List.of("8");
 
         TestCase testCase = new TestCase("N:N", participants, 2,
