@@ -26,6 +26,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
+          cache-dependency-path: browser-emulator/pnpm-lock.yaml
 
       - name: Install browser-emulator dependencies
         run: |
