@@ -23,6 +23,7 @@ import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.WorkerType;
+import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
 import io.openvidu.loadtest.monitoring.GrafanaPrometheusClient;
@@ -388,6 +389,8 @@ public class LoadTestService {
         if (!platformMetrics.isEmpty()) {
             esClient.indexPlatformMetrics(platformMetrics);
         }
+        // CPU/memory of the OpenVidu nodes themselves, over the same window
+        List<NodeMetrics> nodeMetrics = esClient.collectNodeMetrics(startTimeStr, endTimeStr);
         String stopReason = lastCPR.getStopReason();
         if (stopReason == null) {
             stopReason = "Test finished";
@@ -488,6 +491,7 @@ public class LoadTestService {
                 .setUserRetryCounts(browserEmulatorClient.getPerUserRetryCounts())
                 .setUserRetryAttempts(browserEmulatorClient.getPerUserRetryAttempts())
                 .setPlatformMetrics(platformMetrics)
+                .setNodeMetrics(nodeMetrics)
                 .build();
 
         allReports.add(rr);

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
@@ -739,6 +740,49 @@ class HtmlReportGeneratorTest {
         String[] coords = pointsAttr.trim().split("\\s+");
         assertEquals(10, coords.length,
                 "Sparkline should have 10 coordinate pairs for 10 data points");
+    }
+
+    /** A minimal report with the timestamps the template needs. */
+    private ResultReport baseReport() {
+        Calendar startTime = Calendar.getInstance();
+        Calendar endTime = (Calendar) startTime.clone();
+        endTime.add(Calendar.SECOND, 100);
+        return new ResultReport()
+                .setTotalParticipants(10)
+                .setSessionTopology("N:N")
+                .setOpenviduRecording("NONE")
+                .setStopReason("Test finished")
+                .setStartTime(startTime)
+                .setEndTime(endTime);
+    }
+
+    private String render(ResultReport report, Path tempDir) throws IOException {
+        Path reportPath = tempDir.resolve("report.html");
+        htmlReportGenerator.generateHtmlReport(report, reportPath.toString());
+        return Files.readString(reportPath);
+    }
+
+    @Test
+    void nodeMetricsSectionShowsNodesAndContainers(@TempDir Path tempDir) throws IOException {
+        NodeMetrics mediaNode = new NodeMetrics("medianode_1", "medianode", 67.5, 91.2, 42.0, 55.0, 180,
+                List.of(new NodeMetrics.ContainerMetrics("openvidu-server", 2.5, 3.1, 1073741824.0)));
+        NodeMetrics masterNode = new NodeMetrics("masternode_1", "masternode", 5.0, 11.0, 30.0, 35.0, 180, List.of());
+
+        String content = render(baseReport().setNodeMetrics(List.of(mediaNode, masterNode)), tempDir);
+
+        assertTrue(content.contains("OpenVidu Nodes Resource Usage"), "section title missing");
+        assertTrue(content.contains("medianode_1"));
+        assertTrue(content.contains("masternode_1"));
+        assertTrue(content.contains("openvidu-server"));
+        assertTrue(content.contains("2.50 cores"));
+        assertTrue(content.contains("1024 MB"));
+    }
+
+    @Test
+    void nodeMetricsSectionIsAbsentWithoutMetricbeat(@TempDir Path tempDir) throws IOException {
+        String content = render(baseReport(), tempDir);
+
+        assertFalse(content.contains("OpenVidu Nodes Resource Usage"));
     }
 
     @Test

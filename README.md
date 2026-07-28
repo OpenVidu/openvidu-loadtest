@@ -490,6 +490,8 @@ Elasticsearch, Kibana and Grafana integration for metrics visualization. Expects
 | `grafana.password`       | No       | -                     | Grafana password                                                                                                                                                                                 |
 | `grafana.datasourceUid`  | No       | `openvidu-prometheus` | UID of the Prometheus datasource in Grafana                                                                                                                                                      |
 
+**CPU of the OpenVidu deployment itself** is collected when the media and master nodes run Metricbeat and ship to the same Elasticsearch. Each results report then includes per-node CPU and memory for the test window, plus per-container figures when the Metricbeat `docker` module is enabled—which is what separates the CPU spent routing media from the CPU spent on a recording. See [Monitoring OpenVidu media and master nodes with Metricbeat](docs/ov-monitoring.md).
+
 ### Advanced User Management Options
 
 Performance and retry settings.

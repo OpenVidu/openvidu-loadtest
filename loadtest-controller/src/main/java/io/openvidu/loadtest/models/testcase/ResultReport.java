@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.services.BrowserEmulatorClient.RetryAttempt;
 
@@ -57,6 +58,7 @@ public class ResultReport {
     private Map<String, List<RetryAttempt>> userRetryAttempts = new LinkedHashMap<>(); // key: "session-user"
     private Map<String, String> roleByUser = new TreeMap<>();
     private List<PlatformMetric> platformMetrics = new ArrayList<>();
+    private List<NodeMetrics> nodeMetrics = new ArrayList<>();
 
     public ResultReport() {
     }
@@ -72,7 +74,7 @@ public class ResultReport {
                 this.workerCpuAvg, this.workerCpuMax, this.workerStreams, this.workerParticipants,
                 this.userStartDelaysPercentiles, this.userDisconnectTimestamps,
                 this.userSuccessTimestamps, this.userRetryCounts, this.userRetryAttempts, this.roleByUser,
-                this.platformMetrics);
+                this.platformMetrics, this.nodeMetrics);
     }
 
     public ResultReport setManualParticipantAllocation(boolean isManualParticipantAllocation) {
@@ -255,6 +257,16 @@ public class ResultReport {
         return platformMetrics;
     }
 
+    public ResultReport setNodeMetrics(List<NodeMetrics> nodeMetrics) {
+        this.nodeMetrics = nodeMetrics != null ? nodeMetrics : new ArrayList<>();
+        return this;
+    }
+
+    /** CPU and memory of the OpenVidu nodes under test, collected from Metricbeat. */
+    public List<NodeMetrics> getNodeMetrics() {
+        return nodeMetrics;
+    }
+
     private void computeAggregates() {
         // Compute per-worker and global CPU stats
         Map<String, List<Double>> cpuPerWorker = new TreeMap<>();
@@ -382,7 +394,7 @@ public class ResultReport {
             double[] userStartDelaysPercentiles, Map<String, Calendar> userDisconnectTimestamps,
             Map<String, Calendar> userSuccessTimestamps, Map<String, Integer> userRetryCounts,
             Map<String, List<RetryAttempt>> userRetryAttempts, Map<String, String> roleByUser,
-            List<PlatformMetric> platformMetrics) {
+            List<PlatformMetric> platformMetrics, List<NodeMetrics> nodeMetrics) {
         this.totalParticipants = totalParticipants;
         this.numSessionsCompleted = numSessionsCompleted;
         this.numSessionsCreated = numSessionsCreated;
@@ -419,6 +431,7 @@ public class ResultReport {
         this.userRetryAttempts = userRetryAttempts;
         this.roleByUser = roleByUser != null ? roleByUser : new TreeMap<>();
         this.platformMetrics = platformMetrics != null ? platformMetrics : new ArrayList<>();
+        this.nodeMetrics = nodeMetrics != null ? nodeMetrics : new ArrayList<>();
     }
 
     private String getDuration() {
@@ -435,6 +448,27 @@ public class ResultReport {
             minutes = minutes - (hours * 60);
         }
         return hours + "h " + minutes + "m " + seconds + "s ";
+    }
+
+    /**
+     * CPU/memory of the OpenVidu nodes under test, one line per node plus one
+     * per container when the Metricbeat {@code docker} module is enabled.
+     */
+    private String getNodeMetricsSummary() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n");
+        for (NodeMetrics node : nodeMetrics) {
+            sb.append("  ").append(node).append("\n");
+            for (NodeMetrics.ContainerMetrics container : node.getContainers()) {
+                sb.append("      ").append(container.name())
+                        .append(": CPU avg ").append(String.format("%.2f", container.cpuAvgCores()))
+                        .append(" cores, max ").append(String.format("%.2f", container.cpuMaxCores()))
+                        .append(" cores | MEM avg ")
+                        .append(String.format("%.0f MB", container.memAvgBytes() / (1024 * 1024)))
+                        .append("\n");
+            }
+        }
+        return sb.toString();
     }
 
     private String getUserStartTime() {
@@ -556,6 +590,8 @@ public class ResultReport {
                 + (timePerRecordingWorker.isEmpty() ? ""
                         : "Time each worker has been alive (minutes, recording workers): " + timePerRecordingWorker
                                 + lineSeparator)
+                + (nodeMetrics.isEmpty() ? ""
+                        : "OpenVidu nodes resource usage: " + getNodeMetricsSummary())
                 + "Test duration: " + getDuration() + lineSeparator + "Kibana url: " + kibanaUrl
                 + lineSeparator + "Video quality control and stats: " + s3BucketName
                 + lineSeparator

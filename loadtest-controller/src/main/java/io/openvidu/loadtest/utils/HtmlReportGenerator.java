@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
 
+import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
 import io.openvidu.loadtest.models.testcase.ResultReport;
@@ -126,6 +127,43 @@ public class HtmlReportGenerator {
             rows.add(objectRow("worker", safeString(worker), "avgCpu", avgFormatted,
                     "maxCpu", maxFormatted, "avgCpuColor", getCpuColorClass(avg), "maxCpuColor", getCpuColorClass(max),
                     "isAllWorkers", isAllWorkers));
+        }
+        return rows;
+    }
+
+    /**
+     * One row per OpenVidu node under test, each followed by a row per container
+     * when the Metricbeat {@code docker} module is enabled on the node.
+     */
+    private List<Map<String, Object>> buildNodeMetricRows(List<NodeMetrics> nodes) {
+        if (nodes == null || nodes.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (NodeMetrics node : nodes) {
+            rows.add(objectRow("name", safeString(node.getNodeName()),
+                    "role", safeString(node.getNodeRole()),
+                    "avgCpu", String.format(PERCENTAGE_FORMAT, node.getCpuAvgPct()),
+                    "maxCpu", String.format(PERCENTAGE_FORMAT, node.getCpuMaxPct()),
+                    "avgCpuColor", getCpuColorClass(node.getCpuAvgPct()),
+                    "maxCpuColor", getCpuColorClass(node.getCpuMaxPct()),
+                    "avgMem", String.format(PERCENTAGE_FORMAT, node.getMemAvgPct()),
+                    "maxMem", String.format(PERCENTAGE_FORMAT, node.getMemMaxPct()),
+                    "isNode", true,
+                    "isContainer", false));
+            for (NodeMetrics.ContainerMetrics container : node.getContainers()) {
+                rows.add(objectRow("name", safeString(container.name()),
+                        "role", "container",
+                        "avgCpu", String.format("%.2f cores", container.cpuAvgCores()),
+                        "maxCpu", String.format("%.2f cores", container.cpuMaxCores()),
+                        "avgCpuColor", "",
+                        "maxCpuColor", "",
+                        "avgMem", String.format("%.0f MB", container.memAvgBytes() / (1024 * 1024)),
+                        "maxMem", "",
+                        "isNode", false,
+                        "isContainer", true));
+            }
         }
         return rows;
     }
@@ -579,6 +617,9 @@ public class HtmlReportGenerator {
         ctx.put("hasPlatformMetrics", !platformMetricRows.isEmpty());
         ctx.put("platformMetricRows", platformMetricRows);
 
+        List<Map<String, Object>> nodeMetricRows = buildNodeMetricRows(result.getNodeMetrics());
+        ctx.put("hasNodeMetrics", !nodeMetricRows.isEmpty());
+        ctx.put("nodeMetricRows", nodeMetricRows);
         List<Map<String, Object>> userRows = buildUserRows(result);
         ctx.put("hasUsers", !userRows.isEmpty());
         ctx.put("userRows", userRows);

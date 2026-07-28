@@ -636,6 +636,65 @@
             </div>
             {{/hasCpuRows}}
 
+
+            {{#hasNodeMetrics}}
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="8" rx="2"/>
+                            <rect x="2" y="14" width="20" height="8" rx="2"/>
+                            <line x1="6" y1="6" x2="6.01" y2="6"/>
+                            <line x1="6" y1="18" x2="6.01" y2="18"/>
+                        </svg>
+                        OpenVidu Nodes Resource Usage
+                    </div>
+                    <div class="section-toggle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Node / Container</th><th>Role</th><th>Average CPU</th><th>Max CPU</th><th>Avg Memory</th><th>Max Memory</th></tr>
+                            </thead>
+                            <tbody>
+                                {{#nodeMetricRows}}
+                                <tr{{#isNode}} class="all-workers"{{/isNode}}>
+                                    <td>{{#isContainer}}&nbsp;&nbsp;&nbsp;&nbsp;{{/isContainer}}{{name}}</td>
+                                    <td>{{role}}</td>
+                                    {{#isNode}}
+                                    <td>
+                                        <div class="cpu-bar-container">
+                                            <div class="cpu-bar"><div class="cpu-bar-fill {{avgCpuColor}}" style="width: {{avgCpu}}"></div></div>
+                                            <span class="cpu-text">{{avgCpu}}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="cpu-bar-container">
+                                            <div class="cpu-bar"><div class="cpu-bar-fill {{maxCpuColor}}" style="width: {{maxCpu}}"></div></div>
+                                            <span class="cpu-text">{{maxCpu}}</span>
+                                        </div>
+                                    </td>
+                                    {{/isNode}}
+                                    {{#isContainer}}
+                                    <td>{{avgCpu}}</td>
+                                    <td>{{maxCpu}}</td>
+                                    {{/isContainer}}
+                                    <td>{{avgMem}}</td>
+                                    <td>{{maxMem}}</td>
+                                </tr>
+                                {{/nodeMetricRows}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {{/hasNodeMetrics}}
+
             {{#hasPlatformMetrics}}
             <div class="section">
                 <div class="section-header" onclick="toggleSection(this)">

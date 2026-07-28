@@ -11,7 +11,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import co.elastic.clients.elasticsearch._types.FieldValue;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 
@@ -37,6 +41,7 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.transport.endpoints.BooleanResponse;
 import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.exceptions.LoadTestInitializationException;
+import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric;
 import io.openvidu.loadtest.models.monitoring.PlatformMetric.Point;
 import io.openvidu.loadtest.monitoring.ElasticSearchClient;
@@ -237,6 +242,157 @@ class ElasticSearchClientTest {
         // Expect 0.123 * 100 -> 12.3 (formatted to three decimals in the
         // implementation)
         assertEquals(12.3, resultCpu);
+    }
+
+    @Test
+    void collectNodeMetrics_whenNotInitialized_returnsEmptyList() {
+        when(loadTestConfig.getElasticsearchHost()).thenReturn("");
+
+        esClientUnderTest.init();
+
+        assertTrue(esClientUnderTest.collectNodeMetrics("2026-07-01T10:00:00Z", "2026-07-01T10:20:00Z").isEmpty());
+    }
+
+    @Test
+    void collectNodeMetrics_whenSearchFails_returnsEmptyListWithoutThrowing() throws Exception {
+        when(loadTestConfig.getElasticsearchHost()).thenReturn("http://localhost:9200");
+        ElasticsearchClient mockClient = mock(ElasticsearchClient.class, invocation -> {
+            if ("search".equals(invocation.getMethod().getName())) {
+                throw new IOException("metricbeat index missing");
+            }
+            return null;
+        });
+        setPrivateField(esClientUnderTest, "client", mockClient);
+        setPrivateField(esClientUnderTest, "initialized", true);
+
+        // Node metrics are optional instrumentation, so a failure must not break the report
+        assertTrue(esClientUnderTest.collectNodeMetrics("2026-07-01T10:00:00Z", "2026-07-01T10:20:00Z").isEmpty());
+    }
+
+    @Test
+    void collectNodeMetrics_parsesNodesAndContainersAndOrdersMediaNodesFirst() throws Exception {
+        when(loadTestConfig.getElasticsearchHost()).thenReturn("http://localhost:9200");
+
+        StringTermsBucket caddy = stringBucket("caddy", 90, Map.of(
+                "cpu_avg", avg(0.10), "cpu_max", max(0.20), "mem_avg", avg(52428800.0)));
+        StringTermsBucket openviduServer = stringBucket("openvidu-server", 90, Map.of(
+                "cpu_avg", avg(2.50), "cpu_max", max(3.10), "mem_avg", avg(1073741824.0)));
+        SearchResponse<Void> containerResponse = searchResponse(termsAggregate(
+                stringBucket("medianode_1", 90, Map.of("containers", termsAggregate(caddy, openviduServer)))));
+
+        SearchResponse<Void> nodeResponse = searchResponse(termsAggregate(
+                stringBucket("masternode_1", 180, Map.of(
+                        "role", terms("masternode"),
+                        "cpu_avg", avg(0.05),
+                        "cpu_max", max(0.11),
+                        "mem_avg", avg(0.30),
+                        "mem_max", max(0.35))),
+                stringBucket("medianode_1", 180, Map.of(
+                        "role", terms("medianode"),
+                        "cpu_avg", avg(0.6789),
+                        "cpu_max", max(0.9),
+                        "mem_avg", avg(0.42),
+                        "mem_max", max(0.55)))));
+
+        // The implementation queries containers first, then whole-node metrics
+        List<SearchResponse<Void>> responses = new ArrayList<>(List.of(containerResponse, nodeResponse));
+        ElasticsearchClient mockClient = mock(ElasticsearchClient.class, invocation -> {
+            if ("search".equals(invocation.getMethod().getName())) {
+                return responses.remove(0);
+            }
+            return null;
+        });
+        setPrivateField(esClientUnderTest, "client", mockClient);
+        setPrivateField(esClientUnderTest, "initialized", true);
+
+        List<NodeMetrics> nodes = esClientUnderTest.collectNodeMetrics("2026-07-01T10:00:00Z",
+                "2026-07-01T10:20:00Z");
+
+        assertEquals(2, nodes.size());
+        NodeMetrics mediaNode = nodes.get(0);
+        assertEquals("medianode_1", mediaNode.getNodeName(), "media nodes lead the report");
+        assertTrue(mediaNode.isMediaNode());
+        // Metricbeat reports normalized percentages as a 0..1 fraction
+        assertEquals(67.89, mediaNode.getCpuAvgPct(), 0.001);
+        assertEquals(90.0, mediaNode.getCpuMaxPct(), 0.001);
+        assertEquals(42.0, mediaNode.getMemAvgPct(), 0.001);
+        assertEquals(180, mediaNode.getSamples());
+
+        // Busiest container first, so the service driving the node's CPU is obvious
+        assertEquals(2, mediaNode.getContainers().size());
+        assertEquals("openvidu-server", mediaNode.getContainers().get(0).name());
+        assertEquals(2.50, mediaNode.getContainers().get(0).cpuAvgCores(), 0.001);
+        assertEquals("caddy", mediaNode.getContainers().get(1).name());
+
+        NodeMetrics masterNode = nodes.get(1);
+        assertEquals("masternode_1", masterNode.getNodeName());
+        assertFalse(masterNode.isMediaNode());
+        assertTrue(masterNode.getContainers().isEmpty());
+    }
+
+    @Test
+    void collectNodeMetrics_withoutDockerModule_stillReportsWholeNodeCpu() throws Exception {
+        when(loadTestConfig.getElasticsearchHost()).thenReturn("http://localhost:9200");
+
+        SearchResponse<Void> emptyContainers = searchResponse(termsAggregate());
+        SearchResponse<Void> nodeResponse = searchResponse(termsAggregate(
+                stringBucket("medianode_1", 12, Map.of(
+                        "role", terms("medianode"),
+                        "cpu_avg", avg(0.5),
+                        "cpu_max", max(0.5),
+                        "mem_avg", avg(0.1),
+                        "mem_max", max(0.1)))));
+
+        List<SearchResponse<Void>> responses = new ArrayList<>(List.of(emptyContainers, nodeResponse));
+        ElasticsearchClient mockClient = mock(ElasticsearchClient.class, invocation -> {
+            if ("search".equals(invocation.getMethod().getName())) {
+                return responses.remove(0);
+            }
+            return null;
+        });
+        setPrivateField(esClientUnderTest, "client", mockClient);
+        setPrivateField(esClientUnderTest, "initialized", true);
+
+        List<NodeMetrics> nodes = esClientUnderTest.collectNodeMetrics("2026-07-01T10:00:00Z",
+                "2026-07-01T10:20:00Z");
+
+        assertEquals(1, nodes.size());
+        assertEquals(50.0, nodes.get(0).getCpuAvgPct(), 0.001);
+        assertTrue(nodes.get(0).getContainers().isEmpty());
+    }
+
+    private static SearchResponse<Void> searchResponse(Aggregate nodesAggregate) {
+        return SearchResponse.of(s -> s
+                .took(5)
+                .timedOut(false)
+                .shards(sh -> sh.total(1).successful(1).failed(0))
+                .hits(h -> h.hits(List.of()))
+                .aggregations("nodes", nodesAggregate));
+    }
+
+    /** A `terms` aggregate over the given buckets, as Elasticsearch would return it. */
+    private static Aggregate termsAggregate(StringTermsBucket... buckets) {
+        return Aggregate.of(a -> a.sterms(t -> t.buckets(b -> b.array(List.of(buckets)))));
+    }
+
+    private static StringTermsBucket stringBucket(String key, long docCount, Map<String, Aggregate> subAggregations) {
+        return StringTermsBucket.of(b -> b
+                .key(FieldValue.of(key))
+                .docCount(docCount)
+                .aggregations(subAggregations));
+    }
+
+    private static Aggregate terms(String key) {
+        return Aggregate.of(a -> a.sterms(t -> t.buckets(b -> b.array(
+                List.of(StringTermsBucket.of(bb -> bb.key(FieldValue.of(key)).docCount(1)))))));
+    }
+
+    private static Aggregate avg(double value) {
+        return Aggregate.of(a -> a.avg(av -> av.value(value)));
+    }
+
+    private static Aggregate max(double value) {
+        return Aggregate.of(a -> a.max(mx -> mx.value(value)));
     }
 
     @Test

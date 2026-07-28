@@ -89,6 +89,17 @@ curl -u "$ELASTICSEARCH_USERNAME:$ELASTICSEARCH_PASSWORD" \
 
 If the configuration is working, the response will contain a hit with the `worker_name` and `node_role` fields populated as expected (e.g. `worker_name: "medianode_1"`, `node_role: "medianode"`).
 
+## Node Metrics in Reports
+
+At the end of each test case, the loadtest controller queries Elasticsearch for the Metricbeat samples the nodes shipped during that test case's window, and adds them to the results report:
+
+- **Per node**: average and peak CPU and memory, plus how many samples the figures are based on. Media nodes are listed first.
+- **Per container**: average and peak CPU in cores and average memory, busiest container first. Only present when the `docker` module is enabled.
+
+Nothing needs to be configured beyond `monitoring.elasticsearch` in the load test configuration (see [Monitoring](../README.md#monitoring)) and Metricbeat running on the nodes. If no node shipped anything for the window, the section is simply left out of the report.
+
+This is what makes the cost of a recording measurable: with per-container CPU, the cores spent by the Egress service can be told apart from the cores spent routing media, for the same load. See [Recording](../README.md#recording).
+
 ## Related Documentation
 
 - [Metricbeat system module reference](https://www.elastic.co/guide/en/beats/metricbeat/current/metricbeat-module-system.html)

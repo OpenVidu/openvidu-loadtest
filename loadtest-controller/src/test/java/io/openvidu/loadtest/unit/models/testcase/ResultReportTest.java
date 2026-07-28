@@ -11,6 +11,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.openvidu.loadtest.models.monitoring.NodeMetrics;
 import io.openvidu.loadtest.models.testcase.CreateParticipantResponse;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 
@@ -271,5 +272,33 @@ class ResultReportTest {
         assertTrue(toString.contains("Number of sessions completed: 2"));
         assertTrue(toString.contains("Session topology: N:N"));
         assertTrue(toString.contains("Stop reason: Test finished"));
+    }
+
+    @Test
+    void toStringReportsNodeCpuAndPerContainerCpu() {
+        NodeMetrics mediaNode = new NodeMetrics("medianode_1", "medianode", 67.5, 91.2, 42.0, 55.0, 180,
+                List.of(new NodeMetrics.ContainerMetrics("openvidu-server", 2.5, 3.1, 1073741824.0)));
+        withTimes(resultReport).setNodeMetrics(List.of(mediaNode));
+
+        String toString = resultReport.toString();
+        assertTrue(toString.contains("OpenVidu nodes resource usage"), toString);
+        assertTrue(toString.contains("medianode_1 (medianode)"), toString);
+        assertTrue(toString.contains("CPU avg 67.50%"), toString);
+        assertTrue(toString.contains("openvidu-server: CPU avg 2.50 cores"), toString);
+        assertTrue(toString.contains("MEM avg 1024 MB"), toString);
+    }
+
+    @Test
+    void toStringOmitsNodeSectionWhenNoNodeShippedMetrics() {
+        withTimes(resultReport);
+
+        assertFalse(resultReport.toString().contains("OpenVidu nodes resource usage"));
+    }
+    /** toString() needs start and end times to compute the test duration. */
+    private ResultReport withTimes(ResultReport report) {
+        Calendar startTime = Calendar.getInstance();
+        Calendar endTime = (Calendar) startTime.clone();
+        endTime.add(Calendar.SECOND, 60);
+        return report.setStartTime(startTime).setEndTime(endTime).setSessionTopology("N:N");
     }
 }
