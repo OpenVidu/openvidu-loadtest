@@ -72,6 +72,37 @@ class ElasticSearchClientTest {
     }
 
     @Test
+    void close_withoutInit_shouldBeSafe() {
+        // Nothing was ever opened, so there is nothing to release
+        assertDoesNotThrow(() -> esClientUnderTest.close());
+    }
+
+    @Test
+    void close_shouldReleaseTheRestClientEvenWhenTheConnectionFailed() throws Exception {
+        when(loadTestConfig.getElasticsearchHost()).thenReturn("http://host:9200");
+        esClientUnderTest.maxRetries = 1;
+        esClientUnderTest.retryDelayMs = 0;
+
+        RestClientBuilder builderMock = mock(RestClientBuilder.class);
+        RestClient restClientMock = mock(RestClient.class);
+
+        try (MockedStatic<RestClient> restClientStatic = mockStatic(RestClient.class)) {
+            restClientStatic.when(() -> RestClient.builder(any(HttpHost.class))).thenReturn(builderMock);
+            when(builderMock.build()).thenReturn(restClientMock);
+
+            // The ping fails because there is no server, but the REST client and its
+            // pool of non-daemon I/O threads exist from this point on. Leaving them
+            // running keeps the JVM alive after the Spring context is closed.
+            assertThrows(LoadTestInitializationException.class, () -> esClientUnderTest.init());
+
+            esClientUnderTest.close();
+
+            verify(restClientMock).close();
+            assertFalse(esClientUnderTest.isInitialized());
+        }
+    }
+
+    @Test
     void init_withPathPrefix_shouldCallSetPathPrefix() {
         when(loadTestConfig.getElasticsearchHost()).thenReturn("https://host:9200/elasticsearch");
         esClientUnderTest.maxRetries = 1;

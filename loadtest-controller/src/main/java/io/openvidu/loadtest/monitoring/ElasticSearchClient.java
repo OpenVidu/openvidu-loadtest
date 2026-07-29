@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
@@ -78,6 +79,13 @@ public class ElasticSearchClient {
 
     private ElasticsearchClient client;
 
+    /**
+     * Kept only so it can be closed on shutdown. Its REST client owns a pool of
+     * non-daemon I/O threads, so leaving it open keeps the JVM alive after the
+     * Spring context is gone.
+     */
+    private ElasticsearchTransport transport;
+
     private static DecimalFormat df2 = new DecimalFormat("#.###");
 
     private boolean initialized = false;
@@ -122,8 +130,8 @@ public class ElasticSearchClient {
             }
             RestClient restClient = restClientBuilder.build();
 
-            ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
-            this.client = new ElasticsearchClient(transport);
+            this.transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+            this.client = new ElasticsearchClient(this.transport);
 
             for (int i = 1; i <= this.maxRetries; i++) {
                 try {
@@ -153,6 +161,28 @@ public class ElasticSearchClient {
                     + "). If property 'ELASTICSEARCH_HOST' is defined, then it is mandatory that OpenVidu Load Test is able to connect to it";
             log.error(message);
             throw new LoadTestInitializationException(message, e);
+        }
+    }
+
+    /**
+     * Releases the REST client's I/O threads. They are non-daemon, so without this
+     * the process outlives the Spring context and a container built around it never
+     * stops on its own. Note this must run even when the connection was never
+     * established: a failed ping still leaves the thread pool running.
+     */
+    @PreDestroy
+    public void close() {
+        if (this.transport == null) {
+            return;
+        }
+        try {
+            this.transport.close();
+        } catch (IOException e) {
+            log.warn("Could not close the Elasticsearch client cleanly: {}", e.getMessage());
+        } finally {
+            this.transport = null;
+            this.client = null;
+            this.initialized = false;
         }
     }
 
