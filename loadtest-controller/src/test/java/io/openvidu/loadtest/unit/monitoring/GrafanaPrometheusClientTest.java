@@ -213,4 +213,61 @@ class GrafanaPrometheusClientTest {
 
         assertTrue(metrics.isEmpty());
     }
+
+    @Test
+    void testCollectPlatformMetrics_prometheusErrorStatus_keepsTryingOtherMetrics() throws Exception {
+        grafanaConfigured();
+
+        String parseError = """
+                {"status": "error", "errorType": "bad_data", "error": "parse error"}""";
+        HttpResponse<String> httpResponse = mock(HttpResponse.class);
+        when(httpResponse.statusCode()).thenReturn(200);
+        when(httpResponse.body()).thenReturn(parseError);
+        when(httpClient.sendGet(anyString(), anyMap())).thenReturn(httpResponse);
+
+        client.collectPlatformMetrics("2024-01-01T00:00:00Z", "2024-01-01T01:00:00Z");
+
+        // A datasource that answers but rejects one query says nothing about the
+        // others, so every metric is still attempted
+        verify(httpClient, times(15)).sendGet(anyString(), anyMap());
+    }
+
+    @Test
+    void testCollectPlatformMetrics_whenGrafanaUnreachable_stopsAfterTheFirstQuery() throws Exception {
+        grafanaConfigured();
+        when(httpClient.sendGet(anyString(), anyMap()))
+                .thenThrow(new java.net.http.HttpTimeoutException("request timed out"));
+
+        List<PlatformMetric> metrics = client.collectPlatformMetrics("2024-01-01T00:00:00Z",
+                "2024-01-01T01:00:00Z");
+
+        assertTrue(metrics.isEmpty());
+        // Every remaining query would time out the same way, and each timeout costs
+        // real minutes across a matrix of runs
+        verify(httpClient, times(1)).sendGet(anyString(), anyMap());
+    }
+
+    @Test
+    void testCollectPlatformMetrics_whenGrafanaRejectsTheRequest_stopsAfterTheFirstQuery() throws Exception {
+        grafanaConfigured();
+        HttpResponse<String> unauthorized = mock(HttpResponse.class);
+        when(unauthorized.statusCode()).thenReturn(401);
+        when(unauthorized.body()).thenReturn("{\"message\":\"invalid username or password\"}");
+        when(httpClient.sendGet(anyString(), anyMap())).thenReturn(unauthorized);
+
+        List<PlatformMetric> metrics = client.collectPlatformMetrics("2024-01-01T00:00:00Z",
+                "2024-01-01T01:00:00Z");
+
+        assertTrue(metrics.isEmpty());
+        // Bad credentials, a wrong path or an unknown datasource reject everything
+        verify(httpClient, times(1)).sendGet(anyString(), anyMap());
+    }
+
+    private void grafanaConfigured() {
+        when(loadTestConfig.isGrafanaEstablished()).thenReturn(true);
+        when(loadTestConfig.getGrafanaHost()).thenReturn("https://grafana.example.com");
+        when(loadTestConfig.getGrafanaUsername()).thenReturn("admin");
+        when(loadTestConfig.getGrafanaPassword()).thenReturn("password");
+        when(loadTestConfig.getGrafanaDatasourceUid()).thenReturn("openvidu-prometheus");
+    }
 }

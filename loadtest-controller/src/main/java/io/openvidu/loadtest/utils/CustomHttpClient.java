@@ -37,6 +37,15 @@ import com.google.gson.JsonObject;
 public class CustomHttpClient {
 
     private static final Logger log = LoggerFactory.getLogger(CustomHttpClient.class);
+
+    /**
+     * Every request needs a deadline. A host that accepts the connection and then
+     * never answers otherwise blocks the caller indefinitely: a misconfigured
+     * Grafana used to stall each platform-metric query for minutes, and there are
+     * fifteen of them per test case.
+     */
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
     private HttpClient client;
 
     public CustomHttpClient() {
@@ -78,7 +87,7 @@ public class CustomHttpClient {
 
         headers.forEach(requestBuilder::header);
 
-        HttpRequest request = requestBuilder.GET().build();
+        HttpRequest request = requestBuilder.GET().timeout(REQUEST_TIMEOUT).build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
@@ -86,7 +95,7 @@ public class CustomHttpClient {
             throws IOException, InterruptedException {
         Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(url));
         headers.forEach(requestBuilder::header);
-        HttpRequest request = requestBuilder.DELETE().build();
+        HttpRequest request = requestBuilder.DELETE().timeout(REQUEST_TIMEOUT).build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 

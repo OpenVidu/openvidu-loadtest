@@ -1,5 +1,6 @@
 package io.openvidu.loadtest.monitoring;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
@@ -97,7 +98,8 @@ public class GrafanaPrometheusClient {
 
         log.info("Collecting platform metrics from Grafana at {}", loadTestConfig.getGrafanaHost());
         List<PlatformMetric> metrics = new ArrayList<>();
-        for (MetricQuery query : QUERIES) {
+        for (int i = 0; i < QUERIES.size(); i++) {
+            MetricQuery query = QUERIES.get(i);
             try {
                 List<Point> points = queryRange(query.promql(), startTime, endTime);
                 if (!points.isEmpty()) {
@@ -107,7 +109,16 @@ public class GrafanaPrometheusClient {
                 Thread.currentThread().interrupt();
                 log.warn("Interrupted while collecting platform metric '{}'", query.name());
                 return metrics;
+            } catch (IOException e) {
+                // Grafana is unreachable or rejecting requests, so every remaining
+                // query would fail the same way, each costing a full request
+                // timeout. Give up on the whole collection instead.
+                log.warn("Could not reach Grafana at {} ({}). Skipping the remaining {} platform metrics; "
+                        + "check monitoring.grafana host, credentials and datasourceUid.",
+                        loadTestConfig.getGrafanaHost(), e.getMessage(), QUERIES.size() - i);
+                return metrics;
             } catch (Exception e) {
+                // The datasource answered but this particular query did not work
                 log.warn("Could not collect platform metric '{}': {}", query.name(), e.getMessage());
             }
         }
@@ -130,8 +141,9 @@ public class GrafanaPrometheusClient {
         headers.put("Authorization", getBasicAuth());
         HttpResponse<String> response = httpClient.sendGet(url, headers);
         if (response.statusCode() != HTTP_STATUS_OK) {
-            throw new IllegalStateException(
-                    "Grafana returned status " + response.statusCode() + ": " + response.body());
+            // A rejected request (wrong credentials, wrong path, unknown datasource)
+            // will be rejected for every metric, so treat it like unreachability
+            throw new IOException("Grafana returned status " + response.statusCode() + ": " + response.body());
         }
 
         JsonObject body = JsonParser.parseString(response.body()).getAsJsonObject();
