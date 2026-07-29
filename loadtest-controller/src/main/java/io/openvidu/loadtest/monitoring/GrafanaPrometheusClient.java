@@ -60,16 +60,24 @@ public class GrafanaPrometheusClient {
                     "RTP packets per second received"),
             new MetricQuery("packets_out", "sum(rate(livekit_packet_total{direction=\"outgoing\"}[1m]))", "pkts/s",
                     "RTP packets per second sent"),
+            // OpenVidu reports loss as a percentage histogram, not as a lost-packet
+            // counter, so this is an average of the reported percentages rather than
+            // a ratio of two counters
             new MetricQuery("packet_loss",
-                    "100 * sum(rate(livekit_packet_loss_total[1m])) / sum(rate(livekit_packet_total[1m]))", "%",
-                    "Platform-wide percentage of RTP packets lost"),
+                    "sum(rate(livekit_packet_loss_percent_sum[1m])) "
+                            + "/ sum(rate(livekit_packet_loss_percent_count[1m]))",
+                    "%", "Platform-wide percentage of RTP packets lost"),
             new MetricQuery("rtt_p95", "histogram_quantile(0.95, sum(rate(livekit_rtt_ms_bucket[1m])) by (le))", "ms",
                     "95th percentile round-trip time between clients and the platform"),
             new MetricQuery("jitter_p95",
                     "histogram_quantile(0.95, sum(rate(livekit_jitter_us_bucket[1m])) by (le)) / 1000", "ms",
                     "95th percentile packet arrival jitter"),
-            new MetricQuery("nack_rate", "sum(rate(livekit_nack_total[1m]))", "nacks/s",
-                    "Retransmission requests per second (signals packet loss)"),
+            // OpenVidu exposes no NACK counter. Out-of-order packets are the closest
+            // signal of the same problem: reordering and loss both trigger recovery
+            new MetricQuery("packet_out_of_order",
+                    "sum(rate(livekit_packet_out_of_order_percent_sum[1m])) "
+                            + "/ sum(rate(livekit_packet_out_of_order_percent_count[1m]))",
+                    "%", "Percentage of RTP packets arriving out of order (signals loss or reordering)"),
             new MetricQuery("pli_rate", "sum(rate(livekit_pli_total[1m]))", "plis/s",
                     "Keyframe requests per second (signals video corruption)"),
             new MetricQuery("quality_score",
