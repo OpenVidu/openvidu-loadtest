@@ -193,7 +193,12 @@ When adding, removing, or modifying API endpoints:
 1. **Update `docs/openapi.yaml`** with the new/changed endpoint and schema
 2. **Regenerate HTML docs**: Run `pnpm run docs` to update `docs/index.html`
 
-### 5. Pre-commit Checklist
+### 5. GitHub Actions Workflows
+
+- All jobs in `.github/workflows/*.yml` MUST run on the self-hosted runners: `runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}`
+- Do not use GitHub-hosted runners (e.g. `ubuntu-24.04`) for new or modified jobs unless the job has a hard requirement the self-hosted runners can't meet (e.g. nested virtualization)
+
+### 6. Pre-commit Checklist
 
 Before finalizing any task:
 
