@@ -196,7 +196,7 @@ When adding, removing, or modifying API endpoints:
 ### 5. GitHub Actions Workflows
 
 - All jobs in `.github/workflows/*.yml` MUST run on the self-hosted runners: `runs-on: ${{ vars.LABEL_WORKER_SELFHOSTED }}`
-- Do not use GitHub-hosted runners (e.g. `ubuntu-24.04`) for new or modified jobs unless the job has a hard requirement the self-hosted runners can't meet (e.g. nested virtualization)
+- Do not use GitHub-hosted runners (e.g. `ubuntu-24.04`) for new or modified jobs unless the job has a hard requirement the self-hosted runners can't meet
 
 ### 6. Pre-commit Checklist
 
