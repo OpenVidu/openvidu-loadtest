@@ -39,9 +39,11 @@ aws:
   securityGroupId: sg-07d69e80c8d773047
 
   # AWS region where instances will be launched
-  region: us-west-1
+  region: us-east-1
 
-  # Availability zone within the region
+  # Availability zone within the region. Keep the workers in the same AZ as the
+  # OpenVidu deployment: cross-AZ traffic is billed in both directions and adds
+  # RTT variance to every measurement.
   availabilityZone: us-east-1a
 
   # Number of EC2 instances to start when test begins
@@ -57,3 +59,37 @@ aws:
 distribution:
   # Maximum number of users (participants) per worker instance (see README for recommendations)
   usersPerWorker: 100
+
+monitoring:
+  # Elasticsearch receives the WebRTC stats, the platform metrics collected below,
+  # and the Metricbeat samples the OpenVidu nodes ship. Setting this is also what
+  # puts per-node and per-container CPU/memory into every results report - see
+  # docs/ov-monitoring.md.
+  elasticsearch:
+    host: http://your-elasticsearch:9200
+    username: elastic
+    password: your_es_password
+
+  kibana:
+    host: http://your-kibana:5601
+
+  # Grafana of the OpenVidu deployment under test. When set, platform traffic
+  # metrics (participants, rooms, tracks published/subscribed, bandwidth in/out,
+  # packets in/out, packet loss, RTT p95, jitter p95, NACK/PLI rate, quality
+  # score) are read from Prometheus through the Grafana datasource proxy at the
+  # end of each test case, and added to the report.
+  #
+  # Without this block there are no traffic counters at all, so byte- and
+  # packet-rate terms cannot be fitted: the load of a run would only be known
+  # from its configuration, never from what the platform actually carried.
+  #
+  # The Grafana stack runs on the master node of Single Node / Elastic / HA
+  # deployments (it is not part of openvidu-local-deployment), reachable at
+  # https://<your-openvidu-domain>/grafana. Confirm datasourceUid against
+  # Grafana -> Connections -> Data sources -> (the Prometheus one) -> its UID
+  # in the URL; 'openvidu-prometheus' is the default OpenVidu ships.
+  grafana:
+    host: https://your-openvidu-url.io/grafana
+    username: your_grafana_user
+    password: your_grafana_password
+    datasourceUid: openvidu-prometheus
