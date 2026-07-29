@@ -130,11 +130,19 @@ describe('ScriptRunnerService', () => {
 				detached: true,
 			};
 
-			const process = await service.run('sleep 60', options);
+			// Use a unique process name (via `exec -a`) instead of a bare
+			// "sleep 60" so this test isn't confused by an unrelated
+			// "sleep 60" process spawned by another CI job running
+			// concurrently on the same self-hosted runner.
+			const tag = `srs-kill-one-${Date.now()}`;
+			const process = await service.run(
+				`bash -lc "exec -a ${tag} sleep 60"`,
+				options,
+			);
 			expect(process.pid).toBeDefined();
 
 			// Verify process is running
-			expect(await service.isRunning('sleep 60')).toBe(true);
+			expect(await service.isRunning(tag)).toBe(true);
 
 			// Kill the process
 			await service.killDetached(process);
@@ -143,7 +151,7 @@ describe('ScriptRunnerService', () => {
 			await new Promise(resolve => setTimeout(resolve, 1000));
 
 			// Verify process is no longer running
-			expect(await service.isRunning('sleep 60')).toBe(false);
+			expect(await service.isRunning(tag)).toBe(false);
 		});
 
 		it('should handle killing an already-dead process', async () => {
@@ -178,10 +186,23 @@ describe('ScriptRunnerService', () => {
 				detached: true,
 			};
 
-			// Start multiple detached processes
-			const process1 = await service.run('sleep 60', options);
-			const process2 = await service.run('sleep 60', options);
-			const process3 = await service.run('sleep 60', options);
+			// Use unique process names (via `exec -a`) instead of a bare
+			// "sleep 60" so this test isn't confused by an unrelated
+			// "sleep 60" process spawned by another CI job running
+			// concurrently on the same self-hosted runner.
+			const tag = `srs-kill-all-${Date.now()}`;
+			const process1 = await service.run(
+				`bash -lc "exec -a ${tag} sleep 60"`,
+				options,
+			);
+			const process2 = await service.run(
+				`bash -lc "exec -a ${tag} sleep 60"`,
+				options,
+			);
+			const process3 = await service.run(
+				`bash -lc "exec -a ${tag} sleep 60"`,
+				options,
+			);
 
 			expect(process1.pid).toBeDefined();
 			expect(process2.pid).toBeDefined();
@@ -194,7 +215,7 @@ describe('ScriptRunnerService', () => {
 			await new Promise(resolve => setTimeout(resolve, 2000));
 
 			// Verify all are gone
-			expect(await service.isRunning('sleep 60')).toBe(false);
+			expect(await service.isRunning(tag)).toBe(false);
 		});
 
 		it('should handle killAllDetached when no processes are running', async () => {
