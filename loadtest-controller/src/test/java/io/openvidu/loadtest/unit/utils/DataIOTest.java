@@ -28,6 +28,7 @@ import io.openvidu.loadtest.config.LoadTestConfig;
 import io.openvidu.loadtest.models.testcase.Browser;
 import io.openvidu.loadtest.models.testcase.EgressConfig;
 import io.openvidu.loadtest.models.testcase.EgressType;
+import io.openvidu.loadtest.models.testcase.Resolution;
 import io.openvidu.loadtest.models.testcase.ResultReport;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.Topology;
@@ -220,6 +221,20 @@ class DataIOTest {
                     participants: ["4"]
                     browser: emulated
                 """).getEmulatedResolution());
+    }
+
+    @Test
+    void realBrowserFallsBackTo640x480OnAnUnrecognizedResolution(@TempDir Path tempDir) throws IOException {
+        // A real browser needs a pixel resolution, so a quality name is not usable
+        // and the documented fallback applies (this one does warn, unlike emulated)
+        TestCase tc = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: chrome
+                    resolution: high
+                """);
+
+        assertEquals(Resolution.MEDIUM, tc.getResolution());
     }
 
     @Test

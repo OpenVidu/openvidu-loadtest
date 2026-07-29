@@ -147,12 +147,15 @@ public class DataIO {
         List<String> participants = parseParticipants(element);
         int sessions = parseSessions(element);
         int frameRate = parseFrameRate(element);
-        Resolution resolution = parseResolution(element);
+        Browser browser = parseBrowser(element);
+        // Emulated mode names its own quality presets (low/medium/high), so an
+        // unrecognized pixel resolution is only worth warning about when a real
+        // browser is going to be asked for one
+        Resolution resolution = parseResolution(element, browser != Browser.EMULATED);
         OpenViduRecordingMode openviduRecordingMode = parseOpenViduRecordingMode(element);
         boolean headlessBrowser = parseHeadless(element);
         boolean browserRecording = parseBrowserRecording(element);
         boolean showBrowserVideoElements = parseShowBrowserVideoElements(element);
-        Browser browser = parseBrowser(element);
         int startingParticipants = parseStartingParticipants(element);
 
         TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution,
@@ -326,7 +329,7 @@ public class DataIO {
         return frameRateObj != null ? parseInt(frameRateObj.toString()) : 30;
     }
 
-    private Resolution parseResolution(Map<String, Object> element) {
+    private Resolution parseResolution(Map<String, Object> element, boolean warnOnUnrecognized) {
         Object resolutionObj = element.get("resolution");
         if (resolutionObj == null) {
             return Resolution.MEDIUM;
@@ -337,7 +340,7 @@ public class DataIO {
         } else if (resStr.equalsIgnoreCase("1920x1080") || resStr.equalsIgnoreCase(Resolution.FULLHIGH.getValue())) {
             return Resolution.FULLHIGH;
         }
-        if (!resStr.equals("640x480")) {
+        if (warnOnUnrecognized && !resStr.equals("640x480")) {
             // The quality names low/medium/high only apply to browser 'emulated';
             // a real browser needs a pixel resolution
             log.warn("Unrecognized resolution '{}'; using 640x480. Valid values for real browsers and "
