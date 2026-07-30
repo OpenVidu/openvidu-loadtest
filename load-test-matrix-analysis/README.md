@@ -363,6 +363,33 @@ limitation is not established here. Until it is, run the matrix on VP8 for
 mediasoup, and note that this makes the codec axis (S8) engine-dependent rather
 than the non-driver it is on Pion.
 
+### The engine ratio is not one number
+
+Same configs on both engines (VP8 throughout, since h264 does not forward on
+mediasoup), comparing the SFU container's cores:
+
+| point | rooms | fan-out | pion | mediasoup | ratio |
+|---|---|---|---|---|---|
+| `s655` simulcast 5x5 | 1 | 26 | 0.490 | 0.240 | 0.49x |
+| `s3e` grid of 20 | 1 | 20 | 1.580 | 0.790 | 0.50x |
+| `s8vp8` grid of 8 | 1 | 8 | 0.350 | 0.180 | 0.51x |
+| `s7a` audio-heavy | 1 | 21 | 0.770 | 0.440 | 0.57x |
+| `s4w4` 4 rooms | 4 | 4 | 0.430 | 0.310 | 0.72x |
+| `s4w8` 8 rooms | 8 | 4 | 0.650 | 0.510 | 0.78x |
+
+Spread is 65% of the median, and the split is not noise: `s4w8`'s error bar
+(0.71-0.87) sits entirely above `s3e`'s (0.47-0.53). The discriminator is how much
+of the load is forwarding rather than bookkeeping -- mediasoup wins in the media
+path, while per-room and per-participant management costs both engines about the
+same. So a single engine multiplier does not fit, and the practical options are to
+quote one engine or to run the core matrix on both.
+
+**The egress term is the exception: it does transfer.** A RoomComposite job cost
+1.356 cores on Pion and 1.382 on mediasoup (1.02x), at 21.2 and 22.0 MiB/min. That
+is expected -- egress is a headless browser plus an encoder, and the SFU engine
+does not change transcoding work. Recording coefficients can therefore be measured
+once and reused; SFU coefficients cannot.
+
 ### Record which RTC engine you measured
 
 `OPENVIDU_RTC_ENGINE` is `pion` or `mediasoup`, it is an install-time setting, and

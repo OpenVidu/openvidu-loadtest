@@ -40,12 +40,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.report import find_runs, platform_metrics, text_report  # noqa: E402
 
 
-def check(txt_path, html_path, expected=None, traffic=None):
+def check(txt_path, html_path, expected=None, traffic=None, simulcast=False):
     """[] if the run is usable, otherwise a list of reasons it is not.
 
     `traffic` is an optional (bits_in_per_s, bits_out_per_s) pair from
     node_traffic.py, needed to verify forwarding on engines whose own
-    counters read zero.
+    counters read zero. `simulcast` disables the fan-out ratio test, which is
+    not valid when the publisher sends layers the SFU does not forward.
     """
     rep = text_report(txt_path)
     problems = []
@@ -97,7 +98,14 @@ def check(txt_path, html_path, expected=None, traffic=None):
     elif traffic is None and published > 0 and subscribed > published * 1.5:
         traffic = (in_bw, out_bw)
 
-    if traffic and published > 0 and subscribed > published * 1.5:
+    if traffic and published > 0 and subscribed > published * 1.5 and not simulcast:
+        # Skipped when simulcast is on. The publisher then sends several layers and
+        # the SFU forwards only the one each subscriber selected, so inbound carries
+        # bytes that are deliberately never fanned out and out/in understates the
+        # real fan-out. Measured: the same simulcast config gave 14.7x on an engine
+        # that paused unused layers and 2.92x on one that received all of them --
+        # both forwarding correctly. Judge simulcast runs on absolute outbound
+        # traffic instead.
         got_in, got_out = traffic
         if got_in:
             expected_fanout = subscribed / published   # streams out per stream in
@@ -134,6 +142,9 @@ def main():
                     help="peak platform participants this run should have reached")
     ap.add_argument("--expect-file",
                     help="TSV of 'point<TAB>expected_participants' for bulk mode")
+    ap.add_argument("--configs",
+                    help="config directory, so simulcast runs can be recognised and "
+                         "exempted from the fan-out test")
     ap.add_argument("--traffic-file",
                     help="node_traffic.json from node_traffic.py. Required to verify "
                          "forwarding on mediasoup, whose own traffic counters read zero")
@@ -154,6 +165,15 @@ def main():
             traffic_map[entry["point"]] = (entry.get("mbps_in", 0) * 1e6,
                                            entry.get("mbps_out", 0) * 1e6)
 
+    def is_simulcast(point):
+        if not args.configs:
+            return False
+        for name in (f"tmp-{point}.yaml", f"{point}.yaml"):
+            path = os.path.join(args.configs, name)
+            if os.path.exists(path):
+                return "simulcast: true" in open(path).read()
+        return False
+
     if args.runs_dir:
         runs = find_runs(args.runs_dir)
         if not runs:
@@ -161,7 +181,8 @@ def main():
             return 2
         bad = 0
         for name, txt, html in runs:
-            problems = check(txt, html, expected_map.get(name), traffic_map.get(name))
+            problems = check(txt, html, expected_map.get(name), traffic_map.get(name),
+                             is_simulcast(name))
             if problems:
                 bad += 1
                 print(f"INVALID  {name}")
@@ -182,8 +203,9 @@ def main():
     if not txts or not htmls:
         print(f"{args.run_dir}: expected results-*.txt and report-*.html")
         return 2
+    point = os.path.basename(args.run_dir.rstrip("/"))
     problems = check(txts[-1], htmls[-1], args.expect_participants,
-                     traffic_map.get(os.path.basename(args.run_dir.rstrip('/'))))
+                     traffic_map.get(point), is_simulcast(point))
     if problems:
         print("INVALID -- discard this point:")
         for p in problems:

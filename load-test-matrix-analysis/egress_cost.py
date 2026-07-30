@@ -72,17 +72,27 @@ def container_cpu(es_url, start, end, user, password, role="medianode"):
             for b in buckets}
 
 
-def object_bytes(runs_dir, point):
-    """Total recorded bytes for a point, if sizes.tsv was produced by storage.py."""
+def object_bytes(runs_dir, point, prefix_template="loadtest-{point}"):
+    """Total recorded bytes for a point, if sizes.tsv was produced by storage.py.
+
+    The match is on the key's first path segment being EXACTLY the expected
+    prefix, not a substring of it. A shared bucket accumulates runs whose
+    prefixes nest -- `loadtest-s9w1` is a substring of `loadtest-s9w1-v8` -- and a
+    substring match silently sums both, which doubled a MiB/min figure when the
+    same point had been run on two engines.
+    """
     path = os.path.join(runs_dir, "sizes.tsv")
     if not os.path.exists(path):
         return None
+    want = prefix_template.format(point=point)
     total = 0
     with open(path) as fh:
         for line in fh:
             parts = line.split(None, 1)
-            if len(parts) == 2 and parts[0].isdigit() and point in parts[1]:
-                total += int(parts[0])
+            if len(parts) == 2 and parts[0].isdigit():
+                key = parts[1].strip()
+                if key.split("/", 1)[0] == want:
+                    total += int(parts[0])
     return total or None
 
 
@@ -101,6 +111,10 @@ def main():
     ap.add_argument("--trim", type=int, default=5,
                     help="seconds ignored at each end of the recording window")
     ap.add_argument("--role", default="medianode")
+    ap.add_argument("--file-prefix", default="loadtest-{point}",
+                    help="egress.filePrefix template used by the configs, matched "
+                         "against the object key's first path segment. Must be unique "
+                         "per run set, or a shared bucket will conflate them")
     args = ap.parse_args()
 
     runs = find_runs(args.runs_dir)
@@ -142,7 +156,7 @@ def main():
         per_job = (eg_avg - args.idle_egress) / len(ran)
 
         mib = ""
-        total = object_bytes(args.runs_dir, point)
+        total = object_bytes(args.runs_dir, point, args.file_prefix)
         if total:
             longest = max(j["duration_s"] for j in ran)
             mib = f"{total / 1048576 / (longest / 60):.1f}"
