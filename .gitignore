@@ -71,3 +71,10 @@ report*.html
 # Load test reports (keep the directory, ignore its contents)
 /results/*
 !/results/.gitkeep
+# Analysis working files
+load-test-matrix-analysis/rows.json
+load-test-matrix-analysis/rows.csv
+load-test-matrix-analysis/expected.tsv
+load-test-matrix-analysis/runs/
+load-test-matrix-analysis/__pycache__/
+load-test-matrix-analysis/lib/__pycache__/
