@@ -321,6 +321,48 @@ the browser-emulator indexes into Elasticsearch are engine-independent and are
 arguably the better source for `u_target` anyway, because they measure what a
 participant experiences rather than what the SFU reports about itself.
 
+### h264 does not forward on mediasoup with `lk load-test` publishers
+
+The nastiest failure seen so far, because nothing reports it. On mediasoup with
+`videoCodec: h264`, a run completes normally — participants connect, tracks
+publish, every subscription registers, the report generates, the process exits 0 —
+and the SFU forwards almost nothing to subscribers. Its CPU therefore reads *low*,
+which looks like efficiency and is actually inactivity.
+
+Measured on one deployment, minutes apart, same engine:
+
+| codec | published | subscribed | Mbps in | Mbps out | fan-out |
+|---|---|---|---|---|---|
+| h264 | 12 | 144 | 3.62 | 4.03 | **1.11x** |
+| VP8 | 16 | 128 | 6.34 | 49.76 | **7.85x** |
+
+VP8's 7.85x matches the 8x the geometry implies. h264's 1.11x means subscribers
+received essentially nothing. Across the h264 points: 40.9x expected vs 3.31x
+actual, 12.0x vs 0.35x, 12.0x vs 2.08x.
+
+Every scenario in the measurement plan pins `videoCodec: h264` (to bound the
+spread of the emulated clip round-robin), so **the entire matrix would have
+produced plausible-looking, badly wrong coefficients on mediasoup** — low CPU at
+every point, and a fitted "mediasoup is 2.5x cheaper" conclusion that is purely an
+artifact of the SFU doing no work.
+
+`gate.py` now checks this: it compares the fan-out the track counts imply against
+the fan-out the traffic actually shows, and fails the run when they disagree.
+On mediasoup it needs `--traffic-file` (from `node_traffic.py`), because the
+platform's own traffic counters read zero there.
+
+Before trusting any mediasoup run, confirm forwarding:
+
+```bash
+python3 node_traffic.py --es http://es:9200 --runs-dir runs/ --iface eth0
+python3 gate.py --runs-dir runs/ --traffic-file runs/node_traffic.json
+```
+
+Whether this is an OpenVidu H264 negotiation issue or a `lk load-test` publisher
+limitation is not established here. Until it is, run the matrix on VP8 for
+mediasoup, and note that this makes the codec axis (S8) engine-dependent rather
+than the non-driver it is on Pion.
+
 ### Record which RTC engine you measured
 
 `OPENVIDU_RTC_ENGINE` is `pion` or `mediasoup`, it is an install-time setting, and
