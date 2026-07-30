@@ -57,7 +57,8 @@ python3 gate.py --runs-dir runs/ --expect-file expected.tsv
 # 2. Recording object sizes (storage cost, and proof the recordings happened)
 python3 storage.py --runs-dir runs/ --s3 s3://your-recordings-bucket/prefix
 
-# 3. Regressors, one row per point
+# 3. Regressors, one row per point. On mediasoup also run node_traffic.py, whose
+#    columns replace the zero-valued packets_*/bandwidth_* ones.
 python3 extract.py --runs-dir runs/ --out rows.json --csv rows.csv
 
 # 4. The idle intercept, measured rather than fitted (deployment must be quiet)
@@ -90,6 +91,7 @@ python3 compare.py rows.json --pairs s3c:s8vp8 --check-geometry      # codec
 | `egress_cost.py` | Cores per recording job, over the recording window only. |
 | `storage.py` | Recorded bytes per object → `sizes.tsv`, and MiB/min per egress type. |
 | `compare.py` | Ratio between two points that differ in one variable. |
+| `node_traffic.py` | Traffic per node from Metricbeat. **Required on mediasoup**, where the platform's own packet and byte counters read zero. |
 | `lib/report.py` | Shared parsing of the text and HTML reports. |
 
 ---
@@ -255,6 +257,69 @@ the model — they disagreed by **3.4×** between two independent fits — and a
 family whose signal is inbound needs **many publishers** so clip assignment
 averages out, plus repeated runs. Outbound is far less exposed, because fan-out
 averages many subscribers over the same publishers.
+
+### On mediasoup, only 6 of the 15 platform metrics are usable
+
+This is the single biggest trap in the whole document. Measured on the same
+deployment before and after switching `OPENVIDU_RTC_ENGINE`:
+
+| metric | Pion | mediasoup |
+|---|---|---|
+| `participants`, `rooms` | ✓ | ✓ |
+| `tracks_published`, `tracks_subscribed` | ✓ | ✓ |
+| `participant_join_rate`, `quality_score` | ✓ | ✓ |
+| `bandwidth_in`, `bandwidth_out` | ✓ | **always 0** |
+| `packets_in`, `packets_out` | ✓ | **always 0** |
+| `packet_loss`, `rtt_p95`, `jitter_p95` | ✓ | **no series** |
+| `packet_out_of_order`, `pli_rate` | ✓ | **no series** |
+
+The traffic counters are the dangerous ones, because the report still *lists*
+them — as zeros. Verified live with 42 participants exchanging media:
+
+```
+sum(livekit_participant_total)                             42
+sum(livekit_track_subscribed_total)                        82
+sum(rate(livekit_packet_total{direction="incoming"}[1m]))   0.0
+sum(rate(livekit_packet_bytes{direction="outgoing"}[1m]))   0.0
+```
+
+mediasoup moves RTP in its own workers, so LiveKit's counters only see what
+crosses the Go layer. A zero-variance column silently enters a regression as a
+valid regressor, and since the SFU's cost is fundamentally per-packet, losing
+those columns removes the ability to model bitrate — which is what "video
+quality" means in the cost model.
+
+**Use `node_traffic.py`**, which reads the node's own NIC counters from
+Metricbeat's `system.network` metricset. Engine-agnostic, and already enabled in
+the shipped Metricbeat config. Observed on mediasoup, with exactly the right
+shape:
+
+```
+point       iface      Mbps in   Mbps out      pps in     pps out
+s2p         eth0          3.93       0.07       785.9        22.7   publish-only
+s2c         eth0          0.65       2.16       323.5     1,822.8   1:40 fan-out
+```
+
+Two rules when you do:
+
+- **Pick one basis and keep it.** NIC counters and platform counters do not agree
+  numerically (different vantage point, encapsulation, pacing), so never mix them
+  in one regression. For a cross-engine comparison, run `node_traffic.py` on both
+  engines' runs and compare that.
+- **Subtract an idle baseline.** NIC counters carry Metricbeat shipping, Prometheus
+  scrapes, control plane and recording uploads too. Measure `--idle-bps` on a
+  no-traffic window, or small points will be mostly monitoring overhead.
+
+The QoS gap has a separate consequence: **S12 cannot be run as specified on
+mediasoup**, since it asks you to watch packet loss, RTT p95 and NACK/PLI rate,
+none of which exist. What mediasoup does expose, with live series, is
+`livekit_quality_score_*`, `livekit_quality_rating_*`,
+`livekit_forward_latency_ns_*` and `livekit_session_join_latency_ms_*`. Since
+`u_target` multiplies the entire fleet size, decide that substitution
+deliberately rather than discovering it mid-run. The per-participant WebRTC stats
+the browser-emulator indexes into Elasticsearch are engine-independent and are
+arguably the better source for `u_target` anyway, because they measure what a
+participant experiences rather than what the SFU reports about itself.
 
 ### Record which RTC engine you measured
 
