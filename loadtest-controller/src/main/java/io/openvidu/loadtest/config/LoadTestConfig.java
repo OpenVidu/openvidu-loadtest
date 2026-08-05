@@ -60,6 +60,7 @@ public abstract class LoadTestConfig {
     private int secondsToWaitBetweenTestCases;
 
     private boolean manualParticipantsAllocation;
+    private boolean packWorkers;
 
     private int usersPerWorker;
 
@@ -210,6 +211,17 @@ public abstract class LoadTestConfig {
 
     public int getUsersPerWorker() {
         return usersPerWorker;
+    }
+
+    /**
+     * Whether chunk-to-worker assignment wraps around the initial fleet
+     * (round-robin reuse) instead of launching a new instance once every
+     * worker has one chunk. lk generators are network-bound: a worker
+     * carrying a single room idles at single-digit CPU, so multi-room
+     * runs with a known size waste most of their fleet without packing.
+     */
+    public boolean isPackWorkers() {
+        return packWorkers;
     }
 
     public String getElasticsearchPassword() {
@@ -465,6 +477,7 @@ public abstract class LoadTestConfig {
             log.error("distribution.manual is true but distribution.usersPerWorker is not defined");
             System.exit(1);
         }
+        packWorkers = asBoolean("distribution.packWorkers");
     }
 
     private void initMonitoringConfig() throws URISyntaxException {

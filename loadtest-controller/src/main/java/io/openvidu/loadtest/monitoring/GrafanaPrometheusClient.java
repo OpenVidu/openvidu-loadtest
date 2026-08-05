@@ -83,7 +83,29 @@ public class GrafanaPrometheusClient {
             new MetricQuery("quality_score",
                     "sum(rate(livekit_quality_score_sum[1m])) / sum(rate(livekit_quality_score_count[1m]))",
                     "score",
-                    "LiveKit connection quality score (0 worst, 5 best)"));
+                    "LiveKit connection quality score (0 worst, 5 best)"),
+            // packet_loss, rtt_p95, jitter_p95, packet_out_of_order and pli_rate
+            // are exported by the Pion engine only. mediasoup deployments expose
+            // forwarding-path health instead. Both sets are queried on every
+            // engine; whichever is absent is skipped, so each engine still
+            // yields quality guardrails alongside quality_score.
+            new MetricQuery("forward_latency_p95",
+                    "histogram_quantile(0.95, sum(rate(livekit_forward_latency_ns_bucket[1m])) by (le)) / 1e6",
+                    "ms", "95th percentile SFU forwarding latency (mediasoup engine)"),
+            new MetricQuery("forward_jitter",
+                    "max(livekit_forward_jitter)",
+                    "", "Forwarded-stream jitter as reported by the SFU (mediasoup engine, engine-specific unit)"),
+            // On mediasoup, livekit_packet_total/livekit_packet_bytes barely move
+            // (they count the Pion path only); the real RTP traffic is in the
+            // node-level counter, which exposes only 'out' and 'dropped'. Inbound
+            // packet/byte rates on mediasoup come from the Metricbeat host network
+            // counters instead (system.network, shipped per node).
+            new MetricQuery("packets_out_node",
+                    "sum(rate(livekit_node_packet_total{type=\"out\"}[1m]))", "pkts/s",
+                    "RTP packets per second forwarded by the SFU (mediasoup engine)"),
+            new MetricQuery("packets_dropped",
+                    "sum(rate(livekit_node_packet_total{type=\"dropped\"}[1m]))", "pkts/s",
+                    "Packets dropped by the SFU - a direct overload signal (mediasoup engine)"));
 
     private final LoadTestConfig loadTestConfig;
     private final CustomHttpClient httpClient;

@@ -13,6 +13,7 @@ import io.openvidu.loadtest.models.testcase.Role;
 import io.openvidu.loadtest.models.testcase.TestCase;
 import io.openvidu.loadtest.models.testcase.WorkerType;
 import io.openvidu.loadtest.services.BrowserEmulatorClient;
+import io.openvidu.loadtest.services.Sleeper;
 
 /**
  * Orchestrates test cases with {@code browser: emulated}: instead of
@@ -62,17 +63,30 @@ class LoadTestModeOrchestrator {
      */
     private static final int DEFAULT_INFINITE_CHUNK_SIZE = 50;
 
+    /**
+     * How many additional workers to try when a chunk launch fails to reach its
+     * worker. A freshly provisioned EC2 instance occasionally never brings the
+     * browser-emulator service up (boot flakiness of a few percent per
+     * instance); with double-digit fleets that made whole runs abort on a
+     * single bad instance. The unreachable worker is skipped (the cursor moves
+     * past it) and the same chunk is retried on the next worker, launching a
+     * ramp-up instance if needed.
+     */
+    private static final int MAX_CHUNK_LAUNCH_RETRIES = 2;
+
     private final LoadTestService loadTestService;
     private final BrowserEmulatorClient browserEmulatorClient;
     private final LoadTestConfig loadTestConfig;
     private final LoadTestParticipantOrchestrator participantOrchestrator;
+    private final Sleeper sleeper;
 
     LoadTestModeOrchestrator(LoadTestService loadTestService, BrowserEmulatorClient browserEmulatorClient,
-            LoadTestConfig loadTestConfig, LoadTestParticipantOrchestrator participantOrchestrator) {
+            LoadTestConfig loadTestConfig, LoadTestParticipantOrchestrator participantOrchestrator, Sleeper sleeper) {
         this.loadTestService = loadTestService;
         this.browserEmulatorClient = browserEmulatorClient;
         this.loadTestConfig = loadTestConfig;
         this.participantOrchestrator = participantOrchestrator;
+        this.sleeper = sleeper;
     }
 
     CreateParticipantResponse runNxN(TestCase testCase, int participantsBySession) throws NoWorkersAvailableException {
@@ -141,6 +155,9 @@ class LoadTestModeOrchestrator {
             if (forcedStop != null) {
                 return forcedStop;
             }
+            if (sessionsStarted > 0) {
+                sleeper.sleep(loadTestConfig.getSecondsToWaitBetweenSession(), "time between sessions");
+            }
             sessionsStarted++;
             int sessionNum = participantOrchestrator.startLoadTestSession();
             String room = loadTestConfig.getSessionNamePrefix() + sessionNum;
@@ -185,6 +202,14 @@ class LoadTestModeOrchestrator {
             workerCursor[0] = loadTestService.setAndInitializeNextWorker(workerCursor[0], WorkerType.WORKER);
             CreateParticipantResponse launchResponse = browserEmulatorClient.launchLoadTest(workerCursor[0], testCase,
                     room, chunkPublishers, chunkAudioPublishers, chunkSubscribers, chunkParticipantIds);
+            for (int retry = 1; !launchResponse.isResponseOk() && retry <= MAX_CHUNK_LAUNCH_RETRIES; retry++) {
+                log.warn("Load-test chunk launch failed on worker {} ({}); skipping it and retrying the chunk "
+                        + "on the next worker ({}/{})", workerCursor[0], launchResponse.getStopReason(), retry,
+                        MAX_CHUNK_LAUNCH_RETRIES);
+                workerCursor[0] = loadTestService.setAndInitializeNextWorker(workerCursor[0], WorkerType.WORKER);
+                launchResponse = browserEmulatorClient.launchLoadTest(workerCursor[0], testCase,
+                        room, chunkPublishers, chunkAudioPublishers, chunkSubscribers, chunkParticipantIds);
+            }
             if (!launchResponse.isResponseOk()) {
                 String reason = launchResponse.getStopReason() != null ? launchResponse.getStopReason()
                         : "Failed to launch load-test chunk on worker " + workerCursor[0] + " for room " + room;

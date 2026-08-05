@@ -102,7 +102,7 @@ public class LoadTestService {
         this.participantOrchestrator = new LoadTestParticipantOrchestrator(this, browserEmulatorClient, esClient,
                 loadTestConfig, sleeper);
         this.loadTestModeOrchestrator = new LoadTestModeOrchestrator(this, browserEmulatorClient, loadTestConfig,
-                this.participantOrchestrator);
+                this.participantOrchestrator, sleeper);
         this.topologyOrchestrator = new LoadTestTopologyOrchestrator(this, loadTestConfig, kibanaClient,
                 browserEmulatorClient, workerUrlResolver, dataIO, loadTestModeOrchestrator);
         this.egressOrchestrator = new LoadTestEgressOrchestrator(egressClient, sleeper);

@@ -26,7 +26,7 @@ aws:
   secretAccessKey: your_secret_key
 
   # AMI ID - created by setup-aws-workers.sh
-  amiId: ami-03991a0ff8afdf715
+  amiId: ami-02fa938ab2cf66bf5
 
   # EC2 instance type (see README for capacity recommendations)
   instanceType: t3.medium
@@ -36,7 +36,7 @@ aws:
 
   # Security group ID - controls access to worker ports (5000, 5001)
   # Created automatically by setup-aws-workers.sh
-  securityGroupId: sg-07d69e80c8d773047
+  securityGroupId: sg-01f9c0f88131294c2
 
   # AWS region where instances will be launched
   region: us-east-1

@@ -11,6 +11,7 @@ var AUDIO;
 var VIDEO;
 var SHOW_VIDEO_ELEMENTS;
 var RESOLUTION;
+var VIDEO_CODEC;
 var ROLE;
 var RECORDING_OUTPUT_MODE;
 var FRAME_RATE;
@@ -30,6 +31,7 @@ window.onload = () => {
 	AUDIO = url.searchParams.get("audio") === 'true';
 	VIDEO = url.searchParams.get("video") === 'true';
 	RESOLUTION = url.searchParams.get("resolution");
+	VIDEO_CODEC = url.searchParams.get("videoCodec") || undefined;
 	ROLE = url.searchParams.get("role");
 	RECORDING_OUTPUT_MODE = url.searchParams.get("recordingmode");
 	FRAME_RATE = url.searchParams.get("frameRate");
@@ -57,6 +59,7 @@ function joinWithForm() {
 	USER_ID = document.getElementById("form-userId").value;
 	RESOLUTION = document.getElementById("form-resolution").value;
 	FRAME_RATE = document.getElementById("form-frameRate").value;
+	VIDEO_CODEC = document.getElementById("form-videoCodec").value || undefined;
 	SHOW_VIDEO_ELEMENTS = document.getElementById("form-showVideoElements").checked;
 	ROLE = document.getElementById("form-role-subscriber").checked ? 'SUBSCRIBER' :  'PUBLISHER';
 	AUDIO = true;
@@ -96,6 +99,9 @@ async function joinSession() {
 				maxBitrate: 10_000_000,
 			}
 		}
+	}
+	if (VIDEO_CODEC) {
+		roomOptions.publishDefaults.videoCodec = VIDEO_CODEC;
 	}
 	if (AUDIO) {
 		roomOptions.audioCaptureDefaults = {
@@ -388,6 +394,7 @@ function leaveSession() {
 		VIDEO = null;
 		SHOW_VIDEO_ELEMENTS = null;
 		RESOLUTION = null;
+		VIDEO_CODEC = null;
 		ROLE = null;
 		RECORDING_OUTPUT_MODE = null;
 		FRAME_RATE = null;
@@ -495,6 +502,7 @@ function initFormValues() {
 	document.getElementById("form-showVideoElements").checked = SHOW_VIDEO_ELEMENTS;
 	document.getElementById("form-resolution").value = RESOLUTION;
 	document.getElementById("form-frameRate").value = FRAME_RATE;
+	document.getElementById("form-videoCodec").value = VIDEO_CODEC || '';
 }
 
 function showForm() {

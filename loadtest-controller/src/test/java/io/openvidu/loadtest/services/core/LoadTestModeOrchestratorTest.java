@@ -56,7 +56,7 @@ class LoadTestModeOrchestratorTest {
         participantOrchestrator = new LoadTestParticipantOrchestrator(loadTestService, browserEmulatorClient,
                 esClient, loadTestConfig, sleeper);
         orchestrator = new LoadTestModeOrchestrator(loadTestService, browserEmulatorClient, loadTestConfig,
-                participantOrchestrator);
+                participantOrchestrator, sleeper);
 
         when(loadTestConfig.getSessionNamePrefix()).thenReturn("session");
         when(loadTestConfig.getUserNamePrefix()).thenReturn("User");
@@ -179,6 +179,16 @@ class LoadTestModeOrchestratorTest {
     }
 
     @Test
+    void runNxN_waitsBetweenSessionsButNotBeforeTheFirst() throws NoWorkersAvailableException {
+        when(loadTestConfig.getSecondsToWaitBetweenSession()).thenReturn(30);
+        TestCase testCase = testCase(Topology.N_X_N, Arrays.asList("3"), 3);
+
+        orchestrator.runNxN(testCase, 3);
+
+        verify(sleeper, times(2)).sleep(30, "time between sessions");
+    }
+
+    @Test
     void runNxN_stopsAfterFirstFailedChunkAndSkipsRemainingSessions() throws NoWorkersAvailableException {
         when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(), anyInt(),
                 anyInt(), anyList())).thenReturn(new CreateParticipantResponse().setResponseOk(false)
@@ -188,7 +198,9 @@ class LoadTestModeOrchestratorTest {
         CreateParticipantResponse response = orchestrator.runNxN(testCase, 3);
 
         assertFalse(response.isResponseOk());
-        verify(browserEmulatorClient, times(1)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
+        // The first session's chunk is attempted on the initial worker plus
+        // MAX_CHUNK_LAUNCH_RETRIES fresh workers; the second session is skipped.
+        verify(browserEmulatorClient, times(3)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
                 anyInt(), anyInt(), anyInt(), anyList());
     }
 
@@ -394,5 +406,40 @@ class LoadTestModeOrchestratorTest {
                 Arrays.asList("User9", "User10", "User11", "User12"));
         verify(browserEmulatorClient).launchLoadTest("worker4", testCase, "session1", 0, 0, 2,
                 Arrays.asList("User13", "User14"));
+    }
+
+    @Test
+    void chunkLaunchFailure_skipsUnreachableWorkerAndRetriesOnTheNext() throws NoWorkersAvailableException {
+        // An EC2 worker that never brings its service up must not abort the run:
+        // the chunk is retried on the next worker.
+        when(browserEmulatorClient.launchLoadTest(eq("worker1"), any(TestCase.class), anyString(), anyInt(),
+                anyInt(), anyInt(), anyList()))
+                .thenReturn(new CreateParticipantResponse().setResponseOk(false)
+                        .setStopReason("Error launching load-test chunk on worker worker1: HTTP connect timed out"));
+        TestCase testCase = testCase(Topology.ONE_SESSION_NXN, Arrays.asList("4"), 1);
+
+        CreateParticipantResponse response = orchestrator.runOneSessionNxN(testCase, 4);
+
+        assertTrue(response.isResponseOk());
+        verify(browserEmulatorClient).launchLoadTest("worker1", testCase, "session1", 4, 0, 0,
+                Arrays.asList("User1", "User2", "User3", "User4"));
+        verify(browserEmulatorClient).launchLoadTest("worker2", testCase, "session1", 4, 0, 0,
+                Arrays.asList("User1", "User2", "User3", "User4"));
+    }
+
+    @Test
+    void chunkLaunchFailure_stillAbortsWhenRetriesAreExhausted() throws NoWorkersAvailableException {
+        when(browserEmulatorClient.launchLoadTest(anyString(), any(TestCase.class), anyString(), anyInt(),
+                anyInt(), anyInt(), anyList()))
+                .thenReturn(new CreateParticipantResponse().setResponseOk(false)
+                        .setStopReason("HTTP connect timed out"));
+        TestCase testCase = testCase(Topology.ONE_SESSION_NXN, Arrays.asList("4"), 1);
+
+        CreateParticipantResponse response = orchestrator.runOneSessionNxN(testCase, 4);
+
+        assertFalse(response.isResponseOk());
+        // Initial attempt + MAX_CHUNK_LAUNCH_RETRIES retries, each on a fresh worker
+        verify(browserEmulatorClient, times(3)).launchLoadTest(anyString(), any(TestCase.class), anyString(),
+                anyInt(), anyInt(), anyInt(), anyList());
     }
 }

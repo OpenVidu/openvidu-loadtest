@@ -92,6 +92,16 @@ class LoadTestWorkerLifecycleOrchestrator {
             return workerUrl;
         }
 
+        // distribution.packWorkers: reuse the fleet round-robin instead of
+        // launching a new instance per chunk. lk generators are network-bound
+        // (a one-room worker idles at single-digit CPU), so fixed-size
+        // multi-room runs pack several chunks per worker and never ramp.
+        if (loadTestConfig.isPackWorkers() && !workerList.isEmpty()) {
+            String workerUrl = workerUrlResolver.resolveUrl(workerList.get(0));
+            log.info("Packing: wrapping around to {} {}", workerTypeValue, workerUrl);
+            return workerUrl;
+        }
+
         return launchAndInitializeWorker(workerType, workerTypeValue, workerList, workerStartTimesForType);
     }
 

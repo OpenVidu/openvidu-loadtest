@@ -69,8 +69,8 @@ class GrafanaPrometheusClientTest {
         List<PlatformMetric> metrics = client.collectPlatformMetrics("2024-01-01T00:00:00Z", "2024-01-01T01:00:00Z");
 
         assertFalse(metrics.isEmpty());
-        // 15 queries defined in QUERIES, all should succeed
-        assertEquals(15, metrics.size());
+        // 19 queries defined in QUERIES (15 engine-common/Pion + 4 mediasoup), all should succeed
+        assertEquals(19, metrics.size());
 
         PlatformMetric participants = metrics.get(0);
         assertEquals("participants", participants.getName());
@@ -229,7 +229,7 @@ class GrafanaPrometheusClientTest {
 
         // A datasource that answers but rejects one query says nothing about the
         // others, so every metric is still attempted
-        verify(httpClient, times(15)).sendGet(anyString(), anyMap());
+        verify(httpClient, times(19)).sendGet(anyString(), anyMap());
     }
 
     @Test

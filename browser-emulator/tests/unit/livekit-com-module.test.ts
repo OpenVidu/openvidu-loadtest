@@ -61,4 +61,16 @@ describe('LiveKitComModule.generateWebappUrl', () => {
 		const url = comModule.generateWebappUrl(buildRequest());
 		expect(url).toContain('disableAutoSubscribeForPublishers=false');
 	});
+
+	it('includes videoCodec in the URL when set', () => {
+		const url = comModule.generateWebappUrl(
+			buildRequest({ videoCodec: 'vp9' }),
+		);
+		expect(url).toContain('videoCodec=vp9');
+	});
+
+	it('omits videoCodec from the URL when unset', () => {
+		const url = comModule.generateWebappUrl(buildRequest());
+		expect(url).not.toContain('videoCodec');
+	});
 });
