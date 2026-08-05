@@ -90,18 +90,33 @@ async function joinSession() {
 	beConnector = new BrowserEmulatorConnector();
 	recordingManager = new BrowserEmulatorRecorderManager(beConnector);
 	statsManager = new WebRTCStatsManager(beConnector);
+	// Deterministic media: publish/subscribe EXACTLY the requested codec and
+	// resolution, with every adaptive mechanism pinned off. No simulcast, no
+	// SVC layers, no dynacast, no adaptive streaming, no backup codec (the SDK
+	// otherwise silently publishes a VP8 fallback alongside VP9/AV1), no RED
+	// (audio stays plain opus). Under CPU pressure the encoder may drop
+	// framerate but never resolution (degradationPreference).
 	let roomOptions = {
 		adaptiveStream: false,
+		dynacast: false,
 		publishDefaults: {
 			simulcast: false,
+			backupCodec: false,
+			red: false,
+			degradationPreference: 'maintain-resolution',
 			videoEncoding: {
-				maxFramerate: FRAME_RATE,
+				maxFramerate: parseInt(FRAME_RATE) || undefined,
 				maxBitrate: 10_000_000,
 			}
 		}
 	}
 	if (VIDEO_CODEC) {
 		roomOptions.publishDefaults.videoCodec = VIDEO_CODEC;
+		if (VIDEO_CODEC === 'vp9' || VIDEO_CODEC === 'av1') {
+			// SVC-capable codecs default to multi-layer scalability modes;
+			// L1T1 = single spatial + single temporal layer (no SVC).
+			roomOptions.publishDefaults.scalabilityMode = 'L1T1';
+		}
 	}
 	if (AUDIO) {
 		roomOptions.audioCaptureDefaults = {
@@ -112,13 +127,13 @@ async function joinSession() {
 	}
 
 	let resSplit = RESOLUTION.split('x');
-	let width = resSplit[0];
-	let height = resSplit[1];
+	let width = parseInt(resSplit[0]);
+	let height = parseInt(resSplit[1]);
 
 	if (VIDEO) {
 		roomOptions.videoCaptureDefaults = {
 			resolution: {
-				frameRate: FRAME_RATE,
+				frameRate: parseInt(FRAME_RATE) || undefined,
 				width,
 				height
 			}
