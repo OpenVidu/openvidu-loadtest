@@ -215,6 +215,23 @@ class DataIOTest {
     }
 
     @Test
+    void customEmulated1080pKeepsItsPixelResolution(@TempDir Path tempDir) throws IOException {
+        // The emulated-preset mapping (and its "capped to high" warning) must
+        // not run for other browsers: custom-emulated legitimately publishes
+        // 1920x1080 through the pixel Resolution, not the coarse presets.
+        TestCase tc = loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: custom-emulated
+                    resolution: 1920x1080
+                """);
+
+        assertEquals(Resolution.FULLHIGH, tc.getResolution());
+        // Untouched default; the emulated preset is only meaningful for browser 'emulated'
+        assertEquals("high", tc.getEmulatedResolution());
+    }
+
+    @Test
     void emulatedResolutionDefaultsToHigh(@TempDir Path tempDir) throws IOException {
         assertEquals("high", loadSingleTestCase(tempDir, """
                   - topology: N:N
@@ -235,6 +252,54 @@ class DataIOTest {
                 """);
 
         assertEquals(Resolution.MEDIUM, tc.getResolution());
+    }
+
+    @Test
+    void realBrowserVideoCodecAcceptsVp9AndAv1(@TempDir Path tempDir) throws IOException {
+        // Real browsers accept a wider codec set than emulated mode, applied as
+        // the LiveKit client's preferred publish codec
+        assertEquals("vp9", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: chrome
+                    videoCodec: vp9
+                """).getVideoCodec());
+
+        assertEquals("av1", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: firefox
+                    videoCodec: av1
+                """).getVideoCodec());
+    }
+
+    @Test
+    void emulatedVideoCodecRejectsVp9AndAv1(@TempDir Path tempDir) throws IOException {
+        // lk load-test only understands h264/vp8; anything else is ignored
+        assertEquals("", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: emulated
+                    videoCodec: vp9
+                """).getVideoCodec());
+    }
+
+    @Test
+    void customEmulatedVideoCodecIsAlwaysForcedToH264(@TempDir Path tempDir) throws IOException {
+        // The custom-emulated publish pipeline is hardcoded to h264 regardless of
+        // what is configured here
+        assertEquals("h264", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: custom-emulated
+                    videoCodec: vp8
+                """).getVideoCodec());
+
+        assertEquals("h264", loadSingleTestCase(tempDir, """
+                  - topology: N:N
+                    participants: ["4"]
+                    browser: custom-emulated
+                """).getVideoCodec());
     }
 
     @Test

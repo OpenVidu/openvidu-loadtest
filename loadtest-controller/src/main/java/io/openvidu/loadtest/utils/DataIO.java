@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,10 +162,16 @@ public class DataIO {
         TestCase testCase = new TestCase(topology, participants, sessions, frameRate, resolution,
                 openviduRecordingMode, headlessBrowser, browserRecording, showBrowserVideoElements, browser);
         testCase.setStartingParticipants(startingParticipants);
-        testCase.setVideoCodec(parseVideoCodec(element));
+        testCase.setVideoCodec(parseVideoCodec(element, browser));
         testCase.setSimulcast(parseSimulcast(element));
         testCase.setLayout(parseLayout(element));
-        testCase.setEmulatedResolution(parseEmulatedResolution(element));
+        // The coarse lk load-test presets only exist in emulated mode. Other
+        // browsers use the pixel Resolution parsed above; running the emulated
+        // mapping for them would log misleading warnings (e.g. a legitimate
+        // custom-emulated 1920x1080 being "capped to high").
+        if (browser == Browser.EMULATED) {
+            testCase.setEmulatedResolution(parseEmulatedResolution(element));
+        }
         testCase.setPublishersAlsoSubscribe(parsePublishersAlsoSubscribe(element));
         testCase.setEgress(parseEgress(element));
         return testCase;
@@ -280,9 +287,38 @@ public class DataIO {
         return true;
     }
 
-    private String parseVideoCodec(Map<String, Object> element) {
+    private static final Set<String> EMULATED_VIDEO_CODECS = Set.of("h264", "vp8");
+    private static final Set<String> REAL_BROWSER_VIDEO_CODECS = Set.of("h264", "vp8", "vp9", "av1");
+
+    /**
+     * Valid values depend on the browser: 'emulated' only understands h264/vp8
+     * (lk load-test's own codecs); 'chrome'/'firefox' additionally accept vp9/av1
+     * (applied as the LiveKit client's preferred publish codec); 'custom-emulated'
+     * is hardcoded to h264 regardless of what is configured here.
+     */
+    private String parseVideoCodec(Map<String, Object> element, Browser browser) {
         Object codecObj = element.get("videoCodec");
-        return codecObj != null ? codecObj.toString() : "";
+
+        if (browser == Browser.CUSTOM_EMULATED) {
+            if (codecObj != null && !codecObj.toString().equalsIgnoreCase("h264")) {
+                log.warn("videoCodec '{}' ignored for 'custom-emulated' browser; its publish pipeline is "
+                        + "hardcoded to h264.", codecObj);
+            }
+            return "h264";
+        }
+
+        if (codecObj == null) {
+            return "";
+        }
+        String codecStr = codecObj.toString().toLowerCase();
+
+        Set<String> allowedCodecs = browser == Browser.EMULATED ? EMULATED_VIDEO_CODECS : REAL_BROWSER_VIDEO_CODECS;
+        if (!allowedCodecs.contains(codecStr)) {
+            log.warn("Unrecognized videoCodec '{}' for browser '{}'; ignoring. Valid values: {}.", codecStr,
+                    browser.getValue(), allowedCodecs);
+            return "";
+        }
+        return codecStr;
     }
 
     private String parseLayout(Map<String, Object> element) {

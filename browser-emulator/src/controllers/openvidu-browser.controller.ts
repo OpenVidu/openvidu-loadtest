@@ -8,6 +8,7 @@ import {
 	type CreateUserBrowserRequest,
 	Role,
 	Resolution,
+	VideoCodec,
 } from '../types/create-user.type.ts';
 import type {
 	LoadTestRunRequestExpress,
@@ -89,6 +90,31 @@ export class OpenViduBrowserController {
 					)
 				) {
 					request.properties.resolution = Resolution.DEFAULT;
+				}
+
+				if (
+					request.properties.videoCodec &&
+					!Object.values(VideoCodec).includes(
+						request.properties.videoCodec,
+					)
+				) {
+					this.logger.warn(
+						'Unrecognized videoCodec "%s"; ignoring',
+						request.properties.videoCodec,
+					);
+					request.properties.videoCodec = undefined;
+				}
+
+				if (
+					request.properties.browser === 'custom-emulated' &&
+					request.properties.videoCodec &&
+					request.properties.videoCodec !== VideoCodec.H264
+				) {
+					this.logger.warn(
+						'videoCodec "%s" ignored for custom-emulated browser; its publish pipeline is hardcoded to h264',
+						request.properties.videoCodec,
+					);
+					request.properties.videoCodec = undefined;
 				}
 
 				request.properties.showVideoElements =

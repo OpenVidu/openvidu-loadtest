@@ -16,8 +16,14 @@ public class TestCase {
     private boolean showBrowserVideoElements = true;
     private String recordingMetadata = "";
     private int startingParticipants = 0;
-    // LOADTEST mode fields (only used when browser == EMULATED)
+    /**
+     * Preferred video codec for published tracks. For browser == EMULATED, passed to
+     * {@code lk load-test --video-codec}. For browser == CHROME/FIREFOX, sent to the
+     * browser-emulator so the LiveKit client applies it as its preferred publish codec.
+     * Ignored for browser == CUSTOM_EMULATED, whose publish pipeline is hardcoded to h264.
+     */
     private String videoCodec = "";
+    // LOADTEST mode fields (only used when browser == EMULATED)
     private boolean simulcast = false;
     private String layout = "";
     /** Coarse quality preset `lk load-test` understands: low (180p), medium (360p) or high (720p). */

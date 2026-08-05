@@ -246,6 +246,7 @@ These properties apply to both topology groups above but are only meaningful whe
 | `headlessBrowser`          | No       | `false` | Run browser in headless mode. Only usable with real browsers.       |
 | `browserRecording`         | No       | `false` | Record browser output                                                |
 | `showBrowserVideoElements` | No       | `true`  | Show video elements in browser. Only usable with real browsers.     |
+| `videoCodec`               | No       | (unset) | Preferred video codec for published tracks: `h264`, `vp8`, `vp9`, or `av1`. `chrome`/`firefox` only, applied as the LiveKit client's preferred publish codec (LiveKit platform only; actual negotiated codec still depends on browser support). Ignored for `custom-emulated`, whose publish pipeline is hardcoded to `h264`. This is the same `videoCodec` property used in [Emulated mode](#emulated-mode), which accepts a narrower `h264`/`vp8` set there. |
 
 ### Emulated mode
 
@@ -279,7 +280,7 @@ Video codec and layout configuration:
 
 | Property | Default | Description |
 | -------- | ------- | ----------- |
-| `videoCodec` | (random) | `h264` or `vp8`. If not specified, a codec will be selected randomly for each participant |
+| `videoCodec` | (random) | `h264` or `vp8`, passed to `lk load-test --video-codec`. If not specified, a codec will be selected randomly for each participant. Real browsers (`chrome`/`firefox`) accept a wider `vp9`/`av1` set for this same property—see [Additional options for custom-emulated / chrome / firefox](#additional-options-for-custom-emulated--chrome--firefox) |
 | `simulcast` | `false` | Disabled by default; set to `true` to opt in |
 | `layout` | `5x5` | **Subscribers only.** Controls how subscriber video is laid out. Determines maximum concurrent subscribers and, if simulcast is enabled, the resolution each subscriber receives |
 | `publishersAlsoSubscribe` | `true` | Whether every publisher also counts as a subscriber. Set to `false` for exactly the requested geometry—see [Room geometry in emulated mode](#room-geometry-in-emulated-mode) |

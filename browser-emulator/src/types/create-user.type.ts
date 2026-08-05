@@ -19,6 +19,12 @@ export interface UserJoinProperties {
 	resolution: Resolution;
 	frameRate: number;
 	browser: AvailableBrowsers;
+	/**
+	 * Preferred video codec for published tracks, applied as the LiveKit client's
+	 * preferred publish codec. Only takes effect for real browsers (chrome/firefox)
+	 * against a LiveKit platform; ignored otherwise.
+	 */
+	videoCodec?: VideoCodec;
 	recording?: boolean;
 	showVideoElements?: boolean;
 	headless?: boolean;
@@ -47,6 +53,15 @@ export const Resolution = {
 } as const;
 
 export type Resolution = (typeof Resolution)[keyof typeof Resolution];
+
+export const VideoCodec = {
+	H264: 'h264',
+	VP8: 'vp8',
+	VP9: 'vp9',
+	AV1: 'av1',
+} as const;
+
+export type VideoCodec = (typeof VideoCodec)[keyof typeof VideoCodec];
 
 export type AvailableBrowsers = 'chrome' | 'firefox' | 'custom-emulated';
 

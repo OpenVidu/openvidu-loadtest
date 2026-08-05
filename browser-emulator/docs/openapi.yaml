@@ -462,6 +462,19 @@ components:
           type: string
         mediaRecorders:
           type: boolean
+        videoCodec:
+          type: string
+          enum:
+            - h264
+            - vp8
+            - vp9
+            - av1
+          description: >-
+            Preferred video codec for published tracks, applied as the
+            LiveKit client's preferred publish codec. Only takes effect for
+            real browsers (chrome/firefox) against a LiveKit platform; the
+            actual negotiated codec still depends on browser support. Ignored
+            for custom-emulated, whose publish pipeline is hardcoded to h264.
         disableAutoSubscribeForPublishers:
           type: boolean
           description: >-

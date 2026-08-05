@@ -34,6 +34,9 @@ testcases:
     resolution: 640x480
     frameRate: 30
     browser: chrome
+    # Applied as the LiveKit client's preferred publish codec (LiveKit platform
+    # only; actual negotiated codec still depends on browser support).
+    videoCodec: vp8
     recordingMode: COMPOSED
     browserRecording: false
     headlessBrowser: false

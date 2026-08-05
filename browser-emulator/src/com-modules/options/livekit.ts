@@ -66,6 +66,9 @@ export default class LiveKitComModule extends BaseComModule {
 		const protocol = this.configService.isHttpsDisabled()
 			? 'http'
 			: 'https';
+		const videoCodecParam = properties.videoCodec
+			? `videoCodec=${properties.videoCodec}&`
+			: '';
 		return (
 			`${protocol}://${browserEmulatorHost}:${this.configService.getServerPort()}/?` +
 			publicUrl +
@@ -78,6 +81,7 @@ export default class LiveKitComModule extends BaseComModule {
 			`resolution=${properties.resolution}&` +
 			`showVideoElements=${properties.showVideoElements}&` +
 			`frameRate=${properties.frameRate}&` +
+			videoCodecParam +
 			`disableAutoSubscribeForPublishers=${!!properties.disableAutoSubscribeForPublishers}&` +
 			`qoeAnalysis=${qoeAnalysis}`
 		);
