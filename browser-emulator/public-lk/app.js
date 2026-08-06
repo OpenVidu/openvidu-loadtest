@@ -130,6 +130,17 @@ async function joinSession() {
 	let width = parseInt(resSplit[0]);
 	let height = parseInt(resSplit[1]);
 
+	// Realistic per-resolution encoder budgets (production-like presets). The
+	// previous flat 10 Mbps cap made the encoder quality-saturate: 480p
+	// publishers pushed ~6 Mbps, and at 1080p a single encode thread starved
+	// chasing quality (framerate collapsed while resolution held). Rate-capped
+	// encodes are far cheaper AND give a bitrate ladder that matches what
+	// production clients actually send. Unknown heights keep the legacy cap.
+	const MAX_BITRATE_BY_HEIGHT = { 480: 1_200_000, 720: 2_500_000, 1080: 4_000_000 };
+	if (height && MAX_BITRATE_BY_HEIGHT[height]) {
+		roomOptions.publishDefaults.videoEncoding.maxBitrate = MAX_BITRATE_BY_HEIGHT[height];
+	}
+
 	if (VIDEO) {
 		roomOptions.videoCaptureDefaults = {
 			resolution: {
