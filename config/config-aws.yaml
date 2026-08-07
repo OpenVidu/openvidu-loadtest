@@ -26,7 +26,7 @@ aws:
   secretAccessKey: your_secret_key
 
   # AMI ID - created by setup-aws-workers.sh
-  amiId: ami-02fa938ab2cf66bf5
+  amiId: ami-044a5a037fa779207
 
   # EC2 instance type (see README for capacity recommendations)
   instanceType: t3.medium

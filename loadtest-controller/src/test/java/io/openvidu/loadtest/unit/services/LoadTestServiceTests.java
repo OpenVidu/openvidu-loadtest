@@ -86,6 +86,8 @@ class LoadTestServiceTests {
         when(this.loadTestConfig.getUserNamePrefix()).thenReturn("User");
         when(this.loadTestConfig.getSessionNamePrefix()).thenReturn("LoadTestSession");
         when(this.loadTestConfig.isTerminateWorkers()).thenReturn(false);
+        // historical default: recycle the fleet between test cases
+        when(this.loadTestConfig.isRecycleWorkersBetweenCases()).thenReturn(true);
         when(this.loadTestConfig.isKibanaEstablished()).thenReturn(true);
         when(this.loadTestConfig.getReportOutput()).thenReturn(List.of("html", "txt"));
         when(this.webSocketConnectionFactory.createConnection(anyString())).thenReturn(mock(WebSocketClient.class));

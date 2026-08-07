@@ -3,13 +3,20 @@
   "title": "OpenVidu Load Test Configuration",
   "description": "Configuration schema for OpenVidu Load Test scenarios",
   "type": "object",
-  "required": ["platform", "testcases"],
+  "required": [
+    "platform",
+    "testcases"
+  ],
   "properties": {
     "platform": {
       "type": "object",
       "title": "Platform Connection Settings",
       "description": "Connection settings for the OpenVidu/LiveKit platform under test",
-      "required": ["url", "apiKey", "apiSecret"],
+      "required": [
+        "url",
+        "apiKey",
+        "apiSecret"
+      ],
       "properties": {
         "url": {
           "type": "string",
@@ -74,7 +81,10 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["topology", "participants"],
+        "required": [
+          "topology",
+          "participants"
+        ],
         "properties": {
           "topology": {
             "type": "string",
@@ -103,14 +113,21 @@
               },
               {
                 "type": "string",
-                "enum": ["infinite"]
+                "enum": [
+                  "infinite"
+                ]
               }
             ],
             "description": "Number of sessions to create, or 'infinite' to run until platform fails. Required for N:N, N:M, and TEACHING topologies. Ignored for ONE_SESSION_NXN and ONE_SESSION_NXM topologies (which always use exactly one session)."
           },
           "browser": {
             "type": "string",
-            "enum": ["chrome", "firefox", "custom-emulated", "emulated"],
+            "enum": [
+              "chrome",
+              "firefox",
+              "custom-emulated",
+              "emulated"
+            ],
             "default": "chrome",
             "description": "Browser type to use for the test. 'chrome'/'firefox' use real browsers; 'custom-emulated' creates one lightweight simulated participant at a time. 'emulated' (recommended default for large-scale tests) launches LiveKit CLI 'lk load-test' processes that each simulate many publishers/subscribers in one room; only usable with a LiveKit platform. See README.md 'Emulated mode' section for options that don't apply with this browser value."
           },
@@ -148,7 +165,10 @@
           },
           "recordingMode": {
             "type": "string",
-            "enum": ["COMPOSED", "INDIVIDUAL"],
+            "enum": [
+              "COMPOSED",
+              "INDIVIDUAL"
+            ],
             "description": "Recording mode for media recording"
           },
           "videoCodec": {
@@ -162,7 +182,12 @@
           },
           "layout": {
             "type": "string",
-            "enum": ["speaker", "3x3", "4x4", "5x5"],
+            "enum": [
+              "speaker",
+              "3x3",
+              "4x4",
+              "5x5"
+            ],
             "default": "5x5",
             "description": "'emulated' browser only. Subscriber layout passed to 'lk load-test --layout'; determines the maximum number of concurrent subscribers and, with simulcast enabled, the resolution each subscriber receives (speaker: 1 at HIGH + 5 at LOW; 3x3: 9 at MEDIUM; 4x4: 16 at LOW; 5x5: 25 at LOW). Ignored for other browser values."
           },
@@ -175,7 +200,9 @@
             "type": "object",
             "title": "Recording",
             "description": "Recordings to run alongside this test case's load, through the OpenVidu Egress service (requires a LiveKit platform). Recordings start once every participant is connected, run for the whole 'session.secondsBeforeTestFinished' hold, and are stopped before the results report is written, so the report covers a known number of recordings running for a known window.",
-            "required": ["type"],
+            "required": [
+              "type"
+            ],
             "properties": {
               "type": {
                 "type": "string",
@@ -221,7 +248,10 @@
               },
               "fileType": {
                 "type": "string",
-                "enum": ["MP4", "OGG"],
+                "enum": [
+                  "MP4",
+                  "OGG"
+                ],
                 "description": "Output container. Omit to use the Egress default."
               },
               "filePrefix": {
@@ -240,7 +270,9 @@
         "allOf": [
           {
             "if": {
-              "required": ["browser"],
+              "required": [
+                "browser"
+              ],
               "properties": {
                 "browser": {
                   "const": "emulated"
@@ -265,7 +297,11 @@
             "else": {
               "properties": {
                 "resolution": {
-                  "enum": ["640x480", "1280x720", "1920x1080"],
+                  "enum": [
+                    "640x480",
+                    "1280x720",
+                    "1920x1080"
+                  ],
                   "default": "640x480"
                 }
               }
@@ -273,7 +309,9 @@
           },
           {
             "if": {
-              "required": ["browser"],
+              "required": [
+                "browser"
+              ],
               "properties": {
                 "browser": {
                   "const": "emulated"
@@ -283,13 +321,18 @@
             "then": {
               "properties": {
                 "videoCodec": {
-                  "enum": ["h264", "vp8"]
+                  "enum": [
+                    "h264",
+                    "vp8"
+                  ]
                 }
               }
             },
             "else": {
               "if": {
-                "required": ["browser"],
+                "required": [
+                  "browser"
+                ],
                 "properties": {
                   "browser": {
                     "const": "custom-emulated"
@@ -299,7 +342,9 @@
               "then": {
                 "properties": {
                   "videoCodec": {
-                    "enum": ["h264"],
+                    "enum": [
+                      "h264"
+                    ],
                     "default": "h264"
                   }
                 }
@@ -307,7 +352,12 @@
               "else": {
                 "properties": {
                   "videoCodec": {
-                    "enum": ["h264", "vp8", "vp9", "av1"]
+                    "enum": [
+                      "h264",
+                      "vp8",
+                      "vp9",
+                      "av1"
+                    ]
                   }
                 }
               }
@@ -337,6 +387,11 @@
           "type": "boolean",
           "default": true,
           "description": "Signal workers to cleanup and exit after test completion"
+        },
+        "recycleBetweenCases": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stop the worker fleet after each test case and relaunch it for the next (historical behavior). Set false for multi-case real-browser runs: each stop/start cycle races secondsBetweenTestCases, and a case that comes up with fewer workers silently drops whole rooms. With false, the first case's fleet stays warm for the whole run and is shut down at the end."
         }
       }
     },
@@ -423,7 +478,12 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["BUNNY", "INTERVIEW", "GAME", "CUSTOM"],
+          "enum": [
+            "BUNNY",
+            "INTERVIEW",
+            "GAME",
+            "CUSTOM"
+          ],
           "default": "BUNNY",
           "description": "Video source type. BUNNY=standard test video, INTERVIEW=talking head, GAME=screen sharing, CUSTOM=custom URLs"
         },
@@ -650,7 +710,10 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["html", "txt"]
+            "enum": [
+              "html",
+              "txt"
+            ]
           },
           "description": "Output formats for test reports"
         }
@@ -661,21 +724,29 @@
     {
       "if": {
         "not": {
-          "required": ["aws"]
+          "required": [
+            "aws"
+          ]
         }
       },
       "then": {
-        "required": ["workers"],
+        "required": [
+          "workers"
+        ],
         "properties": {
           "workers": {
-            "required": ["urls"]
+            "required": [
+              "urls"
+            ]
           }
         }
       }
     },
     {
       "if": {
-        "required": ["aws"]
+        "required": [
+          "aws"
+        ]
       },
       "then": {
         "properties": {

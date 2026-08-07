@@ -39,7 +39,7 @@ metricbeat.modules:
       - diskio
     hosts: ["unix:///var/run/docker.sock"]
     enabled: true
-    period: 10s
+    period: 5s
 fields:
     worker_name: ${NODE_TYPE}_${NODE_ID}
     node_role: ${NODE_TYPE}

@@ -61,6 +61,7 @@ public abstract class LoadTestConfig {
 
     private boolean manualParticipantsAllocation;
     private boolean packWorkers;
+    private boolean recycleWorkersBetweenCases;
 
     private int usersPerWorker;
 
@@ -323,6 +324,17 @@ public abstract class LoadTestConfig {
         return exitOnEnd;
     }
 
+    /**
+     * Whether the worker fleet is stopped after each test case and relaunched
+     * for the next ({@code workers.recycleBetweenCases}, default true). When
+     * false, the fleet launched for the first case stays up and is reused by
+     * every subsequent case; workers are still shut down/terminated at the end
+     * of the run.
+     */
+    public boolean isRecycleWorkersBetweenCases() {
+        return recycleWorkersBetweenCases;
+    }
+
     public boolean isRetryMode() {
         return retryMode;
     }
@@ -510,6 +522,13 @@ public abstract class LoadTestConfig {
         // Default exitOnEnd to true
         Boolean exitOnEndConfig = yamlConfig.getBooleanOrNull("workers.exitOnEnd");
         exitOnEnd = exitOnEndConfig != null ? exitOnEndConfig : true;
+        // Default recycleBetweenCases to true (historical behavior: stop the fleet
+        // after every test case and relaunch it for the next one). Multi-case
+        // real-browser runs should set it to false: each stop/start cycle is a
+        // race against secondsBetweenTestCases, and cases that come up with fewer
+        // workers silently drop whole rooms.
+        Boolean recycleConfig = yamlConfig.getBooleanOrNull("workers.recycleBetweenCases");
+        recycleWorkersBetweenCases = recycleConfig != null ? recycleConfig : true;
         // Worker ports (optional)
         workerHttpPort = defaultIfMinusOne(asInt("workers.http.port"), 5000);
         workerWebsocketPort = defaultIfMinusOne(asInt("workers.websocket.port"), 5001);

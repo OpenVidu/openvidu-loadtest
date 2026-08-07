@@ -50,6 +50,14 @@ class LoadTestWorkerLifecycleOrchestrator {
 
     boolean launchInitialInstances() {
         if (loadTestService.isProdMode()) {
+            // With workers.recycleBetweenCases: false the fleet from the previous
+            // test case is still up and initialized — reuse it instead of
+            // launching (and double-adding) a new one.
+            if (!loadTestService.getAwsWorkersList().isEmpty()) {
+                log.info("Reusing the warm worker fleet ({} instances) for this test case",
+                        loadTestService.getAwsWorkersList().size());
+                return true;
+            }
             loadTestService.getAwsWorkersList().addAll(ec2Client.launchAndCleanInitialInstances());
             loadTestService.getRecordingWorkersList().addAll(ec2Client.launchAndCleanInitialRecordingInstances());
 

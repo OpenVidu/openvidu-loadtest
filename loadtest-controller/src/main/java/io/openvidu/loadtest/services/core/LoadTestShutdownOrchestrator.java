@@ -44,7 +44,10 @@ class LoadTestShutdownOrchestrator {
 
         calculateQoeIfEnabled();
 
-        if (loadTestService.isProdMode()) {
+        if (loadTestService.isProdMode() && loadTestConfig.isRecycleWorkersBetweenCases()) {
+            // Historical behavior: recycle the fleet after every test case.
+            // With recycleBetweenCases: false the fleet stays warm and the next
+            // case reuses it (see LoadTestWorkerLifecycleOrchestrator.launchInitialInstances).
             stopAndResetWorkers();
         }
 
