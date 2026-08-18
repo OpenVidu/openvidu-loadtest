@@ -378,6 +378,8 @@ With OpenVidu Pro and the mediasoup engine enabled, the same worker sustains mor
 - **`chrome` / `firefox`**: Per-user CPU usage at connection time, retry counts, individual WebRTC stats
 - **`emulated`**: Platform-level metrics from Grafana/Prometheus (if configured)
 
+> [!NOTE] `emulated` mode is also proven to generate more RTP packets than real browsers (measured by a factor of x3). This is: both will produce similar bandwidth in bytes per second, but `emulated` mode will generate smaller packets than real browsers. This is something to keep in mind when managing any kind of packets-per-second affected process.
+
 ### Workers
 
 Configuration for where browsers run. Workers can be manually provided and managed (Local workers) or automatically managed on AWS.
