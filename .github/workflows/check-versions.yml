@@ -26,6 +26,9 @@ jobs:
         with:
           version: 10
 
+      - name: Install safe-chain
+        uses: OpenVidu/actions/install-safe-chain@070fb73fda8fe7a08e28991b1c2d276f12a009ef # v1.0.22
+
       - name: Install browser-emulator dependencies
         run: |
           cd browser-emulator
