@@ -78,7 +78,10 @@ export class DirectLauncher implements EmulatedParticipantLauncher {
 		const fullCommand = this.buildCommand([...command, ...profilingFlags]);
 
 		this.logger.info(
-			{ participantId, command: redactSecretCliArgs(fullCommand).join(' ') },
+			{
+				participantId,
+				command: redactSecretCliArgs(fullCommand).join(' '),
+			},
 			'Starting lk process',
 		);
 
