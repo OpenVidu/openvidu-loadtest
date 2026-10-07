@@ -293,6 +293,13 @@ if [ "$ELK_VALIDATION_PASSED" = true ]; then
 		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_BROWSEREMULATOR_COUNT} document(s) with node_role:browseremulator (expected 2)"
 		ELK_VALIDATION_PASSED=false
 	fi
+
+	if [ "$ELK_VALIDATION_PASSED" = false ]; then
+		echo "Indexed loadtest-webrtc-stats-* documents (webrtcStats arrays omitted):"
+		curl -sf "${ES_BASE_URL}/loadtest-webrtc-stats-*/_search?size=50&_source_excludes=webrtcStats" 2>/dev/null \
+			| python3 -c "import sys,json; [print('  ' + json.dumps(h['_source'])) for h in json.load(sys.stdin)['hits']['hits']]" 2>/dev/null \
+			|| echo "  (could not retrieve documents)"
+	fi
 fi
 
 # ─── Kibana URL validation in reports ───────────────────────────────────

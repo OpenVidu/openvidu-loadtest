@@ -173,6 +173,15 @@ bash "$VALIDATION_SCRIPT_PATH" "$LOCAL_RESULTS_DIR"
 VALIDATION_EXIT_CODE=$?
 set -e
 
+# Print service logs on failure so CI failures can be diagnosed from the job log
+if [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
+    for service in browser-emulator loadtest-controller; do
+        echo "::group::docker compose logs $service"
+        docker compose logs --no-color "$service" 2>&1 || true
+        echo "::endgroup::"
+    done
+fi
+
 if [ "$KEEP_RUNNING" = true ]; then
     echo "Skipping service shutdown (--keep-running flag is set)."
     echo "Docker services are still running. Stop them manually with:"
