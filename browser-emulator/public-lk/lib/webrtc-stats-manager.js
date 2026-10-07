@@ -11,8 +11,6 @@ class WebRTCStatsManager {
         });
         this.savedStats = [];
         this.webrtcStats = new WebRTCStats({
-            // the interval in ms of how often we should get stats
-            getStatsInterval: this.statsInterval * 1000,
             // if we should include the original RTCStatsReport map when firing the `stats` event
             rawStats: false,
             // include an object that resulted from transforming RTCStatsReport into an oject (`report.id` as the key)
@@ -57,6 +55,8 @@ class WebRTCStatsManager {
                         this.statsInterval = 3;
                     }
                     console.debug('WebRtc stats interval: ' + this.statsInterval);
+                    // the interval in ms of how often we should get stats
+                    this.webrtcStats.getStatsInterval = Math.round(this.statsInterval * 1000);
         
                     this.sendInterval = this.webrtcStatsConfig.sendInterval; // Interval in seconds
                     if (!this.sendInterval) {
