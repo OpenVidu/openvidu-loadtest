@@ -4,7 +4,7 @@
 # This script validates standard smoke test results AND ELK integration:
 #   - metricbeat-* has docs for masternode, medianode, browseremulator
 #   - loadtest-openvidu-metrics-* has zero documents
-#   - loadtest-webrtc-stats-* has exactly 2 documents (User1 and User2, node_role:browseremulator)
+#   - loadtest-webrtc-stats-* has exactly 2 participant documents (User1 and User2, node_role:browseremulator)
 #   - TXT and HTML reports contain a valid Kibana dashboard URL
 #
 # Usage: ./validate-elk-smoke-test.sh <RESULTS_DIR>
@@ -258,13 +258,15 @@ if [ "$ELK_VALIDATION_PASSED" = true ]; then
 		echo "✓ loadtest-openvidu-metrics-* does not exist (no platform metrics indexed)"
 	fi
 
-	# Verify loadtest-webrtc-stats-* has exactly 2 documents: one per user (User1, User2),
-	# both indexed by the browser-emulator worker
-	WEBRTC_STATS_COUNT=$(count_docs "loadtest-webrtc-stats-*" "")
+	# Verify loadtest-webrtc-stats-* has exactly 2 participant documents: one per user
+	# (User1, User2), both indexed by the browser-emulator worker. Only documents with
+	# new_participant_id are counted: real browsers also POST their WebRTC stats to the
+	# same index, and how many of those land depends on timing.
+	WEBRTC_STATS_COUNT=$(count_docs "loadtest-webrtc-stats-*" "_exists_:new_participant_id")
 	if [ "$WEBRTC_STATS_COUNT" -eq 2 ]; then
-		echo "✓ loadtest-webrtc-stats-* has exactly 2 documents"
+		echo "✓ loadtest-webrtc-stats-* has exactly 2 participant documents"
 	else
-		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_COUNT} document(s) (expected 2)"
+		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_COUNT} participant document(s) (expected 2)"
 		ELK_VALIDATION_PASSED=false
 	fi
 
@@ -290,6 +292,13 @@ if [ "$ELK_VALIDATION_PASSED" = true ]; then
 	else
 		echo "✗ loadtest-webrtc-stats-* has ${WEBRTC_STATS_BROWSEREMULATOR_COUNT} document(s) with node_role:browseremulator (expected 2)"
 		ELK_VALIDATION_PASSED=false
+	fi
+
+	if [ "$ELK_VALIDATION_PASSED" = false ]; then
+		echo "Indexed loadtest-webrtc-stats-* documents (webrtcStats arrays omitted):"
+		curl -sf "${ES_BASE_URL}/loadtest-webrtc-stats-*/_search?size=50&_source_excludes=webrtcStats" 2>/dev/null \
+			| python3 -c "import sys,json; [print('  ' + json.dumps(h['_source'])) for h in json.load(sys.stdin)['hits']['hits']]" 2>/dev/null \
+			|| echo "  (could not retrieve documents)"
 	fi
 fi
 

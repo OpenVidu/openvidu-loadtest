@@ -3,13 +3,14 @@ class BrowserEmulatorConnector {
         try {
             let webrtcObj = localStorage.getItem(itemName);
             const maxRetries = 5;
-            const retryCount = 0;
+            let retryCount = 0;
             const backoffTime = 1000 + Math.floor(Math.random() * 2000);
 
             while (!webrtcObj && retryCount < maxRetries) {
                 console.warn("BrowserEmulatorConnector item with name" + itemName + " not found in localStorage, retrying in " + backoffTime + "ms...");
                 await new Promise((resolve) => setTimeout(resolve, backoffTime));
                 webrtcObj = localStorage.getItem(itemName);
+                retryCount++;
             }
 
             if (!webrtcObj) {

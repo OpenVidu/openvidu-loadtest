@@ -11,8 +11,6 @@ class WebRTCStatsManager {
         });
         this.savedStats = [];
         this.webrtcStats = new WebRTCStats({
-            // the interval in ms of how often we should get stats
-            getStatsInterval: this.statsInterval * 1000,
             // if we should include the original RTCStatsReport map when firing the `stats` event
             rawStats: false,
             // include an object that resulted from transforming RTCStatsReport into an oject (`report.id` as the key)
@@ -57,6 +55,8 @@ class WebRTCStatsManager {
                         this.statsInterval = 3;
                     }
                     console.debug('WebRtc stats interval: ' + this.statsInterval);
+                    // the interval in ms of how often we should get stats
+                    this.webrtcStats.getStatsInterval = Math.round(this.statsInterval * 1000);
         
                     this.sendInterval = this.webrtcStatsConfig.sendInterval; // Interval in seconds
                     if (!this.sendInterval) {
@@ -95,13 +95,14 @@ class WebRTCStatsManager {
             let ITEM_NAME = 'webrtc-stats-info';
             let webrtcObj = localStorage.getItem(ITEM_NAME);
             const maxRetries = 5;
-            const retryCount = 0;
+            let retryCount = 0;
             const backoffTime = 1000 + Math.floor(Math.random() * 2000);
 
             while (!webrtcObj && retryCount < maxRetries) {
                 console.warn("WebRTC stats not found in localStorage, retrying in " + backoffTime + "ms...");
                 await new Promise((resolve) => setTimeout(resolve, backoffTime));
                 webrtcObj = localStorage.getItem(ITEM_NAME);
+                retryCount++;
             }
 
             if (!webrtcObj) {
