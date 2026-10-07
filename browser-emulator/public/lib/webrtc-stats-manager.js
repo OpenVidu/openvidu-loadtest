@@ -95,13 +95,14 @@ class WebRTCStatsManager {
             let ITEM_NAME = 'webrtc-stats-info';
             let webrtcObj = localStorage.getItem(ITEM_NAME);
             const maxRetries = 5;
-            const retryCount = 0;
+            let retryCount = 0;
             const backoffTime = 1000 + Math.floor(Math.random() * 2000);
 
             while (!webrtcObj && retryCount < maxRetries) {
                 console.warn("WebRTC stats not found in localStorage, retrying in " + backoffTime + "ms...");
                 await new Promise((resolve) => setTimeout(resolve, backoffTime));
                 webrtcObj = localStorage.getItem(ITEM_NAME);
+                retryCount++;
             }
 
             if (!webrtcObj) {
