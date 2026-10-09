@@ -317,6 +317,7 @@ class AwsScaleMultiFailureIntegrationTest {
         }
 
         System.clearProperty("RESULTS_DIR");
+        IntegrationTestEnvironment.reset();
         log.info("Cleanup complete");
     }
 
