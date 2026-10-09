@@ -175,7 +175,11 @@ set -e
 
 # Print service logs on failure so CI failures can be diagnosed from the job log
 if [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
-    for service in browser-emulator loadtest-controller; do
+    LOG_SERVICES="browser-emulator loadtest-controller"
+    if [ -n "$ELK_PROFILE" ]; then
+        LOG_SERVICES="$LOG_SERVICES metricbeat-masternode metricbeat-medianode metricbeat-browseremulator"
+    fi
+    for service in $LOG_SERVICES; do
         echo "::group::docker compose logs $service"
         docker compose logs --no-color "$service" 2>&1 || true
         echo "::endgroup::"
