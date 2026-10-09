@@ -44,9 +44,14 @@ public class IntegrationTestEnvironment {
     public static String createdSecurityGroupId;
     public static String createdAmiId;
 
+    // Floci endpoint the current mocks, security group and AMI belong to. Each
+    // test class has its own Floci container, so state set up for another
+    // container (or already stopped by its class) must not be reused
+    private static String setUpForEndpoint;
+
     public static synchronized void configureFlociAndStartMocks(DynamicPropertyRegistry registry, FlociContainer floci,
             String securityGroupName, String amiName, String failUser, String failSession) {
-        startMocksInternal(floci, securityGroupName, amiName, failUser, failSession);
+        ensureSetUp(floci, securityGroupName, amiName, failUser, failSession);
 
         String ec2Endpoint = floci.getEndpoint() + "/";
         registry.add("aws.endpointOverride", () -> ec2Endpoint);
@@ -58,22 +63,63 @@ public class IntegrationTestEnvironment {
 
     public static synchronized void startMocksIfNeeded(FlociContainer floci, String securityGroupName, String amiName,
             String failUser, String failSession) {
-        if (browserEmulatorMock == null || webSocketMockServer == null || failureSimulator == null) {
-            startMocksInternal(floci, securityGroupName, amiName, failUser, failSession);
+        ensureSetUp(floci, securityGroupName, amiName, failUser, failSession);
+    }
 
-            if (browserEmulatorMock != null) {
-                System.setProperty("workers.http.port", String.valueOf(browserEmulatorMock.getPort()));
-            }
-            if (webSocketMockServer != null) {
-                System.setProperty("workers.websocket.port", String.valueOf(webSocketMockServer.getPort()));
-            }
-            if (createdSecurityGroupId != null) {
-                System.setProperty("aws.securityGroupId", createdSecurityGroupId);
-            }
-            if (createdAmiId != null) {
-                System.setProperty("aws.amiId", createdAmiId);
+    /**
+     * Starts the mocks and provisions the security group and AMI once per Floci
+     * container. Both a test's @BeforeAll and its @DynamicPropertySource call
+     * this; whichever runs second gets the existing state.
+     */
+    private static void ensureSetUp(FlociContainer floci, String securityGroupName, String amiName,
+            String failUser, String failSession) {
+        String endpoint = floci.getEndpoint();
+        if (endpoint.equals(setUpForEndpoint)) {
+            return;
+        }
+        reset();
+        startMocksInternal(floci, securityGroupName, amiName, failUser, failSession);
+        setUpForEndpoint = endpoint;
+
+        if (browserEmulatorMock != null) {
+            System.setProperty("workers.http.port", String.valueOf(browserEmulatorMock.getPort()));
+        }
+        if (webSocketMockServer != null) {
+            System.setProperty("workers.websocket.port", String.valueOf(webSocketMockServer.getPort()));
+        }
+        if (createdSecurityGroupId != null) {
+            System.setProperty("aws.securityGroupId", createdSecurityGroupId);
+        }
+        if (createdAmiId != null) {
+            System.setProperty("aws.amiId", createdAmiId);
+        }
+    }
+
+    /**
+     * Stops the mocks and clears all shared state, so the next test class sets
+     * up fresh mocks against its own Floci container. Call from @AfterAll.
+     */
+    public static synchronized void reset() {
+        if (webSocketMockServer != null) {
+            try {
+                webSocketMockServer.stop();
+            } catch (Exception e) {
+                log.debug("Error stopping WebSocket mock server: {}", e.getMessage());
             }
         }
+        if (browserEmulatorMock != null) {
+            try {
+                browserEmulatorMock.stop();
+            } catch (Exception e) {
+                log.debug("Error stopping browser emulator mock server: {}", e.getMessage());
+            }
+        }
+        browserEmulatorMock = null;
+        webSocketMockServer = null;
+        failureSimulator = null;
+        createdSecurityGroupId = null;
+        createdAmiId = null;
+        setUpForEndpoint = null;
     }
 
     private static void startMocksInternal(FlociContainer floci, String securityGroupName, String amiName,
