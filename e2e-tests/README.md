@@ -175,8 +175,9 @@ The ELK smoke test (`elk-smoke-test-config.yaml`) adds these validations on top 
 - `metricbeat-*` has ≥1 document with `fields.node_role:masternode`
 - `metricbeat-*` has ≥1 document with `fields.node_role:medianode`
 - `metricbeat-*` has ≥1 document with `fields.node_role:browseremulator`
+  - Each role is polled for up to 60s (override with `METRICBEAT_WAIT_SECONDS`) in case a Metricbeat is still shipping its first batch. The Metricbeat containers only start once Elasticsearch's healthcheck passes.
 - `loadtest-openvidu-metrics-*` has 0 documents (controller does not index platform metrics)
-- `loadtest-webrtc-stats-*` has exactly 2 documents: one with `new_participant_id:User1` and one with `new_participant_id:User2`, both with `node_role:browseremulator`
+- `loadtest-webrtc-stats-*` has exactly 2 participant documents (documents with `new_participant_id`): one for `User1` and one for `User2`, both with `node_role:browseremulator`. WebRTC stats documents POSTed by real browsers to the same index are not counted, since how many arrive depends on timing.
 
 **Kibana URL validation:**
 
@@ -187,7 +188,7 @@ The ELK smoke test (`elk-smoke-test-config.yaml`) adds these validations on top 
 
 The test config sets `monitoring.elasticsearch.host` (so the controller passes it to the browser-emulator, which launches its own Metricbeat) and `monitoring.kibana.host` (so dashboards are imported and the report includes a dashboard URL). Grafana is intentionally omitted — the controller's `collectPlatformMetrics()` returns an empty list, so `indexPlatformMetrics()` is never called, and no documents are written to `loadtest-openvidu-metrics-*`.
 
-If validation fails, the result files are kept in the `results/` directory for debugging. On success, the validation scripts normally delete the result files — pass `--keep-results`/`-r` to keep them regardless of the validation outcome.
+If validation fails, the result files are kept in the `results/` directory for debugging, and the runner prints the `browser-emulator` and `loadtest-controller` logs (plus the Metricbeat logs for `--elk` runs) in collapsible groups in the CI log. The ELK validation also lists the indexed `loadtest-webrtc-stats-*` documents. On success, the validation scripts normally delete the result files — pass `--keep-results`/`-r` to keep them regardless of the validation outcome.
 
 ## Notes
 
