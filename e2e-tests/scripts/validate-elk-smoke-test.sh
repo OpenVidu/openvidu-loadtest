@@ -48,6 +48,25 @@ count_docs() {
 	curl -sf "$url" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('count', 0))" 2>/dev/null || echo 0
 }
 
+# ─── Helper: wait until ES has documents matching a query ───────────────
+# Prints the final count; polls every 5s for up to METRICBEAT_WAIT_SECONDS
+
+METRICBEAT_WAIT_SECONDS="${METRICBEAT_WAIT_SECONDS:-60}"
+
+wait_for_docs() {
+	local index_pattern="$1"
+	local query="$2"
+	local waited=0
+	local count
+	count=$(count_docs "$index_pattern" "$query")
+	while [ "$count" -lt 1 ] && [ "$waited" -lt "$METRICBEAT_WAIT_SECONDS" ]; do
+		sleep 5
+		waited=$((waited + 5))
+		count=$(count_docs "$index_pattern" "$query")
+	done
+	echo "$count"
+}
+
 # ─── Helper: check index exists ─────────────────────────────────────────
 
 index_exists() {
@@ -218,32 +237,17 @@ if [ "$ELK_VALIDATION_PASSED" = true ]; then
 	# Small pause for documents to be indexed
 	sleep 5
 
-	# Check metricbeat-* docs with node_role:masternode
-	MASTER_COUNT=$(count_docs "metricbeat-*" "fields.node_role:masternode")
-	if [ "$MASTER_COUNT" -ge 1 ]; then
-		echo "✓ metricbeat-* has ${MASTER_COUNT} document(s) with node_role:masternode"
-	else
-		echo "✗ metricbeat-* missing documents with node_role:masternode"
-		ELK_VALIDATION_PASSED=false
-	fi
-
-	# Check metricbeat-* docs with node_role:medianode
-	MEDIA_COUNT=$(count_docs "metricbeat-*" "fields.node_role:medianode")
-	if [ "$MEDIA_COUNT" -ge 1 ]; then
-		echo "✓ metricbeat-* has ${MEDIA_COUNT} document(s) with node_role:medianode"
-	else
-		echo "✗ metricbeat-* missing documents with node_role:medianode"
-		ELK_VALIDATION_PASSED=false
-	fi
-
-	# Check metricbeat-* docs with node_role:browseremulator
-	WORKER_COUNT=$(count_docs "metricbeat-*" "fields.node_role:browseremulator")
-	if [ "$WORKER_COUNT" -ge 1 ]; then
-		echo "✓ metricbeat-* has ${WORKER_COUNT} document(s) with node_role:browseremulator"
-	else
-		echo "✗ metricbeat-* missing documents with node_role:browseremulator"
-		ELK_VALIDATION_PASSED=false
-	fi
+	# Check metricbeat-* has docs for every node role. Metricbeat may still be
+	# shipping its first batch, so wait for each role instead of checking once
+	for NODE_ROLE in masternode medianode browseremulator; do
+		ROLE_COUNT=$(wait_for_docs "metricbeat-*" "fields.node_role:${NODE_ROLE}")
+		if [ "$ROLE_COUNT" -ge 1 ]; then
+			echo "✓ metricbeat-* has ${ROLE_COUNT} document(s) with node_role:${NODE_ROLE}"
+		else
+			echo "✗ metricbeat-* missing documents with node_role:${NODE_ROLE} (waited ${METRICBEAT_WAIT_SECONDS}s)"
+			ELK_VALIDATION_PASSED=false
+		fi
+	done
 
 	# Verify loadtest-openvidu-metrics-* has zero documents
 	if index_exists "loadtest-openvidu-metrics-*"; then
