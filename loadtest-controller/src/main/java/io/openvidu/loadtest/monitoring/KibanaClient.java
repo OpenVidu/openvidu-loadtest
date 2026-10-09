@@ -32,6 +32,7 @@ import io.openvidu.loadtest.utils.JsonUtils;
 @Service
 public class KibanaClient {
 
+    private static final String API_STATUS = "/api/status";
     private static final String API_IMPORT_OBJECTS = "/api/saved_objects/_import?overwrite=true";
     private static final String API_EXPORT_SAVED_OBJECTS = "/api/saved_objects/_export";
     private static final String KIBANA_DASHBOARD_URL = "/app/kibana#/dashboard/";
@@ -74,6 +75,15 @@ public class KibanaClient {
 
         for (int i = 1; i <= this.maxRetries; i++) {
             try {
+                // While starting up, Kibana answers API calls with misleading errors
+                // (e.g. 415 for the multipart import), so wait until it reports ready
+                if (!isKibanaReady()) {
+                    log.info("Kibana is not ready yet (attempt {}/{})", i, this.maxRetries);
+                    if (i < this.maxRetries) {
+                        this.sleeper.sleep(this.retryDelaySeconds, "waiting for Kibana to be ready");
+                    }
+                    continue;
+                }
                 Resource resource = resourceLoader.getResource("classpath:loadtest.ndjson");
                 File file = resourceToFile(resource);
                 importSavedObjects(file);
@@ -90,6 +100,30 @@ public class KibanaClient {
 
         log.error("Can't import dashboard to Kibana at {} after {} attempts", this.kibanaHost,
                 this.maxRetries);
+    }
+
+    private boolean isKibanaReady() {
+        final String URL = this.kibanaHost + API_STATUS;
+        try {
+            HttpResponse<String> response = this.httpClient.sendGet(URL, buildHeaders());
+            return response.statusCode() == HTTP_STATUS_OK;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (IOException e) {
+            log.debug("Kibana status check at {} failed: {}", URL, e.getMessage());
+            return false;
+        }
+    }
+
+    private Map<String, String> buildHeaders() {
+        Map<String, String> headers = new HashMap<>();
+        if (loadTestConfig.isElasticSearchSecured()) {
+            headers.put("Authorization", getBasicAuth(loadTestConfig.getElasticsearchUserName(),
+                    loadTestConfig.getElasticsearchPassword()));
+        }
+        headers.put("kbn-xsrf", "true");
+        return headers;
     }
 
     private File resourceToFile(Resource resource) throws IOException {
@@ -111,15 +145,7 @@ public class KibanaClient {
         }
 
         final String URL = this.loadTestConfig.getKibanaHost() + API_EXPORT_SAVED_OBJECTS;
-        Map<String, String> headers = new HashMap<>();
-
-        String esUserName = loadTestConfig.getElasticsearchUserName();
-        String esPassword = loadTestConfig.getElasticsearchPassword();
-        boolean securityEnabled = loadTestConfig.isElasticSearchSecured();
-        if (securityEnabled) {
-            headers.put("Authorization", getBasicAuth(esUserName, esPassword));
-        }
-        headers.put("kbn-xsrf", "true");
+        Map<String, String> headers = buildHeaders();
 
         JsonObject body = new JsonObject();
         body.addProperty("type", "dashboard");
@@ -178,16 +204,7 @@ public class KibanaClient {
     private void importSavedObjects(File file) throws IOException {
         final String URL = this.kibanaHost + API_IMPORT_OBJECTS;
         HttpResponse<String> response = null;
-        Map<String, String> headers = new HashMap<>();
-
-        // Basic auth header
-        String esUserName = loadTestConfig.getElasticsearchUserName();
-        String esPassword = loadTestConfig.getElasticsearchPassword();
-        boolean securityEnabled = loadTestConfig.isElasticSearchSecured();
-        if (securityEnabled) {
-            headers.put("Authorization", getBasicAuth(esUserName, esPassword));
-        }
-        headers.put("kbn-xsrf", "true");
+        Map<String, String> headers = buildHeaders();
 
         try {
             response = this.httpClient.sendPost(URL, null, file, headers);
