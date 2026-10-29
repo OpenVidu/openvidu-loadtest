@@ -24,7 +24,7 @@ jobs:
           version: 10
 
       - name: Install safe-chain
-        uses: OpenVidu/actions/install-safe-chain@ccd21721ffb48bdeb889526d3a0b496c451ffd48 # v1.0.24
+        uses: OpenVidu/actions/install-safe-chain@26a149ff32c72503a7c7ce4fb5fa4d000cb3262d # 1.0.25
 
       - name: Clean workspace from previous run
         run: |
@@ -52,4 +52,4 @@ jobs:
 
       - name: Clean up
         if: always()
-        uses: OpenVidu/actions/cleanup@ccd21721ffb48bdeb889526d3a0b496c451ffd48 # v1.0.24
+        uses: OpenVidu/actions/cleanup@26a149ff32c72503a7c7ce4fb5fa4d000cb3262d # 1.0.25
