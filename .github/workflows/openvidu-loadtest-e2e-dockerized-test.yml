@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
   
       - name: Setup OpenVidu Local Deployment
-        uses: OpenVidu/actions/start-openvidu-local-deployment@b4ecef6892b666b42fe037bc66b696ac9807f205 # v1.0.26
+        uses: OpenVidu/actions/start-openvidu-local-deployment@000cbf6a8b545a5588f11028f71fe18a54c18579 # v1.0.27
         with:
           ref-openvidu-local-deployment: main
 
@@ -80,4 +80,4 @@ jobs:
 
       - name: Clean up
         if: always()
-        uses: OpenVidu/actions/cleanup@b4ecef6892b666b42fe037bc66b696ac9807f205 # v1.0.26
+        uses: OpenVidu/actions/cleanup@000cbf6a8b545a5588f11028f71fe18a54c18579 # v1.0.27

@@ -23,7 +23,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install safe-chain
-        uses: OpenVidu/actions/install-safe-chain@b4ecef6892b666b42fe037bc66b696ac9807f205 # v1.0.26
+        uses: OpenVidu/actions/install-safe-chain@000cbf6a8b545a5588f11028f71fe18a54c18579 # v1.0.27
 
       - name: Install Vagrant & VirtualBox
         run: |
